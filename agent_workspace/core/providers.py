@@ -195,13 +195,17 @@ class GoogleGenAIProvider(BaseLLMProvider):
             candidate = response.candidates[0]
             parts = candidate.content.parts
 
+            tool_calls = []
             for part in parts:
                 if hasattr(part, "function_call") and part.function_call:
                     fc = part.function_call
-                    return "tool_call", {
+                    tool_calls.append({
                         "name": fc.name,
                         "arguments": dict(fc.args) if fc.args else {},
-                    }
+                    })
+                    
+            if tool_calls:
+                return "tool_calls", tool_calls
 
             text = response.text if hasattr(response, "text") else ""
             return "text", text

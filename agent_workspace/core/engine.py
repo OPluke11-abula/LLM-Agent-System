@@ -94,11 +94,11 @@ class AgentEngine:
             })
         return schemas
 
-    def execute_tool(self, tool_name: str, arguments: dict, allowed_tools: list[str] = None) -> str:
+    def execute_tool(self, tool_name: str, arguments: dict, allowed_tools: list[str] = None, context: dict = None) -> str:
         """
         安全執行指定的工具。
         使用 Pydantic 做二次校驗後才真正呼叫函數。
-        若提供 allowed_tools，則進行權限檢查。
+        支援依賴注入：若工具函數宣告了 `context` 參數，自動傳入系統 context。
         """
         if allowed_tools is not None and tool_name not in allowed_tools:
             raise PermissionError(f"權限不足：工具 '{tool_name}' 不在您的允許列表內。")
@@ -107,9 +107,14 @@ class AgentEngine:
             raise KeyError(f"未知的工具名稱：'{tool_name}'。已註冊：{list(self.tools_registry.keys())}")
 
         tool = self.tools_registry[tool_name]
-        # 用 Pydantic 進行型別校驗 (防止 LLM 傳入錯誤參數)
         validated_args = tool["args_model"](**arguments)
-        result = tool["function"](validated_args)
+        
+        # 依賴注入 (Dependency Injection)
+        if tool["wants_context"]:
+            result = tool["function"](validated_args, context=context or {})
+        else:
+            result = tool["function"](validated_args)
+            
         return str(result)
 
     def summary(self) -> str:
@@ -250,19 +255,22 @@ class AgentEngine:
             sig = inspect.signature(func)
             params = list(sig.parameters.values())
 
-            # 有效工具：恰好一個參數，且型別為 Pydantic BaseModel
-            if len(params) != 1:
+            # 有效工具：第一個參數必須是 Pydantic BaseModel
+            if len(params) < 1:
                 continue
 
             annotation = params[0].annotation
             if not (inspect.isclass(annotation) and issubclass(annotation, BaseModel)):
                 continue
+                
+            wants_context = "context" in sig.parameters
 
             self.tools_registry[name] = {
                 "function": func,
                 "args_model": annotation,
                 "description": inspect.getdoc(func),
                 "schema": annotation.model_json_schema(),
+                "wants_context": wants_context,
             }
 
 

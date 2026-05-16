@@ -217,69 +217,95 @@ class AgentRouter:
         iteration = 0
         tool_failure_counts = {}
 
-        while iteration < self.max_iterations:
-            iteration += 1
-            logger.info(f"[迭代 {iteration}/{self.max_iterations}]")
+        try:
+            while iteration < self.max_iterations:
+                iteration += 1
+                logger.info(f"[迭代 {iteration}/{self.max_iterations}]")
 
-            # 呼叫 LLM (異步)
-            llm_config = self._config.get("llm", {}).copy()
-            if output_schema:
-                llm_config["output_schema"] = output_schema
+                llm_config = self._config.get("llm", {}).copy()
+                if output_schema:
+                    llm_config["output_schema"] = output_schema
 
-            response_type, response_data = await self._provider.generate_content(
-                system_prompt=system_prompt,
-                messages=messages,
-                tool_schemas=tool_schemas,
-                config=llm_config
-            )
+                response_type, response_data = await self._provider.generate_content(
+                    system_prompt=system_prompt,
+                    messages=messages,
+                    tool_schemas=tool_schemas,
+                    config=llm_config
+                )
 
-            if response_type == "error":
-                final_response = f"Error: LLM 呼叫失敗 — {response_data}"
-                logger.error(final_response)
-                break
+                if response_type == "error":
+                    final_response = f"Error: LLM 呼叫失敗 — {response_data}"
+                    logger.error(final_response)
+                    break
 
-            if response_type == "text":
-                # LLM 回傳了最終文字回覆
-                final_response = response_data
-                logger.info(f"  → 最終回覆 ({len(final_response)} chars)")
-                break
+                if response_type == "text":
+                    final_response = response_data
+                    logger.info(f"  → 最終回覆 ({len(final_response)} chars)")
+                    break
 
-            elif response_type == "tool_call":
-                # LLM 要求工具調用
-                tool_name = response_data.get("name", "")
-                tool_args = response_data.get("arguments", {})
-                logger.info(f"  → 工具調用: {tool_name}({json.dumps(tool_args, ensure_ascii=False)})")
+                elif response_type in ("tool_call", "tool_calls"):
+                    # [Parallel Tool Calling] 支援單一或多個並發工具
+                    tool_calls_list = response_data if response_type == "tool_calls" else [response_data]
+                    
+                    tasks = []
+                    system_context = {"session_id": self.session_id, "memory": self.memory}
+                    
+                    for tc in tool_calls_list:
+                        tool_name = tc.get("name", "")
+                        tool_args = tc.get("arguments", {})
+                        logger.info(f"  → 工具調用: {tool_name}({json.dumps(tool_args, ensure_ascii=False)})")
+                        
+                        tasks.append(asyncio.to_thread(
+                            self.engine.execute_tool,
+                            tool_name, tool_args, allowed_tools, system_context
+                        ))
+                    
+                    # 併發執行
+                    results = await asyncio.gather(*tasks, return_exceptions=True)
+                    
+                    handoff_triggered = False
+                    for tc, result in zip(tool_calls_list, results):
+                        tool_name = tc.get("name", "")
+                        if isinstance(result, Exception):
+                            tool_result = f"Error: 工具執行失敗 — {result}"
+                        else:
+                            tool_result = str(result)
 
-                # 執行工具 (同步)
-                try:
-                    tool_result = self.engine.execute_tool(tool_name, tool_args, allowed_tools)
-                except Exception as e:
-                    tool_result = f"Error: 工具執行失敗 — {e}"
+                        # [Handoff] 攔截移交訊號
+                        if tool_result.startswith("HANDOFF_TO:"):
+                            target_agent = tool_result.split("HANDOFF_TO:")[1].strip()
+                            final_response = f"[系統提示：對話已移交給智能體 {target_agent}]"
+                            logger.info(f"  → 觸發 Handoff: 移交至 {target_agent}")
+                            handoff_triggered = True
+                            break
 
-                # [Self-Correction] 紀錄錯誤並在連續失敗時中斷幻覺
-                if tool_result.startswith("Error:") or "失敗" in tool_result:
-                    tool_failure_counts[tool_name] = tool_failure_counts.get(tool_name, 0) + 1
-                    logger.warning(f"  ⚠ 工具 {tool_name} 執行失敗 (第 {tool_failure_counts[tool_name]} 次): {tool_result}")
+                        if tool_result.startswith("Error:") or "失敗" in tool_result:
+                            tool_failure_counts[tool_name] = tool_failure_counts.get(tool_name, 0) + 1
+                            logger.warning(f"  ⚠ 工具 {tool_name} 執行失敗 (第 {tool_failure_counts[tool_name]} 次): {tool_result}")
+                        else:
+                            tool_failure_counts[tool_name] = 0
+
+                        messages.append({"role": "assistant", "tool_call": tc})
+                        messages.append({"role": "tool", "name": tool_name, "content": tool_result})
+                        
+                        if tool_failure_counts.get(tool_name, 0) >= 3:
+                            warning_msg = f"System Warning: You have failed using the tool '{tool_name}' 3 times. Please stop trying and ask the user for clarification."
+                            messages.append({"role": "user", "content": warning_msg})
+                            logger.error(f"  ⚠ 強制中斷 {tool_name} 的無限重試。")
+                    
+                    if handoff_triggered:
+                        break
+
                 else:
-                    tool_failure_counts[tool_name] = 0  # 成功則重置
+                    final_response = f"Error: 無法解析 LLM 回應類型 '{response_type}'。"
+                    logger.error(final_response)
+                    break
 
-                # 將工具結果附加到訊息歷史，讓 LLM 看到結果
-                messages.append({"role": "assistant", "tool_call": response_data})
-                messages.append({"role": "tool", "name": tool_name, "content": tool_result})
-                
-                # 若錯誤達 3 次，強行插入系統警告
-                if tool_failure_counts.get(tool_name, 0) >= 3:
-                    warning_msg = f"System Warning: You have failed using the tool '{tool_name}' 3 times. Please stop trying and ask the user for clarification."
-                    messages.append({"role": "user", "content": warning_msg})
-                    logger.error(f"  ⚠ 已觸發錯誤防護機制：強制中斷 {tool_name} 的無限重試。")
-
-                logger.debug(f"  → 工具結果: {tool_result[:200]}")
-                # 繼續迴圈，讓 LLM 根據工具結果決定下一步
-
-            else:
-                final_response = f"Error: 無法解析 LLM 回應類型 '{response_type}'。"
-                logger.error(final_response)
-                break
+        except asyncio.CancelledError:
+            # [Graceful Cancellation] 優雅中斷
+            logger.warning(f"  ⚠ Agent Loop 被外部中斷 (Session: {self.session_id})")
+            final_response += "\n[系統提示：使用者已中斷]"
+            # 不重拋異常，而是安全寫入記憶體並回傳
 
         if iteration >= self.max_iterations:
             final_response = (
@@ -323,81 +349,108 @@ class AgentRouter:
         iteration = 0
         tool_failure_counts = {}
 
-        while iteration < self.max_iterations:
-            iteration += 1
-            llm_config = self._config.get("llm", {}).copy()
-            if output_schema:
-                llm_config["output_schema"] = output_schema
-            
-            yield {"type": "status", "content": "thinking"}
+        try:
+            while iteration < self.max_iterations:
+                iteration += 1
+                llm_config = self._config.get("llm", {}).copy()
+                if output_schema:
+                    llm_config["output_schema"] = output_schema
+                
+                yield {"type": "status", "content": "thinking"}
 
-            response_stream = self._provider.generate_content_stream(
-                system_prompt=system_prompt,
-                messages=messages,
-                tool_schemas=tool_schemas,
-                config=llm_config
-            )
+                response_stream = self._provider.generate_content_stream(
+                    system_prompt=system_prompt,
+                    messages=messages,
+                    tool_schemas=tool_schemas,
+                    config=llm_config
+                )
 
-            is_tool_call = False
-            tool_call_data = {}
-            current_text = ""
+                is_tool_call = False
+                tool_calls_list = []
+                current_text = ""
 
-            async for resp_type, resp_data in response_stream:
-                if resp_type == "error":
-                    final_response = f"Error: LLM 呼叫失敗 — {resp_data}"
-                    logger.error(final_response)
-                    yield {"type": "error", "content": final_response}
+                async for resp_type, resp_data in response_stream:
+                    if resp_type == "error":
+                        final_response = f"Error: LLM 呼叫失敗 — {resp_data}"
+                        logger.error(final_response)
+                        yield {"type": "error", "content": final_response}
+                        break
+                        
+                    elif resp_type in ("tool_call", "tool_calls"):
+                        is_tool_call = True
+                        tool_calls_list = resp_data if resp_type == "tool_calls" else [resp_data]
+                        break  # tool call chunk is usually singular or we just break on first one
+                        
+                    elif resp_type == "text":
+                        current_text += resp_data
+                        yield {"type": "text_chunk", "content": resp_data}
+
+                if is_tool_call:
+                    tasks = []
+                    system_context = {"session_id": self.session_id, "memory": self.memory}
+                    
+                    for tc in tool_calls_list:
+                        tool_name = tc.get("name", "")
+                        tool_args = tc.get("arguments", {})
+                        yield {"type": "tool_call", "name": tool_name, "arguments": tool_args}
+                        
+                        tasks.append(asyncio.to_thread(
+                            self.engine.execute_tool,
+                            tool_name, tool_args, allowed_tools, system_context
+                        ))
+                    
+                    results = await asyncio.gather(*tasks, return_exceptions=True)
+                    
+                    handoff_triggered = False
+                    for tc, result in zip(tool_calls_list, results):
+                        tool_name = tc.get("name", "")
+                        if isinstance(result, Exception):
+                            tool_result = f"Error: 工具執行失敗 — {result}"
+                        else:
+                            tool_result = str(result)
+                    
+                        yield {"type": "tool_result", "name": tool_name, "result": tool_result}
+
+                        if tool_result.startswith("HANDOFF_TO:"):
+                            target_agent = tool_result.split("HANDOFF_TO:")[1].strip()
+                            final_response = f"[系統提示：對話已移交給智能體 {target_agent}]"
+                            yield {"type": "text_chunk", "content": f"\n{final_response}\n"}
+                            handoff_triggered = True
+                            break
+
+                        if tool_result.startswith("Error:") or "失敗" in tool_result:
+                            tool_failure_counts[tool_name] = tool_failure_counts.get(tool_name, 0) + 1
+                        else:
+                            tool_failure_counts[tool_name] = 0
+
+                        messages.append({"role": "assistant", "tool_call": tc})
+                        messages.append({"role": "tool", "name": tool_name, "content": tool_result})
+                        
+                        if tool_failure_counts.get(tool_name, 0) >= 3:
+                            warning_msg = f"System Warning: You have failed using the tool '{tool_name}' 3 times. Please stop trying and ask the user for clarification."
+                            messages.append({"role": "user", "content": warning_msg})
+                            
+                    if handoff_triggered:
+                        break
+
+                    continue
+                
+                if current_text:
+                    final_response = current_text
                     break
                     
-                elif resp_type == "tool_call":
-                    is_tool_call = True
-                    tool_call_data = resp_data
-                    break  # tool call chunk is usually singular or we just break on first one
-                    
-                elif resp_type == "text":
-                    current_text += resp_data
-                    yield {"type": "text_chunk", "content": resp_data}
+                if not is_tool_call and not current_text:
+                    if not final_response:
+                        final_response = "Error: LLM 未回傳任何有效內容。"
+                    break
 
-            if is_tool_call:
-                tool_name = tool_call_data.get("name", "")
-                tool_args = tool_call_data.get("arguments", {})
-                yield {"type": "tool_call", "name": tool_name, "arguments": tool_args}
-                
-                try:
-                    tool_result = self.engine.execute_tool(tool_name, tool_args, allowed_tools)
-                except Exception as e:
-                    tool_result = f"Error: 工具執行失敗 — {e}"
-                
-                yield {"type": "tool_result", "name": tool_name, "result": tool_result}
+            if iteration >= self.max_iterations:
+                final_response = f"Error: 已達最大迭代次數 ({self.max_iterations})。"
+                yield {"type": "error", "content": final_response}
 
-                # [Self-Correction] 紀錄錯誤並在連續失敗時中斷幻覺
-                if tool_result.startswith("Error:") or "失敗" in tool_result:
-                    tool_failure_counts[tool_name] = tool_failure_counts.get(tool_name, 0) + 1
-                else:
-                    tool_failure_counts[tool_name] = 0
-
-                messages.append({"role": "assistant", "tool_call": tool_call_data})
-                messages.append({"role": "tool", "name": tool_name, "content": tool_result})
-                
-                # 若錯誤達 3 次，強行插入系統警告
-                if tool_failure_counts.get(tool_name, 0) >= 3:
-                    warning_msg = f"System Warning: You have failed using the tool '{tool_name}' 3 times. Please stop trying and ask the user for clarification."
-                    messages.append({"role": "user", "content": warning_msg})
-
-                continue
-            
-            if current_text:
-                final_response = current_text
-                break
-                
-            if not is_tool_call and not current_text:
-                if not final_response:
-                    final_response = "Error: LLM 未回傳任何有效內容。"
-                break
-
-        if iteration >= self.max_iterations:
-            final_response = f"Error: 已達最大迭代次數 ({self.max_iterations})。"
-            yield {"type": "error", "content": final_response}
+        except asyncio.CancelledError:
+            logger.warning(f"  ⚠ Stream Agent Loop 被外部中斷 (Session: {self.session_id})")
+            final_response += "\n[系統提示：使用者已中斷]"
 
         limit_reached = self.memory.append_conversation(user_input, final_response)
         if limit_reached:
