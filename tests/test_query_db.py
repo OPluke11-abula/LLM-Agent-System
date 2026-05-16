@@ -20,6 +20,14 @@ class QueryDBSkillTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             query_db(args)
 
+    def test_query_db_rejects_file_write_clause(self) -> None:
+        args = QueryDBArgs(
+            query="SELECT * INTO OUTFILE '/tmp/users.csv' FROM users",
+            limit=1,
+        )
+        with self.assertRaises(ValueError):
+            query_db(args)
+
 
 if __name__ == "__main__":
     unittest.main()

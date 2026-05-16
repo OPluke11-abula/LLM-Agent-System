@@ -19,9 +19,12 @@ class QueryDBArgs(BaseModel):
 
 def query_db(args: QueryDBArgs) -> str:
     """Execute a database query using validated arguments."""
-    normalized_query = args.query.strip().lower()
+    raw_query = args.query.strip()
+    normalized_query = raw_query.lower()
     if not normalized_query.startswith("select"):
         raise ValueError("Only read-only SELECT queries are allowed.")
-    if ";" in normalized_query:
+    if ";" in raw_query:
         raise ValueError("Multiple statements are not allowed.")
+    if " into outfile" in normalized_query or " into dumpfile" in normalized_query:
+        raise ValueError("File-writing clauses are not allowed.")
     return f"Query requested: {args.query} (limit={args.limit})"
