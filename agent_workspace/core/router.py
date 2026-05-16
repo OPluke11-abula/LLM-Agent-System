@@ -253,6 +253,94 @@ class AgentRouter:
 
         return final_response
 
+    async def stream_agent_loop(self, user_input: str):
+        """
+        串流執行迴圈 (AsyncGenerator)。
+        主動向外部廣播當前狀態（thinking, tool_call, tool_result）與逐字串流 (text_chunk)。
+        """
+        context_vars = {
+            "current_time": datetime.now(timezone.utc).isoformat(),
+            "context_status": "OK",
+            "user_input": user_input,
+            "session_id": self.session_id,
+        }
+        system_prompt = self.engine.render_prompt(context_vars)
+        tool_schemas = self.engine.get_tool_schemas()
+        messages = self._build_message_history(user_input)
+
+        logger.info(f"--- Stream Agent Loop 啟動 (Session: {self.session_id}) ---")
+        
+        final_response = ""
+        iteration = 0
+
+        while iteration < self.max_iterations:
+            iteration += 1
+            llm_config = self._config.get("llm", {})
+            
+            yield {"type": "status", "content": "thinking"}
+
+            response_stream = self._provider.generate_content_stream(
+                system_prompt=system_prompt,
+                messages=messages,
+                tool_schemas=tool_schemas,
+                config=llm_config
+            )
+
+            is_tool_call = False
+            tool_call_data = {}
+            current_text = ""
+
+            async for resp_type, resp_data in response_stream:
+                if resp_type == "error":
+                    final_response = f"Error: LLM 呼叫失敗 — {resp_data}"
+                    logger.error(final_response)
+                    yield {"type": "error", "content": final_response}
+                    break
+                    
+                elif resp_type == "tool_call":
+                    is_tool_call = True
+                    tool_call_data = resp_data
+                    break  # tool call chunk is usually singular or we just break on first one
+                    
+                elif resp_type == "text":
+                    current_text += resp_data
+                    yield {"type": "text_chunk", "content": resp_data}
+
+            if is_tool_call:
+                tool_name = tool_call_data.get("name", "")
+                tool_args = tool_call_data.get("arguments", {})
+                yield {"type": "tool_call", "name": tool_name, "arguments": tool_args}
+                
+                try:
+                    tool_result = self.engine.execute_tool(tool_name, tool_args)
+                except Exception as e:
+                    tool_result = f"Error: 工具執行失敗 — {e}"
+                
+                yield {"type": "tool_result", "name": tool_name, "result": tool_result}
+
+                messages.append({"role": "assistant", "tool_call": tool_call_data})
+                messages.append({"role": "tool", "name": tool_name, "content": tool_result})
+                continue
+            
+            if current_text:
+                final_response = current_text
+                break
+                
+            if not is_tool_call and not current_text:
+                # LLM returned nothing?
+                final_response = "Error: LLM 未回傳任何有效內容。"
+                break
+
+        if iteration >= self.max_iterations:
+            final_response = f"Error: 已達最大迭代次數 ({self.max_iterations})。"
+            yield {"type": "error", "content": final_response}
+
+        limit_reached = self.memory.append_conversation(user_input, final_response)
+        if limit_reached:
+            self._on_memory_limit_reached(self.session_id, self.memory.get_recent_context(20))
+            
+        yield {"type": "done", "content": final_response}
+
     def _build_message_history(self, current_input: str) -> list[dict]:
         """從記憶中載入最近的對話，加上當前用戶輸入。"""
         messages = []

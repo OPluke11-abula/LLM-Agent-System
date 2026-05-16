@@ -34,6 +34,19 @@ class BaseLLMProvider(ABC):
         """
         pass
 
+    @abstractmethod
+    async def generate_content_stream(
+        self,
+        system_prompt: str,
+        messages: List[Dict[str, Any]],
+        tool_schemas: List[Dict[str, Any]],
+        config: Dict[str, Any]
+    ):
+        """
+        串流呼叫 LLM，以 AsyncGenerator 逐次 yield (response_type, response_data)。
+        """
+        pass
+
 
 class GoogleGenAIProvider(BaseLLMProvider):
     """Google Gemini 的實作。"""
@@ -47,6 +60,51 @@ class GoogleGenAIProvider(BaseLLMProvider):
             logger.error("google-genai SDK 未安裝。請執行: pip install google-genai")
             raise ImportError("google-genai SDK is required for GoogleGenAIProvider.")
 
+    def _build_google_contents(self, messages: List[Dict[str, Any]], types: Any) -> list:
+        contents = []
+        for msg in messages:
+            if msg["role"] == "user":
+                contents.append(types.Content(
+                    role="user",
+                    parts=[types.Part.from_text(text=msg["content"])],
+                ))
+            elif msg["role"] == "assistant" and "content" in msg:
+                contents.append(types.Content(
+                    role="model",
+                    parts=[types.Part.from_text(text=msg["content"])],
+                ))
+            elif msg["role"] == "assistant" and "tool_call" in msg:
+                tc = msg["tool_call"]
+                contents.append(types.Content(
+                    role="model",
+                    parts=[types.Part.from_function_call(
+                        name=tc["name"],
+                        args=tc.get("arguments", {}),
+                    )],
+                ))
+            elif msg["role"] == "tool":
+                contents.append(types.Content(
+                    role="user",
+                    parts=[types.Part.from_function_response(
+                        name=msg["name"],
+                        response={"result": msg["content"]},
+                    )],
+                ))
+        return contents
+
+    def _build_google_tools(self, tool_schemas: List[Dict[str, Any]], types: Any) -> list | None:
+        if not tool_schemas:
+            return None
+        function_declarations = []
+        for ts in tool_schemas:
+            params = ts.get("input_schema", {})
+            function_declarations.append(types.FunctionDeclaration(
+                name=ts["name"],
+                description=ts["description"],
+                parameters=params,
+            ))
+        return [types.Tool(function_declarations=function_declarations)]
+
     async def generate_content(
         self,
         system_prompt: str,
@@ -58,50 +116,8 @@ class GoogleGenAIProvider(BaseLLMProvider):
             from google.genai import types
             
             model = config.get("model", "gemini-2.5-flash")
-            
-            # 組裝 contents
-            contents = []
-            for msg in messages:
-                if msg["role"] == "user":
-                    contents.append(types.Content(
-                        role="user",
-                        parts=[types.Part.from_text(text=msg["content"])],
-                    ))
-                elif msg["role"] == "assistant" and "content" in msg:
-                    contents.append(types.Content(
-                        role="model",
-                        parts=[types.Part.from_text(text=msg["content"])],
-                    ))
-                elif msg["role"] == "assistant" and "tool_call" in msg:
-                    tc = msg["tool_call"]
-                    contents.append(types.Content(
-                        role="model",
-                        parts=[types.Part.from_function_call(
-                            name=tc["name"],
-                            args=tc.get("arguments", {}),
-                        )],
-                    ))
-                elif msg["role"] == "tool":
-                    contents.append(types.Content(
-                        role="user",
-                        parts=[types.Part.from_function_response(
-                            name=msg["name"],
-                            response={"result": msg["content"]},
-                        )],
-                    ))
-
-            # 組裝 tools
-            tools = None
-            if tool_schemas:
-                function_declarations = []
-                for ts in tool_schemas:
-                    params = ts.get("input_schema", {})
-                    function_declarations.append(types.FunctionDeclaration(
-                        name=ts["name"],
-                        description=ts["description"],
-                        parameters=params,
-                    ))
-                tools = [types.Tool(function_declarations=function_declarations)]
+            contents = self._build_google_contents(messages, types)
+            tools = self._build_google_tools(tool_schemas, types)
 
             req_config = types.GenerateContentConfig(
                 system_instruction=system_prompt,
@@ -125,6 +141,43 @@ class GoogleGenAIProvider(BaseLLMProvider):
         except Exception as e:
             logger.error(f"Google GenAI API call failed: {e}")
             return "error", str(e)
+
+    async def generate_content_stream(
+        self,
+        system_prompt: str,
+        messages: List[Dict[str, Any]],
+        tool_schemas: List[Dict[str, Any]],
+        config: Dict[str, Any]
+    ):
+        try:
+            from google.genai import types
+            
+            model = config.get("model", "gemini-2.5-flash")
+            contents = self._build_google_contents(messages, types)
+            tools = self._build_google_tools(tool_schemas, types)
+
+            req_config = types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                temperature=config.get("temperature", 0.0),
+                max_output_tokens=config.get("max_tokens", 4096),
+                tools=tools,
+            )
+
+            logger.debug(f"Calling Google GenAI Stream API (model: {model})")
+            
+            response_stream = await self.client.aio.models.generate_content_stream(
+                model=model,
+                contents=contents,
+                config=req_config,
+            )
+
+            async for chunk in response_stream:
+                resp_type, resp_data = self._parse_response(chunk)
+                yield resp_type, resp_data
+
+        except Exception as e:
+            logger.error(f"Google GenAI API stream failed: {e}")
+            yield "error", str(e)
 
     def _parse_response(self, response: Any) -> Tuple[str, Any]:
         """解析 LLM 原生回應。"""

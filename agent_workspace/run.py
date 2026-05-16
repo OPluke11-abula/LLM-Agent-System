@@ -86,6 +86,37 @@ class EventRegistry:
         result = await router.run_agent_loop(msg)
         print(f"\n{result}")
 
+    @staticmethod
+    async def run_stream(args):
+        """執行單次對話 (Streaming 模式)"""
+        if not os.environ.get("GOOGLE_API_KEY"):
+            logger.error("GOOGLE_API_KEY not set.")
+            return
+
+        session_id = args.session or "stream-session"
+        msg = args.msg or "Hello"
+        
+        engine = AgentEngine(workspace_path=workspace)
+        router = AgentRouter(engine, session_id=session_id)
+        
+        print(f"\nUser: {msg}\nAgent: ", end="", flush=True)
+        
+        async for event in router.stream_agent_loop(msg):
+            event_type = event.get("type")
+            if event_type == "status":
+                print(f"[{event['content']}]...", end="", flush=True)
+            elif event_type == "tool_call":
+                print(f"\n[呼叫工具] {event['name']}({json.dumps(event.get('arguments', {}), ensure_ascii=False)})", flush=True)
+            elif event_type == "tool_result":
+                # 只印出前 50 個字避免洗版
+                res_preview = str(event.get('result', ''))[:50].replace('\n', ' ')
+                print(f"[工具結果] {res_preview}...\nAgent: ", end="", flush=True)
+            elif event_type == "text_chunk":
+                print(event["content"], end="", flush=True)
+            elif event_type == "done":
+                print("\n")
+            elif event_type == "error":
+                print(f"\n[錯誤] {event['content']}\n")
 
 def main():
     parser = argparse.ArgumentParser(description="FindAi Studio Agent Task Runner")
@@ -103,6 +134,11 @@ def main():
     parser_chat.add_argument("--msg", type=str, required=True, help="Message to send")
     parser_chat.add_argument("--session", type=str, help="Session ID for memory isolation")
 
+    # Event: stream
+    parser_stream = subparsers.add_parser("stream", help="Send a message with streaming output")
+    parser_stream.add_argument("--msg", type=str, required=True, help="Message to send")
+    parser_stream.add_argument("--session", type=str, help="Session ID for memory isolation")
+
     args = parser.parse_args()
 
     # 事件分發路由
@@ -112,6 +148,8 @@ def main():
         asyncio.run(EventRegistry.run_test(args))
     elif args.event == "chat":
         asyncio.run(EventRegistry.run_chat(args))
+    elif args.event == "stream":
+        asyncio.run(EventRegistry.run_stream(args))
     else:
         logger.error(f"Unknown event: {args.event}")
 
