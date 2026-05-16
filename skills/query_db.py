@@ -2,9 +2,11 @@
 
 [觸發時機]
 - 當使用者要求從資料庫查詢結構化資訊時。
+- Trigger when the user requests structured information from a database.
 
 [限制條件]
 - 僅支援唯讀查詢，不應執行寫入或刪除操作。
+- Read-only queries only; write or delete operations are not allowed.
 """
 
 from pydantic import BaseModel, Field
