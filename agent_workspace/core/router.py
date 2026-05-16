@@ -391,8 +391,8 @@ class AgentRouter:
                 break
                 
             if not is_tool_call and not current_text:
-                # LLM returned nothing?
-                final_response = "Error: LLM 未回傳任何有效內容。"
+                if not final_response:
+                    final_response = "Error: LLM 未回傳任何有效內容。"
                 break
 
         if iteration >= self.max_iterations:
