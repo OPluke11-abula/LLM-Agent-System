@@ -216,3 +216,21 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# =========================================================================
+# FindAi Studio LLM Agent System - Project-specific rules
+# =========================================================================
+
+# AI agent configuration (local-only, each developer/AI creates their own)
+AGENTS.md
+
+# Runtime memory data (generated at runtime, not part of the template)
+agent_workspace/memory/*.json
+!agent_workspace/memory/.gitkeep
+
+# Test scripts (development-only)
+agent_workspace/test_*.py
+
+# Test knowledge data (example SKILL.md copied for testing)
+agent_workspace/knowledge_base/backend-architect/
+

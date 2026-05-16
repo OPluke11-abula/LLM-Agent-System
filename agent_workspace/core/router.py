@@ -11,7 +11,6 @@ Responsibilities:
 
 import json
 import os
-import threading
 from datetime import datetime, timezone
 from typing import Any
 
@@ -219,7 +218,7 @@ class AgentRouter:
                 break
 
             elif response_type == "tool_call":
-                # LLM 要求工具調用 — 階段三會完整實作
+                # LLM 要求工具調用
                 tool_name = response_data.get("name", "")
                 tool_args = response_data.get("arguments", {})
                 print(f"  → 工具調用: {tool_name}({json.dumps(tool_args, ensure_ascii=False)})")
