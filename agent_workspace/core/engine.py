@@ -72,13 +72,17 @@ class AgentEngine:
                 f"請檢查 agent.jinja2 中的 {{{{ }}}} 佔位符是否都有對應的值。"
             )
 
-    def get_tool_schemas(self) -> list[dict]:
+    def get_tool_schemas(self, allowed_tools: list[str] = None) -> list[dict]:
         """
         回傳所有已註冊工具的 JSON Schema 列表，
         格式相容 Anthropic / OpenAI 的 Function Calling API。
+        若指定 allowed_tools，則只回傳白名單內的工具。
         """
         schemas = []
         for name, tool in self.tools_registry.items():
+            if allowed_tools is not None and name not in allowed_tools:
+                continue
+                
             schema = tool["schema"].copy()
             # 移除 Pydantic 自動產生的 title，LLM API 不需要
             schema.pop("title", None)
@@ -90,11 +94,15 @@ class AgentEngine:
             })
         return schemas
 
-    def execute_tool(self, tool_name: str, arguments: dict) -> str:
+    def execute_tool(self, tool_name: str, arguments: dict, allowed_tools: list[str] = None) -> str:
         """
         安全執行指定的工具。
         使用 Pydantic 做二次校驗後才真正呼叫函數。
+        若提供 allowed_tools，則進行權限檢查。
         """
+        if allowed_tools is not None and tool_name not in allowed_tools:
+            raise PermissionError(f"權限不足：工具 '{tool_name}' 不在您的允許列表內。")
+            
         if tool_name not in self.tools_registry:
             raise KeyError(f"未知的工具名稱：'{tool_name}'。已註冊：{list(self.tools_registry.keys())}")
 

@@ -155,15 +155,44 @@ class AgentRouter:
             logger.warning(f"無法載入 config.yaml: {e}")
             return {}
 
-    async def run_agent_loop(self, user_input: str) -> str:
+    async def _classify_intent(self, user_input: str) -> str:
+        """
+        [Semantic Router] 意圖分流路由
+        利用輕量 LLM 呼叫判斷用戶是否需要執行任務，或是純聊天。
+        回傳 "TASK" 或 "CHAT"。
+        """
+        prompt = (
+            "You are an intent classifier. Determine if the user's input requires executing any tools/tasks "
+            "(like calculating, fetching data, creating files) or if it is just a simple greeting/chat. "
+            "Reply EXACTLY with 'TASK' or 'CHAT'.\n\n"
+            f"User input: {user_input}"
+        )
+        try:
+            # 使用最簡單的配置呼叫 LLM
+            resp_type, resp_data = await self._provider.generate_content(
+                system_prompt="You are an intent classifier.",
+                messages=[{"role": "user", "content": prompt}],
+                tool_schemas=[],
+                config=self._config.get("llm", {})
+            )
+            if resp_type == "text" and "CHAT" in resp_data.upper():
+                return "CHAT"
+        except Exception:
+            pass
+        return "TASK"
+
+    async def run_agent_loop(self, user_input: str, allowed_tools: list[str] = None, output_schema: Any = None) -> str:
         """
         主執行迴圈 (異步)。
-        1. 渲染 System Prompt
-        2. 組裝對話歷史
-        3. 發送給 LLM (使用 await)
-        4. 若 LLM 要求工具調用 → 執行(同步) → 回傳結果 → 繼續迴圈
-        5. 若 LLM 回傳文字 → 結束迴圈
+        支援:
+        - allowed_tools: (RBAC) 限定此輪可用的工具清單
+        - output_schema: (Structured Output) 強制 LLM 輸出特定 JSON 結構
         """
+        # [Semantic Router] 判定意圖
+        # 如果是強制結構化輸出，一定是任務；否則進行快篩
+        intent = "TASK" if output_schema else await self._classify_intent(user_input)
+        logger.info(f"--- Agent Loop 啟動 (Session: {self.session_id}, Intent: {intent}) ---")
+
         # 1. 收集動態上下文並渲染 System Prompt
         context_vars = {
             "current_time": datetime.now(timezone.utc).isoformat(),
@@ -173,13 +202,12 @@ class AgentRouter:
         }
         system_prompt = self.engine.render_prompt(context_vars)
 
-        # 2. 組裝工具 Schema
-        tool_schemas = self.engine.get_tool_schemas()
+        # 2. 組裝工具 Schema (RBAC 過濾)
+        tool_schemas = [] if intent == "CHAT" else self.engine.get_tool_schemas(allowed_tools)
 
         # 3. 組裝對話歷史 (從記憶中載入最近的上下文)
         messages = self._build_message_history(user_input)
 
-        logger.info(f"--- Agent Loop 啟動 (Session: {self.session_id}) ---")
         logger.debug(f"  System Prompt 長度: {len(system_prompt)} chars")
         logger.debug(f"  可用工具: {[t['name'] for t in tool_schemas]}")
         logger.debug(f"  對話歷史: {len(messages)} 則訊息")
@@ -187,13 +215,17 @@ class AgentRouter:
         # 4. 狀態機迴圈
         final_response = ""
         iteration = 0
+        tool_failure_counts = {}
 
         while iteration < self.max_iterations:
             iteration += 1
             logger.info(f"[迭代 {iteration}/{self.max_iterations}]")
 
             # 呼叫 LLM (異步)
-            llm_config = self._config.get("llm", {})
+            llm_config = self._config.get("llm", {}).copy()
+            if output_schema:
+                llm_config["output_schema"] = output_schema
+
             response_type, response_data = await self._provider.generate_content(
                 system_prompt=system_prompt,
                 messages=messages,
@@ -220,13 +252,27 @@ class AgentRouter:
 
                 # 執行工具 (同步)
                 try:
-                    tool_result = self.engine.execute_tool(tool_name, tool_args)
+                    tool_result = self.engine.execute_tool(tool_name, tool_args, allowed_tools)
                 except Exception as e:
                     tool_result = f"Error: 工具執行失敗 — {e}"
+
+                # [Self-Correction] 紀錄錯誤並在連續失敗時中斷幻覺
+                if tool_result.startswith("Error:") or "失敗" in tool_result:
+                    tool_failure_counts[tool_name] = tool_failure_counts.get(tool_name, 0) + 1
+                    logger.warning(f"  ⚠ 工具 {tool_name} 執行失敗 (第 {tool_failure_counts[tool_name]} 次): {tool_result}")
+                else:
+                    tool_failure_counts[tool_name] = 0  # 成功則重置
 
                 # 將工具結果附加到訊息歷史，讓 LLM 看到結果
                 messages.append({"role": "assistant", "tool_call": response_data})
                 messages.append({"role": "tool", "name": tool_name, "content": tool_result})
+                
+                # 若錯誤達 3 次，強行插入系統警告
+                if tool_failure_counts.get(tool_name, 0) >= 3:
+                    warning_msg = f"System Warning: You have failed using the tool '{tool_name}' 3 times. Please stop trying and ask the user for clarification."
+                    messages.append({"role": "user", "content": warning_msg})
+                    logger.error(f"  ⚠ 已觸發錯誤防護機制：強制中斷 {tool_name} 的無限重試。")
+
                 logger.debug(f"  → 工具結果: {tool_result[:200]}")
                 # 繼續迴圈，讓 LLM 根據工具結果決定下一步
 
@@ -253,11 +299,14 @@ class AgentRouter:
 
         return final_response
 
-    async def stream_agent_loop(self, user_input: str):
+    async def stream_agent_loop(self, user_input: str, allowed_tools: list[str] = None, output_schema: Any = None):
         """
         串流執行迴圈 (AsyncGenerator)。
         主動向外部廣播當前狀態（thinking, tool_call, tool_result）與逐字串流 (text_chunk)。
+        支援 allowed_tools 與 output_schema。
         """
+        intent = "TASK" if output_schema else await self._classify_intent(user_input)
+        
         context_vars = {
             "current_time": datetime.now(timezone.utc).isoformat(),
             "context_status": "OK",
@@ -265,17 +314,20 @@ class AgentRouter:
             "session_id": self.session_id,
         }
         system_prompt = self.engine.render_prompt(context_vars)
-        tool_schemas = self.engine.get_tool_schemas()
+        tool_schemas = [] if intent == "CHAT" else self.engine.get_tool_schemas(allowed_tools)
         messages = self._build_message_history(user_input)
 
-        logger.info(f"--- Stream Agent Loop 啟動 (Session: {self.session_id}) ---")
+        logger.info(f"--- Stream Agent Loop 啟動 (Session: {self.session_id}, Intent: {intent}) ---")
         
         final_response = ""
         iteration = 0
+        tool_failure_counts = {}
 
         while iteration < self.max_iterations:
             iteration += 1
-            llm_config = self._config.get("llm", {})
+            llm_config = self._config.get("llm", {}).copy()
+            if output_schema:
+                llm_config["output_schema"] = output_schema
             
             yield {"type": "status", "content": "thinking"}
 
@@ -312,14 +364,26 @@ class AgentRouter:
                 yield {"type": "tool_call", "name": tool_name, "arguments": tool_args}
                 
                 try:
-                    tool_result = self.engine.execute_tool(tool_name, tool_args)
+                    tool_result = self.engine.execute_tool(tool_name, tool_args, allowed_tools)
                 except Exception as e:
                     tool_result = f"Error: 工具執行失敗 — {e}"
                 
                 yield {"type": "tool_result", "name": tool_name, "result": tool_result}
 
+                # [Self-Correction] 紀錄錯誤並在連續失敗時中斷幻覺
+                if tool_result.startswith("Error:") or "失敗" in tool_result:
+                    tool_failure_counts[tool_name] = tool_failure_counts.get(tool_name, 0) + 1
+                else:
+                    tool_failure_counts[tool_name] = 0
+
                 messages.append({"role": "assistant", "tool_call": tool_call_data})
                 messages.append({"role": "tool", "name": tool_name, "content": tool_result})
+                
+                # 若錯誤達 3 次，強行插入系統警告
+                if tool_failure_counts.get(tool_name, 0) >= 3:
+                    warning_msg = f"System Warning: You have failed using the tool '{tool_name}' 3 times. Please stop trying and ask the user for clarification."
+                    messages.append({"role": "user", "content": warning_msg})
+
                 continue
             
             if current_text:

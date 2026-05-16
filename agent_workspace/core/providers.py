@@ -119,11 +119,16 @@ class GoogleGenAIProvider(BaseLLMProvider):
             contents = self._build_google_contents(messages, types)
             tools = self._build_google_tools(tool_schemas, types)
 
+            output_schema = config.get("output_schema")
+            mime_type = "application/json" if output_schema else None
+
             req_config = types.GenerateContentConfig(
                 system_instruction=system_prompt,
                 temperature=config.get("temperature", 0.0),
                 max_output_tokens=config.get("max_tokens", 4096),
                 tools=tools,
+                response_mime_type=mime_type,
+                response_schema=output_schema,
             )
 
             logger.debug(f"Calling Google GenAI API (model: {model})")
@@ -156,11 +161,16 @@ class GoogleGenAIProvider(BaseLLMProvider):
             contents = self._build_google_contents(messages, types)
             tools = self._build_google_tools(tool_schemas, types)
 
+            output_schema = config.get("output_schema")
+            mime_type = "application/json" if output_schema else None
+
             req_config = types.GenerateContentConfig(
                 system_instruction=system_prompt,
                 temperature=config.get("temperature", 0.0),
                 max_output_tokens=config.get("max_tokens", 4096),
                 tools=tools,
+                response_mime_type=mime_type,
+                response_schema=output_schema,
             )
 
             logger.debug(f"Calling Google GenAI Stream API (model: {model})")
