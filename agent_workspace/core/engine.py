@@ -14,7 +14,10 @@ import os
 import sys
 import importlib
 import inspect
+import logging
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 import yaml
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound, UndefinedError
@@ -160,7 +163,7 @@ class AgentEngine:
             with open(filepath, "r", encoding="utf-8") as f:
                 raw = f.read()
         except (IOError, OSError) as e:
-            print(f"Warning: 無法讀取 {filepath}: {e}")
+            logger.warning(f"無法讀取 {filepath}: {e}")
             return
 
         # 分離 YAML Frontmatter 與 Markdown 正文
@@ -227,7 +230,7 @@ class AgentEngine:
                 module = importlib.import_module(module_name)
                 self._register_functions_from_module(module)
             except Exception as e:
-                print(f"Warning: 載入技能模組 {module_name} 失敗: {e}")
+                logger.warning(f"載入技能模組 {module_name} 失敗: {e}")
 
     def _register_functions_from_module(self, module):
         """從模組中找出有效的工具函數 (吃 Pydantic BaseModel 的函數)。"""

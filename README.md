@@ -27,4 +27,12 @@ agent_workspace/
 - **Brain** (`knowledge_base/`): SKILL.md files define the Agent's persona and expertise → injected into system prompt
 - **Hands** (`skills/`): Python functions with Pydantic models → auto-discovered as callable tools via reflection
 
+## CLI Commands
+
+```powershell
+python agent_workspace/run.py summary
+python agent_workspace/run.py test --session test-123
+python agent_workspace/run.py chat --msg "Hello" --session user-456
+```
+
 See `AGENTS.md` for full development rules. See `agent_workspace/INSTRUCTIONS_FOR_AI.md` for universal rules and AI customization guide.

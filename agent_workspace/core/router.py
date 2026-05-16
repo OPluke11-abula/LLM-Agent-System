@@ -2,26 +2,31 @@
 core/router.py - Agent Loop, LLM Communication, Memory, and Hot-Reload.
 
 Responsibilities:
-  - LLM API communication (currently supports Google Genai)
-  - Message history management
-  - Cross-turn memory persistence (memory/short_term_cache.json)
-  - Closed-loop state machine execution
+  - LLM API communication via Custom Provider abstraction
+  - Message history management with session_id support
+  - Cross-turn memory persistence
+  - Closed-loop state machine execution (Partial Async)
   - Hot-reload of agent.jinja2 via watchdog
 """
 
 import json
 import os
+import logging
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, List, Dict
 
 from .engine import AgentEngine
+from .providers import ProviderFactory
+
+logger = logging.getLogger(__name__)
 
 
 class MemoryManager:
-    """管理 memory/short_term_cache.json 的讀寫。"""
+    """管理 memory/{session_id}.json 的讀寫。"""
 
-    def __init__(self, memory_path: str):
-        self.memory_path = memory_path
+    def __init__(self, memory_dir: str, session_id: str = "default"):
+        self.session_id = session_id
+        self.memory_path = os.path.join(memory_dir, f"{session_id}.json")
         self._ensure_file_exists()
 
     def _ensure_file_exists(self):
@@ -42,8 +47,11 @@ class MemoryManager:
         """寫入記憶。"""
         self._write(data)
 
-    def append_conversation(self, user_input: str, assistant_response: str):
-        """將一輪對話附加到記憶中。"""
+    def append_conversation(self, user_input: str, assistant_response: str) -> bool:
+        """
+        將一輪對話附加到記憶中。
+        回傳 bool 表示是否達到上限並觸發了 hook。
+        """
         memory = self.load()
         if "conversations" not in memory:
             memory["conversations"] = []
@@ -54,9 +62,14 @@ class MemoryManager:
             "assistant": assistant_response,
         })
 
+        limit_reached = False
         # 保留最近 20 輪對話，避免記憶檔案無限增長
-        memory["conversations"] = memory["conversations"][-20:]
+        if len(memory["conversations"]) > 20:
+            memory["conversations"] = memory["conversations"][-20:]
+            limit_reached = True
+            
         self.save(memory)
+        return limit_reached
 
     def get_recent_context(self, n: int = 5) -> list[dict]:
         """取得最近 n 輪對話作為上下文。"""
@@ -83,7 +96,7 @@ class TemplateWatcher:
             from watchdog.observers import Observer
             from watchdog.events import FileSystemEventHandler
         except ImportError:
-            print("Warning: watchdog 未安裝，跳過 hot-reload。pip install watchdog")
+            logger.warning("watchdog 未安裝，跳過 hot-reload。pip install watchdog")
             return
 
         watcher = self
@@ -93,13 +106,13 @@ class TemplateWatcher:
                 if event.src_path.endswith("agent.jinja2"):
                     # 清除 Jinja2 快取，下次 render_prompt 會自動重新讀取
                     watcher.engine.jinja_env.cache.clear()
-                    print("[Hot-Reload] agent.jinja2 已重新載入。")
+                    logger.info("[Hot-Reload] agent.jinja2 已重新載入。")
 
         self._observer = Observer()
         self._observer.schedule(_Handler(), self._watch_path, recursive=False)
         self._observer.daemon = True
         self._observer.start()
-        print(f"[Hot-Reload] 正在監視 {self._watch_path}/agent.jinja2")
+        logger.info(f"[Hot-Reload] 正在監視 {self._watch_path}/agent.jinja2")
 
     def stop(self):
         """停止檔案監視。"""
@@ -112,19 +125,21 @@ class TemplateWatcher:
 class AgentRouter:
     """Agent 執行路由器：負責 LLM 通訊、狀態機迴圈與模板熱重載。"""
 
-    def __init__(self, engine: AgentEngine):
+    def __init__(self, engine: AgentEngine, session_id: str = "default"):
         self.engine = engine
-
-        # LLM 客戶端 (延遲初始化)
-        self._llm_client = None
+        self.session_id = session_id
         self._config = self._load_config()
 
         # 從 config.yaml 讀取 max_iterations (防禦無限迴圈)
         self.max_iterations = self._config.get("agent", {}).get("max_iterations", 5)
 
-        # 記憶管理
-        memory_path = os.path.join(engine.workspace_path, "memory", "short_term_cache.json")
-        self.memory = MemoryManager(memory_path)
+        # 記憶管理 (傳入 session_id)
+        memory_dir = os.path.join(engine.workspace_path, "memory")
+        self.memory = MemoryManager(memory_dir, session_id=self.session_id)
+
+        # 實例化 LLM Provider (工廠模式)
+        provider_name = self._config.get("llm", {}).get("provider", "google-genai")
+        self._provider = ProviderFactory.get_provider(provider_name)
 
         # 熱重載 (Hot-Reload)
         self._watcher = TemplateWatcher(engine)
@@ -137,41 +152,16 @@ class AgentRouter:
             with open(config_path, "r", encoding="utf-8") as f:
                 return yaml.safe_load(f) or {}
         except (IOError, yaml.YAMLError) as e:
-            print(f"Warning: 無法載入 config.yaml: {e}")
+            logger.warning(f"無法載入 config.yaml: {e}")
             return {}
 
-    def _get_llm_client(self):
-        """延遲初始化 LLM 客戶端。"""
-        if self._llm_client is not None:
-            return self._llm_client
-
-        provider = self._config.get("llm", {}).get("provider", "google-genai")
-
-        if provider == "google-genai":
-            try:
-                from google import genai
-                # google-genai SDK 會自動讀取 GOOGLE_API_KEY 環境變數
-                self._llm_client = genai.Client()
-            except ImportError:
-                raise ImportError(
-                    "google-genai SDK 未安裝。請執行: pip install google-genai"
-                )
-        else:
-            raise ValueError(
-                f"不支援的 LLM provider: '{provider}'。"
-                f"目前支援: 'google-genai'。"
-                f"未來可擴充 'anthropic' / 'openai'。"
-            )
-
-        return self._llm_client
-
-    def run_agent_loop(self, user_input: str) -> str:
+    async def run_agent_loop(self, user_input: str) -> str:
         """
-        主執行迴圈。
+        主執行迴圈 (異步)。
         1. 渲染 System Prompt
         2. 組裝對話歷史
-        3. 發送給 LLM
-        4. 若 LLM 要求工具調用 → 執行 → 回傳結果 → 繼續迴圈
+        3. 發送給 LLM (使用 await)
+        4. 若 LLM 要求工具調用 → 執行(同步) → 回傳結果 → 繼續迴圈
         5. 若 LLM 回傳文字 → 結束迴圈
         """
         # 1. 收集動態上下文並渲染 System Prompt
@@ -179,6 +169,7 @@ class AgentRouter:
             "current_time": datetime.now(timezone.utc).isoformat(),
             "context_status": "OK",
             "user_input": user_input,
+            "session_id": self.session_id,
         }
         system_prompt = self.engine.render_prompt(context_vars)
 
@@ -188,10 +179,10 @@ class AgentRouter:
         # 3. 組裝對話歷史 (從記憶中載入最近的上下文)
         messages = self._build_message_history(user_input)
 
-        print(f"--- Agent Loop 啟動 ---")
-        print(f"  System Prompt 長度: {len(system_prompt)} chars")
-        print(f"  可用工具: {[t['name'] for t in tool_schemas]}")
-        print(f"  對話歷史: {len(messages)} 則訊息")
+        logger.info(f"--- Agent Loop 啟動 (Session: {self.session_id}) ---")
+        logger.debug(f"  System Prompt 長度: {len(system_prompt)} chars")
+        logger.debug(f"  可用工具: {[t['name'] for t in tool_schemas]}")
+        logger.debug(f"  對話歷史: {len(messages)} 則訊息")
 
         # 4. 狀態機迴圈
         final_response = ""
@@ -199,31 +190,35 @@ class AgentRouter:
 
         while iteration < self.max_iterations:
             iteration += 1
-            print(f"\n[迭代 {iteration}/{self.max_iterations}]")
+            logger.info(f"[迭代 {iteration}/{self.max_iterations}]")
 
-            # 呼叫 LLM
-            response = self._call_llm(system_prompt, messages, tool_schemas)
+            # 呼叫 LLM (異步)
+            llm_config = self._config.get("llm", {})
+            response_type, response_data = await self._provider.generate_content(
+                system_prompt=system_prompt,
+                messages=messages,
+                tool_schemas=tool_schemas,
+                config=llm_config
+            )
 
-            if response is None:
-                final_response = "Error: LLM 呼叫失敗。"
+            if response_type == "error":
+                final_response = f"Error: LLM 呼叫失敗 — {response_data}"
+                logger.error(final_response)
                 break
-
-            # 解析回應
-            response_type, response_data = self._parse_response(response)
 
             if response_type == "text":
                 # LLM 回傳了最終文字回覆
                 final_response = response_data
-                print(f"  → 最終回覆 ({len(final_response)} chars)")
+                logger.info(f"  → 最終回覆 ({len(final_response)} chars)")
                 break
 
             elif response_type == "tool_call":
                 # LLM 要求工具調用
                 tool_name = response_data.get("name", "")
                 tool_args = response_data.get("arguments", {})
-                print(f"  → 工具調用: {tool_name}({json.dumps(tool_args, ensure_ascii=False)})")
+                logger.info(f"  → 工具調用: {tool_name}({json.dumps(tool_args, ensure_ascii=False)})")
 
-                # 執行工具
+                # 執行工具 (同步)
                 try:
                     tool_result = self.engine.execute_tool(tool_name, tool_args)
                 except Exception as e:
@@ -232,11 +227,12 @@ class AgentRouter:
                 # 將工具結果附加到訊息歷史，讓 LLM 看到結果
                 messages.append({"role": "assistant", "tool_call": response_data})
                 messages.append({"role": "tool", "name": tool_name, "content": tool_result})
-                print(f"  → 工具結果: {tool_result[:200]}")
+                logger.debug(f"  → 工具結果: {tool_result[:200]}")
                 # 繼續迴圈，讓 LLM 根據工具結果決定下一步
 
             else:
-                final_response = "Error: 無法解析 LLM 回應。"
+                final_response = f"Error: 無法解析 LLM 回應類型 '{response_type}'。"
+                logger.error(final_response)
                 break
 
         if iteration >= self.max_iterations:
@@ -244,11 +240,16 @@ class AgentRouter:
                 f"Error: 已達最大迭代次數 ({self.max_iterations})。"
                 f"可能存在無限迴圈，已強制中止。"
             )
-            print(f"  ⚠ {final_response}")
+            logger.warning(final_response)
 
         # 5. 將這輪對話寫入記憶
-        self.memory.append_conversation(user_input, final_response)
-        print(f"\n--- Agent Loop 結束 (共 {iteration} 次迭代) ---")
+        limit_reached = self.memory.append_conversation(user_input, final_response)
+        
+        # 觸發記憶掛鉤 (如果需要)
+        if limit_reached:
+            self._on_memory_limit_reached(self.session_id, self.memory.get_recent_context(20))
+            
+        logger.info(f"--- Agent Loop 結束 (共 {iteration} 次迭代) ---")
 
         return final_response
 
@@ -266,134 +267,14 @@ class AgentRouter:
         messages.append({"role": "user", "content": current_input})
         return messages
 
-    def _call_llm(
-        self,
-        system_prompt: str,
-        messages: list[dict],
-        tool_schemas: list[dict],
-    ) -> Any | None:
+    def _on_memory_limit_reached(self, session_id: str, messages: list):
         """
-        呼叫 LLM API。
-        目前實作 google-genai，未來可擴充其他 provider。
+        [Memory Hook] 記憶擴充預留掛鉤
+        當 short_term_cache 達到限制 (如 20 輪) 時觸發。
+        未來子專案可覆寫此方法，實作背景呼叫 LLM 進行自動摘要。
         """
-        provider = self._config.get("llm", {}).get("provider", "google-genai")
-
-        if provider == "google-genai":
-            return self._call_google_genai(system_prompt, messages, tool_schemas)
-        else:
-            print(f"Error: 不支援的 provider '{provider}'")
-            return None
-
-    def _call_google_genai(
-        self,
-        system_prompt: str,
-        messages: list[dict],
-        tool_schemas: list[dict],
-    ) -> Any | None:
-        """使用 google-genai SDK 呼叫 Gemini。"""
-        try:
-            from google import genai
-            from google.genai import types
-
-            client = self._get_llm_client()
-            model = self._config.get("llm", {}).get("model", "gemini-2.5-flash")
-
-            # 組裝 google-genai 格式的 contents
-            contents = []
-            for msg in messages:
-                if msg["role"] == "user":
-                    contents.append(types.Content(
-                        role="user",
-                        parts=[types.Part.from_text(text=msg["content"])],
-                    ))
-                elif msg["role"] == "assistant" and "content" in msg:
-                    contents.append(types.Content(
-                        role="model",
-                        parts=[types.Part.from_text(text=msg["content"])],
-                    ))
-                elif msg["role"] == "assistant" and "tool_call" in msg:
-                    # LLM 先前要求的工具調用 → 轉為 FunctionCall Part
-                    tc = msg["tool_call"]
-                    contents.append(types.Content(
-                        role="model",
-                        parts=[types.Part.from_function_call(
-                            name=tc["name"],
-                            args=tc.get("arguments", {}),
-                        )],
-                    ))
-                elif msg["role"] == "tool":
-                    # 工具執行結果 → 轉為 FunctionResponse Part
-                    contents.append(types.Content(
-                        role="user",
-                        parts=[types.Part.from_function_response(
-                            name=msg["name"],
-                            response={"result": msg["content"]},
-                        )],
-                    ))
-
-            # 組裝工具定義 (如果有的話)
-            tools = None
-            if tool_schemas:
-                function_declarations = []
-                for ts in tool_schemas:
-                    # 將我們的 schema 轉換為 google-genai 格式
-                    params = ts.get("input_schema", {})
-                    function_declarations.append(types.FunctionDeclaration(
-                        name=ts["name"],
-                        description=ts["description"],
-                        parameters=params,
-                    ))
-                tools = [types.Tool(function_declarations=function_declarations)]
-
-            # 發送請求
-            config = types.GenerateContentConfig(
-                system_instruction=system_prompt,
-                temperature=self._config.get("llm", {}).get("temperature", 0.0),
-                max_output_tokens=self._config.get("llm", {}).get("max_tokens", 4096),
-                tools=tools,
-            )
-
-            response = client.models.generate_content(
-                model=model,
-                contents=contents,
-                config=config,
-            )
-            return response
-
-        except Exception as e:
-            print(f"Error: Google Genai API 呼叫失敗 — {e}")
-            return None
-
-    def _parse_response(self, response: Any) -> tuple[str, Any]:
-        """
-        解析 LLM 回應，回傳 (type, data)。
-        type: "text" | "tool_call"
-        """
-        try:
-            # google-genai 回應格式
-            candidate = response.candidates[0]
-            parts = candidate.content.parts
-
-            for part in parts:
-                # 檢查是否為 function call
-                if hasattr(part, "function_call") and part.function_call:
-                    fc = part.function_call
-                    return "tool_call", {
-                        "name": fc.name,
-                        "arguments": dict(fc.args) if fc.args else {},
-                    }
-
-            # 如果沒有 function call，就是純文字
-            text = response.text if hasattr(response, "text") else ""
-            return "text", text
-
-        except (AttributeError, IndexError, TypeError) as e:
-            print(f"Warning: 解析 LLM 回應時發生錯誤: {e}")
-            # 嘗試取得純文字
-            try:
-                return "text", str(response.text)
-            except Exception:
-                return "error", str(e)
+        logger.debug(f"[Hook] Session {session_id} 記憶已達上限，可於此處實作記憶摘要邏輯。")
+        pass
 
 
     def start_watching(self):
@@ -403,37 +284,3 @@ class AgentRouter:
     def stop_watching(self):
         """停止熱重載監視。"""
         self._watcher.stop()
-
-
-# =====================================================================
-#  本機驗證入口
-# =====================================================================
-if __name__ == "__main__":
-    import sys
-    workspace = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-    sys.path.insert(0, workspace)
-
-    engine = AgentEngine(workspace_path=workspace)
-    router = AgentRouter(engine)
-
-    print(engine.summary())
-    print(f"max_iterations (from config.yaml): {router.max_iterations}")
-    print()
-
-    # 測試熱重載
-    print("--- Hot-Reload 測試 ---")
-    router.start_watching()
-    print("  (修改 agent.jinja2 並存檔，應看到 [Hot-Reload] 訊息)")
-    print("  (按 Ctrl+C 結束)")
-    print()
-
-    # 測試 LLM 呼叫 (需要設定 GOOGLE_API_KEY 環境變數)
-    api_key = os.environ.get("GOOGLE_API_KEY", "")
-    if api_key:
-        print("--- LLM 通訊測試 ---")
-        result = router.run_agent_loop("Hello")
-        print(f"Reply: {result}")
-    else:
-        print("--- Skip LLM test (GOOGLE_API_KEY not set) ---")
-
-    router.stop_watching()
