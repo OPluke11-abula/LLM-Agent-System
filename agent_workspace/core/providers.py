@@ -17,6 +17,11 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+try:
+    from observability import LLM_CALL_COUNT, LLM_CALL_LATENCY, Timer
+except ImportError:
+    from agent_workspace.observability import LLM_CALL_COUNT, LLM_CALL_LATENCY, Timer
+
 ProviderResult = tuple[str, Any]
 Message = dict[str, Any]
 ToolSchema = dict[str, Any]
@@ -36,7 +41,12 @@ class BaseLLMProvider(ABC):
         tool_schemas: list[ToolSchema],
         config: dict[str, Any],
     ) -> ProviderResult:
-        return await self.complete(system_prompt, messages, tool_schemas, config)
+        provider_label = type(self).__name__
+        with Timer(LLM_CALL_LATENCY, labels={"provider": provider_label}):
+            result = await self.complete(system_prompt, messages, tool_schemas, config)
+        status = "error" if result[0] == "error" else "success"
+        LLM_CALL_COUNT.labels(provider=provider_label, status=status).inc()
+        return result
 
     async def generate_content_stream(
         self,

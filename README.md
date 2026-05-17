@@ -121,6 +121,40 @@ python agent_workspace/long_term_memory.py list
 python agent_workspace/long_term_memory.py query --q "customer preference"
 ```
 
+### Observability
+
+LAS includes a built-in observability module (`agent_workspace/observability.py`) with two capabilities:
+
+**1. Structured JSON Logging**
+
+All log output is emitted as single-line JSON objects with `timestamp`, `level`, `logger`, `message`, and caller-supplied `extra` fields (e.g. `session_id`, `tool_name`, `latency_ms`):
+
+```json
+{"timestamp": "2026-05-17T16:27:56Z", "level": "INFO", "logger": "core.router", "message": "Agent Loop started", "session_id": "user-456", "intent": "TASK"}
+```
+
+Controlled by `configure_logging(json_output=True)` at process startup. CLI (`run.py`) defaults to human-readable format; API (`api.py`) defaults to JSON.
+
+**2. Prometheus Metrics**
+
+| Metric | Type | Labels |
+| --- | --- | --- |
+| `las_request_total` | Counter | endpoint, session_id |
+| `las_request_latency_seconds` | Histogram | endpoint |
+| `las_request_errors_total` | Counter | endpoint, error_type |
+| `las_tool_call_total` | Counter | tool_name, status |
+| `las_tool_call_latency_seconds` | Histogram | tool_name |
+| `las_llm_call_total` | Counter | provider, status |
+| `las_llm_call_latency_seconds` | Histogram | provider |
+| `las_active_sessions` | Gauge | — |
+
+Exposed via `GET /v1/metrics` (Prometheus scrape target). `prometheus_client` is a soft dependency — if not installed, all metrics become harmless no-ops.
+
+```powershell
+pip install prometheus_client
+curl http://localhost:8000/v1/metrics
+```
+
 ### CLI Usage
 
 Check engine status:
@@ -255,12 +289,11 @@ v2.0 priorities:
 2. **Multi-provider abstraction**: initial support completed for Google GenAI, OpenAI, Anthropic, and Ollama.
 3. **PAP-compatible positioning**: completed at the workspace contract level through `.agent/agent.md`, entry documents, and per-tool skill contracts.
 4. **Persistent memory**: pluggable `MemoryBackend` with `SQLiteBackend` (FTS5 search) as default; vector backends such as Qdrant, Chroma, or Weaviate can be added by implementing the same interface.
+5. **Observability**: structured JSON logging and Prometheus metrics completed via `observability.py`; `GET /v1/metrics` endpoint live.
 
 v2.5 priorities:
 
-- OpenTelemetry tracing
-- Prometheus metrics
-- Structured JSON logging
+- OpenTelemetry tracing (distributed trace context)
 - Standard Tool Manifest aligned with PAP skills contracts
 - Supervisor-worker multi-agent orchestration
 
@@ -276,7 +309,7 @@ v3.0 priorities:
 Compile-check Python files:
 
 ```powershell
-python -m py_compile agent_workspace\api.py agent_workspace\core\providers.py agent_workspace\long_term_memory.py agent_workspace\pap_validate.py agent_workspace\topology_bridge.py agent_workspace\topology_stream.py
+python -m py_compile agent_workspace\api.py agent_workspace\core\providers.py agent_workspace\long_term_memory.py agent_workspace\observability.py agent_workspace\pap_validate.py agent_workspace\topology_bridge.py agent_workspace\topology_stream.py
 ```
 
 Smoke-check provider factory wiring:
@@ -421,6 +454,40 @@ python agent_workspace/long_term_memory.py list
 python agent_workspace/long_term_memory.py query --q "customer preference"
 ```
 
+### 可觀測性
+
+LAS 內建可觀測性模組（`agent_workspace/observability.py`），提供兩項核心能力：
+
+**1. 結構化 JSON Logging**
+
+所有 log 輸出為單行 JSON 物件，包含 `timestamp`、`level`、`logger`、`message` 以及呼叫端傳入的 `extra` 欄位（如 `session_id`、`tool_name`、`latency_ms`）：
+
+```json
+{"timestamp": "2026-05-17T16:27:56Z", "level": "INFO", "logger": "core.router", "message": "Agent Loop started", "session_id": "user-456", "intent": "TASK"}
+```
+
+透過 `configure_logging(json_output=True)` 於啟動時控制。CLI（`run.py`）預設人類可讀格式；API（`api.py`）預設 JSON。
+
+**2. Prometheus Metrics**
+
+| 指標名稱 | 類型 | 標籤 |
+| --- | --- | --- |
+| `las_request_total` | Counter | endpoint, session_id |
+| `las_request_latency_seconds` | Histogram | endpoint |
+| `las_request_errors_total` | Counter | endpoint, error_type |
+| `las_tool_call_total` | Counter | tool_name, status |
+| `las_tool_call_latency_seconds` | Histogram | tool_name |
+| `las_llm_call_total` | Counter | provider, status |
+| `las_llm_call_latency_seconds` | Histogram | provider |
+| `las_active_sessions` | Gauge | — |
+
+透過 `GET /v1/metrics`（Prometheus scrape target）暴露。`prometheus_client` 為 soft dependency — 若未安裝，所有指標自動降級為無副作用的 No-op。
+
+```powershell
+pip install prometheus_client
+curl http://localhost:8000/v1/metrics
+```
+
 ### CLI 使用
 
 檢查引擎狀態：
@@ -555,12 +622,11 @@ v2.0 優先事項：
 2. **Multi-Provider 抽象層**：已完成 Google GenAI、OpenAI、Anthropic、Ollama 初版支援。
 3. **PAP-compatible 定位**：已在 workspace contract 層完成，包含 `.agent/agent.md`、entry documents、逐工具 skill contracts。
 4. **持久化記憶**：已完成可插拔 `MemoryBackend` 架構，預設使用 `SQLiteBackend`（FTS5 搜尋）；Qdrant、Chroma 或 Weaviate 等 vector backend 只需實作同一介面即可接入。
+5. **可觀測性**：已完成結構化 JSON Logging 與 Prometheus Metrics（透過 `observability.py`）；`GET /v1/metrics` 端點已上線。
 
 v2.5 優先事項：
 
-- OpenTelemetry tracing
-- Prometheus metrics
-- Structured JSON logging
+- OpenTelemetry tracing（分散式追蹤上下文）
 - 對齊 PAP skills contract 的標準 Tool Manifest
 - Supervisor-worker 多 Agent 協作
 
@@ -576,7 +642,7 @@ v3.0 優先事項：
 編譯檢查 Python 檔案：
 
 ```powershell
-python -m py_compile agent_workspace\api.py agent_workspace\core\providers.py agent_workspace\long_term_memory.py agent_workspace\pap_validate.py agent_workspace\topology_bridge.py agent_workspace\topology_stream.py
+python -m py_compile agent_workspace\api.py agent_workspace\core\providers.py agent_workspace\long_term_memory.py agent_workspace\observability.py agent_workspace\pap_validate.py agent_workspace\topology_bridge.py agent_workspace\topology_stream.py
 ```
 
 Smoke-check Provider factory wiring：

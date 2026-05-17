@@ -23,12 +23,10 @@ sys.path.insert(0, workspace)
 
 from core.engine import AgentEngine
 from core.router import AgentRouter
+from observability import configure_logging
 
-# 設定全域 Logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="[%(levelname)s] %(name)s: %(message)s"
-)
+# 設定全域 Logging（CLI 模式使用人類可讀格式，設定 json_output=True 可切換為 JSON）
+configure_logging(json_output=False)
 logger = logging.getLogger("TaskRunner")
 
 

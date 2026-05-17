@@ -9,6 +9,7 @@ Responsibilities:
   - Hot-reload of agent.jinja2 via watchdog
 """
 
+import asyncio
 import json
 import os
 import logging
@@ -22,6 +23,11 @@ try:
     from long_term_memory import LongTermMemoryStore
 except ImportError:
     from agent_workspace.long_term_memory import LongTermMemoryStore
+
+try:
+    from observability import ACTIVE_SESSIONS
+except ImportError:
+    from agent_workspace.observability import ACTIVE_SESSIONS
 
 logger = logging.getLogger(__name__)
 
@@ -205,7 +211,8 @@ class AgentRouter:
         # [Semantic Router] 判定意圖
         # 如果是強制結構化輸出，一定是任務；否則進行快篩
         intent = "TASK" if output_schema else await self._classify_intent(user_input)
-        logger.info(f"--- Agent Loop 啟動 (Session: {self.session_id}, Intent: {intent}) ---")
+        logger.info("Agent Loop started", extra={"session_id": self.session_id, "intent": intent})
+        ACTIVE_SESSIONS.inc()
 
         # 1. 收集動態上下文並渲染 System Prompt
         context_vars = {
@@ -335,7 +342,8 @@ class AgentRouter:
         if limit_reached:
             self._on_memory_limit_reached(self.session_id, self.memory.get_recent_context(20))
             
-        logger.info(f"--- Agent Loop 結束 (共 {iteration} 次迭代) ---")
+        logger.info("Agent Loop finished", extra={"session_id": self.session_id, "iterations": iteration})
+        ACTIVE_SESSIONS.dec()
 
         return final_response
 
@@ -357,7 +365,8 @@ class AgentRouter:
         tool_schemas = [] if intent == "CHAT" else self.engine.get_tool_schemas(allowed_tools)
         messages = self._build_message_history(user_input)
 
-        logger.info(f"--- Stream Agent Loop 啟動 (Session: {self.session_id}, Intent: {intent}) ---")
+        logger.info("Stream Agent Loop started", extra={"session_id": self.session_id, "intent": intent})
+        ACTIVE_SESSIONS.inc()
         
         final_response = ""
         iteration = 0
@@ -469,7 +478,8 @@ class AgentRouter:
         limit_reached = self.memory.append_conversation(user_input, final_response)
         if limit_reached:
             self._on_memory_limit_reached(self.session_id, self.memory.get_recent_context(20))
-            
+
+        ACTIVE_SESSIONS.dec()
         yield {"type": "done", "content": final_response}
 
     def _build_message_history(self, current_input: str) -> list[dict]:

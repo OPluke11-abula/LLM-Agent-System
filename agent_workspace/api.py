@@ -10,21 +10,36 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 import sys
+import time
 import uuid
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 import yaml
 
 workspace = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, workspace)
+
+from observability import (
+    configure_logging,
+    generate_latest,
+    CONTENT_TYPE_LATEST,
+    PROMETHEUS_AVAILABLE,
+    REQUEST_COUNT,
+    REQUEST_LATENCY,
+    REQUEST_ERRORS,
+)
+
+configure_logging(json_output=True)
+logger = logging.getLogger(__name__)
 
 from core.engine import AgentEngine
 from core.router import AgentRouter
@@ -77,6 +92,24 @@ app = FastAPI(
     version=API_VERSION,
     description="Non-invasive REST/SSE adapter for the LLM-Agent-System runtime.",
 )
+
+
+@app.middleware("http")
+async def metrics_middleware(request: Request, call_next):
+    """Record request count, latency, and errors for every endpoint."""
+    endpoint = request.url.path
+    start = time.perf_counter()
+    try:
+        response = await call_next(request)
+        elapsed = time.perf_counter() - start
+        REQUEST_LATENCY.labels(endpoint=endpoint).observe(elapsed)
+        REQUEST_COUNT.labels(endpoint=endpoint, session_id="").inc()
+        return response
+    except Exception as exc:
+        elapsed = time.perf_counter() - start
+        REQUEST_LATENCY.labels(endpoint=endpoint).observe(elapsed)
+        REQUEST_ERRORS.labels(endpoint=endpoint, error_type=type(exc).__name__).inc()
+        raise
 
 _engine: AgentEngine | None = None
 _task_records: dict[str, TaskRecord] = {}
@@ -160,7 +193,17 @@ async def health() -> dict[str, Any]:
         "llm_provider": provider,
         "llm_required_env": required_env,
         "llm_configured": True if required_env is None else bool(os.environ.get(required_env)),
+        "prometheus_available": PROMETHEUS_AVAILABLE,
     }
+
+
+@app.get("/v1/metrics")
+async def metrics():
+    """Prometheus-compatible metrics endpoint."""
+    return Response(
+        content=generate_latest(),
+        media_type=CONTENT_TYPE_LATEST,
+    )
 
 
 @app.post("/v1/chat", response_model=ChatResponse)

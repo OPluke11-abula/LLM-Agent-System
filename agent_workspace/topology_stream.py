@@ -21,8 +21,9 @@ sys.path.insert(0, workspace)
 
 from topology_bridge import TopologyEmitter, TopologyEvent
 
+from observability import configure_logging
 
-logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(name)s: %(message)s")
+configure_logging(json_output=True)
 logger = logging.getLogger("TopologyStream")
 
 

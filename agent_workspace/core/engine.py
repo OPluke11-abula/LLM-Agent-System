@@ -23,6 +23,11 @@ import yaml
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound, UndefinedError
 from pydantic import BaseModel
 
+try:
+    from observability import TOOL_CALL_COUNT, TOOL_CALL_LATENCY, Timer
+except ImportError:
+    from agent_workspace.observability import TOOL_CALL_COUNT, TOOL_CALL_LATENCY, Timer
+
 
 class AgentEngine:
     """Agent 核心引擎：負責模板渲染、知識載入與工具發現。"""
@@ -110,12 +115,17 @@ class AgentEngine:
         validated_args = tool["args_model"](**arguments)
         
         # 依賴注入 (Dependency Injection)
-        if tool["wants_context"]:
-            result = tool["function"](validated_args, context=context or {})
-        else:
-            result = tool["function"](validated_args)
-            
-        return str(result)
+        try:
+            with Timer(TOOL_CALL_LATENCY, labels={"tool_name": tool_name}):
+                if tool["wants_context"]:
+                    result = tool["function"](validated_args, context=context or {})
+                else:
+                    result = tool["function"](validated_args)
+            TOOL_CALL_COUNT.labels(tool_name=tool_name, status="success").inc()
+            return str(result)
+        except Exception:
+            TOOL_CALL_COUNT.labels(tool_name=tool_name, status="error").inc()
+            raise
 
     def summary(self) -> str:
         """印出引擎當前狀態摘要，方便除錯。"""
