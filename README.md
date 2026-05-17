@@ -1,139 +1,255 @@
-# FindAi Studio LLM Agent System 🤖
+# FindAi Studio LLM Agent System
 
 [English](#english) | [繁體中文](#繁體中文)
 
 ---
 
-# English
+## English
 
-A universal, enterprise-grade boilerplate template for LLM Agents. Designed to be cloned and customized by AI for any specific domain, featuring dynamic Jinja2 prompting, Pydantic tool registration, and a dual-track architecture.
+FindAi Studio LLM Agent System is the Python engine foundation for building file-aware, tool-using LLM agents. It keeps the core runtime small and explicit: Jinja2 prompt rendering, Pydantic tool reflection, session memory, RBAC-style allowed tool lists, async streaming, and self-correction around failed tool use.
 
-## 🌟 Key Features
+This repository is also the engine side of the FindAi Studio topology integration. The engine core remains unchanged; topology data is emitted through external bridge material instead of being embedded into the closed-loop runtime.
 
-- **Dual-Track Architecture**: Separates Persona knowledge (`knowledge_base/`) from executable functions (`skills/`).
-- **Event-Driven CLI**: Run interactions easily with unified `run.py` entry points.
-- **Provider Abstraction**: Easily swap between LLM providers (currently supports Google GenAI) without heavy third-party bloat.
-- **Partial Async & Streaming**: Non-blocking I/O with built-in Step-Broadcasting for ultra-smooth UI experiences.
-- **Memory Isolation**: Session-based memory storage to support multiple users simultaneously.
-- **Enterprise Defenses**: Includes Role-Based Access Control (RBAC) for tools, Semantic Routing for chat vs. task intents, and Self-Correction fallback to break out of hallucination loops.
+### Architecture Principles
 
-## 🚀 Quick Start
+- **Engine core stays stable**: existing files in `agent_workspace/core/` and `agent_workspace/run.py` are not modified for visualization.
+- **Bridge instead of intrusion**: topology serialization lives in `agent_workspace/topology_bridge.py`.
+- **Topology is event data**: session starts, tool calls, handoffs, errors, and completion states become JSON events.
+- **Viewer compatibility**: generated `workspace/topology_state.json` can be watched by the Tauri topology viewer.
 
-### 1. Install Dependencies
+### Key Features
+
+- **Dual-track architecture**: separates persona/knowledge files in `knowledge_base/` from executable tools in `skills/`.
+- **Pydantic tool reflection**: discovers Python functions that accept Pydantic models and exposes JSON schemas.
+- **Jinja2 prompts**: renders `agent.jinja2` with session and knowledge context.
+- **Session memory isolation**: stores conversation memory under `agent_workspace/memory/`.
+- **Async streaming**: exposes incremental stream events for status, text chunks, tool calls, tool results, and errors.
+- **Topology bridge**: writes a schema-versioned `topology_state.json` using atomic file replacement.
+
+### Quick Start
+
+Install dependencies:
+
 ```powershell
 pip install -r requirements.txt
 ```
 
-### 2. Set API Key
-Set your Gemini API key in your terminal before running:
-```powershell
-# Windows PowerShell
-$env:GOOGLE_API_KEY="your-api-key-here"
+Set a Gemini API key before running the real engine:
 
-# Linux / macOS
-export GOOGLE_API_KEY="your-api-key-here"
+```powershell
+$env:GOOGLE_API_KEY="your-api-key-here"
 ```
 
-## 💻 CLI Usage
+Check the engine:
 
-The workspace uses `run.py` as the main event dispatcher.
-
-### Check Engine Status
-View loaded knowledge, personas, and auto-discovered tools.
 ```powershell
 python agent_workspace/run.py summary
 ```
 
-### Run Closed-Loop Test
-Run an automated test to ensure the LLM can properly call tools and reason.
-```powershell
-python agent_workspace/run.py test --session test-123
-```
+Run a normal stream:
 
-### Single Turn Chat
-Send a simple text message to the agent.
-```powershell
-python agent_workspace/run.py chat --msg "Hello, what tools do you have?" --session my-session
-```
-
-### Streaming Chat (✨ Next-Gen)
-Send a message and watch the agent's thought process and tool execution in real-time.
 ```powershell
 python agent_workspace/run.py stream --msg "Calculate 123 * 456" --session stream-test
 ```
 
-## 🧠 For AI Assistants
+### Topology Bridge Usage
 
-If you are an AI assistant trying to customize this boilerplate for the user, **DO NOT CHANGE THE CORE ARCHITECTURE**. 
+The bridge is intentionally external to the engine core.
 
-Please strictly follow the rules defined in:
-- `agent_workspace/INSTRUCTIONS_FOR_AI.md` (Universal Rules)
-- `AGENTS.md` (Project-specific Instructions)
+Dry-run topology generation without calling the LLM:
+
+```powershell
+python agent_workspace/topology_stream.py stream --msg "test" --session verify-p1 --dry-run
+```
+
+Run the agent stream and emit topology events:
+
+```powershell
+python agent_workspace/topology_stream.py stream --msg "Calculate 123 * 456" --session stream-test
+```
+
+By default, the topology state is written to:
+
+```text
+workspace/topology_state.json
+```
+
+You can override the shared workspace directory:
+
+```powershell
+$env:AGENT_WORKSPACE_DIR="D:\GitHub\FindAi-Studio\workspace"
+python agent_workspace/topology_stream.py stream --msg "test" --session verify-p1
+```
+
+Or provide a direct output path:
+
+```powershell
+python agent_workspace/topology_stream.py stream --msg "test" --session verify-p1 --output "D:\tmp\topology_state.json"
+```
+
+### Topology State Contract
+
+`topology_state.json` uses schema version `1.0.0` and contains:
+
+- `schema_version`
+- `session_id`
+- `started_at`
+- `updated_at`
+- `stats`
+- `nodes`
+- `edges`
+
+Supported topology event values:
+
+- `node_type`: `session_root`, `agent`, `handoff`, `tool_call`, `hitl_gate`, `error`
+- `edge_type`: `handoff`, `tool`, `rbac`, `error`, `hitl`
+- `status`: `pending`, `running`, `completed`, `error`, `awaiting_approval`
+
+### Validation
+
+Compile-check the new bridge files:
+
+```powershell
+python -m py_compile agent_workspace\topology_bridge.py agent_workspace\topology_stream.py
+```
+
+Verify JSON creation:
+
+```powershell
+python agent_workspace/topology_stream.py stream --msg "test" --session verify-p1 --dry-run
+```
+
+### AI Assistant Rules
+
+If you are an AI assistant working in this repository:
+
+- Do not modify the closed-loop engine core for visualization.
+- Do not move UI logic into Python engine internals.
+- Add bridge/adapters externally when new integration behavior is needed.
+- Keep runtime JSON files out of version control.
 
 ---
 
-# 繁體中文
+## 繁體中文
 
-這是一個為 LLM Agent 打造的通用、企業級底層框架模板。專為「讓 AI 自動為你客製化」而設計，具備動態 Jinja2 提示詞注入、Pydantic 工具自動反射註冊以及雙軌架構。
+FindAi Studio LLM Agent System 是用來建構具備檔案感知、工具呼叫能力的 Python LLM Agent 引擎地基。核心 runtime 保持小而清楚：Jinja2 提示詞渲染、Pydantic 工具反射、Session 記憶、類 RBAC 的工具允許清單、非同步串流，以及工具失敗後的自我修正。
 
-## 🌟 核心特色
+本 repo 也是 FindAi Studio 拓撲整合中的引擎端。引擎核心不被視覺化需求改動；拓撲資料透過外部橋接層輸出，而不是塞進閉環 runtime 裡。
 
-- **雙軌架構 (Dual-Track Architecture)**: 將 Persona 知識庫 (`knowledge_base/`) 與可執行的功能工具 (`skills/`) 職責分離。
-- **事件驅動終端 (Event-Driven CLI)**: 所有的操作都透過 `run.py` 這個統一的事件分發中心來執行。
-- **輕量模型抽象 (Provider Abstraction)**: 輕鬆切換不同的 LLM 供應商 (目前支援 Google GenAI) 而不需引入沉重的第三方依賴。
-- **局部異步與串流廣播 (Partial Async & Streaming)**: 不阻塞的 I/O 搭配內建的狀態廣播，打造極致流暢的使用者體驗。
-- **多租戶記憶 (Memory Isolation)**: 基於 Session 的記憶隔離機制，支援多使用者同時對話。
-- **企業級防護**: 內建工具權限控管 (RBAC)、意圖分流路由 (自動過濾純聊天)，以及錯誤自癒機制 (連續報錯 3 次主動中斷)。
+### 架構原則
 
-## 🚀 快速開始
+- **引擎核心穩定不動**：不為了視覺化修改 `agent_workspace/core/` 或 `agent_workspace/run.py`。
+- **用橋接取代入侵**：拓撲序列化集中在 `agent_workspace/topology_bridge.py`。
+- **拓撲就是事件資料**：Session 啟動、工具呼叫、Handoff、錯誤、完成狀態都轉成 JSON 事件。
+- **相容 Viewer**：產生的 `workspace/topology_state.json` 可被 Tauri topology viewer 監聽。
 
-### 1. 安裝依賴
+### 主要能力
+
+- **雙軌架構**：`knowledge_base/` 放 persona/knowledge，`skills/` 放可執行工具。
+- **Pydantic 工具反射**：自動發現接受 Pydantic model 的 Python 函式並輸出 JSON schema。
+- **Jinja2 提示詞**：用 session 與 knowledge context 渲染 `agent.jinja2`。
+- **Session 記憶隔離**：對話記憶存放於 `agent_workspace/memory/`。
+- **非同步串流**：輸出 status、text chunk、tool call、tool result、error 等串流事件。
+- **拓撲橋接層**：以原子寫檔方式產生具 schema version 的 `topology_state.json`。
+
+### 快速開始
+
+安裝依賴：
+
 ```powershell
 pip install -r requirements.txt
 ```
 
-### 2. 設定金鑰
-在執行前，請先於終端機設定您的 Gemini API Key：
-```powershell
-# Windows PowerShell
-$env:GOOGLE_API_KEY="your-api-key-here"
+執行真實引擎前，先設定 Gemini API key：
 
-# Linux / macOS
-export GOOGLE_API_KEY="your-api-key-here"
+```powershell
+$env:GOOGLE_API_KEY="your-api-key-here"
 ```
 
-## 💻 使用說明
+檢查引擎狀態：
 
-所有的操作都透過 `run.py` 執行。
-
-### 檢查引擎狀態
-查看當前載入的知識庫、Persona 以及被自動發現的工具。
 ```powershell
 python agent_workspace/run.py summary
 ```
 
-### 執行閉環測試
-執行自動化測試，確保 LLM 能夠正確呼叫工具並完成推論。
+執行一般串流：
+
 ```powershell
-python agent_workspace/run.py test --session test-123
+python agent_workspace/run.py stream --msg "Calculate 123 * 456" --session stream-test
 ```
 
-### 單次對話
-發送單一訊息給 Agent。
+### 拓撲橋接層用法
+
+橋接層刻意放在引擎核心之外。
+
+不呼叫 LLM，只產生拓撲 JSON：
+
 ```powershell
-python agent_workspace/run.py chat --msg "你好，請問你有什麼功能？" --session my-session
+python agent_workspace/topology_stream.py stream --msg "test" --session verify-p1 --dry-run
 ```
 
-### 串流對話 (✨ 新功能)
-發送訊息，並像打字機一樣即時觀看 Agent 的思考過程、工具呼叫與最終回覆。
+執行 Agent 串流並輸出拓撲事件：
+
 ```powershell
-python agent_workspace/run.py stream --msg "幫我計算 123 乘以 456" --session stream-test
+python agent_workspace/topology_stream.py stream --msg "Calculate 123 * 456" --session stream-test
 ```
 
-## 🧠 給未來 AI 助手的開發指南
+預設輸出位置：
 
-如果您是正在幫助使用者客製化此專案的 AI 助手，**請絕對不要修改核心架構**。
+```text
+workspace/topology_state.json
+```
 
-請嚴格遵守以下文件中的規則：
-- `agent_workspace/INSTRUCTIONS_FOR_AI.md` (全局通用規則)
-- `AGENTS.md` (專案特定規則)
+也可以指定共享 workspace：
+
+```powershell
+$env:AGENT_WORKSPACE_DIR="D:\GitHub\FindAi-Studio\workspace"
+python agent_workspace/topology_stream.py stream --msg "test" --session verify-p1
+```
+
+或直接指定輸出檔：
+
+```powershell
+python agent_workspace/topology_stream.py stream --msg "test" --session verify-p1 --output "D:\tmp\topology_state.json"
+```
+
+### 拓撲狀態契約
+
+`topology_state.json` 使用 schema version `1.0.0`，包含：
+
+- `schema_version`
+- `session_id`
+- `started_at`
+- `updated_at`
+- `stats`
+- `nodes`
+- `edges`
+
+支援的拓撲事件值：
+
+- `node_type`：`session_root`、`agent`、`handoff`、`tool_call`、`hitl_gate`、`error`
+- `edge_type`：`handoff`、`tool`、`rbac`、`error`、`hitl`
+- `status`：`pending`、`running`、`completed`、`error`、`awaiting_approval`
+
+### 驗證
+
+檢查橋接檔案語法：
+
+```powershell
+python -m py_compile agent_workspace\topology_bridge.py agent_workspace\topology_stream.py
+```
+
+驗證 JSON 產生：
+
+```powershell
+python agent_workspace/topology_stream.py stream --msg "test" --session verify-p1 --dry-run
+```
+
+### AI Agent 工作規則
+
+如果你是正在本 repo 工作的 AI Agent：
+
+- 不要為了視覺化修改閉環引擎核心。
+- 不要把 UI 邏輯塞進 Python 引擎內部。
+- 需要整合行為時，從外部新增 bridge 或 adapter。
+- runtime JSON 不進版本控制。
