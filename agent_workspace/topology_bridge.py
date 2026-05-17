@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -196,7 +197,16 @@ class TopologyEmitter:
             handle.write("\n")
             handle.flush()
             os.fsync(handle.fileno())
-        os.replace(tmp_path, self.output_path)
+        last_error: OSError | None = None
+        for _ in range(8):
+            try:
+                os.replace(tmp_path, self.output_path)
+                return
+            except PermissionError as error:
+                last_error = error
+                time.sleep(0.05)
+        if last_error:
+            raise last_error
 
     def _load_existing_state(self) -> None:
         if not self.output_path.is_file():

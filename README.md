@@ -128,6 +128,30 @@ If you are an AI assistant working in this repository:
 - Add bridge/adapters externally when new integration behavior is needed.
 - Keep runtime JSON files out of version control.
 
+### Phase 2 Viewer Notes
+
+The local `ai-agent-topology-viewer` material now contains the first Phase 2 topology UI:
+
+- `useTopology()` listens for `topology_updated` and keeps a per-session topology map.
+- `TopologyView` renders one or two sessions as React Flow DAGs.
+- Custom topology nodes cover `session_root`, `agent` / `handoff`, `tool_call`, and `hitl_gate`.
+- Custom topology edges cover `handoff`, `tool`, `rbac` / `hitl`, and `error`.
+- The legacy task-flow screen is preserved as fallback when no topology state is available.
+
+On Windows, a Tauri file watcher can briefly hold `topology_state.json` while the Python bridge is replacing it. `TopologyEmitter._atomic_write()` now retries the final `os.replace()` on `PermissionError`, keeping the bridge non-invasive while avoiding transient watcher races.
+
+### 第二階段 Viewer 備註
+
+本機 `ai-agent-topology-viewer` 材料已加入第一版 Phase 2 拓撲介面：
+
+- `useTopology()` 監聽 `topology_updated`，並維護每個 session 的拓撲狀態。
+- `TopologyView` 可用 React Flow DAG 顯示一個或兩個 session。
+- 自訂節點涵蓋 `session_root`、`agent` / `handoff`、`tool_call`、`hitl_gate`。
+- 自訂邊涵蓋 `handoff`、`tool`、`rbac` / `hitl`、`error`。
+- 沒有 topology state 時，仍保留舊的 task-flow 畫面作為 fallback。
+
+在 Windows 上，Tauri 檔案監聽器可能會在 Python bridge 替換 `topology_state.json` 時短暫持有檔案。`TopologyEmitter._atomic_write()` 現在會在 `PermissionError` 時重試最後的 `os.replace()`，維持非入侵橋接，同時避開短暫 watcher 競爭。
+
 ---
 
 ## 繁體中文
