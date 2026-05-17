@@ -18,6 +18,11 @@ from typing import Any, List, Dict
 from .engine import AgentEngine
 from .providers import ProviderFactory
 
+try:
+    from long_term_memory import LongTermMemoryStore
+except ImportError:
+    from agent_workspace.long_term_memory import LongTermMemoryStore
+
 logger = logging.getLogger(__name__)
 
 
@@ -136,6 +141,12 @@ class AgentRouter:
         # 記憶管理 (傳入 session_id)
         memory_dir = os.path.join(engine.workspace_path, "memory")
         self.memory = MemoryManager(memory_dir, session_id=self.session_id)
+        memory_config = self._config.get("memory", {})
+        self.long_term_memory = (
+            LongTermMemoryStore(memory_dir)
+            if memory_config.get("long_term_enabled", True)
+            else None
+        )
 
         # 實例化 LLM Provider (工廠模式)
         provider_name = self._config.get("llm", {}).get("provider", "google-genai")
@@ -479,7 +490,14 @@ class AgentRouter:
         未來子專案可覆寫此方法，實作背景呼叫 LLM 進行自動摘要。
         """
         logger.debug(f"[Hook] Session {session_id} 記憶已達上限，可於此處實作記憶摘要邏輯。")
-        pass
+        if not self.long_term_memory:
+            return
+        try:
+            record = self.long_term_memory.add_session_summary(session_id, messages)
+            if record:
+                logger.info("[LongTermMemory] persisted %s for session %s", record.id, session_id)
+        except Exception as error:
+            logger.warning("[LongTermMemory] persistence failed for session %s: %s", session_id, error)
 
 
     def start_watching(self):

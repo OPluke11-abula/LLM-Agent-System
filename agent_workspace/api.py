@@ -29,6 +29,11 @@ sys.path.insert(0, workspace)
 from core.engine import AgentEngine
 from core.router import AgentRouter
 
+try:
+    from long_term_memory import LongTermMemoryStore
+except ImportError:
+    from agent_workspace.long_term_memory import LongTermMemoryStore
+
 
 API_VERSION = "0.1.0"
 
@@ -90,6 +95,10 @@ def get_engine() -> AgentEngine:
 
 def build_router(session_id: str) -> AgentRouter:
     return AgentRouter(get_engine(), session_id=session_id)
+
+
+def get_long_term_memory() -> LongTermMemoryStore:
+    return LongTermMemoryStore(Path(workspace) / "memory")
 
 
 def load_llm_config() -> dict[str, Any]:
@@ -218,4 +227,24 @@ async def get_session(session_id: str) -> dict[str, Any]:
         "memory_path": str(memory_path),
         "memory": memory,
         "tasks": tasks,
+    }
+
+
+@app.get("/v1/memory")
+async def list_long_term_memory() -> dict[str, Any]:
+    store = get_long_term_memory()
+    return {
+        "memory_path": str(store.path),
+        "records": store.all_records(),
+    }
+
+
+@app.get("/v1/memory/query")
+async def query_long_term_memory(q: str, session: str | None = None, limit: int = 5) -> dict[str, Any]:
+    store = get_long_term_memory()
+    return {
+        "query": q,
+        "session": session,
+        "limit": limit,
+        "records": store.query(q, session_id=session, limit=limit),
     }

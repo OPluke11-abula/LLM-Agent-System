@@ -22,6 +22,15 @@ Runtime-facing endpoints:
 - `POST /v1/stream`
 - `POST /v1/task`
 - `GET /v1/session/{id}`
+- `GET /v1/memory`
+- `GET /v1/memory/query`
+
+## Long-Term Memory
+
+```powershell
+python agent_workspace/long_term_memory.py list
+python agent_workspace/long_term_memory.py query --q "customer preference"
+```
 
 ## Topology Bridge
 

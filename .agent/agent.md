@@ -2,7 +2,7 @@
 protocol_version: "1.0.0"
 min_runtime_version: "0.1.0"
 name: findai-las
-version: "0.2.0"
+version: "0.3.0"
 purpose: >
   Production-ready backend runtime for file-aware, tool-using LLM agents,
   maintained as the FindAi Studio reference application for PAP-compatible

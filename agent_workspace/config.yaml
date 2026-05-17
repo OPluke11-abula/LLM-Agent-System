@@ -4,7 +4,7 @@
 # ========================================================================= #
 
 llm:
-  provider: "google-genai"         # 支援: "google-genai" (未來可擴充 "anthropic", "openai")
+  provider: "google-genai"         # 支援: "google-genai", "openai", "anthropic", "ollama"
   model: "gemini-2.5-flash"        # ✏️ AI: 按需替換模型名稱
   temperature: 0.0
   max_tokens: 4096
@@ -12,6 +12,9 @@ llm:
 agent:
   max_iterations: 5                # 閉環迴圈最大迭代次數 (防止無限迴圈)
   memory_history_limit: 20         # 記憶中保留的最大對話輪數
+
+memory:
+  long_term_enabled: true          # 將溢出的 session working memory 寫入本機 long-term store
 
 # ✏️ AI: Inject domain-specific settings below
 # database:
