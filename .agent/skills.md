@@ -10,6 +10,7 @@ skill contracts.
 
 | Skill | Runtime module | Function | Contract |
 | --- | --- | --- | --- |
+| `delegate_task` | `agent_workspace/skills/delegate_task.py` | `delegate_task` | `.agent/skills/delegate_task.md` |
 | `calculate` | `agent_workspace/skills/example_skill_template.py` | `calculate` | `.agent/skills/calculate.md` |
 | `transfer_agent` | `agent_workspace/skills/transfer_agent.py` | `transfer_agent` | `.agent/skills/transfer_agent.md` |
 

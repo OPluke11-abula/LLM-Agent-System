@@ -18,9 +18,9 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 try:
-    from observability import LLM_CALL_COUNT, LLM_CALL_LATENCY, Timer
+    from observability import LLM_CALL_COUNT, LLM_CALL_LATENCY, Timer, tracer, TRACING_AVAILABLE
 except ImportError:
-    from agent_workspace.observability import LLM_CALL_COUNT, LLM_CALL_LATENCY, Timer
+    from agent_workspace.observability import LLM_CALL_COUNT, LLM_CALL_LATENCY, Timer, tracer, TRACING_AVAILABLE
 
 ProviderResult = tuple[str, Any]
 Message = dict[str, Any]
@@ -42,11 +42,23 @@ class BaseLLMProvider(ABC):
         config: dict[str, Any],
     ) -> ProviderResult:
         provider_label = type(self).__name__
-        with Timer(LLM_CALL_LATENCY, labels={"provider": provider_label}):
-            result = await self.complete(system_prompt, messages, tool_schemas, config)
-        status = "error" if result[0] == "error" else "success"
-        LLM_CALL_COUNT.labels(provider=provider_label, status=status).inc()
-        return result
+        with tracer.start_as_current_span("llm_generate") as span:
+            span.set_attribute("provider", provider_label)
+            if config.get("model"):
+                span.set_attribute("model", config["model"])
+                
+            with Timer(LLM_CALL_LATENCY, labels={"provider": provider_label}):
+                result = await self.complete(system_prompt, messages, tool_schemas, config)
+            
+            status = "error" if result[0] == "error" else "success"
+            span.set_attribute("status", status)
+            if status == "error":
+                if TRACING_AVAILABLE:
+                    import opentelemetry.trace as otel_trace
+                    span.set_status(otel_trace.Status(otel_trace.StatusCode.ERROR))
+            
+            LLM_CALL_COUNT.labels(provider=provider_label, status=status).inc()
+            return result
 
     async def generate_content_stream(
         self,
@@ -55,8 +67,14 @@ class BaseLLMProvider(ABC):
         tool_schemas: list[ToolSchema],
         config: dict[str, Any],
     ):
-        async for event in self.stream(system_prompt, messages, tool_schemas, config):
-            yield event
+        provider_label = type(self).__name__
+        with tracer.start_as_current_span("llm_generate_stream") as span:
+            span.set_attribute("provider", provider_label)
+            if config.get("model"):
+                span.set_attribute("model", config["model"])
+            
+            async for event in self.stream(system_prompt, messages, tool_schemas, config):
+                yield event
 
     @abstractmethod
     async def complete(

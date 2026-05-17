@@ -54,6 +54,14 @@ class JSONFormatter(logging.Formatter):
             "message": record.getMessage(),
         }
 
+        # Inject OpenTelemetry trace IDs if available
+        if TRACING_AVAILABLE:
+            ctx = trace.get_current_span().get_span_context()
+            if ctx.is_valid:
+                payload["trace_id"] = trace.format_trace_id(ctx.trace_id)
+                payload["span_id"] = trace.format_span_id(ctx.span_id)
+
+
         # Surface caller-supplied *extra* fields.
         for key, value in record.__dict__.items():
             if key not in self._BUILTIN_KEYS and key not in payload:
@@ -234,3 +242,63 @@ class Timer:
         self.elapsed = time.perf_counter() - self._start
         if self._histogram is not None:
             self._histogram.labels(**self._labels).observe(self.elapsed)
+
+
+# =========================================================================
+# 3.  OpenTelemetry Tracing (soft dependency)
+# =========================================================================
+
+try:
+    from opentelemetry import trace
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+
+    TRACING_AVAILABLE = True
+
+    def configure_tracing(service_name: str = "las") -> None:
+        """Initialize OpenTelemetry tracer provider.
+        
+        Currently configures a ConsoleSpanExporter for local debugging.
+        If OTEL_EXPORTER_OTLP_ENDPOINT is set, you could easily swap in an OTLP exporter here.
+        """
+        # Note: In a production setup, we'd use Resource(attributes={"service.name": service_name})
+        provider = TracerProvider()
+        
+        # We output to console by default so developers can see the trace tree
+        processor = BatchSpanProcessor(ConsoleSpanExporter())
+        provider.add_span_processor(processor)
+        
+        trace.set_tracer_provider(provider)
+
+    # Get a tracer for manual span creation
+    tracer = trace.get_tracer("las.core")
+
+except ImportError:  # pragma: no cover
+    TRACING_AVAILABLE = False
+
+    def configure_tracing(service_name: str = "las") -> None: ...
+
+    class _NoOpSpanContext:
+        is_valid = False
+
+    class _NoOpSpan:
+        def get_span_context(self) -> _NoOpSpanContext:
+            return _NoOpSpanContext()
+        def set_attribute(self, *a: Any, **kw: Any) -> None: ...
+        def record_exception(self, *a: Any, **kw: Any) -> None: ...
+        def set_status(self, *a: Any, **kw: Any) -> None: ...
+        def __enter__(self) -> "_NoOpSpan": return self
+        def __exit__(self, *a: Any) -> None: ...
+
+    class _NoOpTracer:
+        def start_as_current_span(self, *a: Any, **kw: Any) -> _NoOpSpan:
+            return _NoOpSpan()
+
+    class _NoOpTraceAPI:
+        def get_current_span(self) -> _NoOpSpan:
+            return _NoOpSpan()
+        def get_tracer(self, *a: Any, **kw: Any) -> _NoOpTracer:
+            return _NoOpTracer()
+
+    trace = _NoOpTraceAPI()  # type: ignore[assignment]
+    tracer = trace.get_tracer("las.core")

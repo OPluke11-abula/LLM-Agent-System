@@ -20,6 +20,7 @@ use_case_tags:
   - topology-observability
   - pap-compatible
 tools:
+  - delegate_task
   - calculate
   - transfer_agent
 protocol:

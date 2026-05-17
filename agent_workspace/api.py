@@ -30,15 +30,18 @@ sys.path.insert(0, workspace)
 
 from observability import (
     configure_logging,
+    configure_tracing,
     generate_latest,
     CONTENT_TYPE_LATEST,
     PROMETHEUS_AVAILABLE,
+    TRACING_AVAILABLE,
     REQUEST_COUNT,
     REQUEST_LATENCY,
     REQUEST_ERRORS,
 )
 
 configure_logging(json_output=True)
+configure_tracing("las.api")
 logger = logging.getLogger(__name__)
 
 from core.engine import AgentEngine
@@ -115,6 +118,13 @@ async def metrics_middleware(request: Request, call_next):
         REQUEST_LATENCY.labels(endpoint=endpoint).observe(elapsed)
         REQUEST_ERRORS.labels(endpoint=endpoint, error_type=type(exc).__name__).inc()
         raise
+
+if TRACING_AVAILABLE:
+    try:
+        from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+        FastAPIInstrumentor.instrument_app(app)
+    except ImportError:
+        logger.warning("opentelemetry-instrumentation-fastapi not installed. FastAPI tracing disabled.")
 
 _engine: AgentEngine | None = None
 _task_records: dict[str, TaskRecord] = {}

@@ -24,9 +24,9 @@ from jinja2 import Environment, FileSystemLoader, TemplateNotFound, UndefinedErr
 from pydantic import BaseModel
 
 try:
-    from observability import TOOL_CALL_COUNT, TOOL_CALL_LATENCY, Timer
+    from observability import TOOL_CALL_COUNT, TOOL_CALL_LATENCY, Timer, tracer, TRACING_AVAILABLE
 except ImportError:
-    from agent_workspace.observability import TOOL_CALL_COUNT, TOOL_CALL_LATENCY, Timer
+    from agent_workspace.observability import TOOL_CALL_COUNT, TOOL_CALL_LATENCY, Timer, tracer, TRACING_AVAILABLE
 
 
 class AgentEngine:
@@ -53,23 +53,30 @@ class AgentEngine:
     #  公開介面 (Public API)
     # =====================================================================
 
-    def render_prompt(self, context_vars: dict) -> str:
+    def render_prompt(self, runtime_context: dict, agent_name: str = "default") -> str:
         """
-        渲染 agent.jinja2 模板。
+        渲染 agent_name 對應的 Jinja2 模板 (預設為 agent.jinja2)。
         自動將 knowledge_contexts 注入到上下文中，
         使用者只需傳入額外的動態變數 (如 current_time)。
         """
         # 將知識上下文自動合併進渲染變數
-        merged_vars = {
+        final_context = {
             "knowledge_contexts": self.knowledge_contexts,
-            **context_vars,
+            **runtime_context,
         }
         try:
-            template = self.jinja_env.get_template("agent.jinja2")
-            return template.render(**merged_vars)
+            if agent_name != "default":
+                try:
+                    template = self.jinja_env.get_template(f"agents/{agent_name}.jinja2")
+                except TemplateNotFound:
+                    logger.warning(f"找不到特工模板 agents/{agent_name}.jinja2，退回預設 agent.jinja2")
+                    template = self.jinja_env.get_template("agent.jinja2")
+            else:
+                template = self.jinja_env.get_template("agent.jinja2")
+            return template.render(**final_context)
         except TemplateNotFound:
             raise FileNotFoundError(
-                f"找不到 agent.jinja2，請確認它位於 {self.workspace_path}"
+                f"找不到核心模板，請確認 agent.jinja2 位於 {self.workspace_path} (或對應的 agents/{agent_name}.jinja2)"
             )
         except UndefinedError as e:
             raise ValueError(
@@ -116,14 +123,25 @@ class AgentEngine:
         
         # 依賴注入 (Dependency Injection)
         try:
-            with Timer(TOOL_CALL_LATENCY, labels={"tool_name": tool_name}):
-                if tool["wants_context"]:
-                    result = tool["function"](validated_args, context=context or {})
-                else:
-                    result = tool["function"](validated_args)
+            with tracer.start_as_current_span("tool_call") as span:
+                span.set_attribute("tool_name", tool_name)
+                span.set_attribute("arguments", str(arguments))
+                
+                with Timer(TOOL_CALL_LATENCY, labels={"tool_name": tool_name}):
+                    if tool["wants_context"]:
+                        result = tool["function"](validated_args, context=context or {})
+                    else:
+                        result = tool["function"](validated_args)
+                
+                span.set_attribute("result", str(result)[:500])  # limit length
             TOOL_CALL_COUNT.labels(tool_name=tool_name, status="success").inc()
             return str(result)
-        except Exception:
+        except Exception as e:
+            if TRACING_AVAILABLE:
+                import opentelemetry.trace as otel_trace
+                span = otel_trace.get_current_span()
+                span.record_exception(e)
+                span.set_status(otel_trace.Status(otel_trace.StatusCode.ERROR))
             TOOL_CALL_COUNT.labels(tool_name=tool_name, status="error").inc()
             raise
 

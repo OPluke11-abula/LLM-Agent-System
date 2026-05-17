@@ -155,6 +155,23 @@ pip install prometheus_client
 curl http://localhost:8000/v1/metrics
 ```
 
+**3. OpenTelemetry Distributed Tracing**
+
+LAS provides zero-intrusion OpenTelemetry tracing. If `opentelemetry` packages are installed, all HTTP requests, agent loops, LLM calls, and tool executions are automatically traced and tied together in a single Trace ID hierarchy. Log outputs injected by the JSON Formatter will include `trace_id` and `span_id`.
+
+```powershell
+pip install opentelemetry-api opentelemetry-sdk opentelemetry-instrumentation-fastapi
+```
+
+### Multi-Agent Supervisor-Worker Orchestration (Swarm)
+
+LAS supports advanced multi-agent workflows out-of-the-box via the **Supervisor-Worker delegation pattern**:
+
+- **Worker Personas**: Define specialized worker agents in `agent_workspace/agents/` using `[agent_name].yaml` (for `allowed_tools`) and `[agent_name].jinja2` (for persona).
+- **Delegation Tool**: Supervisors use the `delegate_task` tool to spawn a new asynchronous worker agent. 
+- **Memory Isolation**: Each worker receives a sub-session ID (e.g. `user123:math_expert`) preventing memory pollution.
+- **Trace Context Propagation**: Because of native OpenTelemetry support, sub-agent invocations show up beautifully nested under the Supervisor's trace tree.
+
 ### Tool Manifest (PAP Sync)
 
 LAS dynamically loads tools from `agent_workspace/skills/` via Pydantic reflection. To maintain compatibility with the Portable Agent Protocol (PAP), you can automatically sync these runtime tools to static PAP skill contracts.
@@ -505,6 +522,23 @@ LAS 內建可觀測性模組（`agent_workspace/observability.py`），提供兩
 pip install prometheus_client
 curl http://localhost:8000/v1/metrics
 ```
+
+**3. OpenTelemetry 分散式追蹤 (Tracing)**
+
+LAS 提供零侵入的 OpenTelemetry 追蹤。只要安裝了相關套件，所有的 HTTP Request、Agent Loop、LLM 呼叫以及 Tool 執行都會自動記錄並整合在同一個 Trace ID 底下。透過 JSON Logging 輸出的日誌也會自動綁定 `trace_id` 和 `span_id`，完美支援企業級 ELK/Jaeger 除錯。
+
+```powershell
+pip install opentelemetry-api opentelemetry-sdk opentelemetry-instrumentation-fastapi
+```
+
+### 多 Agent 協作 (Supervisor-Worker Swarm)
+
+LAS 原生支援多智能體協作架構，透過**主從委派模式 (Delegation Pattern)** 處理複雜任務：
+
+- **子特工註冊表**：在 `agent_workspace/agents/` 定義專精特工。例如 `math_expert.yaml` (權限設定) 與 `math_expert.jinja2` (專屬人設)。
+- **委派工具**：主 Agent (Supervisor) 可呼叫 `delegate_task` 工具，在背景啟動獨立的 Event Loop 與全新的 Worker 實例。
+- **記憶隔離**：每一個 Worker 都有衍生的子 Session ID（例如 `user123:math_expert`），避免上下文污染。
+- **追蹤連貫性**：得益於 OTel 整合，Worker 的行為軌跡會完美掛載於 Supervisor 的 Trace 樹狀結構之下。
 
 ### Tool Manifest (PAP Sync)
 

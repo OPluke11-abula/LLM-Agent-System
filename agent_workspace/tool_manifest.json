@@ -1,9 +1,36 @@
 {
   "manifest_version": "1.0.0",
-  "generated_at": "2026-05-17T16:42:27.057595+00:00",
+  "generated_at": "2026-05-17T17:00:03.103700+00:00",
   "workspace": "D:\\GitHub\\LLM-Agent-System\\agent_workspace",
-  "tool_count": 2,
+  "tool_count": 3,
   "tools": [
+    {
+      "name": "delegate_task",
+      "description": "[Supervisor Tool] Delegate a complex sub-task to a specialized worker agent.\nThe worker will run autonomously and return its final response.",
+      "module": "agent_workspace/skills/delegate_task.py",
+      "function": "delegate_task",
+      "input_schema": {
+        "properties": {
+          "worker_name": {
+            "description": "The name of the specialized worker agent to delegate to (e.g. 'math_expert', 'researcher').",
+            "title": "Worker Name",
+            "type": "string"
+          },
+          "task_instructions": {
+            "description": "Detailed instructions for what the worker needs to accomplish.",
+            "title": "Task Instructions",
+            "type": "string"
+          }
+        },
+        "required": [
+          "worker_name",
+          "task_instructions"
+        ],
+        "type": "object"
+      },
+      "wants_context": true,
+      "pap_contract": null
+    },
     {
       "name": "calculate",
       "description": "Perform a basic arithmetic calculation.\nSupports: add, subtract, multiply, divide.",
