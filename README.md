@@ -87,21 +87,31 @@ $env:OLLAMA_BASE_URL="http://127.0.0.1:11434"
 
 ### Persistent Memory
 
-LAS now has two memory layers:
+LAS has two memory layers:
 
 - **Working memory**: `agent_workspace/memory/<session_id>.json`, owned by `MemoryManager`.
-- **Long-term memory**: `agent_workspace/memory/long_term_memory.json`, owned by `LongTermMemoryStore`.
+- **Long-term memory**: pluggable `MemoryBackend` (default: `SQLiteBackend` → `agent_workspace/memory/long_term_memory.db`), owned by `LongTermMemoryStore`.
 
 When the session window exceeds the working-memory retention limit, `AgentRouter`
 calls the memory hook and persists a deterministic summary into the long-term
-store. The local store is dependency-free and can later be migrated behind the
-same contract to Qdrant, Chroma, or Weaviate.
+store. The backend is selected via `config.yaml` and can be swapped to Qdrant,
+Chroma, or Weaviate by implementing the `MemoryBackend` interface.
+
+Backend contract (`agent_workspace/memory_backends.py`):
+
+| Method | Purpose |
+| --- | --- |
+| `write(session_id, key, value)` | Persist a record |
+| `read(session_id, key)` | Retrieve a single record |
+| `search(query, session_id, top_k)` | Full-text or semantic search |
+| `all_records()` | List every stored record |
 
 Configuration:
 
 ```yaml
 memory:
   long_term_enabled: true
+  backend: "sqlite"        # or "qdrant", "chroma", "weaviate" (future)
 ```
 
 CLI inspection:
@@ -244,7 +254,7 @@ v2.0 priorities:
 1. **FastAPI REST/SSE API layer**: completed as an external adapter.
 2. **Multi-provider abstraction**: initial support completed for Google GenAI, OpenAI, Anthropic, and Ollama.
 3. **PAP-compatible positioning**: completed at the workspace contract level through `.agent/agent.md`, entry documents, and per-tool skill contracts.
-4. **Persistent memory**: initial local long-term memory store completed; vector backends such as Qdrant, Chroma, or Weaviate remain the next production upgrade.
+4. **Persistent memory**: pluggable `MemoryBackend` with `SQLiteBackend` (FTS5 search) as default; vector backends such as Qdrant, Chroma, or Weaviate can be added by implementing the same interface.
 
 v2.5 priorities:
 
@@ -281,10 +291,10 @@ Smoke-check PAP manifest and skill contracts:
 python agent_workspace\pap_validate.py
 ```
 
-Smoke-check local long-term memory:
+Smoke-check long-term memory (SQLiteBackend):
 
 ```powershell
-python -c "from pathlib import Path; from agent_workspace.long_term_memory import LongTermMemoryStore; s=LongTermMemoryStore(Path('agent_workspace/memory'), filename='ltm_smoke.json'); s.add_session_summary('smoke',[{'user':'remember blue widgets','assistant':'noted'}]); assert s.query('blue'); print('long-term memory ok')"
+python -c "import sys; sys.path.insert(0,'agent_workspace'); from long_term_memory import LongTermMemoryStore; s=LongTermMemoryStore('agent_workspace/memory'); rec=s.add_session_summary('smoke',[{'user':'remember blue widgets','assistant':'noted'}]); assert s.query('blue'); print('long-term memory ok')"
 ```
 
 Verify topology JSON creation:
@@ -378,20 +388,30 @@ $env:OLLAMA_BASE_URL="http://127.0.0.1:11434"
 
 ### 持久化記憶
 
-LAS 現在有兩層記憶：
+LAS 有兩層記憶：
 
 - **Working memory**：`agent_workspace/memory/<session_id>.json`，由 `MemoryManager` 管理。
-- **Long-term memory**：`agent_workspace/memory/long_term_memory.json`，由 `LongTermMemoryStore` 管理。
+- **Long-term memory**：可插拔 `MemoryBackend`（預設 `SQLiteBackend` → `agent_workspace/memory/long_term_memory.db`），由 `LongTermMemoryStore` 管理。
 
 當 session window 超過 working-memory 保留上限時，`AgentRouter` 會呼叫 memory
-hook，將 deterministic summary 寫入 long-term store。本機 store 不需要額外服務，
-後續可在同一 contract 後方替換為 Qdrant、Chroma 或 Weaviate。
+hook，將 deterministic summary 寫入 long-term store。Backend 由 `config.yaml` 選擇，
+未來可透過實作 `MemoryBackend` 介面無縫替換為 Qdrant、Chroma 或 Weaviate。
+
+Backend contract (`agent_workspace/memory_backends.py`)：
+
+| 方法 | 用途 |
+| --- | --- |
+| `write(session_id, key, value)` | 寫入記錄 |
+| `read(session_id, key)` | 讀取單筆記錄 |
+| `search(query, session_id, top_k)` | 全文或語意搜尋 |
+| `all_records()` | 列出所有記錄 |
 
 設定：
 
 ```yaml
 memory:
   long_term_enabled: true
+  backend: "sqlite"        # 或 "qdrant", "chroma", "weaviate"（未來）
 ```
 
 CLI 檢視：
@@ -534,7 +554,7 @@ v2.0 優先事項：
 1. **FastAPI REST/SSE API 層**：已用外部 adapter 完成。
 2. **Multi-Provider 抽象層**：已完成 Google GenAI、OpenAI、Anthropic、Ollama 初版支援。
 3. **PAP-compatible 定位**：已在 workspace contract 層完成，包含 `.agent/agent.md`、entry documents、逐工具 skill contracts。
-4. **持久化記憶**：已完成本機 long-term memory store 初版；Qdrant、Chroma 或 Weaviate 等 vector backend 是下一個 production upgrade。
+4. **持久化記憶**：已完成可插拔 `MemoryBackend` 架構，預設使用 `SQLiteBackend`（FTS5 搜尋）；Qdrant、Chroma 或 Weaviate 等 vector backend 只需實作同一介面即可接入。
 
 v2.5 優先事項：
 
@@ -571,10 +591,10 @@ Smoke-check PAP manifest 與 skill contracts：
 python agent_workspace\pap_validate.py
 ```
 
-Smoke-check 本機 long-term memory：
+Smoke-check long-term memory（SQLiteBackend）：
 
 ```powershell
-python -c "from pathlib import Path; from agent_workspace.long_term_memory import LongTermMemoryStore; s=LongTermMemoryStore(Path('agent_workspace/memory'), filename='ltm_smoke.json'); s.add_session_summary('smoke',[{'user':'remember blue widgets','assistant':'noted'}]); assert s.query('blue'); print('long-term memory ok')"
+python -c "import sys; sys.path.insert(0,'agent_workspace'); from long_term_memory import LongTermMemoryStore; s=LongTermMemoryStore('agent_workspace/memory'); rec=s.add_session_summary('smoke',[{'user':'remember blue widgets','assistant':'noted'}]); assert s.query('blue'); print('long-term memory ok')"
 ```
 
 驗證 topology JSON 建立：

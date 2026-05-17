@@ -1,0 +1,23 @@
+# Normalize all text files to LF on commit (prevents CRLF warnings on Windows)
+* text=auto eol=lf
+
+# Force binary for known binary types
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.webp binary
+*.wasm binary
+
+# Explicitly LF for code files
+*.ts   text eol=lf
+*.tsx  text eol=lf
+*.js   text eol=lf
+*.jsx  text eol=lf
+*.css  text eol=lf
+*.json text eol=lf
+*.toml text eol=lf
+*.rs   text eol=lf
+*.md   text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf

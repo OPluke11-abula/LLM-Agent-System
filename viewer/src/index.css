@@ -1,0 +1,150 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  /* Default: dark tech */
+  --bg-base: #080d1a;
+  --bg-panel: rgba(15,23,42,0.88);
+  --bg-card: rgba(30,41,59,0.55);
+  --border-c: rgba(51,65,85,0.9);
+  --t1: #f1f5f9;
+  --t2: #94a3b8;
+  --t3: #475569;
+  --accent: #22d3ee;
+  --accent-bg: rgba(34,211,238,0.12);
+  --sidebar: #020817;
+  --grid: rgba(99,179,237,0.05);
+  --orb1: rgba(34,211,238,0.15);
+  --orb2: rgba(139,92,246,0.12);
+}
+
+[data-theme="tokyo"] {
+  --bg-base: #04000f;
+  --bg-panel: rgba(8,0,30,0.94);
+  --bg-card: rgba(14,2,50,0.7);
+  --border-c: rgba(0,220,255,0.28);
+  --t1: #cffafe;
+  --t2: #67e8f9;
+  --t3: #164e63;
+  --accent: #00e5ff;
+  --accent-bg: rgba(0,229,255,0.1);
+  --sidebar: #020008;
+  --grid: rgba(0,220,255,0.055);
+  --orb1: rgba(255,0,128,0.22);
+  --orb2: rgba(0,229,255,0.18);
+}
+
+[data-theme="light"] {
+  --bg-base: #f0f4f8;
+  --bg-panel: rgba(255,255,255,0.92);
+  --bg-card: rgba(241,245,249,0.85);
+  --border-c: rgba(148,163,184,0.5);
+  --t1: #0f172a;
+  --t2: #475569;
+  --t3: #94a3b8;
+  --accent: #0284c7;
+  --accent-bg: rgba(2,132,199,0.1);
+  --sidebar: #1e293b;
+  --grid: rgba(0,0,0,0.045);
+  --orb1: rgba(2,132,199,0.12);
+  --orb2: rgba(99,102,241,0.08);
+}
+
+[data-theme="forest"] {
+  --bg-base: #0c1a0d;
+  --bg-panel: rgba(14,28,15,0.96);
+  --bg-card: rgba(20,40,22,0.78);
+  --border-c: rgba(130,180,100,0.18);
+  --t1: #e8f5e0;
+  --t2: #9dbf82;
+  --t3: #3d6b43;
+  --accent: #8cc96a;
+  --accent-bg: rgba(140,201,106,0.1);
+  --sidebar: #080e08;
+  --grid: rgba(100,150,70,0.04);
+  --orb1: rgba(120,180,80,0.09);
+  --orb2: rgba(180,140,60,0.06);
+}
+
+[data-theme="beige"] {
+  --bg-base: #f7f0e2;
+  --bg-panel: rgba(255,249,238,0.97);
+  --bg-card: rgba(244,233,210,0.88);
+  --border-c: rgba(160,120,70,0.28);
+  --t1: #1a0f05;
+  --t2: #6b4226;
+  --t3: #c4a882;
+  --accent: #a0522d;
+  --accent-bg: rgba(160,82,45,0.1);
+  --sidebar: #1a0f05;
+  --grid: rgba(120,80,40,0.045);
+  --orb1: rgba(210,160,80,0.1);
+  --orb2: rgba(180,120,60,0.07);
+}
+
+body { margin: 0; background: var(--bg-base); }
+
+/* Theme-aware utility classes */
+.t1  { color: var(--t1); }
+.t2  { color: var(--t2); }
+.t3  { color: var(--t3); }
+.accent-text { color: var(--accent); }
+.panel-bg { background: var(--bg-panel); border-color: var(--border-c); }
+.card-bg  { background: var(--bg-card);  border-color: var(--border-c); }
+
+/* Grid dot background */
+.bg-grid {
+  background-color: var(--bg-base);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* Status glow animations */
+@keyframes cyanPulse {
+  0%,100% { box-shadow: 0 0 8px rgba(34,211,238,0.3), 0 0 20px rgba(34,211,238,0.1); }
+  50%      { box-shadow: 0 0 18px rgba(34,211,238,0.65), 0 0 40px rgba(34,211,238,0.2); }
+}
+.glow-cyan { animation: cyanPulse 2.5s ease-in-out infinite; }
+
+@keyframes amberPulse {
+  0%,100% { box-shadow: 0 0 8px rgba(251,191,36,0.3), 0 0 20px rgba(251,191,36,0.1); }
+  50%      { box-shadow: 0 0 18px rgba(251,191,36,0.7), 0 0 40px rgba(251,191,36,0.2); }
+}
+.glow-amber { animation: amberPulse 2s ease-in-out infinite; }
+
+@keyframes topologyHitlPulse {
+  0%,100% { box-shadow: 0 0 10px rgba(216,90,48,0.32), 0 0 0 0 rgba(216,90,48,0.24); }
+  50% { box-shadow: 0 0 24px rgba(216,90,48,0.72), 0 0 0 8px rgba(216,90,48,0.08); }
+}
+
+.topology-hitl-pulse { animation: topologyHitlPulse 1.35s ease-in-out infinite; }
+
+@keyframes onboardingFloat {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-7px); }
+}
+
+@keyframes onboardingTrace {
+  0% { transform: translateX(0) translateY(0); opacity: 0; }
+  12% { opacity: 1; }
+  48% { transform: translateX(238px) translateY(0); opacity: 1; }
+  80% { transform: translateX(418px) translateY(80px); opacity: 1; }
+  100% { transform: translateX(418px) translateY(80px); opacity: 0; }
+}
+
+.onboarding-float { animation: onboardingFloat 6s ease-in-out infinite; }
+.onboarding-delay-2 { animation-delay: 0.8s; }
+.onboarding-delay-3 { animation-delay: 1.5s; }
+.onboarding-delay-4 { animation-delay: 2.2s; }
+
+.onboarding-trace { animation: onboardingTrace 4.6s ease-in-out infinite; }
+.onboarding-trace-delay { animation-delay: 1.35s; }
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-c); border-radius: 9999px; }

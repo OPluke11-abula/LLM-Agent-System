@@ -98,7 +98,16 @@ def build_router(session_id: str) -> AgentRouter:
 
 
 def get_long_term_memory() -> LongTermMemoryStore:
-    return LongTermMemoryStore(Path(workspace) / "memory")
+    config_path = Path(workspace) / "config.yaml"
+    try:
+        config = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+    except (OSError, yaml.YAMLError):
+        config = {}
+    memory_config = config.get("memory", {})
+    return LongTermMemoryStore(
+        Path(workspace) / "memory",
+        backend_name=memory_config.get("backend", "sqlite"),
+    )
 
 
 def load_llm_config() -> dict[str, Any]:

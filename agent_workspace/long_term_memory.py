@@ -1,9 +1,19 @@
 """Local long-term memory store for LAS.
 
-This is the first persistent-memory adapter. It is intentionally small and
-dependency-free so it can run in development before a vector database backend is
-introduced. The on-disk schema is stable JSON and can later be migrated to
-Qdrant, Chroma, or Weaviate.
+``LongTermMemoryStore`` is the public API that the rest of the codebase
+(``AgentRouter``, ``api.py``, CLI) interacts with.  It owns summarisation,
+keyword extraction, and deduplication logic.  Actual persistence is delegated
+to a pluggable ``MemoryBackend`` (default: ``SQLiteBackend``).
+
+The on-disk schema produced by the *record* dataclass is stable and can be
+read back from any backend that stores the same JSON blob.
+
+Migration note
+--------------
+Previous versions stored records in ``long_term_memory.json``.  The JSON
+file is **not** auto-migrated.  If the file exists alongside the new ``.db``
+it will be left untouched; remove it manually once you have confirmed the
+new backend works.
 """
 
 from __future__ import annotations
@@ -11,17 +21,18 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import os
 import re
-import tempfile
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from memory_backends import MemoryBackend, SQLiteBackend, create_backend
+
 
 SCHEMA_VERSION = "1.0.0"
-DEFAULT_FILENAME = "long_term_memory.json"
+DEFAULT_FILENAME = "long_term_memory.json"        # kept for reference only
+DEFAULT_BACKEND = "sqlite"
 TOKEN_PATTERN = re.compile(r"[\w\u4e00-\u9fff]+", re.UNICODE)
 
 
@@ -39,15 +50,50 @@ class LongTermMemoryRecord:
 
 
 class LongTermMemoryStore:
-    """JSON-backed persistent memory store with atomic writes."""
+    """High-level long-term memory manager backed by a ``MemoryBackend``.
 
-    def __init__(self, memory_dir: str | Path, filename: str = DEFAULT_FILENAME):
+    Parameters
+    ----------
+    memory_dir:
+        Directory that will hold the backend's data files.
+    backend_name:
+        Which backend to use (``"sqlite"`` by default).
+    backend:
+        Pass a pre-built ``MemoryBackend`` instance to skip the factory.
+        When provided, *backend_name* is ignored.
+    """
+
+    def __init__(
+        self,
+        memory_dir: str | Path,
+        *,
+        backend_name: str = DEFAULT_BACKEND,
+        backend: MemoryBackend | None = None,
+    ) -> None:
         self.memory_dir = Path(memory_dir)
-        self.path = self.memory_dir / filename
         self.memory_dir.mkdir(parents=True, exist_ok=True)
-        self._ensure_file()
 
-    def add_session_summary(self, session_id: str, messages: list[dict[str, Any]]) -> LongTermMemoryRecord | None:
+        # For backward-compat: expose a path attribute (used by api.py listing)
+        self.path = self.memory_dir / "long_term_memory.db"
+
+        if backend is not None:
+            self._backend = backend
+        else:
+            self._backend = create_backend(backend_name, self.memory_dir)
+
+    # -- public API -----------------------------------------------------------
+
+    def add_session_summary(
+        self,
+        session_id: str,
+        messages: list[dict[str, Any]],
+    ) -> LongTermMemoryRecord | None:
+        """Persist a summarised snapshot of *messages* for *session_id*.
+
+        Returns the ``LongTermMemoryRecord`` that was written, or the
+        existing record if one with the same content hash already exists.
+        Returns ``None`` when *messages* is empty.
+        """
         normalized_messages = [
             {
                 "timestamp": message.get("timestamp"),
@@ -59,11 +105,14 @@ class LongTermMemoryStore:
         if not normalized_messages:
             return None
 
-        source_hash = self._hash({"session_id": session_id, "messages": normalized_messages})
-        data = self._load()
-        for record in data["records"]:
-            if record.get("source_hash") == source_hash:
-                return LongTermMemoryRecord(**record)
+        source_hash = self._hash(
+            {"session_id": session_id, "messages": normalized_messages}
+        )
+
+        # Deduplicate: if a record with this hash already exists, return it.
+        existing = self._backend.read(session_id, f"ltm-{source_hash[:16]}")
+        if existing is not None:
+            return LongTermMemoryRecord(**existing)
 
         summary = self._summarize(normalized_messages)
         keywords = self._keywords(summary)
@@ -78,76 +127,37 @@ class LongTermMemoryStore:
             message_count=len(normalized_messages),
             payload={"messages": normalized_messages},
         )
-        data["records"].append(asdict(record))
-        data["updated_at"] = record.created_at
-        self._atomic_write(data)
+        self._backend.write(session_id, record.id, asdict(record))
         return record
 
-    def query(self, query_text: str, session_id: str | None = None, limit: int = 5) -> list[dict[str, Any]]:
-        data = self._load()
-        query_tokens = set(self._keywords(query_text))
-        scored: list[tuple[int, dict[str, Any]]] = []
-
-        for record in data["records"]:
-            if session_id and record.get("session_id") != session_id:
-                continue
-            haystack = set(record.get("keywords", []))
-            if query_tokens:
-                score = len(query_tokens & haystack)
-            else:
-                score = 0
-            if query_text.lower() in record.get("summary", "").lower():
-                score += 5
-            scored.append((score, record))
-
-        scored.sort(key=lambda item: (item[0], item[1].get("created_at", "")), reverse=True)
-        return [record for score, record in scored[:limit] if score > 0 or not query_tokens]
+    def query(
+        self,
+        query_text: str,
+        session_id: str | None = None,
+        limit: int = 5,
+    ) -> list[dict[str, Any]]:
+        """Search long-term memory for records matching *query_text*."""
+        return self._backend.search(query_text, session_id=session_id, top_k=limit)
 
     def all_records(self) -> list[dict[str, Any]]:
-        return list(self._load()["records"])
+        """Return every stored record."""
+        return self._backend.all_records()
 
-    def _ensure_file(self) -> None:
-        if not self.path.exists():
-            self._atomic_write(
-                {
-                    "schema_version": SCHEMA_VERSION,
-                    "created_at": self._now(),
-                    "updated_at": self._now(),
-                    "records": [],
-                }
-            )
-
-    def _load(self) -> dict[str, Any]:
-        try:
-            data = json.loads(self.path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            data = {}
-        if data.get("schema_version") != SCHEMA_VERSION:
-            data = {
-                "schema_version": SCHEMA_VERSION,
-                "created_at": self._now(),
-                "updated_at": self._now(),
-                "records": [],
-            }
-        data.setdefault("records", [])
-        return data
-
-    def _atomic_write(self, data: dict[str, Any]) -> None:
-        self.memory_dir.mkdir(parents=True, exist_ok=True)
-        fd, tmp_name = tempfile.mkstemp(prefix=f".{self.path.name}.", suffix=".tmp", dir=self.memory_dir)
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as tmp_file:
-                json.dump(data, tmp_file, ensure_ascii=False, indent=2)
-                tmp_file.write("\n")
-            os.replace(tmp_name, self.path)
-        finally:
-            if os.path.exists(tmp_name):
-                os.unlink(tmp_name)
+    # -- internal helpers (unchanged from v1) ----------------------------------
 
     @staticmethod
     def _summarize(messages: list[dict[str, Any]]) -> str:
-        first_user = next((message["user"] for message in messages if message["user"]), "")
-        last_assistant = next((message["assistant"] for message in reversed(messages) if message["assistant"]), "")
+        first_user = next(
+            (message["user"] for message in messages if message["user"]), ""
+        )
+        last_assistant = next(
+            (
+                message["assistant"]
+                for message in reversed(messages)
+                if message["assistant"]
+            ),
+            "",
+        )
         parts = [
             f"Conversation window with {len(messages)} exchanges.",
             f"First user request: {first_user[:240]}",
@@ -157,7 +167,11 @@ class LongTermMemoryStore:
 
     @staticmethod
     def _keywords(text: str, limit: int = 32) -> list[str]:
-        tokens = [token.lower() for token in TOKEN_PATTERN.findall(text) if len(token) > 1]
+        tokens = [
+            token.lower()
+            for token in TOKEN_PATTERN.findall(text)
+            if len(token) > 1
+        ]
         seen: set[str] = set()
         result: list[str] = []
         for token in tokens:
@@ -170,7 +184,9 @@ class LongTermMemoryStore:
 
     @staticmethod
     def _hash(payload: dict[str, Any]) -> str:
-        encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
+        encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True).encode(
+            "utf-8"
+        )
         return hashlib.sha256(encoded).hexdigest()
 
     @staticmethod
@@ -178,17 +194,29 @@ class LongTermMemoryStore:
         return datetime.now(timezone.utc).isoformat()
 
 
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Inspect LAS local long-term memory.")
+    parser = argparse.ArgumentParser(
+        description="Inspect LAS local long-term memory."
+    )
     parser.add_argument("command", choices=["list", "query"])
-    parser.add_argument("--memory-dir", default=str(Path(__file__).resolve().parent / "memory"))
-    parser.add_argument("--filename", default=DEFAULT_FILENAME)
+    parser.add_argument(
+        "--memory-dir",
+        default=str(Path(__file__).resolve().parent / "memory"),
+    )
+    parser.add_argument("--backend", default=DEFAULT_BACKEND)
     parser.add_argument("--q", default="")
     parser.add_argument("--session")
     parser.add_argument("--limit", type=int, default=5)
     args = parser.parse_args()
 
-    store = LongTermMemoryStore(args.memory_dir, filename=args.filename)
+    store = LongTermMemoryStore(
+        args.memory_dir,
+        backend_name=args.backend,
+    )
     if args.command == "list":
         records = store.all_records()
     else:

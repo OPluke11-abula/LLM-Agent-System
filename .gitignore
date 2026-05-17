@@ -226,6 +226,7 @@ AGENTS.md
 
 # Runtime memory data (generated at runtime, not part of the template)
 agent_workspace/memory/*.json
+agent_workspace/memory/*.db
 agent_workspace/memory/*.tmp
 agent_workspace/memory/.*.tmp
 !agent_workspace/memory/.gitkeep
@@ -237,3 +238,9 @@ agent_workspace/test_*.py
 # Test knowledge data (example SKILL.md copied for testing)
 agent_workspace/knowledge_base/backend-architect/
 
+# Topology Viewer
+viewer/node_modules/
+viewer/dist/
+viewer/.tmp/
+viewer/src-tauri/target/
+viewer/src-tauri/gen/

@@ -14,7 +14,8 @@ agent:
   memory_history_limit: 20         # 記憶中保留的最大對話輪數
 
 memory:
-  long_term_enabled: true          # 將溢出的 session working memory 寫入本機 long-term store
+  long_term_enabled: true          # 將溢出的 session working memory 寫入 long-term store
+  backend: "sqlite"                # 支援: "sqlite" (未來: "qdrant", "chroma", "weaviate")
 
 # ✏️ AI: Inject domain-specific settings below
 # database:

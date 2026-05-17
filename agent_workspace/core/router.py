@@ -143,7 +143,10 @@ class AgentRouter:
         self.memory = MemoryManager(memory_dir, session_id=self.session_id)
         memory_config = self._config.get("memory", {})
         self.long_term_memory = (
-            LongTermMemoryStore(memory_dir)
+            LongTermMemoryStore(
+                memory_dir,
+                backend_name=memory_config.get("backend", "sqlite"),
+            )
             if memory_config.get("long_term_enabled", True)
             else None
         )
