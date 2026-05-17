@@ -4,3 +4,5 @@ watchdog>=3.0.0
 httpx>=0.25.0
 pyyaml>=6.0.0
 google-genai>=1.0.0
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
