@@ -155,6 +155,24 @@ pip install prometheus_client
 curl http://localhost:8000/v1/metrics
 ```
 
+### Tool Manifest (PAP Sync)
+
+LAS dynamically loads tools from `agent_workspace/skills/` via Pydantic reflection. To maintain compatibility with the Portable Agent Protocol (PAP), you can automatically sync these runtime tools to static PAP skill contracts.
+
+```powershell
+# Generate a tool_manifest.json and sync .agent/skills/*.md
+python agent_workspace/tool_manifest.py sync
+
+# Validate that all runtime tools have matching PAP contracts
+python agent_workspace/tool_manifest.py validate
+```
+
+The live PAP-aligned tool manifest is also exposed via the API:
+
+```powershell
+curl http://localhost:8000/v1/tools
+```
+
 ### CLI Usage
 
 Check engine status:
@@ -290,11 +308,11 @@ v2.0 priorities:
 3. **PAP-compatible positioning**: completed at the workspace contract level through `.agent/agent.md`, entry documents, and per-tool skill contracts.
 4. **Persistent memory**: pluggable `MemoryBackend` with `SQLiteBackend` (FTS5 search) as default; vector backends such as Qdrant, Chroma, or Weaviate can be added by implementing the same interface.
 5. **Observability**: structured JSON logging and Prometheus metrics completed via `observability.py`; `GET /v1/metrics` endpoint live.
+6. **Tool Manifest**: PAP-aligned skill contract auto-sync completed via `tool_manifest.py`; `GET /v1/tools` endpoint live.
 
 v2.5 priorities:
 
 - OpenTelemetry tracing (distributed trace context)
-- Standard Tool Manifest aligned with PAP skills contracts
 - Supervisor-worker multi-agent orchestration
 
 v3.0 priorities:
@@ -488,6 +506,24 @@ pip install prometheus_client
 curl http://localhost:8000/v1/metrics
 ```
 
+### Tool Manifest (PAP Sync)
+
+LAS 在 runtime 透過 Pydantic 動態反射載入 `agent_workspace/skills/` 內的工具。為了與 Portable Agent Protocol (PAP) 保持相容，我們提供了自動同步機制，將 runtime 工具轉為靜態的 PAP skill contracts。
+
+```powershell
+# 產生 tool_manifest.json 並同步更新 .agent/skills/*.md
+python agent_workspace/tool_manifest.py sync
+
+# 驗證所有 runtime 工具是否都有對應的 PAP contract
+python agent_workspace/tool_manifest.py validate
+```
+
+即時的 PAP 工具清單也透過 API 暴露：
+
+```powershell
+curl http://localhost:8000/v1/tools
+```
+
 ### CLI 使用
 
 檢查引擎狀態：
@@ -623,11 +659,11 @@ v2.0 優先事項：
 3. **PAP-compatible 定位**：已在 workspace contract 層完成，包含 `.agent/agent.md`、entry documents、逐工具 skill contracts。
 4. **持久化記憶**：已完成可插拔 `MemoryBackend` 架構，預設使用 `SQLiteBackend`（FTS5 搜尋）；Qdrant、Chroma 或 Weaviate 等 vector backend 只需實作同一介面即可接入。
 5. **可觀測性**：已完成結構化 JSON Logging 與 Prometheus Metrics（透過 `observability.py`）；`GET /v1/metrics` 端點已上線。
+6. **Tool Manifest**：已完成 PAP skill contract 自動同步（透過 `tool_manifest.py`）；`GET /v1/tools` 端點已上線。
 
 v2.5 優先事項：
 
 - OpenTelemetry tracing（分散式追蹤上下文）
-- 對齊 PAP skills contract 的標準 Tool Manifest
 - Supervisor-worker 多 Agent 協作
 
 v3.0 優先事項：

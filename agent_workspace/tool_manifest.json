@@ -1,0 +1,69 @@
+{
+  "manifest_version": "1.0.0",
+  "generated_at": "2026-05-17T16:42:27.057595+00:00",
+  "workspace": "D:\\GitHub\\LLM-Agent-System\\agent_workspace",
+  "tool_count": 2,
+  "tools": [
+    {
+      "name": "calculate",
+      "description": "Perform a basic arithmetic calculation.\nSupports: add, subtract, multiply, divide.",
+      "module": "agent_workspace/skills/example_skill_template.py",
+      "function": "calculate",
+      "input_schema": {
+        "description": "Arguments for the calculator skill.",
+        "properties": {
+          "operation": {
+            "description": "The arithmetic operation to perform. Must be one of: add, subtract, multiply, divide.",
+            "title": "Operation",
+            "type": "string"
+          },
+          "a": {
+            "description": "The first number.",
+            "title": "A",
+            "type": "number"
+          },
+          "b": {
+            "description": "The second number.",
+            "title": "B",
+            "type": "number"
+          }
+        },
+        "required": [
+          "operation",
+          "a",
+          "b"
+        ],
+        "type": "object"
+      },
+      "wants_context": false,
+      "pap_contract": ".agent/skills/calculate.md"
+    },
+    {
+      "name": "transfer_agent",
+      "description": "[System Tool] Transfer the current session to a different Agent.\nCall this tool ONLY when you realize the user's request requires the expertise of a different specialized agent.",
+      "module": "agent_workspace/skills/transfer_agent.py",
+      "function": "transfer_agent",
+      "input_schema": {
+        "properties": {
+          "target_agent": {
+            "description": "The name of the agent to transfer to. For example: 'CodeEngineer', 'DatabaseAdmin'.",
+            "title": "Target Agent",
+            "type": "string"
+          },
+          "reason": {
+            "description": "The reason for the handoff, summarizing what needs to be done next.",
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target_agent",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "wants_context": false,
+      "pap_contract": ".agent/skills/transfer_agent.md"
+    }
+  ]
+}

@@ -49,6 +49,11 @@ try:
 except ImportError:
     from agent_workspace.long_term_memory import LongTermMemoryStore
 
+try:
+    from tool_manifest import ToolManifest
+except ImportError:
+    from agent_workspace.tool_manifest import ToolManifest
+
 
 API_VERSION = "0.1.0"
 
@@ -204,6 +209,12 @@ async def metrics():
         content=generate_latest(),
         media_type=CONTENT_TYPE_LATEST,
     )
+
+@app.get("/v1/tools")
+async def list_tools() -> dict[str, Any]:
+    """Return the live tool manifest (PAP-aligned)."""
+    manifest = ToolManifest.from_engine(get_engine())
+    return json.loads(manifest.to_json())
 
 
 @app.post("/v1/chat", response_model=ChatResponse)
