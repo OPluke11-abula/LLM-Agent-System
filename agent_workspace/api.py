@@ -21,6 +21,7 @@ from typing import Any
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
+import yaml
 
 workspace = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, workspace)
@@ -91,13 +92,37 @@ def build_router(session_id: str) -> AgentRouter:
     return AgentRouter(get_engine(), session_id=session_id)
 
 
+def load_llm_config() -> dict[str, Any]:
+    config_path = Path(workspace) / "config.yaml"
+    try:
+        config = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+    except (OSError, yaml.YAMLError):
+        config = {}
+    return config.get("llm", {})
+
+
+def required_env_for_provider(provider_name: str) -> str | None:
+    provider = provider_name.strip().lower()
+    if provider in {"google-genai", "gemini"}:
+        return "GOOGLE_API_KEY"
+    if provider == "openai":
+        return "OPENAI_API_KEY"
+    if provider == "anthropic":
+        return "ANTHROPIC_API_KEY"
+    return None
+
+
 def ensure_llm_configured() -> None:
-    # The current default provider is Google GenAI. Keep this check in the API
-    # adapter so core provider logic remains unchanged.
-    if not os.environ.get("GOOGLE_API_KEY"):
+    llm_config = load_llm_config()
+    provider = llm_config.get("provider", "google-genai")
+    required_env = required_env_for_provider(provider)
+    if required_env and not os.environ.get(required_env):
         raise HTTPException(
             status_code=503,
-            detail="GOOGLE_API_KEY is not set. Configure the provider before calling chat, stream, or task endpoints.",
+            detail=(
+                f"{required_env} is not set for provider '{provider}'. "
+                "Configure the provider before calling chat, stream, or task endpoints."
+            ),
         )
 
 
@@ -107,11 +132,16 @@ def sse_event(event: dict[str, Any]) -> str:
 
 @app.get("/v1/health")
 async def health() -> dict[str, Any]:
+    llm_config = load_llm_config()
+    provider = llm_config.get("provider", "google-genai")
+    required_env = required_env_for_provider(provider)
     return {
         "status": "ok",
         "api_version": API_VERSION,
         "workspace": workspace,
-        "google_api_key_configured": bool(os.environ.get("GOOGLE_API_KEY")),
+        "llm_provider": provider,
+        "llm_required_env": required_env,
+        "llm_configured": True if required_env is None else bool(os.environ.get(required_env)),
     }
 
 
