@@ -154,7 +154,7 @@ async def run_stream(args: argparse.Namespace) -> int:
             tool_name = str(event.get("name") or "unknown_tool")
             result = event.get("result")
             node_id = active_tool_nodes.get(tool_name) or f"tool-{tool_name}"
-            failed = isinstance(result, str) and (result.startswith("Error:") or "憭望?" in result)
+            failed = isinstance(result, str) and result.startswith("Error:")
             if failed:
                 tool_failure_counts[tool_name] = tool_failure_counts.get(tool_name, 0) + 1
             else:

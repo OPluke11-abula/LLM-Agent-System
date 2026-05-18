@@ -30,5 +30,5 @@ The router interprets this prefix as a handoff signal.
 
 ## 中文說明
 
-`transfer_agent` 只產生 handoff signal，不直接執行目標 Agent。實際路由與授權
-仍由 LAS runtime 負責。
+`transfer_agent` 只產生 handoff signal，不直接執行目標 agent。是否允許轉交、
+如何追蹤與審計，仍由 LAS runtime 和 delegation contract 控制。

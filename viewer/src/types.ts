@@ -4,6 +4,20 @@ export type ThemeId = "dark" | "tokyo" | "light" | "forest" | "beige";
 export type SkillCategory = "backend" | "mobile" | "testing" | "quality";
 export type SettingsTabId = "general" | "docs" | "guide";
 
+export type LlmConfig = {
+  provider: string;
+  model: string;
+  base_url: string;
+  api_key_set: boolean;
+};
+
+export type LlmConfigPayload = {
+  provider?: string;
+  model?: string;
+  api_key?: string;
+  base_url?: string;
+};
+
 export type AgentTask = {
   id: string;
   description: string;
@@ -145,6 +159,13 @@ export type TranslationMessages = {
   aiTipsTitle: string;
   aiTipsDesc: string;
   tips: GuideItem[];
+  llmConfigTitle: string;
+  llmProviderLabel: string;
+  llmModelLabel: string;
+  llmApiKeyLabel: string;
+  llmBaseUrlLabel: string;
+  saveConfigBtn: string;
+  configSavedToast: string;
 };
 
 export type SkillDefinition = {

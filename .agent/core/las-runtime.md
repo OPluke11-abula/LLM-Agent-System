@@ -23,6 +23,5 @@ behavior.
 
 ## 中文說明
 
-LAS 透過 `.agent/` workspace contract 對齊 PAP，但引擎仍位於
-`agent_workspace/core/`。PAP 文件描述可攜式契約，不應成為繞過 LAS 授權、工具
-反射或閉環狀態機的第二套 runtime。
+LAS 的核心 runtime 留在 `agent_workspace/core/`。`.agent/` 只定義可攜式合約，
+方便人和 AI 安全接手 repo；它不能繞過 LAS 的授權、工具反射或 closed-loop 行為。

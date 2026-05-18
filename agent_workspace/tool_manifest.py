@@ -1,32 +1,21 @@
-"""Tool Manifest generator for LAS — PAP skill contract auto-sync.
+"""Contract pipeline for LAS runtime tools and PAP skill documents.
 
-This module bridges LAS runtime tool discovery (Pydantic reflection) with the
-Portable Agent Protocol (PAP) skill contract format.  It can:
+This module bridges live tool reflection with the Portable Agent Protocol
+workspace surface:
 
-1. **Generate** a machine-readable ``tool_manifest.json`` from the live
-   ``AgentEngine`` tool registry.
-2. **Sync** the PAP ``.agent/skills/`` directory and ``.agent/skills.md``
-   registry to stay in lockstep with the runtime tools.
-3. **Validate** that every runtime tool has a matching PAP contract and
-   vice-versa.
-
-Usage::
-
-    # CLI
-    python agent_workspace/tool_manifest.py generate
-    python agent_workspace/tool_manifest.py sync
-    python agent_workspace/tool_manifest.py validate
-
-    # API (imported)
-    from tool_manifest import ToolManifest
-    manifest = ToolManifest.from_engine(engine)
+1. Generate a machine-readable tool manifest from ``AgentEngine``.
+2. Create missing ``.agent/skills/<tool>.md`` contracts.
+3. Regenerate ``.agent/skills.md`` from the live runtime registry.
+4. Validate that runtime tools and PAP contracts stay in sync.
 """
 
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 import os
+import re
 import sys
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -36,31 +25,36 @@ from typing import Any
 workspace = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, workspace)
 
-from core.engine import AgentEngine
+try:
+    from core.engine import AgentEngine
+except ModuleNotFoundError as import_error:
+    AgentEngine = None
+    ENGINE_IMPORT_ERROR = import_error
+else:
+    ENGINE_IMPORT_ERROR = None
+
 
 MANIFEST_VERSION = "1.0.0"
 MANIFEST_FILENAME = "tool_manifest.json"
 
 
-# ---------------------------------------------------------------------------
-#  Data model
-# ---------------------------------------------------------------------------
-
 @dataclass
 class ToolEntry:
-    """A single tool in the manifest."""
+    """One reflected runtime tool."""
+
     name: str
     description: str
     module: str
     function: str
     input_schema: dict[str, Any]
     wants_context: bool = False
-    pap_contract: str | None = None  # path to .agent/skills/<name>.md
+    pap_contract: str | None = None
 
 
 @dataclass
 class ToolManifest:
-    """Complete tool manifest for the workspace."""
+    """Complete tool manifest for a LAS workspace."""
+
     manifest_version: str = MANIFEST_VERSION
     generated_at: str = ""
     workspace: str = ""
@@ -68,8 +62,8 @@ class ToolManifest:
     tools: list[ToolEntry] = field(default_factory=list)
 
     @classmethod
-    def from_engine(cls, engine: AgentEngine) -> "ToolManifest":
-        """Build a manifest from a live AgentEngine instance."""
+    def from_engine(cls, engine: Any) -> "ToolManifest":
+        """Build a manifest from a live ``AgentEngine`` instance."""
         tools: list[ToolEntry] = []
         project_root = Path(engine.workspace_path).parent
 
@@ -84,22 +78,23 @@ class ToolManifest:
             else:
                 module_rel = func.__module__
 
-            # Check for matching PAP contract
             pap_path = project_root / ".agent" / "skills" / f"{name}.md"
             pap_contract = str(pap_path.relative_to(project_root)) if pap_path.exists() else None
 
             schema = tool_info["schema"].copy()
             schema.pop("title", None)
 
-            tools.append(ToolEntry(
-                name=name,
-                description=(tool_info["description"] or "").strip(),
-                module=module_rel.replace("\\", "/"),
-                function=func.__name__,
-                input_schema=schema,
-                wants_context=tool_info["wants_context"],
-                pap_contract=pap_contract.replace("\\", "/") if pap_contract else None,
-            ))
+            tools.append(
+                ToolEntry(
+                    name=name,
+                    description=(tool_info["description"] or "").strip(),
+                    module=module_rel.replace("\\", "/"),
+                    function=func.__name__,
+                    input_schema=schema,
+                    wants_context=tool_info["wants_context"],
+                    pap_contract=pap_contract.replace("\\", "/") if pap_contract else None,
+                )
+            )
 
         return cls(
             manifest_version=MANIFEST_VERSION,
@@ -109,21 +104,36 @@ class ToolManifest:
             tools=tools,
         )
 
+    @classmethod
+    def from_workspace_static(cls, workspace_path: str | Path) -> "ToolManifest":
+        """Build a manifest by parsing skills/*.py without importing runtime deps."""
+        workspace_path = Path(workspace_path)
+        project_root = workspace_path.parent
+        tools: list[ToolEntry] = []
+        skills_dir = workspace_path / "skills"
+
+        if skills_dir.is_dir():
+            for skill_file in sorted(skills_dir.glob("*.py")):
+                if skill_file.name == "__init__.py":
+                    continue
+                tools.extend(_parse_skill_file(skill_file, project_root))
+
+        return cls(
+            manifest_version=MANIFEST_VERSION,
+            generated_at=datetime.now(timezone.utc).isoformat(),
+            workspace=str(workspace_path),
+            tool_count=len(tools),
+            tools=tools,
+        )
+
     def to_json(self, indent: int = 2) -> str:
         return json.dumps(asdict(self), ensure_ascii=False, indent=indent)
 
     def save(self, path: str | Path | None = None) -> Path:
-        if path is None:
-            path = Path(workspace) / MANIFEST_FILENAME
-        else:
-            path = Path(path)
-        path.write_text(self.to_json(), encoding="utf-8")
-        return path
+        output_path = Path(path) if path is not None else Path(workspace) / MANIFEST_FILENAME
+        output_path.write_text(self.to_json(), encoding="utf-8")
+        return output_path
 
-
-# ---------------------------------------------------------------------------
-#  PAP Sync — generate .agent/skills/<name>.md from runtime tools
-# ---------------------------------------------------------------------------
 
 _PAP_SKILL_TEMPLATE = """---
 name: "{name}"
@@ -134,27 +144,26 @@ author: "LAS Tool Manifest Auto-Sync"
 
 # {name}
 
-> **PAP Skill Contract**: This document defines the exact execution boundaries, inputs, and outputs for this skill. AI agents MUST strictly adhere to these specifications.
+> **PAP Skill Contract**: This document defines the exact execution boundaries, inputs, and outputs for this skill.
 
-## 1. Purpose (目的)
+## 1. Purpose
 
 {description}
 
-## 2. Required Inputs (輸入參數)
+## 2. Required Inputs
 
 {inputs_section}
 
-## 3. Expected Outputs (預期輸出)
+## 3. Expected Outputs
 
-- **Success Format**: Plain text result string.
-- **Error Format**: String prefixed with `Error:`.
+- **Success format**: Plain text result string.
+- **Error format**: String prefixed with `Error:`.
 
-## 4. Execution Boundaries & Safety (執行邊界與安全)
+## 4. Execution Boundaries and Safety
 
-> [!WARNING]
-> **Safety Constraints:**
-> - This contract is auto-generated from runtime Pydantic reflection.
-> - Review and adjust safety notes before production use.
+- This contract is generated from runtime Pydantic reflection.
+- Review and harden safety notes before production use.
+- The runtime mapping below is authoritative for this generated contract.
 
 ## 5. Runtime Mapping
 
@@ -164,12 +173,16 @@ author: "LAS Tool Manifest Auto-Sync"
 - Wants context: `{wants_context}`
 
 ---
-*Generated by: LAS Tool Manifest Auto-Sync*
+Generated by LAS Tool Manifest Auto-Sync.
 """
 
 
+def _escape_frontmatter(value: str) -> str:
+    return value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", " ")
+
+
 def _render_inputs(schema: dict[str, Any]) -> str:
-    """Render input_schema properties as markdown list."""
+    """Render input_schema properties as a Markdown list."""
     props = schema.get("properties", {})
     required = set(schema.get("required", []))
     lines = []
@@ -178,26 +191,120 @@ def _render_inputs(schema: dict[str, Any]) -> str:
         req_label = "**Required**" if param_name in required else "Optional"
         desc = param_info.get("description", "")
         lines.append(f"- `{param_name}` ({param_type}, {req_label}): {desc}")
-    return "\n".join(lines) if lines else "- _(no parameters)_"
+    return "\n".join(lines) if lines else "- No parameters."
+
+
+def _annotation_name(node: ast.AST | None) -> str:
+    if node is None:
+        return ""
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        return node.attr
+    if isinstance(node, ast.Subscript):
+        return _annotation_name(node.value)
+    return ""
+
+
+def _json_type(annotation: str) -> str:
+    return {
+        "str": "string",
+        "int": "integer",
+        "float": "number",
+        "bool": "boolean",
+        "dict": "object",
+        "list": "array",
+    }.get(annotation, "string")
+
+
+def _field_description(value: ast.AST | None) -> str:
+    if not isinstance(value, ast.Call):
+        return ""
+    func_name = _annotation_name(value.func)
+    if func_name != "Field":
+        return ""
+    for keyword in value.keywords:
+        if keyword.arg == "description" and isinstance(keyword.value, ast.Constant):
+            return str(keyword.value.value)
+    return ""
+
+
+def _parse_models(tree: ast.Module) -> dict[str, dict[str, Any]]:
+    models: dict[str, dict[str, Any]] = {}
+    for node in tree.body:
+        if not isinstance(node, ast.ClassDef):
+            continue
+        if not any(_annotation_name(base) == "BaseModel" for base in node.bases):
+            continue
+
+        properties: dict[str, Any] = {}
+        required: list[str] = []
+        for item in node.body:
+            if not isinstance(item, ast.AnnAssign) or not isinstance(item.target, ast.Name):
+                continue
+            field_name = item.target.id
+            annotation = _annotation_name(item.annotation)
+            properties[field_name] = {
+                "type": _json_type(annotation),
+                "description": _field_description(item.value),
+            }
+            required.append(field_name)
+
+        models[node.name] = {
+            "type": "object",
+            "properties": properties,
+            "required": required,
+        }
+    return models
+
+
+def _parse_skill_file(skill_file: Path, project_root: Path) -> list[ToolEntry]:
+    raw = skill_file.read_text(encoding="utf-8")
+    tree = ast.parse(raw, filename=str(skill_file))
+    models = _parse_models(tree)
+    entries: list[ToolEntry] = []
+
+    for node in tree.body:
+        if not isinstance(node, ast.FunctionDef) or node.name.startswith("_"):
+            continue
+        if not node.args.args:
+            continue
+        first_arg = node.args.args[0]
+        model_name = _annotation_name(first_arg.annotation)
+        if model_name not in models:
+            continue
+
+        pap_path = project_root / ".agent" / "skills" / f"{node.name}.md"
+        pap_contract = str(pap_path.relative_to(project_root)).replace("\\", "/") if pap_path.exists() else None
+        module_rel = str(skill_file.relative_to(project_root)).replace("\\", "/")
+        entries.append(
+            ToolEntry(
+                name=node.name,
+                description=(ast.get_docstring(node) or "").strip(),
+                module=module_rel,
+                function=node.name,
+                input_schema=models[model_name],
+                wants_context=any(arg.arg == "context" for arg in node.args.args[1:]),
+                pap_contract=pap_contract,
+            )
+        )
+
+    return entries
 
 
 def sync_pap_contracts(manifest: ToolManifest, project_root: Path) -> list[str]:
-    """Create or update .agent/skills/<name>.md for each tool.
-
-    Returns list of paths that were written.
-    """
+    """Create missing .agent/skills/<name>.md files without overwriting hand edits."""
     skills_dir = project_root / ".agent" / "skills"
     skills_dir.mkdir(parents=True, exist_ok=True)
     written: list[str] = []
 
     for tool in manifest.tools:
         contract_path = skills_dir / f"{tool.name}.md"
-        # Only write if missing — don't overwrite hand-edited contracts
         if contract_path.exists():
             continue
         content = _PAP_SKILL_TEMPLATE.format(
-            name=tool.name,
-            description=tool.description,
+            name=_escape_frontmatter(tool.name),
+            description=_escape_frontmatter(tool.description),
             inputs_section=_render_inputs(tool.input_schema),
             module=tool.module,
             function=tool.function,
@@ -210,7 +317,7 @@ def sync_pap_contracts(manifest: ToolManifest, project_root: Path) -> list[str]:
 
 
 def sync_skills_md(manifest: ToolManifest, project_root: Path) -> None:
-    """Regenerate .agent/skills.md registry from manifest."""
+    """Regenerate the PAP-facing skill registry."""
     lines = [
         "# Skills Entry Point",
         "",
@@ -229,69 +336,64 @@ def sync_skills_md(manifest: ToolManifest, project_root: Path) -> None:
         contract = tool.pap_contract or f".agent/skills/{tool.name}.md"
         lines.append(f"| `{tool.name}` | `{tool.module}` | `{tool.function}` | `{contract}` |")
 
-    lines.extend([
-        "",
-        "## Adding New Skills",
-        "",
-        "1. Add or update a Python module under `agent_workspace/skills/`.",
-        "2. Expose a function whose first argument is a Pydantic `BaseModel`.",
-        "3. Let `AgentEngine` reflect the tool schema.",
-        "4. Run `python agent_workspace/tool_manifest.py sync` to auto-generate contracts.",
-        "5. Review and refine the generated `.agent/skills/<skill_name>.md`.",
-        "",
-        "## 中文說明",
-        "",
-        "LAS 的可執行工具仍由 `agent_workspace/skills/*.py` 提供，並透過 Pydantic",
-        "自動反射成 tool schema。執行 `tool_manifest.py sync` 即可自動產生 PAP skill",
-        "contract 並更新本檔案。",
-        "",
-    ])
+    lines.extend(
+        [
+            "",
+            "## Adding New Skills",
+            "",
+            "1. Add or update a Python module under `agent_workspace/skills/`.",
+            "2. Expose a function whose first argument is a Pydantic `BaseModel`.",
+            "3. Let `AgentEngine` reflect the tool schema.",
+            "4. Run `python agent_workspace/tool_manifest.py sync` to update contracts.",
+            "5. Review and refine generated `.agent/skills/<skill_name>.md` files.",
+            "",
+            "## Contract Rule",
+            "",
+            "Runtime tools and PAP skill contracts must remain one-to-one. A tool without",
+            "a contract is not AI-maintainable; a contract without a runtime tool is stale.",
+            "Run `python agent_workspace/tool_manifest.py validate` before release.",
+            "",
+            "## 中文說明",
+            "",
+            "LAS 會從 `agent_workspace/skills/*.py` 反射可執行工具，並用本文件把 runtime",
+            "工具對應到 `.agent/skills/*.md` 的 PAP contract。新增工具後請執行 `sync`，",
+            "再人工檢查安全邊界與輸入輸出格式。",
+            "",
+        ]
+    )
     (project_root / ".agent" / "skills.md").write_text("\n".join(lines), encoding="utf-8")
 
 
 def sync_agent_md_tools(manifest: ToolManifest, project_root: Path) -> None:
-    """Update the tools: list in .agent/agent.md frontmatter."""
+    """Update the tools list in .agent/agent.md front matter."""
     agent_md = project_root / ".agent" / "agent.md"
     if not agent_md.exists():
         return
 
     content = agent_md.read_text(encoding="utf-8")
-    # Find and replace the tools: block in YAML frontmatter
-    import re
     tool_names = [tool.name for tool in manifest.tools]
     new_tools_block = "tools:\n" + "\n".join(f"  - {name}" for name in tool_names)
-
-    # Match existing tools block in frontmatter
     pattern = r"tools:\n(?:  - .+\n)+"
     if re.search(pattern, content):
         content = re.sub(pattern, new_tools_block + "\n", content)
         agent_md.write_text(content, encoding="utf-8")
 
 
-# ---------------------------------------------------------------------------
-#  Validation
-# ---------------------------------------------------------------------------
-
 def validate(manifest: ToolManifest, project_root: Path) -> list[str]:
-    """Check consistency between runtime tools and PAP contracts.
-
-    Returns list of warning strings (empty = all good).
-    """
+    """Check consistency between runtime tools and PAP contracts."""
     warnings: list[str] = []
     skills_dir = project_root / ".agent" / "skills"
 
-    # 1. Every runtime tool should have a PAP contract
     for tool in manifest.tools:
         contract = skills_dir / f"{tool.name}.md"
         if not contract.exists():
             warnings.append(f"MISSING_CONTRACT: tool '{tool.name}' has no .agent/skills/{tool.name}.md")
 
-    # 2. Every PAP contract should have a matching runtime tool
-    tool_names = {t.name for t in manifest.tools}
+    tool_names = {tool.name for tool in manifest.tools}
     if skills_dir.exists():
         for md_file in skills_dir.glob("*.md"):
             if md_file.name.startswith("_"):
-                continue  # skip templates
+                continue
             skill_name = md_file.stem
             if skill_name not in tool_names:
                 warnings.append(f"ORPHAN_CONTRACT: .agent/skills/{md_file.name} has no matching runtime tool")
@@ -299,58 +401,63 @@ def validate(manifest: ToolManifest, project_root: Path) -> list[str]:
     return warnings
 
 
-# ---------------------------------------------------------------------------
-#  CLI
-# ---------------------------------------------------------------------------
-
 def main() -> None:
-    parser = argparse.ArgumentParser(description="LAS Tool Manifest — PAP Skill Contract Manager")
-    parser.add_argument("command", choices=["generate", "sync", "validate"],
-                        help="generate: write tool_manifest.json | sync: generate + update PAP contracts | validate: check consistency")
+    parser = argparse.ArgumentParser(description="LAS tool manifest and PAP contract manager")
+    parser.add_argument(
+        "command",
+        choices=["generate", "sync", "validate"],
+        help="generate a manifest, sync PAP contracts, or validate contract parity",
+    )
     parser.add_argument("--output", type=str, help="Output path for tool_manifest.json")
     args = parser.parse_args()
 
-    engine = AgentEngine(workspace_path=workspace)
-    manifest = ToolManifest.from_engine(engine)
+    if AgentEngine is not None:
+        engine = AgentEngine(workspace_path=workspace)
+        manifest = ToolManifest.from_engine(engine)
+    else:
+        print(
+            "Runtime dependencies are incomplete; using static AST manifest fallback. "
+            f"Missing dependency: {ENGINE_IMPORT_ERROR.name if ENGINE_IMPORT_ERROR else 'unknown'}"
+        )
+        manifest = ToolManifest.from_workspace_static(workspace)
     project_root = Path(workspace).parent
 
     if args.command == "generate":
         out = manifest.save(args.output)
-        print(f"✅ tool_manifest.json written to {out}")
-        print(f"   {manifest.tool_count} tool(s) registered")
+        print(f"tool_manifest.json written to {out}")
+        print(f"{manifest.tool_count} tool(s) registered")
 
     elif args.command == "sync":
         out = manifest.save(args.output)
-        print(f"✅ tool_manifest.json written to {out}")
+        print(f"tool_manifest.json written to {out}")
 
         written = sync_pap_contracts(manifest, project_root)
         if written:
-            print(f"✅ Created {len(written)} new PAP contract(s):")
-            for w in written:
-                print(f"   + {w}")
+            print(f"Created {len(written)} new PAP contract(s):")
+            for path in written:
+                print(f"  + {path}")
         else:
-            print("✅ All PAP contracts already exist")
+            print("All PAP contracts already exist")
 
         sync_skills_md(manifest, project_root)
-        print("✅ .agent/skills.md updated")
+        print(".agent/skills.md updated")
 
         sync_agent_md_tools(manifest, project_root)
-        print("✅ .agent/agent.md tools list synced")
+        print(".agent/agent.md tools list synced")
 
     elif args.command == "validate":
         warnings = validate(manifest, project_root)
         if warnings:
-            print(f"⚠ {len(warnings)} issue(s) found:")
-            for w in warnings:
-                print(f"   {w}")
-        else:
-            print(f"✅ All {manifest.tool_count} tool(s) have matching PAP contracts")
+            print(f"{len(warnings)} issue(s) found:")
+            for warning in warnings:
+                print(f"  {warning}")
+            raise SystemExit(1)
+        print(f"All {manifest.tool_count} tool(s) have matching PAP contracts")
 
-    # Always print manifest summary
     print(f"\nManifest ({manifest.manifest_version}):")
     for tool in manifest.tools:
-        contract_status = "✅" if tool.pap_contract else "❌"
-        print(f"  {contract_status} {tool.name}: {tool.description[:60]}")
+        contract_status = "contract" if tool.pap_contract else "missing-contract"
+        print(f"  [{contract_status}] {tool.name}: {tool.description[:60]}")
 
 
 if __name__ == "__main__":

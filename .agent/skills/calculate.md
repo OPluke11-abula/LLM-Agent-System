@@ -29,5 +29,5 @@ Plain text result or an error string.
 
 ## 中文說明
 
-`calculate` 是基本四則運算工具。它不存取外部系統，屬於低風險 deterministic
-skill。
+`calculate` 是 deterministic skill，只負責基本四則運算，不讀寫檔案、不呼叫外部
+系統，也不應被擴充成任意程式執行器。

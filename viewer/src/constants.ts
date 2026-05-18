@@ -150,6 +150,13 @@ export const T: Record<Lang, TranslationMessages> = {
         body: "每次只讓 AI 處理一個明確子任務，完成後驗收再進行下一步。",
       },
     ],
+    llmConfigTitle: "LLM 模型與服務設定",
+    llmProviderLabel: "供應商 (Provider)",
+    llmModelLabel: "模型 (Model)",
+    llmApiKeyLabel: "API 金鑰 (API Key)",
+    llmBaseUrlLabel: "自訂端點 (Base URL)",
+    saveConfigBtn: "儲存模型設定",
+    configSavedToast: "設定已成功更新！系統將立即套用新模型。",
   },
   en: {
     appTitle: "Control Center",
@@ -292,6 +299,13 @@ export const T: Record<Lang, TranslationMessages> = {
         body: "Let the AI handle one clear sub-task at a time, verify, then proceed to the next.",
       },
     ],
+    llmConfigTitle: "LLM Model Configuration",
+    llmProviderLabel: "Provider",
+    llmModelLabel: "Model",
+    llmApiKeyLabel: "API Key",
+    llmBaseUrlLabel: "Base URL",
+    saveConfigBtn: "Save LLM Config",
+    configSavedToast: "Configuration saved successfully! The new model is now active.",
   },
 };
 

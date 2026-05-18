@@ -65,6 +65,6 @@ discovers Python tools from `agent_workspace/skills/`, prompts from
 
 ## 中文說明
 
-這個檔案是 LAS 的 PAP manifest。它宣告可攜式協作契約，但不介入 LAS 的核心
-runtime。LAS 仍由既有引擎負責 Pydantic tool 反射、Jinja2 prompt、session
-memory、RBAC 與閉環狀態機。
+這個檔案是 LAS 的 PAP manifest，用來宣告 repo 的協作合約與可攜式入口。
+它不取代 LAS runtime；真正的工具反射、Jinja2 prompt、session memory、RBAC
+與 closed-loop 行為仍由 `agent_workspace/core/` 和 adapter 層負責。

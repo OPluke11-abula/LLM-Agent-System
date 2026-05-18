@@ -1,6 +1,6 @@
-import { useState, type Dispatch, type SetStateAction } from "react";
+import { useState, useEffect, type Dispatch, type SetStateAction } from "react";
 import { ALL_LANGS, THEME_LIST } from "../constants";
-import type { Lang, SettingsTabId, ThemeId, TranslationMessages, Workspace } from "../types";
+import type { Lang, SettingsTabId, ThemeId, TranslationMessages, Workspace, LlmConfig, LlmConfigPayload } from "../types";
 
 type SettingsViewProps = {
   lang: Lang;
@@ -24,6 +24,41 @@ export function SettingsView({
   const [openTip, setOpenTip] = useState<number | null>(null);
   const [draftPaths, setDraftPaths] = useState<Record<string, string>>({});
   const [activeTab, setActiveTab] = useState<SettingsTabId>("general");
+  
+  const [llmConfig, setLlmConfig] = useState<LlmConfig | null>(null);
+  const [llmPayload, setLlmPayload] = useState<LlmConfigPayload>({});
+  const [saveStatus, setSaveStatus] = useState<string>("");
+
+  useEffect(() => {
+    fetch("http://127.0.0.1:8000/v1/config")
+      .then((res) => res.json())
+      .then((data) => {
+        setLlmConfig(data as LlmConfig);
+        setLlmPayload({
+          provider: data.provider,
+          model: data.model,
+          base_url: data.base_url,
+          api_key: "",
+        });
+      })
+      .catch((err) => console.error("Failed to load config:", err));
+  }, []);
+
+  async function saveLlmConfig() {
+    try {
+      const res = await fetch("http://127.0.0.1:8000/v1/config", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(llmPayload),
+      });
+      if (res.ok) {
+        setSaveStatus(t.configSavedToast);
+        setTimeout(() => setSaveStatus(""), 3000);
+      }
+    } catch (err) {
+      console.error("Failed to save config:", err);
+    }
+  }
 
   const inputStyle = {
     background: "var(--bg-card)",
@@ -126,6 +161,79 @@ export function SettingsView({
                   {t.themes[id]}
                 </button>
               ))}
+            </div>
+          </section>
+
+          <section className="card-bg mb-7 rounded-xl border p-5">
+            <label className="mb-3 block text-[10px] font-bold uppercase tracking-widest t3">{t.llmConfigTitle}</label>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-xs font-bold t2">{t.llmProviderLabel}</label>
+                <select
+                  value={llmPayload.provider || ""}
+                  onChange={(e) => setLlmPayload({ ...llmPayload, provider: e.target.value })}
+                  className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-1"
+                  style={inputStyle}
+                >
+                  <option value="google-genai">Google GenAI (Gemini)</option>
+                  <option value="openai">OpenAI</option>
+                  <option value="anthropic">Anthropic</option>
+                  <option value="ollama">Ollama (Local)</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-bold t2">{t.llmModelLabel}</label>
+                <input
+                  type="text"
+                  value={llmPayload.model || ""}
+                  onChange={(e) => setLlmPayload({ ...llmPayload, model: e.target.value })}
+                  placeholder="e.g. gemini-2.5-flash"
+                  className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-1"
+                  style={inputStyle}
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="mb-1 block text-xs font-bold t2">
+                  {t.llmApiKeyLabel}
+                  {llmConfig?.api_key_set && (
+                    <span className="ml-2 text-[10px] text-green-500 font-normal tracking-wide border border-green-500/30 px-1.5 py-0.5 rounded">
+                      ✓ SET IN .ENV
+                    </span>
+                  )}
+                </label>
+                <input
+                  type="password"
+                  value={llmPayload.api_key || ""}
+                  onChange={(e) => setLlmPayload({ ...llmPayload, api_key: e.target.value })}
+                  placeholder={llmConfig?.api_key_set ? "•••••••••••••••••••• (Leave blank to keep current)" : "Enter API Key..."}
+                  className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-1"
+                  style={inputStyle}
+                />
+              </div>
+              {(llmPayload.provider === "ollama" || llmPayload.provider === "openai") && (
+                <div className="md:col-span-2">
+                  <label className="mb-1 block text-xs font-bold t2">{t.llmBaseUrlLabel}</label>
+                  <input
+                    type="text"
+                    value={llmPayload.base_url || ""}
+                    onChange={(e) => setLlmPayload({ ...llmPayload, base_url: e.target.value })}
+                    placeholder="e.g. http://127.0.0.1:11434"
+                    className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-1"
+                    style={inputStyle}
+                  />
+                </div>
+              )}
+            </div>
+            <div className="mt-5 flex items-center gap-4">
+              <button
+                type="button"
+                onClick={saveLlmConfig}
+                className="rounded-lg border px-5 py-2 text-sm font-bold transition-all hover:brightness-110"
+                style={{ background: "var(--accent)", borderColor: "var(--accent)", color: "#fff" }}
+              >
+                {t.saveConfigBtn}
+              </button>
+              {saveStatus && <span className="text-sm font-bold" style={{ color: "var(--accent)" }}>{saveStatus}</span>}
             </div>
           </section>
 

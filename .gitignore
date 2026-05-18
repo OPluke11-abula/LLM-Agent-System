@@ -229,8 +229,13 @@ agent_workspace/memory/*.json
 agent_workspace/memory/*.db
 agent_workspace/memory/*.tmp
 agent_workspace/memory/.*.tmp
+agent_workspace/memory/*/
+agent_workspace/agent_workspace/memory/*.json
+agent_workspace/agent_workspace/memory/*.db
 !agent_workspace/memory/.gitkeep
 workspace/*.json
+workspace/*.tmp
+agent_workspace/tool_manifest.json
 
 # Test scripts (development-only)
 agent_workspace/test_*.py

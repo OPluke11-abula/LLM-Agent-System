@@ -1,20 +1,10 @@
-"""
-=========================================================================
- skills/example_skill_template.py — 範例技能 (同時也是可執行的測試工具)
+"""Example deterministic calculator skill.
 
- 此檔案有兩個用途：
-   1. 作為未來 AI 建立新技能時的格式範本
-   2. 作為閉環測試時的真實可呼叫工具
+This file demonstrates the LAS tool reflection contract:
 
-[觸發時機] (Trigger Condition)
-- 當使用者要求進行數學計算時。
-- When the user asks for a mathematical calculation.
-
-[限制條件] (Constraints)
-- 僅支援基本四則運算 (加減乘除)。
-- 不支援複雜的數學表達式或符號運算。
-- Only supports basic arithmetic: add, subtract, multiply, divide.
-=========================================================================
+1. Define a Pydantic BaseModel for arguments.
+2. Expose a public function whose first parameter uses that model.
+3. Return a plain text result or an `Error:` string.
 """
 
 from pydantic import BaseModel, Field

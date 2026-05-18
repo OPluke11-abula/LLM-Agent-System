@@ -1,0 +1,4 @@
+# Optional provider SDKs for hosted LLM backends.
+# Install this file only when those providers are needed locally.
+
+google-genai>=1.0.0

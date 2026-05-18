@@ -1,20 +1,13 @@
-"""
-core/router.py - Agent Loop, LLM Communication, Memory, and Hot-Reload.
+"""Agent routing, memory, and closed-loop execution for LAS."""
 
-Responsibilities:
-  - LLM API communication via Custom Provider abstraction
-  - Message history management with session_id support
-  - Cross-turn memory persistence
-  - Closed-loop state machine execution (Partial Async)
-  - Hot-reload of agent.jinja2 via watchdog
-"""
+from __future__ import annotations
 
 import asyncio
 import json
-import os
 import logging
+import os
 from datetime import datetime, timezone
-from typing import Any, List, Dict
+from typing import Any
 
 from .engine import AgentEngine
 from .providers import ProviderFactory
@@ -29,85 +22,77 @@ try:
 except ImportError:
     from agent_workspace.observability import ACTIVE_SESSIONS, tracer
 
+
 logger = logging.getLogger(__name__)
 
 
 class MemoryManager:
-    """管理 memory/{session_id}.json 的讀寫。"""
+    """Manage per-session working memory files."""
 
     def __init__(self, memory_dir: str, session_id: str = "default"):
         self.session_id = session_id
         self.memory_path = os.path.join(memory_dir, f"{session_id}.json")
         self._ensure_file_exists()
 
-    def _ensure_file_exists(self):
-        """確保記憶檔案存在。"""
+    def _ensure_file_exists(self) -> None:
         os.makedirs(os.path.dirname(self.memory_path), exist_ok=True)
         if not os.path.isfile(self.memory_path):
             self._write({})
 
-    def load(self) -> dict:
-        """讀取記憶。"""
+    def load(self) -> dict[str, Any]:
         try:
-            with open(self.memory_path, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except (json.JSONDecodeError, IOError):
+            with open(self.memory_path, "r", encoding="utf-8") as file:
+                return json.load(file)
+        except (json.JSONDecodeError, OSError, IOError):
             return {}
 
-    def save(self, data: dict):
-        """寫入記憶。"""
+    def save(self, data: dict[str, Any]) -> None:
         self._write(data)
 
     def append_conversation(self, user_input: str, assistant_response: str) -> bool:
-        """
-        將一輪對話附加到記憶中。
-        回傳 bool 表示是否達到上限並觸發了 hook。
-        """
+        """Append one exchange and return True when the retention window rolled."""
         memory = self.load()
-        if "conversations" not in memory:
-            memory["conversations"] = []
-
-        memory["conversations"].append({
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "user": user_input,
-            "assistant": assistant_response,
-        })
+        memory.setdefault("conversations", [])
+        memory["conversations"].append(
+            {
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "user": user_input,
+                "assistant": assistant_response,
+            }
+        )
 
         limit_reached = False
-        # 保留最近 20 輪對話，避免記憶檔案無限增長
         if len(memory["conversations"]) > 20:
             memory["conversations"] = memory["conversations"][-20:]
             limit_reached = True
-            
+
         self.save(memory)
         return limit_reached
 
-    def get_recent_context(self, n: int = 5) -> list[dict]:
-        """取得最近 n 輪對話作為上下文。"""
+    def get_recent_context(self, n: int = 5) -> list[dict[str, Any]]:
         memory = self.load()
         conversations = memory.get("conversations", [])
         return conversations[-n:]
 
-    def _write(self, data: dict):
-        with open(self.memory_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+    def _write(self, data: dict[str, Any]) -> None:
+        with open(self.memory_path, "w", encoding="utf-8") as file:
+            json.dump(data, file, ensure_ascii=False, indent=2)
 
 
 class TemplateWatcher:
-    """監視 agent.jinja2 檔案變更，存檔即自動重新編譯模板 (Hot-Reload)。"""
+    """Watch agent.jinja2 and clear the Jinja2 cache on edits."""
 
     def __init__(self, engine: AgentEngine):
         self.engine = engine
         self._observer = None
         self._watch_path = engine.workspace_path
 
-    def start(self):
-        """啟動檔案監視。"""
+    def start(self) -> None:
         try:
-            from watchdog.observers import Observer
             from watchdog.events import FileSystemEventHandler
+            from watchdog.observers import Observer
         except ImportError:
-            logger.warning("watchdog 未安裝，跳過 hot-reload。pip install watchdog")
+            logger.warning("watchdog is not installed. Prompt hot-reload is disabled.")
             return
 
         watcher = self
@@ -115,18 +100,16 @@ class TemplateWatcher:
         class _Handler(FileSystemEventHandler):
             def on_modified(self, event):
                 if event.src_path.endswith("agent.jinja2"):
-                    # 清除 Jinja2 快取，下次 render_prompt 會自動重新讀取
                     watcher.engine.jinja_env.cache.clear()
-                    logger.info("[Hot-Reload] agent.jinja2 已重新載入。")
+                    logger.info("[Hot-Reload] agent.jinja2 cache cleared")
 
         self._observer = Observer()
         self._observer.schedule(_Handler(), self._watch_path, recursive=False)
         self._observer.daemon = True
         self._observer.start()
-        logger.info(f"[Hot-Reload] 正在監視 {self._watch_path}/agent.jinja2")
+        logger.info("[Hot-Reload] watching %s/agent.jinja2", self._watch_path)
 
-    def stop(self):
-        """停止檔案監視。"""
+    def stop(self) -> None:
         if self._observer:
             self._observer.stop()
             self._observer.join(timeout=2)
@@ -134,7 +117,7 @@ class TemplateWatcher:
 
 
 class AgentRouter:
-    """Agent 執行路由器：負責 LLM 通訊、狀態機迴圈與模板熱重載。"""
+    """Route one session through intent classification, LLM calls, tools, and memory."""
 
     def __init__(self, engine: AgentEngine, session_id: str = "default", agent_name: str = "default"):
         self.engine = engine
@@ -142,10 +125,8 @@ class AgentRouter:
         self.agent_name = agent_name
         self._config = self._load_config()
 
-        # 從 config.yaml 讀取 max_iterations (防禦無限迴圈)
         self.max_iterations = self._config.get("agent", {}).get("max_iterations", 5)
 
-        # 記憶管理 (傳入 session_id)
         memory_dir = os.path.join(engine.workspace_path, "memory")
         self.memory = MemoryManager(memory_dir, session_id=self.session_id)
         memory_config = self._config.get("memory", {})
@@ -158,30 +139,23 @@ class AgentRouter:
             else None
         )
 
-        # 實例化 LLM Provider (工廠模式)
         provider_name = self._config.get("llm", {}).get("provider", "google-genai")
         self._provider = ProviderFactory.get_provider(provider_name)
-
-        # 熱重載 (Hot-Reload)
         self._watcher = TemplateWatcher(engine)
 
-    def _load_config(self) -> dict:
-        """從 config.yaml 載入 LLM 設定。"""
+    def _load_config(self) -> dict[str, Any]:
         import yaml
+
         config_path = os.path.join(self.engine.workspace_path, "config.yaml")
         try:
-            with open(config_path, "r", encoding="utf-8") as f:
-                return yaml.safe_load(f) or {}
-        except (IOError, yaml.YAMLError) as e:
-            logger.warning(f"無法載入 config.yaml: {e}")
+            with open(config_path, "r", encoding="utf-8") as file:
+                return yaml.safe_load(file) or {}
+        except (OSError, IOError, yaml.YAMLError) as error:
+            logger.warning("Failed to load config.yaml: %s", error)
             return {}
 
     async def _classify_intent(self, user_input: str) -> str:
-        """
-        [Semantic Router] 意圖分流路由
-        利用輕量 LLM 呼叫判斷用戶是否需要執行任務，或是純聊天。
-        回傳 "TASK" 或 "CHAT"。
-        """
+        """Return TASK when tools may be needed, otherwise CHAT."""
         prompt = (
             "You are an intent classifier. Determine if the user's input requires executing any tools/tasks "
             "(like calculating, fetching data, creating files) or if it is just a simple greeting/chat. "
@@ -189,339 +163,347 @@ class AgentRouter:
             f"User input: {user_input}"
         )
         try:
-            # 使用最簡單的配置呼叫 LLM
             resp_type, resp_data = await self._provider.generate_content(
                 system_prompt="You are an intent classifier.",
                 messages=[{"role": "user", "content": prompt}],
                 tool_schemas=[],
-                config=self._config.get("llm", {})
+                config=self._config.get("llm", {}),
             )
-            if resp_type == "text" and "CHAT" in resp_data.upper():
+            if resp_type == "text" and "CHAT" in str(resp_data).upper():
                 return "CHAT"
         except Exception:
-            pass
+            logger.debug("Intent classification failed; falling back to TASK.", exc_info=True)
         return "TASK"
 
-    async def run_agent_loop(self, user_input: str, allowed_tools: list[str] = None, output_schema: Any = None) -> str:
-        """
-        主執行迴圈 (異步)。
-        支援:
-        - allowed_tools: (RBAC) 限定此輪可用的工具清單
-        - output_schema: (Structured Output) 強制 LLM 輸出特定 JSON 結構
-        """
-        _span_cm = tracer.start_as_current_span("run_agent_loop")
-        span = _span_cm.__enter__()
-        span.set_attribute("session_id", self.session_id)
-        # [Semantic Router] 判定意圖
-        # 如果是強制結構化輸出，一定是任務；否則進行快篩
-        intent = "TASK" if output_schema else await self._classify_intent(user_input)
-        span.set_attribute("intent", intent)
-        logger.info("Agent Loop started", extra={"session_id": self.session_id, "intent": intent})
-        ACTIVE_SESSIONS.inc()
+    async def run_agent_loop(
+        self,
+        user_input: str,
+        allowed_tools: list[str] | None = None,
+        output_schema: Any = None,
+    ) -> str:
+        """Run the non-streaming closed-loop agent path."""
+        with tracer.start_as_current_span("run_agent_loop") as span:
+            span.set_attribute("session_id", self.session_id)
+            intent = "TASK" if output_schema else await self._classify_intent(user_input)
+            span.set_attribute("intent", intent)
+            logger.info("Agent Loop started", extra={"session_id": self.session_id, "intent": intent})
+            ACTIVE_SESSIONS.inc()
 
-        # 1. 收集動態上下文並渲染 System Prompt
-        context_vars = {
-            "current_time": datetime.now(timezone.utc).isoformat(),
-            "context_status": "OK",
-            "user_input": user_input,
-            "session_id": self.session_id,
-        }
-        system_prompt = self.engine.render_prompt(context_vars, agent_name=self.agent_name)
+            final_response = ""
+            iteration = 0
+            tool_failure_counts: dict[str, int] = {}
 
-        # 2. 組裝工具 Schema (RBAC 過濾)
-        tool_schemas = [] if intent == "CHAT" else self.engine.get_tool_schemas(allowed_tools)
+            try:
+                context_vars = {
+                    "current_time": datetime.now(timezone.utc).isoformat(),
+                    "context_status": "OK",
+                    "user_input": user_input,
+                    "session_id": self.session_id,
+                }
+                system_prompt = self.engine.render_prompt(context_vars, agent_name=self.agent_name)
+                tool_schemas = [] if intent == "CHAT" else self.engine.get_tool_schemas(allowed_tools)
+                messages = self._build_message_history(user_input)
 
-        # 3. 組裝對話歷史 (從記憶中載入最近的上下文)
-        messages = self._build_message_history(user_input)
+                logger.debug("System prompt length: %s chars", len(system_prompt))
+                logger.debug("Allowed runtime tools: %s", [tool["name"] for tool in tool_schemas])
+                logger.debug("Message history length: %s", len(messages))
 
-        logger.debug(f"  System Prompt 長度: {len(system_prompt)} chars")
-        logger.debug(f"  可用工具: {[t['name'] for t in tool_schemas]}")
-        logger.debug(f"  對話歷史: {len(messages)} 則訊息")
+                while iteration < self.max_iterations:
+                    iteration += 1
+                    logger.info("[Iteration %s/%s]", iteration, self.max_iterations)
 
-        # 4. 狀態機迴圈
-        final_response = ""
-        iteration = 0
-        tool_failure_counts = {}
+                    llm_config = self._config.get("llm", {}).copy()
+                    if output_schema:
+                        llm_config["output_schema"] = output_schema
 
-        try:
-            while iteration < self.max_iterations:
-                iteration += 1
-                logger.info(f"[迭代 {iteration}/{self.max_iterations}]")
+                    response_type, response_data = await self._provider.generate_content(
+                        system_prompt=system_prompt,
+                        messages=messages,
+                        tool_schemas=tool_schemas,
+                        config=llm_config,
+                    )
 
-                llm_config = self._config.get("llm", {}).copy()
-                if output_schema:
-                    llm_config["output_schema"] = output_schema
-
-                response_type, response_data = await self._provider.generate_content(
-                    system_prompt=system_prompt,
-                    messages=messages,
-                    tool_schemas=tool_schemas,
-                    config=llm_config
-                )
-
-                if response_type == "error":
-                    final_response = f"Error: LLM 呼叫失敗 — {response_data}"
-                    logger.error(final_response)
-                    break
-
-                if response_type == "text":
-                    final_response = response_data
-                    logger.info(f"  → 最終回覆 ({len(final_response)} chars)")
-                    break
-
-                elif response_type in ("tool_call", "tool_calls"):
-                    # [Parallel Tool Calling] 支援單一或多個並發工具
-                    tool_calls_list = response_data if response_type == "tool_calls" else [response_data]
-                    
-                    tasks = []
-                    system_context = {
-                        "session_id": self.session_id,
-                        "memory": self.memory,
-                        "engine": self.engine
-                    }
-                    
-                    for tc in tool_calls_list:
-                        tool_name = tc.get("name", "")
-                        tool_args = tc.get("arguments", {})
-                        logger.info(f"  → 工具調用: {tool_name}({json.dumps(tool_args, ensure_ascii=False)})")
-                        
-                        tasks.append(asyncio.to_thread(
-                            self.engine.execute_tool,
-                            tool_name, tool_args, allowed_tools, system_context
-                        ))
-                    
-                    # 併發執行
-                    results = await asyncio.gather(*tasks, return_exceptions=True)
-                    
-                    handoff_triggered = False
-                    for tc, result in zip(tool_calls_list, results):
-                        tool_name = tc.get("name", "")
-                        if isinstance(result, Exception):
-                            tool_result = f"Error: 工具執行失敗 — {result}"
-                        else:
-                            tool_result = str(result)
-
-                        # [Handoff] 攔截移交訊號
-                        if tool_result.startswith("HANDOFF_TO:"):
-                            target_agent = tool_result.split("HANDOFF_TO:")[1].strip()
-                            final_response = f"[系統提示：對話已移交給智能體 {target_agent}]"
-                            logger.info(f"  → 觸發 Handoff: 移交至 {target_agent}")
-                            handoff_triggered = True
-                            break
-
-                        if tool_result.startswith("Error:") or "失敗" in tool_result:
-                            tool_failure_counts[tool_name] = tool_failure_counts.get(tool_name, 0) + 1
-                            logger.warning(f"  ⚠ 工具 {tool_name} 執行失敗 (第 {tool_failure_counts[tool_name]} 次): {tool_result}")
-                        else:
-                            tool_failure_counts[tool_name] = 0
-
-                        messages.append({"role": "assistant", "tool_call": tc})
-                        messages.append({"role": "tool", "name": tool_name, "content": tool_result})
-                        
-                        if tool_failure_counts.get(tool_name, 0) >= 3:
-                            warning_msg = f"System Warning: You have failed using the tool '{tool_name}' 3 times. Please stop trying and ask the user for clarification."
-                            messages.append({"role": "user", "content": warning_msg})
-                            logger.error(f"  ⚠ 強制中斷 {tool_name} 的無限重試。")
-                    
-                    if handoff_triggered:
-                        break
-
-                else:
-                    final_response = f"Error: 無法解析 LLM 回應類型 '{response_type}'。"
-                    logger.error(final_response)
-                    break
-
-        except asyncio.CancelledError:
-            # [Graceful Cancellation] 優雅中斷
-            logger.warning(f"  ⚠ Agent Loop 被外部中斷 (Session: {self.session_id})")
-            final_response += "\n[系統提示：使用者已中斷]"
-            # 不重拋異常，而是安全寫入記憶體並回傳
-
-        if iteration >= self.max_iterations:
-            final_response = (
-                f"Error: 已達最大迭代次數 ({self.max_iterations})。"
-                f"可能存在無限迴圈，已強制中止。"
-            )
-            logger.warning(final_response)
-
-        # 5. 將這輪對話寫入記憶
-        limit_reached = self.memory.append_conversation(user_input, final_response)
-        
-        # 觸發記憶掛鉤 (如果需要)
-        if limit_reached:
-            self._on_memory_limit_reached(self.session_id, self.memory.get_recent_context(20))
-            
-        logger.info("Agent Loop finished", extra={"session_id": self.session_id, "iterations": iteration})
-        ACTIVE_SESSIONS.dec()
-        _span_cm.__exit__(None, None, None)
-
-        return final_response
-
-    async def stream_agent_loop(self, user_input: str, allowed_tools: list[str] = None, output_schema: Any = None):
-        """
-        串流執行迴圈 (AsyncGenerator)。
-        主動向外部廣播當前狀態（thinking, tool_call, tool_result）與逐字串流 (text_chunk)。
-        支援 allowed_tools 與 output_schema。
-        """
-        _span_cm = tracer.start_as_current_span("stream_agent_loop")
-        span = _span_cm.__enter__()
-        span.set_attribute("session_id", self.session_id)
-        intent = "TASK" if output_schema else await self._classify_intent(user_input)
-        span.set_attribute("intent", intent)
-
-        context_vars = {
-            "current_time": datetime.now(timezone.utc).isoformat(),
-            "context_status": "OK",
-            "user_input": user_input,
-            "session_id": self.session_id,
-        }
-        system_prompt = self.engine.render_prompt(context_vars, agent_name=self.agent_name)
-        tool_schemas = [] if intent == "CHAT" else self.engine.get_tool_schemas(allowed_tools)
-        messages = self._build_message_history(user_input)
-
-        logger.info("Stream Agent Loop started", extra={"session_id": self.session_id, "intent": intent})
-        ACTIVE_SESSIONS.inc()
-        
-        final_response = ""
-        iteration = 0
-        tool_failure_counts = {}
-
-        try:
-            while iteration < self.max_iterations:
-                iteration += 1
-                llm_config = self._config.get("llm", {}).copy()
-                if output_schema:
-                    llm_config["output_schema"] = output_schema
-                
-                yield {"type": "status", "content": "thinking"}
-
-                response_stream = self._provider.generate_content_stream(
-                    system_prompt=system_prompt,
-                    messages=messages,
-                    tool_schemas=tool_schemas,
-                    config=llm_config
-                )
-
-                is_tool_call = False
-                tool_calls_list = []
-                current_text = ""
-
-                async for resp_type, resp_data in response_stream:
-                    if resp_type == "error":
-                        final_response = f"Error: LLM 呼叫失敗 — {resp_data}"
+                    if response_type == "error":
+                        final_response = f"Error: LLM generation failed: {response_data}"
                         logger.error(final_response)
-                        yield {"type": "error", "content": final_response}
                         break
-                        
-                    elif resp_type in ("tool_call", "tool_calls"):
-                        is_tool_call = True
-                        tool_calls_list = resp_data if resp_type == "tool_calls" else [resp_data]
-                        break  # tool call chunk is usually singular or we just break on first one
-                        
-                    elif resp_type == "text":
-                        current_text += resp_data
-                        yield {"type": "text_chunk", "content": resp_data}
 
-                if is_tool_call:
-                    tasks = []
-                    system_context = {
-                        "session_id": self.session_id,
-                        "memory": self.memory,
-                        "engine": self.engine
+                    if response_type == "text":
+                        final_response = str(response_data)
+                        logger.info("Final text response received (%s chars)", len(final_response))
+                        break
+
+                    if response_type in ("tool_call", "tool_calls"):
+                        tool_calls_list = response_data if response_type == "tool_calls" else [response_data]
+                        handoff_triggered = await self._handle_tool_calls(
+                            tool_calls_list,
+                            messages,
+                            allowed_tools,
+                            tool_failure_counts,
+                        )
+                        if handoff_triggered:
+                            final_response = handoff_triggered
+                            break
+                        continue
+
+                    final_response = f"Error: unsupported LLM response type '{response_type}'"
+                    logger.error(final_response)
+                    break
+
+            except asyncio.CancelledError:
+                logger.warning("Agent Loop cancelled for session %s", self.session_id)
+                final_response += "\n[Session cancelled before completion]"
+            finally:
+                if iteration >= self.max_iterations and not final_response.startswith("Error:"):
+                    final_response = (
+                        f"Error: maximum agent iterations reached ({self.max_iterations}). "
+                        "Stopping to avoid an infinite tool loop."
+                    )
+                    logger.warning(final_response)
+
+                limit_reached = self.memory.append_conversation(user_input, final_response)
+                if limit_reached:
+                    self._on_memory_limit_reached(self.session_id, self.memory.get_recent_context(20))
+
+                logger.info(
+                    "Agent Loop finished",
+                    extra={"session_id": self.session_id, "iterations": iteration},
+                )
+                ACTIVE_SESSIONS.dec()
+
+            return final_response
+
+    async def _handle_tool_calls(
+        self,
+        tool_calls_list: list[dict[str, Any]],
+        messages: list[dict[str, Any]],
+        allowed_tools: list[str] | None,
+        tool_failure_counts: dict[str, int],
+    ) -> str:
+        system_context = {
+            "session_id": self.session_id,
+            "memory": self.memory,
+            "engine": self.engine,
+        }
+        tasks = []
+        for tool_call in tool_calls_list:
+            tool_name = tool_call.get("name", "")
+            tool_args = tool_call.get("arguments", {})
+            logger.info("Tool call requested: %s(%s)", tool_name, json.dumps(tool_args, ensure_ascii=False))
+            tasks.append(
+                asyncio.to_thread(
+                    self.engine.execute_tool,
+                    tool_name,
+                    tool_args,
+                    allowed_tools,
+                    system_context,
+                )
+            )
+
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        for tool_call, result in zip(tool_calls_list, results):
+            tool_name = tool_call.get("name", "")
+            if isinstance(result, Exception):
+                tool_result = f"Error: tool execution failed: {result}"
+            else:
+                tool_result = str(result)
+
+            if tool_result.startswith("HANDOFF_TO:"):
+                target_agent = tool_result.split("HANDOFF_TO:", 1)[1].strip()
+                logger.info("Handoff requested to agent: %s", target_agent)
+                return f"[Session handoff requested to {target_agent}]"
+
+            if tool_result.startswith("Error:"):
+                tool_failure_counts[tool_name] = tool_failure_counts.get(tool_name, 0) + 1
+                logger.warning(
+                    "Tool %s failed (%s): %s",
+                    tool_name,
+                    tool_failure_counts[tool_name],
+                    tool_result,
+                )
+            else:
+                tool_failure_counts[tool_name] = 0
+
+            messages.append({"role": "assistant", "tool_call": tool_call})
+            messages.append({"role": "tool", "name": tool_name, "content": tool_result})
+
+            if tool_failure_counts.get(tool_name, 0) >= 3:
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": (
+                            f"System Warning: You have failed using the tool '{tool_name}' 3 times. "
+                            "Please stop trying and ask the user for clarification."
+                        ),
                     }
-                    
-                    for tc in tool_calls_list:
-                        tool_name = tc.get("name", "")
-                        tool_args = tc.get("arguments", {})
-                        yield {"type": "tool_call", "name": tool_name, "arguments": tool_args}
-                        
-                        tasks.append(asyncio.to_thread(
-                            self.engine.execute_tool,
-                            tool_name, tool_args, allowed_tools, system_context
-                        ))
-                    
-                    results = await asyncio.gather(*tasks, return_exceptions=True)
-                    
-                    handoff_triggered = False
-                    for tc, result in zip(tool_calls_list, results):
-                        tool_name = tc.get("name", "")
-                        if isinstance(result, Exception):
-                            tool_result = f"Error: 工具執行失敗 — {result}"
-                        else:
-                            tool_result = str(result)
-                    
-                        yield {"type": "tool_result", "name": tool_name, "result": tool_result}
+                )
+                logger.error("Stopping repeated failures for tool %s", tool_name)
 
-                        if tool_result.startswith("HANDOFF_TO:"):
-                            target_agent = tool_result.split("HANDOFF_TO:")[1].strip()
-                            final_response = f"[系統提示：對話已移交給智能體 {target_agent}]"
-                            yield {"type": "text_chunk", "content": f"\n{final_response}\n"}
-                            handoff_triggered = True
+        return ""
+
+    async def stream_agent_loop(
+        self,
+        user_input: str,
+        allowed_tools: list[str] | None = None,
+        output_schema: Any = None,
+    ):
+        """Run the streaming closed-loop agent path."""
+        with tracer.start_as_current_span("stream_agent_loop") as span:
+            span.set_attribute("session_id", self.session_id)
+            intent = "TASK" if output_schema else await self._classify_intent(user_input)
+            span.set_attribute("intent", intent)
+
+            logger.info("Stream Agent Loop started", extra={"session_id": self.session_id, "intent": intent})
+            ACTIVE_SESSIONS.inc()
+
+            final_response = ""
+            iteration = 0
+            tool_failure_counts: dict[str, int] = {}
+
+            try:
+                context_vars = {
+                    "current_time": datetime.now(timezone.utc).isoformat(),
+                    "context_status": "OK",
+                    "user_input": user_input,
+                    "session_id": self.session_id,
+                }
+                system_prompt = self.engine.render_prompt(context_vars, agent_name=self.agent_name)
+                tool_schemas = [] if intent == "CHAT" else self.engine.get_tool_schemas(allowed_tools)
+                messages = self._build_message_history(user_input)
+
+                while iteration < self.max_iterations:
+                    iteration += 1
+                    llm_config = self._config.get("llm", {}).copy()
+                    if output_schema:
+                        llm_config["output_schema"] = output_schema
+
+                    yield {"type": "status", "content": "thinking"}
+
+                    response_stream = self._provider.generate_content_stream(
+                        system_prompt=system_prompt,
+                        messages=messages,
+                        tool_schemas=tool_schemas,
+                        config=llm_config,
+                    )
+
+                    is_tool_call = False
+                    tool_calls_list: list[dict[str, Any]] = []
+                    current_text = ""
+
+                    async for resp_type, resp_data in response_stream:
+                        if resp_type == "error":
+                            final_response = f"Error: LLM generation failed: {resp_data}"
+                            logger.error(final_response)
+                            yield {"type": "error", "content": final_response}
                             break
 
-                        if tool_result.startswith("Error:") or "失敗" in tool_result:
-                            tool_failure_counts[tool_name] = tool_failure_counts.get(tool_name, 0) + 1
-                        else:
-                            tool_failure_counts[tool_name] = 0
+                        if resp_type in ("tool_call", "tool_calls"):
+                            is_tool_call = True
+                            tool_calls_list = resp_data if resp_type == "tool_calls" else [resp_data]
+                            break
 
-                        messages.append({"role": "assistant", "tool_call": tc})
-                        messages.append({"role": "tool", "name": tool_name, "content": tool_result})
-                        
-                        if tool_failure_counts.get(tool_name, 0) >= 3:
-                            warning_msg = f"System Warning: You have failed using the tool '{tool_name}' 3 times. Please stop trying and ask the user for clarification."
-                            messages.append({"role": "user", "content": warning_msg})
-                            
-                    if handoff_triggered:
+                        if resp_type == "text":
+                            current_text += str(resp_data)
+                            yield {"type": "text_chunk", "content": str(resp_data)}
+
+                    if is_tool_call:
+                        system_context = {
+                            "session_id": self.session_id,
+                            "memory": self.memory,
+                            "engine": self.engine,
+                        }
+                        tasks = []
+                        for tool_call in tool_calls_list:
+                            tool_name = tool_call.get("name", "")
+                            tool_args = tool_call.get("arguments", {})
+                            yield {"type": "tool_call", "name": tool_name, "arguments": tool_args}
+                            tasks.append(
+                                asyncio.to_thread(
+                                    self.engine.execute_tool,
+                                    tool_name,
+                                    tool_args,
+                                    allowed_tools,
+                                    system_context,
+                                )
+                            )
+
+                        results = await asyncio.gather(*tasks, return_exceptions=True)
+                        handoff_triggered = False
+                        for tool_call, result in zip(tool_calls_list, results):
+                            tool_name = tool_call.get("name", "")
+                            if isinstance(result, Exception):
+                                tool_result = f"Error: tool execution failed: {result}"
+                            else:
+                                tool_result = str(result)
+
+                            yield {"type": "tool_result", "name": tool_name, "result": tool_result}
+
+                            if tool_result.startswith("HANDOFF_TO:"):
+                                target_agent = tool_result.split("HANDOFF_TO:", 1)[1].strip()
+                                final_response = f"[Session handoff requested to {target_agent}]"
+                                yield {"type": "text_chunk", "content": f"\n{final_response}\n"}
+                                handoff_triggered = True
+                                break
+
+                            if tool_result.startswith("Error:"):
+                                tool_failure_counts[tool_name] = tool_failure_counts.get(tool_name, 0) + 1
+                            else:
+                                tool_failure_counts[tool_name] = 0
+
+                            messages.append({"role": "assistant", "tool_call": tool_call})
+                            messages.append({"role": "tool", "name": tool_name, "content": tool_result})
+
+                            if tool_failure_counts.get(tool_name, 0) >= 3:
+                                messages.append(
+                                    {
+                                        "role": "user",
+                                        "content": (
+                                            f"System Warning: You have failed using the tool '{tool_name}' 3 times. "
+                                            "Please stop trying and ask the user for clarification."
+                                        ),
+                                    }
+                                )
+
+                        if handoff_triggered:
+                            break
+                        continue
+
+                    if current_text:
+                        final_response = current_text
                         break
 
-                    continue
-                
-                if current_text:
-                    final_response = current_text
-                    break
-                    
-                if not is_tool_call and not current_text:
                     if not final_response:
-                        final_response = "Error: LLM 未回傳任何有效內容。"
+                        final_response = "Error: LLM returned no content."
                     break
 
-            if iteration >= self.max_iterations:
-                final_response = f"Error: 已達最大迭代次數 ({self.max_iterations})。"
-                yield {"type": "error", "content": final_response}
+                if iteration >= self.max_iterations and not final_response.startswith("Error:"):
+                    final_response = f"Error: maximum agent iterations reached ({self.max_iterations})."
+                    yield {"type": "error", "content": final_response}
 
-        except asyncio.CancelledError:
-            logger.warning(f"  ⚠ Stream Agent Loop 被外部中斷 (Session: {self.session_id})")
-            final_response += "\n[系統提示：使用者已中斷]"
+            except asyncio.CancelledError:
+                logger.warning("Stream Agent Loop cancelled for session %s", self.session_id)
+                final_response += "\n[Session cancelled before completion]"
+            finally:
+                limit_reached = self.memory.append_conversation(user_input, final_response)
+                if limit_reached:
+                    self._on_memory_limit_reached(self.session_id, self.memory.get_recent_context(20))
+                ACTIVE_SESSIONS.dec()
 
-        limit_reached = self.memory.append_conversation(user_input, final_response)
-        if limit_reached:
-            self._on_memory_limit_reached(self.session_id, self.memory.get_recent_context(20))
+            yield {"type": "done", "content": final_response}
 
-        ACTIVE_SESSIONS.dec()
-        _span_cm.__exit__(None, None, None)
-        yield {"type": "done", "content": final_response}
+    def _build_message_history(self, current_input: str) -> list[dict[str, Any]]:
+        """Build provider message history from recent working memory."""
+        messages: list[dict[str, Any]] = []
+        for conversation in self.memory.get_recent_context(n=5):
+            messages.append({"role": "user", "content": conversation.get("user", "")})
+            messages.append({"role": "assistant", "content": conversation.get("assistant", "")})
 
-    def _build_message_history(self, current_input: str) -> list[dict]:
-        """從記憶中載入最近的對話，加上當前用戶輸入。"""
-        messages = []
-
-        # 載入最近的歷史對話作為上下文
-        recent = self.memory.get_recent_context(n=5)
-        for conv in recent:
-            messages.append({"role": "user", "content": conv["user"]})
-            messages.append({"role": "assistant", "content": conv["assistant"]})
-
-        # 加入當前用戶輸入
         messages.append({"role": "user", "content": current_input})
         return messages
 
-    def _on_memory_limit_reached(self, session_id: str, messages: list):
-        """
-        [Memory Hook] 記憶擴充預留掛鉤
-        當 short_term_cache 達到限制 (如 20 輪) 時觸發。
-        未來子專案可覆寫此方法，實作背景呼叫 LLM 進行自動摘要。
-        """
-        logger.debug(f"[Hook] Session {session_id} 記憶已達上限，可於此處實作記憶摘要邏輯。")
+    def _on_memory_limit_reached(self, session_id: str, messages: list[dict[str, Any]]) -> None:
+        """Persist a rolled working-memory window into long-term memory."""
+        logger.debug("[MemoryHook] session %s reached the working-memory retention window", session_id)
         if not self.long_term_memory:
             return
         try:
@@ -531,11 +513,8 @@ class AgentRouter:
         except Exception as error:
             logger.warning("[LongTermMemory] persistence failed for session %s: %s", session_id, error)
 
-
-    def start_watching(self):
-        """啟動 agent.jinja2 熱重載監視。"""
+    def start_watching(self) -> None:
         self._watcher.start()
 
-    def stop_watching(self):
-        """停止熱重載監視。"""
+    def stop_watching(self) -> None:
         self._watcher.stop()

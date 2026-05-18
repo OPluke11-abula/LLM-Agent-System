@@ -24,8 +24,10 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 import yaml
+import dotenv
 
 workspace = os.path.dirname(os.path.abspath(__file__))
+dotenv.load_dotenv(Path(workspace) / ".env")
 sys.path.insert(0, workspace)
 
 from observability import (
@@ -80,6 +82,13 @@ class TaskSubmitResponse(BaseModel):
     task_id: str
     session: str
     status: str
+
+
+class ConfigUpdateRequest(BaseModel):
+    provider: str | None = Field(None, description="e.g. google-genai, openai, anthropic, ollama")
+    model: str | None = Field(None, description="e.g. gemini-2.5-flash")
+    api_key: str | None = Field(None, description="API Key. Will be written to .env securely.")
+    base_url: str | None = Field(None, description="Optional Base URL for Ollama or custom endpoints.")
 
 
 @dataclass
@@ -321,3 +330,95 @@ async def query_long_term_memory(q: str, session: str | None = None, limit: int 
         "limit": limit,
         "records": store.query(q, session_id=session, limit=limit),
     }
+
+
+@app.get("/v1/config")
+async def get_config() -> dict[str, Any]:
+    config_path = Path(workspace) / "config.yaml"
+    try:
+        config = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+    except (OSError, yaml.YAMLError):
+        config = {}
+    
+    llm_config = config.get("llm", {})
+    provider = llm_config.get("provider", "")
+    
+    # Check if API key is set in environment variables
+    api_key_set = False
+    if provider == "google-genai" and os.environ.get("GOOGLE_API_KEY"):
+        api_key_set = True
+    elif provider == "openai" and os.environ.get("OPENAI_API_KEY"):
+        api_key_set = True
+    elif provider == "anthropic" and os.environ.get("ANTHROPIC_API_KEY"):
+        api_key_set = True
+        
+    return {
+        "provider": provider,
+        "model": llm_config.get("model", ""),
+        "base_url": llm_config.get("base_url", ""),
+        "api_key_set": api_key_set
+    }
+
+
+@app.put("/v1/config")
+async def update_config(req: ConfigUpdateRequest) -> dict[str, Any]:
+    config_path = Path(workspace) / "config.yaml"
+    try:
+        config = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+    except (OSError, yaml.YAMLError):
+        config = {}
+        
+    if "llm" not in config:
+        config["llm"] = {}
+        
+    if req.provider is not None:
+        config["llm"]["provider"] = req.provider
+    if req.model is not None:
+        config["llm"]["model"] = req.model
+    if req.base_url is not None:
+        if req.base_url.strip() == "":
+            config["llm"].pop("base_url", None)
+        else:
+            config["llm"]["base_url"] = req.base_url
+            
+    # Save config.yaml
+    config_path.write_text(yaml.dump(config, sort_keys=False, allow_unicode=True), encoding="utf-8")
+    
+    # Handle API Key
+    if req.api_key is not None and req.api_key.strip() != "":
+        env_path = Path(workspace) / ".env"
+        # Determine the key name
+        key_name = ""
+        provider = req.provider or config["llm"].get("provider", "")
+        if provider == "google-genai":
+            key_name = "GOOGLE_API_KEY"
+        elif provider == "openai":
+            key_name = "OPENAI_API_KEY"
+        elif provider == "anthropic":
+            key_name = "ANTHROPIC_API_KEY"
+            
+        if key_name:
+            # Update .env
+            env_vars = {}
+            if env_path.is_file():
+                with open(env_path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if line and not line.startswith("#") and "=" in line:
+                            k, v = line.split("=", 1)
+                            env_vars[k.strip()] = v.strip()
+            
+            env_vars[key_name] = req.api_key.strip()
+            
+            with open(env_path, "w", encoding="utf-8") as f:
+                for k, v in env_vars.items():
+                    f.write(f"{k}={v}\n")
+            
+            # Reload dotenv
+            dotenv.load_dotenv(env_path, override=True)
+            
+    # Reset engine cache so next call reloads config
+    global _engine
+    _engine = None
+    
+    return {"status": "success", "message": "Configuration updated successfully."}

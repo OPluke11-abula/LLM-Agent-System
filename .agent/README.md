@@ -15,8 +15,8 @@ workspace identity, enabled tools, and declared protocol paths.
 
 - `.agent/skills.md`: maps LAS runtime tools to PAP skill contracts.
 - `.agent/prompts.md`: explains how `agent_workspace/agent.jinja2` is used.
-- `.agent/memory.md`: documents session memory and future long-term memory alignment.
-- `.agent/workflows.md`: documents CLI, API, and topology workflows.
+- `.agent/memory.md`: documents working memory and long-term memory direction.
+- `.agent/workflows.md`: documents CLI, API, validation, and topology workflows.
 
 ### Layer 3: Detail Directories
 
@@ -27,15 +27,12 @@ workspace identity, enabled tools, and declared protocol paths.
 ## Runtime Boundary
 
 The PAP workspace is documentation and contract surface. It does not replace
-the LAS engine. Engine behavior remains in `agent_workspace/core/`, and
-runtime integrations stay in external adapters such as `agent_workspace/api.py`
-and `agent_workspace/topology_stream.py`.
+the LAS engine. Engine behavior remains in `agent_workspace/core/`, and runtime
+integrations stay in external adapters such as `agent_workspace/api.py` and
+`agent_workspace/topology_stream.py`.
 
 ## 中文說明
 
-這個 `.agent/` 目錄讓 LAS 在 workspace contract 層級正式 PAP-compatible。
-它說明可攜式 Agent 如何在本 repo 中找到工具、提示詞、記憶、工作流程與長期
-專案知識。
-
-PAP workspace 是協定面與文件面，不取代引擎。LAS 核心仍位於
-`agent_workspace/core/`；API 與 topology 這類整合能力維持在外部 adapter。
+`.agent/` 是 LAS 的 protocol contract surface，讓人和 AI 都能用一致方式理解
+這個 repo 的工具、prompt、memory、workflow 與 runtime 邊界。它不是第二套
+runtime，也不應繞過 `agent_workspace/core/` 的授權、工具反射或狀態機行為。
