@@ -122,28 +122,22 @@ class AgentEngine:
         validated_args = tool["args_model"](**arguments)
         
         # 依賴注入 (Dependency Injection)
-        try:
-            with tracer.start_as_current_span("tool_call") as span:
-                span.set_attribute("tool_name", tool_name)
-                span.set_attribute("arguments", str(arguments))
-                
+        with tracer.start_as_current_span("tool_call") as span:
+            span.set_attribute("tool_name", tool_name)
+            span.set_attribute("arguments", str(arguments))
+            try:
                 with Timer(TOOL_CALL_LATENCY, labels={"tool_name": tool_name}):
                     if tool["wants_context"]:
                         result = tool["function"](validated_args, context=context or {})
                     else:
                         result = tool["function"](validated_args)
-                
                 span.set_attribute("result", str(result)[:500])  # limit length
-            TOOL_CALL_COUNT.labels(tool_name=tool_name, status="success").inc()
-            return str(result)
-        except Exception as e:
-            if TRACING_AVAILABLE:
-                import opentelemetry.trace as otel_trace
-                span = otel_trace.get_current_span()
+                TOOL_CALL_COUNT.labels(tool_name=tool_name, status="success").inc()
+                return str(result)
+            except Exception as e:
                 span.record_exception(e)
-                span.set_status(otel_trace.Status(otel_trace.StatusCode.ERROR))
-            TOOL_CALL_COUNT.labels(tool_name=tool_name, status="error").inc()
-            raise
+                TOOL_CALL_COUNT.labels(tool_name=tool_name, status="error").inc()
+                raise
 
     def summary(self) -> str:
         """印出引擎當前狀態摘要，方便除錯。"""

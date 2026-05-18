@@ -329,8 +329,8 @@ v2.0 priorities:
 
 v2.5 priorities:
 
-- OpenTelemetry tracing (distributed trace context)
-- Supervisor-worker multi-agent orchestration
+1. **OpenTelemetry tracing**: completed. Distributed trace context support added via `opentelemetry` for end-to-end tracing.
+2. **Supervisor-worker multi-agent orchestration**: completed. Swarm worker agents can be registered in `agent_workspace/agents/` and spawned via the `delegate_task` tool.
 
 v3.0 priorities:
 
@@ -697,8 +697,8 @@ v2.0 優先事項：
 
 v2.5 優先事項：
 
-- OpenTelemetry tracing（分散式追蹤上下文）
-- Supervisor-worker 多 Agent 協作
+1. **OpenTelemetry 分散式追蹤**：已完成。透過 `opentelemetry` 實現完整的端到端追蹤。
+2. **Supervisor-worker 多 Agent 協作**：已完成。子特工現可註冊於 `agent_workspace/agents/` 並透過 `delegate_task` 工具進行背景派發。
 
 v3.0 優先事項：
 

@@ -53,9 +53,7 @@ class BaseLLMProvider(ABC):
             status = "error" if result[0] == "error" else "success"
             span.set_attribute("status", status)
             if status == "error":
-                if TRACING_AVAILABLE:
-                    import opentelemetry.trace as otel_trace
-                    span.set_status(otel_trace.Status(otel_trace.StatusCode.ERROR))
+                span.record_exception(Exception(str(result[1])))
             
             LLM_CALL_COUNT.labels(provider=provider_label, status=status).inc()
             return result

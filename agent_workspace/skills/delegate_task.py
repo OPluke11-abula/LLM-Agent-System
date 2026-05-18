@@ -1,7 +1,10 @@
 import os
+import logging
 import yaml
 import asyncio
 from pydantic import BaseModel, Field
+
+logger = logging.getLogger(__name__)
 
 class DelegateTaskArgs(BaseModel):
     worker_name: str = Field(..., description="The name of the specialized worker agent to delegate to (e.g. 'math_expert', 'researcher').")
@@ -30,9 +33,7 @@ def delegate_task(args: DelegateTaskArgs, context: dict) -> str:
         except Exception as e:
             return f"Error: 讀取 worker 設定失敗 - {e}"
     else:
-        # 如果沒有設定檔，我們也可以依賴 Jinja2 判斷，但預設允許所有工具可能會不安全
-        # 這裡為了簡單，若沒有 yaml 就不限制，或由系統管理
-        pass
+        logger.warning(f"No config found for worker '{worker_name}' at {config_path}. All tools will be allowed.")
 
     # 2. 建立新的 Router 實例，產生子 session_id 隔離記憶
     from core.router import AgentRouter
@@ -41,8 +42,26 @@ def delegate_task(args: DelegateTaskArgs, context: dict) -> str:
     router = AgentRouter(engine, session_id=worker_session_id, agent_name=worker_name)
     
     # 3. 透過 asyncio.run 啟動一個全新的事件迴圈來執行 worker
+    # 為了確保 OTel Trace Context 能夠跨越 asyncio.run，我們手動提取並附加 Context
     try:
-        result = asyncio.run(router.run_agent_loop(args.task_instructions, allowed_tools=allowed_tools))
+        from opentelemetry import context as otel_context
+        current_context = otel_context.get_current()
+    except ImportError:
+        current_context = None
+
+    async def run_with_context():
+        if current_context:
+            from opentelemetry import context as otel_context
+            token = otel_context.attach(current_context)
+            try:
+                return await router.run_agent_loop(args.task_instructions, allowed_tools=allowed_tools)
+            finally:
+                otel_context.detach(token)
+        else:
+            return await router.run_agent_loop(args.task_instructions, allowed_tools=allowed_tools)
+
+    try:
+        result = asyncio.run(run_with_context())
         return f"[Worker '{worker_name}' Result]:\n{result}"
     except Exception as e:
         return f"Error: Worker '{worker_name}' 執行失敗 - {e}"

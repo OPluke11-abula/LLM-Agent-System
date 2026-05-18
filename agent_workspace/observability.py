@@ -61,7 +61,6 @@ class JSONFormatter(logging.Formatter):
                 payload["trace_id"] = trace.format_trace_id(ctx.trace_id)
                 payload["span_id"] = trace.format_span_id(ctx.span_id)
 
-
         # Surface caller-supplied *extra* fields.
         for key, value in record.__dict__.items():
             if key not in self._BUILTIN_KEYS and key not in payload:

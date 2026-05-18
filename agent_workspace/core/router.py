@@ -209,14 +209,15 @@ class AgentRouter:
         - allowed_tools: (RBAC) 限定此輪可用的工具清單
         - output_schema: (Structured Output) 強制 LLM 輸出特定 JSON 結構
         """
-        with tracer.start_as_current_span("run_agent_loop") as span:
-            span.set_attribute("session_id", self.session_id)
-            # [Semantic Router] 判定意圖
-            # 如果是強制結構化輸出，一定是任務；否則進行快篩
-            intent = "TASK" if output_schema else await self._classify_intent(user_input)
-            span.set_attribute("intent", intent)
-            logger.info("Agent Loop started", extra={"session_id": self.session_id, "intent": intent})
-            ACTIVE_SESSIONS.inc()
+        _span_cm = tracer.start_as_current_span("run_agent_loop")
+        span = _span_cm.__enter__()
+        span.set_attribute("session_id", self.session_id)
+        # [Semantic Router] 判定意圖
+        # 如果是強制結構化輸出，一定是任務；否則進行快篩
+        intent = "TASK" if output_schema else await self._classify_intent(user_input)
+        span.set_attribute("intent", intent)
+        logger.info("Agent Loop started", extra={"session_id": self.session_id, "intent": intent})
+        ACTIVE_SESSIONS.inc()
 
         # 1. 收集動態上下文並渲染 System Prompt
         context_vars = {
@@ -352,6 +353,7 @@ class AgentRouter:
             
         logger.info("Agent Loop finished", extra={"session_id": self.session_id, "iterations": iteration})
         ACTIVE_SESSIONS.dec()
+        _span_cm.__exit__(None, None, None)
 
         return final_response
 
@@ -361,23 +363,24 @@ class AgentRouter:
         主動向外部廣播當前狀態（thinking, tool_call, tool_result）與逐字串流 (text_chunk)。
         支援 allowed_tools 與 output_schema。
         """
-        with tracer.start_as_current_span("stream_agent_loop") as span:
-            span.set_attribute("session_id", self.session_id)
-            intent = "TASK" if output_schema else await self._classify_intent(user_input)
-            span.set_attribute("intent", intent)
-            
-            context_vars = {
-                "current_time": datetime.now(timezone.utc).isoformat(),
-                "context_status": "OK",
-                "user_input": user_input,
-                "session_id": self.session_id,
-            }
-            system_prompt = self.engine.render_prompt(context_vars, agent_name=self.agent_name)
-            tool_schemas = [] if intent == "CHAT" else self.engine.get_tool_schemas(allowed_tools)
-            messages = self._build_message_history(user_input)
+        _span_cm = tracer.start_as_current_span("stream_agent_loop")
+        span = _span_cm.__enter__()
+        span.set_attribute("session_id", self.session_id)
+        intent = "TASK" if output_schema else await self._classify_intent(user_input)
+        span.set_attribute("intent", intent)
 
-            logger.info("Stream Agent Loop started", extra={"session_id": self.session_id, "intent": intent})
-            ACTIVE_SESSIONS.inc()
+        context_vars = {
+            "current_time": datetime.now(timezone.utc).isoformat(),
+            "context_status": "OK",
+            "user_input": user_input,
+            "session_id": self.session_id,
+        }
+        system_prompt = self.engine.render_prompt(context_vars, agent_name=self.agent_name)
+        tool_schemas = [] if intent == "CHAT" else self.engine.get_tool_schemas(allowed_tools)
+        messages = self._build_message_history(user_input)
+
+        logger.info("Stream Agent Loop started", extra={"session_id": self.session_id, "intent": intent})
+        ACTIVE_SESSIONS.inc()
         
         final_response = ""
         iteration = 0
@@ -495,6 +498,7 @@ class AgentRouter:
             self._on_memory_limit_reached(self.session_id, self.memory.get_recent_context(20))
 
         ACTIVE_SESSIONS.dec()
+        _span_cm.__exit__(None, None, None)
         yield {"type": "done", "content": final_response}
 
     def _build_message_history(self, current_input: str) -> list[dict]:
