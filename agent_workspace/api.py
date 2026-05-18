@@ -20,7 +20,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 import yaml
@@ -89,6 +89,13 @@ class ConfigUpdateRequest(BaseModel):
     model: str | None = Field(None, description="e.g. gemini-2.5-flash")
     api_key: str | None = Field(None, description="API Key. Will be written to .env securely.")
     base_url: str | None = Field(None, description="Optional Base URL for Ollama or custom endpoints.")
+
+
+class PreferenceRequest(BaseModel):
+    session: str = Field(..., description="The session ID to attach this preference to")
+    preference: str = Field(..., description="The preference text")
+    confidence: float = 1.0
+    expires_at: str | None = None
 
 
 @dataclass
@@ -256,6 +263,31 @@ async def stream(request: ChatRequest) -> StreamingResponse:
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
+@app.websocket("/v1/stream")
+async def websocket_stream(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        while True:
+            data = await websocket.receive_json()
+            try:
+                request = ChatRequest(**data)
+            except Exception as e:
+                await websocket.send_json({"error": "Invalid request format", "details": str(e)})
+                continue
+            
+            try:
+                ensure_llm_configured()
+            except HTTPException as e:
+                await websocket.send_json({"error": e.detail})
+                continue
+                
+            router = build_router(request.session)
+            async for event in router.stream_agent_loop(request.msg, allowed_tools=request.allowed_tools):
+                await websocket.send_json({"session": request.session, **event})
+    except WebSocketDisconnect:
+        logger.info("WebSocket disconnected")
+
+
 async def run_background_task(record: TaskRecord, allowed_tools: list[str] | None) -> None:
     record.status = "running"
     record.started_at = utc_now()
@@ -322,14 +354,43 @@ async def list_long_term_memory() -> dict[str, Any]:
 
 
 @app.get("/v1/memory/query")
-async def query_long_term_memory(q: str, session: str | None = None, limit: int = 5) -> dict[str, Any]:
+async def query_long_term_memory(q: str, session: str | None = None, limit: int = 5, domain: str | None = None) -> dict[str, Any]:
     store = get_long_term_memory()
     return {
         "query": q,
         "session": session,
         "limit": limit,
-        "records": store.query(q, session_id=session, limit=limit),
+        "domain": domain,
+        "records": store.query(q, session_id=session, limit=limit, domain=domain),
     }
+
+
+@app.post("/v1/memory/preference")
+async def add_preference(req: PreferenceRequest) -> dict[str, Any]:
+    store = get_long_term_memory()
+    record = store.add_preference(
+        session_id=req.session,
+        preference_text=req.preference,
+        confidence=req.confidence,
+        expires_at=req.expires_at,
+    )
+    return {"status": "success", "record": asdict(record)}
+
+
+@app.delete("/v1/memory/{session_id}/{key}")
+async def delete_memory(session_id: str, key: str) -> dict[str, Any]:
+    store = get_long_term_memory()
+    success = store.delete_record(session_id, key)
+    if not success:
+        raise HTTPException(status_code=404, detail="Memory record not found")
+    return {"status": "success", "session_id": session_id, "key": key}
+
+
+@app.post("/v1/memory/prune")
+async def prune_memory() -> dict[str, Any]:
+    store = get_long_term_memory()
+    count = store.prune_expired()
+    return {"status": "success", "deleted_count": count}
 
 
 @app.get("/v1/config")

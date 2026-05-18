@@ -1,6 +1,11 @@
 llm:
   provider: google-genai
   model: gemini-2.5-flash
+  # Examples for other providers:
+  # provider: anthropic
+  # model: claude-3-5-sonnet-latest
+  # provider: openai
+  # model: gpt-4o
   temperature: 0.0
   max_tokens: 4096
 agent:

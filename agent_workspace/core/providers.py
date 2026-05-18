@@ -340,7 +340,7 @@ class OpenAIProvider(BaseLLMProvider):
             api_key = require_env("OPENAI_API_KEY")
             base_url = config.get("base_url") or os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1")
             payload: dict[str, Any] = {
-                "model": config.get("model", "gpt-4.1-mini"),
+                "model": config.get("model", "gpt-4o"),
                 "messages": openai_messages(system_prompt, messages),
                 "temperature": config.get("temperature", 0.0),
                 "max_tokens": config.get("max_tokens", 4096),
@@ -427,7 +427,7 @@ class AnthropicProvider(BaseLLMProvider):
 
             api_key = require_env("ANTHROPIC_API_KEY")
             payload: dict[str, Any] = {
-                "model": config.get("model", "claude-3-5-haiku-latest"),
+                "model": config.get("model", "claude-3-5-sonnet-latest"),
                 "system": system_prompt,
                 "messages": self._messages(messages),
                 "temperature": config.get("temperature", 0.0),

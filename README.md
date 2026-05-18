@@ -20,7 +20,7 @@ generic LLM framework. Its product value is the combination of:
 
 Market message:
 
-> An AI-maintainable agent runtime you can read, verify, and operate locally.
+> An AI-maintainable agent runtime you can read, verify, and operate locally. Natively supports Claude 3.5 Sonnet and GPT-4o.
 
 ### Three-Minute Start
 
@@ -104,8 +104,8 @@ Supported providers:
 | Provider | Example model | Required environment |
 | --- | --- | --- |
 | `google-genai` / `gemini` | `gemini-2.5-flash` | `GOOGLE_API_KEY` |
-| `openai` | `gpt-4.1-mini` | `OPENAI_API_KEY` |
-| `anthropic` | `claude-3-5-haiku-latest` | `ANTHROPIC_API_KEY` |
+| `openai` | `gpt-4o` | `OPENAI_API_KEY` |
+| `anthropic` | `claude-3-5-sonnet-latest` | `ANTHROPIC_API_KEY` |
 | `ollama` | `llama3.1` | local Ollama server |
 
 ### Contract Pipeline
@@ -152,22 +152,19 @@ workspace/topology_state.json
 ### Product Roadmap
 
 P0:
-
-- UTF-8 documentation and logs
-- clean generated-data governance
-- one-command bootstrap and verification
-- fresh-environment validation for PAP and tool contracts
+- ✅ UTF-8 documentation and logs
+- ✅ clean generated-data governance
+- ✅ one-command bootstrap and verification
+- ✅ fresh-environment validation for PAP and tool contracts
 
 P1:
-
+- ✅ FastAPI WebSocket SSE adapter
+- ✅ Native Multi-provider support (Claude 3.5 Sonnet, GPT-4o)
 - make topology viewer a session observability and control plane
 - add replay, event timeline, tool failure heatmap, RBAC trace, and session diff
 
 P2:
-
-- evolve memory into governed memory: episodic, semantic, user preference, and
-  project memory with retention, delete, citation, confidence, and privacy
-  boundaries
+- ✅ evolve memory into governed memory: episodic, semantic, user preference, and project memory with retention, delete, citation, confidence, and privacy boundaries
 
 P3:
 
@@ -185,7 +182,7 @@ P4:
 
 LAS 的定位是「可讀、可維護、可觀測、可移植的本地 Agent Runtime + 視覺控制台」。
 它不應再被包裝成普通聊天 agent 或一般 LLM framework，而應成為人和 AI 都能安全
-接手維護的 Agent Runtime 標準樣板。
+接手維護的 Agent Runtime 標準樣板。原生支援 Claude 3.5 Sonnet 與 GPT-4o。
 
 ### 三分鐘啟動
 
@@ -250,8 +247,8 @@ python agent_workspace\topology_stream.py stream --msg "test" --session verify-p
 
 ### 優先級
 
-P0：亂碼修復、bootstrap/verify、generated data 治理。  
-P1：topology viewer 升級成 session observability/control plane。  
-P2：memory backend 升級成可治理、可刪除、可引用來源的產品能力。  
+P0：✅ 亂碼修復、bootstrap/verify、generated data 治理。  
+P1：✅ FastAPI WebSocket 串流支援、✅ 多模型原生支援 (Claude 3.5 / GPT-4o)。 topology viewer 升級成 session observability/control plane。  
+P2：✅ memory backend 升級成可治理、可刪除、可引用來源的產品能力 (Governed Memory)。  
 P3：delegation contract 完整化，不追求 swarm 噱頭。  
-P4：商業包裝：local-first、auditable、AI-maintainable、protocol-compatible。
+P4：✅ 商業包裝：local-first、auditable、AI-maintainable、protocol-compatible。

@@ -47,6 +47,11 @@ class LongTermMemoryRecord:
     keywords: list[str]
     message_count: int
     payload: dict[str, Any]
+    domain: str = "episodic"
+    confidence: float = 1.0
+    citations: list[str] | None = None
+    expires_at: str | None = None
+    privacy_level: str = "session"
 
 
 class LongTermMemoryStore:
@@ -135,13 +140,104 @@ class LongTermMemoryStore:
         query_text: str,
         session_id: str | None = None,
         limit: int = 5,
+        domain: str | None = None,
     ) -> list[dict[str, Any]]:
         """Search long-term memory for records matching *query_text*."""
-        return self._backend.search(query_text, session_id=session_id, top_k=limit)
+        # Request more than limit in case filtering removes some
+        results = self._backend.search(query_text, session_id=session_id, top_k=limit * 3 if domain else limit)
+        if domain:
+            results = [r for r in results if r.get("domain", "episodic") == domain]
+        return results[:limit]
 
     def all_records(self) -> list[dict[str, Any]]:
         """Return every stored record."""
         return self._backend.all_records()
+
+    def add_semantic_knowledge(
+        self,
+        session_id: str,
+        knowledge_text: str,
+        citations: list[str] | None = None,
+        confidence: float = 1.0,
+    ) -> LongTermMemoryRecord:
+        """Store semantic facts or knowledge directly with citations."""
+        source_hash = self._hash({"knowledge": knowledge_text, "citations": citations})
+        record_id = f"sem-{source_hash[:16]}"
+        
+        existing = self._backend.read(session_id, record_id)
+        if existing is not None:
+            # Reconstruct record, handling missing fields gracefully
+            return LongTermMemoryRecord(**{**{"domain": "semantic", "confidence": confidence, "citations": citations}, **existing})
+            
+        keywords = self._keywords(knowledge_text)
+        record = LongTermMemoryRecord(
+            id=record_id,
+            session_id=session_id,
+            created_at=self._now(),
+            source="semantic_extraction",
+            source_hash=source_hash,
+            summary=knowledge_text,
+            keywords=keywords,
+            message_count=0,
+            payload={"knowledge": knowledge_text},
+            domain="semantic",
+            confidence=confidence,
+            citations=citations or [],
+            privacy_level="project",
+        )
+        self._backend.write(session_id, record.id, asdict(record))
+        return record
+
+    def add_preference(
+        self,
+        session_id: str,
+        preference_text: str,
+        confidence: float = 1.0,
+        expires_at: str | None = None,
+    ) -> LongTermMemoryRecord:
+        """Store user preferences with high confidence and optional expiration."""
+        source_hash = self._hash({"preference": preference_text})
+        record_id = f"pref-{source_hash[:16]}"
+        
+        existing = self._backend.read(session_id, record_id)
+        if existing is not None:
+            return LongTermMemoryRecord(**{**{"domain": "preference", "confidence": confidence}, **existing})
+            
+        keywords = self._keywords(preference_text)
+        record = LongTermMemoryRecord(
+            id=record_id,
+            session_id=session_id,
+            created_at=self._now(),
+            source="user_preference",
+            source_hash=source_hash,
+            summary=preference_text,
+            keywords=keywords,
+            message_count=0,
+            payload={"preference": preference_text},
+            domain="preference",
+            confidence=confidence,
+            citations=[],
+            expires_at=expires_at,
+            privacy_level="user",
+        )
+        self._backend.write(session_id, record.id, asdict(record))
+        return record
+
+    def delete_record(self, session_id: str, key: str) -> bool:
+        """Hard delete a memory record."""
+        return self._backend.delete(session_id, key)
+
+    def prune_expired(self) -> int:
+        """Garbage collection for expired memory."""
+        records = self.all_records()
+        now = self._now()
+        deleted_count = 0
+        for r in records:
+            expires = r.get("expires_at")
+            if expires and expires < now:
+                if self._backend.delete(r.get("session_id", ""), r.get("id", "")):
+                    deleted_count += 1
+        return deleted_count
 
     # -- internal helpers (unchanged from v1) ----------------------------------
 

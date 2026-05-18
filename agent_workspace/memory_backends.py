@@ -59,6 +59,10 @@ class MemoryBackend(ABC):
     def all_records(self) -> list[dict[str, Any]]:
         """Return every stored record (used for CLI ``list`` and API ``/v1/memory``)."""
 
+    @abstractmethod
+    def delete(self, session_id: str, key: str) -> bool:
+        """Delete a record by session_id and key. Returns True if deleted, False if not found."""
+
 
 # ---------------------------------------------------------------------------
 # SQLite implementation — zero extra dependencies
@@ -221,6 +225,130 @@ class SQLiteBackend(MemoryBackend):
         ).fetchall()
         return [json.loads(row["value"]) for row in rows]
 
+    def delete(self, session_id: str, key: str) -> bool:
+        conn = self._get_conn()
+        cursor = conn.execute(
+            "DELETE FROM memory_records WHERE session_id = ? AND key = ?",
+            (session_id, key),
+        )
+        conn.commit()
+        return cursor.rowcount > 0
+
+
+# ---------------------------------------------------------------------------
+# Redis implementation — using RediSearch (Redis Stack)
+# ---------------------------------------------------------------------------
+
+class RedisBackend(MemoryBackend):
+    """Redis-backed long-term memory with RediSearch for full-text search.
+
+    Requires `redis` Python package and a Redis server running Redis Stack.
+    """
+
+    def __init__(self, db_path: str | Path) -> None:
+        import redis
+        import os
+        
+        # db_path is mostly ignored for Redis, but we use env var
+        redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379")
+        self.client = redis.Redis.from_url(redis_url, decode_responses=True)
+        self.index_name = "memory_idx"
+        self._init_schema()
+
+    def _init_schema(self) -> None:
+        from redis.commands.search.field import TextField, TagField
+        from redis.commands.search.indexDefinition import IndexDefinition, IndexType
+        import redis.exceptions
+
+        try:
+            self.client.ft(self.index_name).info()
+        except redis.exceptions.ResponseError:
+            # Index does not exist, create it
+            schema = (
+                TagField("session_id"),
+                TextField("key"),
+                TextField("summary"),
+                TextField("keywords"),
+                TextField("value")
+            )
+            definition = IndexDefinition(prefix=["memory:"], index_type=IndexType.HASH)
+            try:
+                self.client.ft(self.index_name).create_index(schema, definition=definition)
+            except redis.exceptions.ResponseError as e:
+                import logging
+                logging.getLogger(__name__).warning("Could not create Redis search index: %s", e)
+
+    def write(self, session_id: str, key: str, value: dict[str, Any]) -> None:
+        import json
+        from datetime import datetime, timezone
+        
+        now = datetime.now(timezone.utc).isoformat()
+        blob = json.dumps(value, ensure_ascii=False)
+        redis_key = f"memory:{session_id}:{key}"
+        
+        self.client.hset(redis_key, mapping={
+            "session_id": session_id,
+            "key": key,
+            "summary": value.get("summary", "") or "",
+            "keywords": value.get("keywords", "") or "",
+            "value": blob,
+            "created_at": now
+        })
+
+    def read(self, session_id: str, key: str) -> dict[str, Any] | None:
+        import json
+        redis_key = f"memory:{session_id}:{key}"
+        blob = self.client.hget(redis_key, "value")
+        if blob is None:
+            return None
+        return json.loads(str(blob))
+
+    def search(
+        self,
+        query: str,
+        session_id: str | None = None,
+        top_k: int = 5,
+    ) -> list[dict[str, Any]]:
+        import json
+        from redis.commands.search.query import Query
+        import redis.exceptions
+
+        tokens = query.strip().split()
+        if not tokens:
+            return self.all_records()[:top_k]
+
+        fts_query = " | ".join(tokens)
+        
+        if session_id:
+            # Escape session_id for tag query if it has dashes
+            escaped_session = session_id.replace("-", "\\-")
+            fts_query = f"(@session_id:{{{escaped_session}}}) ({fts_query})"
+            
+        q = Query(fts_query).paging(0, top_k)
+        
+        try:
+            res = self.client.ft(self.index_name).search(q)
+            return [json.loads(str(doc.value)) for doc in res.docs]
+        except redis.exceptions.ResponseError:
+            # Fallback if RediSearch is not available or query is malformed
+            return []
+
+    def all_records(self) -> list[dict[str, Any]]:
+        import json
+        records = []
+        cursor = "0"
+        while cursor != 0:
+            cursor, keys = self.client.scan(cursor=cursor, match="memory:*", count=100)
+            for key in keys:
+                blob = self.client.hget(key, "value")
+                if blob:
+                    records.append(json.loads(str(blob)))
+        return records
+
+    def delete(self, session_id: str, key: str) -> bool:
+        redis_key = f"memory:{session_id}:{key}"
+        return self.client.delete(redis_key) > 0
+
 
 # ---------------------------------------------------------------------------
 # Factory
@@ -228,6 +356,7 @@ class SQLiteBackend(MemoryBackend):
 
 _BACKEND_REGISTRY: dict[str, type[MemoryBackend]] = {
     "sqlite": SQLiteBackend,
+    "redis": RedisBackend,
 }
 
 
