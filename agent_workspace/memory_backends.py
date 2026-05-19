@@ -92,9 +92,7 @@ class SQLiteBackend(MemoryBackend):
         session_id,
         key,
         summary,
-        keywords,
-        content='memory_records',
-        content_rowid='rowid'
+        keywords
     );
     """
 

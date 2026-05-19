@@ -2,8 +2,8 @@
 
 > Topological Workspace for Multi-Agent Systems
 
-**最後更新：** 2026-05-19 | **活躍 Agents：** 接手 AI, 接手 AI（或前端專責 Agent）
-**進度：** Todo(0) / InProgress(0) / Review(0) / Done(5)
+**最後更新：** 2026-05-19 | **活躍 Agents：** 接手 AI（或前端專責 Agent）, Assistant, 接手 AI
+**進度：** Todo(0) / InProgress(0) / Review(0) / Done(6)
 
 ---
 
@@ -132,4 +132,26 @@
 
 ### 連結節點
 → 依賴：[TASK-002]  
+→ 被依賴：無
+
+---
+
+## [TASK-006] 可治理記憶體 (Governed Memory) 技能
+
+**負責 Agent：** Assistant  
+**狀態：** `Done`  
+**優先級：** Medium  
+**建立：** 2026-05-19 | **更新：** 2026-05-19
+
+### 說明
+實作記憶體技能，允許 Agent 主動調用 query_memory 與 store_knowledge，賦予自我進化能力。
+
+### 完成條件 (Done When)
+- [x] Completed governed memory implementation.
+
+### 日誌
+(尚未開始)
+
+### 連結節點
+→ 依賴：[TASK-001]  
 → 被依賴：無
