@@ -263,6 +263,44 @@ async def stream(request: ChatRequest) -> StreamingResponse:
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
+@app.websocket("/v1/stream_ws")
+async def stream_ws(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        # Expect the first message to be the ChatRequest payload
+        data = await websocket.receive_json()
+        session = data.get("session", "default-session")
+        msg = data.get("msg", "")
+        allowed_tools = data.get("allowed_tools")
+        
+        if not msg:
+            await websocket.send_json({"error": "msg is required"})
+            await websocket.close()
+            return
+            
+        try:
+            ensure_llm_configured()
+        except HTTPException as e:
+            await websocket.send_json({"error": e.detail})
+            await websocket.close()
+            return
+
+        router = build_router(session)
+        async for event in router.stream_agent_loop(msg, allowed_tools=allowed_tools):
+            await websocket.send_json({"session": session, **event})
+            
+        await websocket.close()
+    except WebSocketDisconnect:
+        logger.info("WebSocket disconnected")
+    except Exception as e:
+        logger.error(f"WebSocket error: {e}")
+        try:
+            await websocket.send_json({"error": str(e)})
+            await websocket.close()
+        except Exception:
+            pass
+
+
 @app.websocket("/v1/stream")
 async def websocket_stream(websocket: WebSocket):
     await websocket.accept()

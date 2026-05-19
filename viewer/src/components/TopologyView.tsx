@@ -185,8 +185,8 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
     <div className="grid h-full min-h-0 grid-cols-[260px_minmax(0,1fr)_320px] gap-3 overflow-hidden">
       <aside className="panel-bg flex min-h-0 flex-col rounded-xl border shadow-xl" style={{ borderColor: "var(--border-c)" }}>
         <div className="border-b p-4" style={{ borderColor: "var(--border-c)" }}>
-          <p className="text-sm font-black t1">{copy.title}</p>
-          <p className="mt-1 text-xs leading-relaxed t3">{copy.subtitle}</p>
+          <p className="text-sm font-black t1">{visibleSessions[0]?.project_name || copy.title}</p>
+          <p className="mt-1 text-xs leading-relaxed t3">{visibleSessions[0]?.summary || copy.subtitle}</p>
         </div>
         <div className="grid grid-cols-2 gap-2 p-3">
           {[
@@ -251,9 +251,16 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
           {selectedNode ? (
             <div className="h-full space-y-4 overflow-y-auto p-4 pb-20">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] t3">{selectedNode.node_type}</p>
-                <h3 className="mt-1 text-lg font-black t1">{selectedNode.payload.name || selectedNode.node_id}</h3>
-                <p className="mt-1 text-xs t2">{selectedNode.payload.description || selectedNode.status}</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] t3">{selectedNode.node_type}</p>
+                  {selectedNode.assigned_agent && (
+                    <span className="rounded bg-blue-500/10 px-1.5 py-0.5 text-[9px] font-bold text-blue-500">
+                      @{selectedNode.assigned_agent}
+                    </span>
+                  )}
+                </div>
+                <h3 className="mt-1 text-lg font-black t1">{selectedNode.title || selectedNode.payload?.name || selectedNode.id || selectedNode.node_id}</h3>
+                <p className="mt-1 text-xs t2">{selectedNode.description || selectedNode.payload?.description || selectedNode.status}</p>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div className="rounded-lg border p-2" style={{ background: "var(--bg-card)", borderColor: "var(--border-c)" }}>
@@ -262,21 +269,30 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
                 </div>
                 <div className="rounded-lg border p-2" style={{ background: "var(--bg-card)", borderColor: "var(--border-c)" }}>
                   <p className="text-[10px] font-bold t3">Duration</p>
-                  <p className="text-xs font-black t1">{formatDuration(selectedNode.payload.duration_ms)}</p>
+                  <p className="text-xs font-black t1">{formatDuration(selectedNode.payload?.duration_ms)}</p>
                 </div>
               </div>
+              
+              {(selectedNode.status === 'done' || selectedNode.status === 'completed') && selectedNode.result_summary && (
+                <div>
+                  <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-green-500">Result Summary</p>
+                  <p className="rounded-lg border p-3 text-xs t2" style={{ background: "var(--bg-card)", borderColor: "var(--border-c)" }}>
+                    {selectedNode.result_summary}
+                  </p>
+                </div>
+              )}
               <div>
                 <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] t3">{copy.input}</p>
-                <JsonBlock value={selectedNode.payload.input} />
+                <JsonBlock value={selectedNode.payload?.input} />
               </div>
               <div>
                 <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] t3">{copy.output}</p>
-                <JsonBlock value={selectedNode.payload.output} />
+                <JsonBlock value={selectedNode.payload?.output} />
               </div>
               <div>
                 <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] t3">{copy.notes}</p>
                 <p className="rounded-lg border p-3 text-xs t2" style={{ background: "var(--bg-card)", borderColor: "var(--border-c)" }}>
-                  {selectedNode.payload.human_notes || "-"}
+                  {selectedNode.payload?.human_notes || "-"}
                 </p>
               </div>
             </div>

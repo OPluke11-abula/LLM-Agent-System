@@ -182,7 +182,7 @@ export type ThemeDefinition = {
 
 export type TopologyNodeType = "session_root" | "agent" | "handoff" | "tool_call" | "hitl_gate" | "error";
 export type TopologyEdgeType = "handoff" | "tool" | "rbac" | "error" | "hitl";
-export type TopologyStatus = "pending" | "running" | "completed" | "error" | "awaiting_approval";
+export type TopologyStatus = "todo" | "in_process" | "done" | "error" | "review" | "pending" | "running" | "completed" | "awaiting_approval";
 
 export type TopologyPayload = {
   name?: string;
@@ -198,6 +198,16 @@ export type TopologyPayload = {
 };
 
 export type TopologyEvent = {
+  id: string;
+  title: string;
+  status: TopologyStatus;
+  assigned_agent: string;
+  description: string;
+  result_summary: string;
+  created_at: string;
+  updated_at: string;
+  
+  // Backward compatibility fields
   event_id: string;
   timestamp: string;
   session_id: string;
@@ -205,12 +215,15 @@ export type TopologyEvent = {
   parent_node_id: string | null;
   node_type: TopologyNodeType;
   edge_type: TopologyEdgeType | null;
-  status: TopologyStatus;
   payload: TopologyPayload;
 };
 
 export type TopologyState = {
   schema_version: string;
+  project_name?: string;
+  summary?: string;
+  agents_ref?: string;
+  skills_ref?: string;
   session_id: string;
   started_at: string;
   updated_at: string;
@@ -228,7 +241,8 @@ export type TopologyState = {
     id: string;
     source: string;
     target: string;
-    edge_type: TopologyEdgeType;
+    type?: TopologyEdgeType;
+    edge_type?: TopologyEdgeType;
     label: string;
   }>;
 };

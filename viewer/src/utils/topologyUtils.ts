@@ -37,11 +37,14 @@ export function edgeComponentType(edgeType: TopologyEdgeData["edgeType"]) {
 }
 
 export function topologyNodeLabel(event: TopologyEvent) {
-  return event.payload.name || event.payload.description || event.node_id;
+  return event.title || event.payload?.name || event.payload?.description || event.node_id || event.id;
 }
 
 export function topologyNodeDescription(event: TopologyEvent) {
-  if (typeof event.payload.description === "string" && event.payload.description.trim()) {
+  if (event.description && event.description.trim()) {
+    return event.description;
+  }
+  if (typeof event.payload?.description === "string" && event.payload.description.trim()) {
     return event.payload.description;
   }
   if (event.node_type === "session_root") return `Session ${event.session_id}`;
@@ -59,9 +62,10 @@ export function buildTopologyFlow(
   graph.setGraph({ rankdir: "LR", nodesep: 58, ranksep: 128 });
 
   const nodes: Node<TopologyNodeData>[] = state.nodes.map((event) => {
-    graph.setNode(event.node_id, { width: NODE_WIDTH, height: NODE_HEIGHT });
+    const nodeId = event.node_id || event.id;
+    graph.setNode(nodeId, { width: NODE_WIDTH, height: NODE_HEIGHT });
     return {
-      id: event.node_id,
+      id: nodeId,
       type: nodeComponentType(event.node_type),
       position: { x: 0, y: 0 },
       targetPosition: Position.Left,
@@ -76,7 +80,7 @@ export function buildTopologyFlow(
   });
 
   const edges: Edge<TopologyEdgeData>[] = state.edges.map((edge) => {
-    const edgeType = edge.edge_type;
+    const edgeType = edge.edge_type || edge.type || "handoff";
     graph.setEdge(edge.source, edge.target);
     return {
       id: edge.id,

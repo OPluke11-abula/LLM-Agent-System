@@ -2,13 +2,17 @@ import { Handle, Position, type NodeProps } from "reactflow";
 import type { TopologyNodeData, TopologyNodeType } from "../../types";
 import { NODE_COLORS } from "../../utils/topologyUtils";
 
-const STATUS_LABELS = {
+const STATUS_LABELS: Record<string, string> = {
   pending: "Pending",
   running: "Running",
   completed: "Completed",
   error: "Error",
   awaiting_approval: "Awaiting approval",
-} as const;
+  todo: "To Do",
+  in_process: "In Process",
+  done: "Done",
+  review: "Review",
+};
 
 type TopologyNodeBaseProps = NodeProps<TopologyNodeData> & {
   tone: TopologyNodeType;
@@ -18,7 +22,7 @@ type TopologyNodeBaseProps = NodeProps<TopologyNodeData> & {
 export function TopologyNodeBase({ data, selected, tone, badge }: TopologyNodeBaseProps) {
   const event = data.event;
   const color = NODE_COLORS[tone];
-  const isLive = event.status === "running" || event.status === "awaiting_approval";
+  const isLive = event.status === "running" || event.status === "awaiting_approval" || event.status === "in_process" || event.status === "review";
   const isHitl = event.node_type === "hitl_gate";
 
   return (
@@ -54,8 +58,8 @@ export function TopologyNodeBase({ data, selected, tone, badge }: TopologyNodeBa
       <p className="truncate text-sm font-black t1">{data.label}</p>
       <p className="mt-1 line-clamp-2 min-h-8 text-xs leading-relaxed t2">{data.description}</p>
       <div className="mt-3 flex items-center justify-between text-[10px] font-mono t3">
-        <span className="truncate">{event.node_id}</span>
-        <span>{event.payload.token_used ?? 0} tok</span>
+        <span className="truncate">{event.node_id || event.id}</span>
+        <span>{event.payload?.token_used ?? 0} tok</span>
       </div>
       <Handle
         type="source"
