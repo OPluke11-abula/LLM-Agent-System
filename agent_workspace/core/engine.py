@@ -64,6 +64,7 @@ class AgentEngine:
         self.tools_registry: dict[str, dict[str, Any]] = {}
         self._ensure_skills_importable()
         self._discover_tools()
+        self._discover_markdown_skills()
 
     def render_prompt(self, runtime_context: dict, agent_name: str = "default") -> str:
         """Render the default or named-agent Jinja2 prompt."""
@@ -165,8 +166,9 @@ class AgentEngine:
 
         lines.append("")
         lines.append(f"  Runtime tools ({len(self.tools_registry)})")
-        for name in self.tools_registry:
-            lines.append(f"    - {name}")
+        for name, tool in self.tools_registry.items():
+            is_md = "[Markdown Skill]" if tool.get("is_markdown_skill") else ""
+            lines.append(f"    - {name} {is_md}".strip())
 
         lines.append("=" * 60)
         return "\n".join(lines)
@@ -296,7 +298,18 @@ class AgentEngine:
                 "description": inspect.getdoc(func),
                 "schema": annotation.model_json_schema(),
                 "wants_context": "context" in sig.parameters,
+                "is_markdown_skill": False,
             }
+
+    def _discover_markdown_skills(self) -> None:
+        """Load pure Markdown SKILL.md files as Pydantic tools."""
+        try:
+            from core.skill_loader import SkillLoader
+            loader = SkillLoader(self.workspace_path)
+            markdown_skills = loader.discover_skills()
+            self.tools_registry.update(markdown_skills)
+        except ImportError as e:
+            logger.warning("Failed to load SkillLoader: %s", e)
 
 
 if __name__ == "__main__":

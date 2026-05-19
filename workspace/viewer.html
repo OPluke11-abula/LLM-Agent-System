@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FindAi Studio Workspace Viewer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dagre@0.8.5/dist/dagre.min.js"></script>
+  <style>
+    body {
+      background-color: #0f111a;
+      color: #e2e8f0;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+    .glass-panel {
+      background: rgba(30, 41, 59, 0.7);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .task-node {
+      transition: all 0.2s ease-in-out;
+      cursor: pointer;
+    }
+    .task-node:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 0 15px rgba(59, 130, 246, 0.5);
+      border-color: #3b82f6;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.125rem 0.625rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .status-todo { background-color: rgba(71, 85, 105, 0.3); color: #cbd5e1; border: 1px solid #475569; }
+    .status-inprogress { background-color: rgba(59, 130, 246, 0.2); color: #93c5fd; border: 1px solid #3b82f6; }
+    .status-review { background-color: rgba(249, 115, 22, 0.2); color: #fdba74; border: 1px solid #f97316; }
+    .status-done { background-color: rgba(34, 197, 94, 0.2); color: #86efac; border: 1px solid #22c55e; }
+    
+    #canvas-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+    }
+    svg.edges {
+      position: absolute;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      z-index: 10;
+    }
+    .edge-path {
+      fill: none;
+      stroke: #475569;
+      stroke-width: 2px;
+    }
+    .edge-arrow {
+      fill: #475569;
+    }
+  </style>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+  <!-- Sidebar Nav -->
+  <aside class="w-16 sm:w-64 flex-shrink-0 glass-panel border-r border-slate-800 flex flex-col items-center sm:items-start py-6 z-30">
+    <div class="px-6 mb-8 hidden sm:block">
+      <h1 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-emerald-400 tracking-tight">FindAi Studio</h1>
+      <div class="text-xs text-slate-500 mt-1 uppercase tracking-wider font-semibold">Workspace</div>
+    </div>
+    <div class="w-full mb-8 sm:hidden flex justify-center">
+      <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-emerald-500 flex items-center justify-center font-bold">F</div>
+    </div>
+    
+    <nav class="w-full flex flex-col gap-2 px-2 sm:px-4">
+      <button class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20 transition-colors">
+        <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
+        <span class="hidden sm:inline font-medium">Topology</span>
+      </button>
+      <button class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 transition-colors">
+        <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+        <span class="hidden sm:inline font-medium">Agents</span>
+      </button>
+      <button class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 transition-colors">
+        <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
+        <span class="hidden sm:inline font-medium">Skills</span>
+      </button>
+    </nav>
+  </aside>
+
+  <!-- Main Canvas -->
+  <main class="flex-1 flex flex-col relative z-10 overflow-hidden">
+    <!-- Header -->
+    <header class="h-16 flex-shrink-0 border-b border-slate-800 flex items-center px-6 glass-panel z-20">
+      <div id="project-header">
+        <h2 id="project-title" class="text-lg font-bold text-slate-200">Loading Workspace...</h2>
+        <p id="project-desc" class="text-xs text-slate-400">Fetching workspace.json...</p>
+      </div>
+    </header>
+
+    <!-- Canvas -->
+    <div id="canvas-container" class="bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wNSkiLz48L3N2Zz4=')]">
+      <div id="nodes-layer" class="absolute top-0 left-0 w-full h-full z-20"></div>
+      <svg id="edges-layer" class="edges"></svg>
+    </div>
+  </main>
+
+  <!-- Details Panel (Slide over) -->
+  <aside id="details-panel" class="absolute top-0 right-0 w-80 sm:w-96 h-full glass-panel border-l border-slate-700 shadow-2xl transform translate-x-full transition-transform duration-300 z-40 flex flex-col">
+    <div class="flex items-center justify-between p-4 border-b border-slate-700">
+      <h3 class="text-sm font-bold tracking-wide uppercase text-slate-300">Task Details</h3>
+      <button onclick="closePanel()" class="p-1 rounded-full hover:bg-slate-700 text-slate-400 hover:text-white transition">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+      </button>
+    </div>
+    <div id="details-content" class="p-5 overflow-y-auto flex-1 text-sm space-y-6">
+      <!-- Injected details -->
+    </div>
+  </aside>
+
+  <!-- Error Modal for CORS -->
+  <div id="error-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div class="glass-panel p-6 rounded-xl border border-red-500/30 max-w-md w-full mx-4 shadow-2xl">
+      <h3 class="text-xl font-bold text-red-400 mb-2 flex items-center gap-2">
+        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+        Failed to load Workspace
+      </h3>
+      <p class="text-slate-300 text-sm mb-4">
+        Could not fetch <code>workspace.json</code>. This usually happens when opening local files directly due to browser CORS policies.
+      </p>
+      <div class="bg-slate-900 rounded-lg p-3 text-xs font-mono text-emerald-400 mb-4 border border-slate-700 shadow-inner">
+        python -m http.server
+      </div>
+      <p class="text-slate-400 text-sm mb-6">
+        Please run the command above in your project root and open <a href="http://localhost:8000/workspace/viewer.html" class="text-blue-400 hover:underline">http://localhost:8000/workspace/viewer.html</a>
+      </p>
+      <div class="flex justify-end">
+        <button onclick="document.getElementById('error-modal').classList.add('hidden')" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded text-sm font-semibold transition">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentTasks = {};
+
+    function getStatusClass(status) {
+      switch(status.toLowerCase()) {
+        case 'todo': return 'status-todo';
+        case 'inprogress': return 'status-inprogress';
+        case 'review': return 'status-review';
+        case 'done': return 'status-done';
+        default: return 'status-todo';
+      }
+    }
+
+    async function init() {
+      try {
+        const response = await fetch('workspace.json');
+        if (!response.ok) throw new Error('Network response was not ok');
+        const data = await response.json();
+        
+        document.getElementById('project-title').textContent = data.project_title || 'Workspace';
+        document.getElementById('project-desc').textContent = data.project_desc || 'No description provided.';
+        
+        renderTopology(data.tasks);
+      } catch (e) {
+        console.error(e);
+        document.getElementById('error-modal').classList.remove('hidden');
+      }
+    }
+
+    function renderTopology(tasks) {
+      const g = new dagre.graphlib.Graph();
+      g.setGraph({ rankdir: 'LR', marginx: 40, marginy: 40, nodesep: 60, ranksep: 100 });
+      g.setDefaultEdgeLabel(function() { return {}; });
+
+      // Save tasks map
+      tasks.forEach(t => currentTasks[t.id] = t);
+
+      // Define nodes (width 280, height ~120 depending on content, let's say 140)
+      tasks.forEach(t => {
+        g.setNode(t.id, { label: t.title, width: 280, height: 130 });
+      });
+
+      // Define edges
+      tasks.forEach(t => {
+        if (t.depends_on) {
+          t.depends_on.forEach(dep => {
+            if (currentTasks[dep]) {
+              g.setEdge(dep, t.id);
+            }
+          });
+        }
+      });
+
+      // Calculate layout
+      dagre.layout(g);
+
+      // Render Nodes
+      const nodesLayer = document.getElementById('nodes-layer');
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+      g.nodes().forEach(v => {
+        const node = g.node(v);
+        const task = currentTasks[v];
+        
+        // Track bounds for svg sizing
+        minX = Math.min(minX, node.x - node.width/2);
+        minY = Math.min(minY, node.y - node.height/2);
+        maxX = Math.max(maxX, node.x + node.width/2);
+        maxY = Math.max(maxY, node.y + node.height/2);
+
+        const el = document.createElement('div');
+        el.className = 'absolute glass-panel task-node p-5 rounded-xl border border-slate-700 shadow-lg text-slate-200 flex flex-col z-20';
+        el.style.width = `${node.width}px`;
+        el.style.height = `${node.height}px`;
+        // dagre gives center point. CSS needs top-left
+        el.style.left = `${node.x - node.width / 2}px`;
+        el.style.top = `${node.y - node.height / 2}px`;
+        
+        el.innerHTML = `
+          <div class="flex justify-between items-start mb-2">
+            <h4 class="font-bold text-sm tracking-wide text-white truncate pr-2">${task.id}</h4>
+            <span class="status-badge ${getStatusClass(task.status)}">${task.status}</span>
+          </div>
+          <div class="font-semibold text-blue-400 mb-2 truncate">${task.title}</div>
+          <p class="text-xs text-slate-400 line-clamp-2 leading-relaxed">${task.description || 'No description'}</p>
+        `;
+        
+        el.onclick = () => showDetails(task);
+        nodesLayer.appendChild(el);
+      });
+
+      // Render Edges (SVG)
+      const svg = document.getElementById('edges-layer');
+      const padding = 100;
+      svg.setAttribute('width', Math.max(maxX + padding, 1000));
+      svg.setAttribute('height', Math.max(maxY + padding, 1000));
+      
+      // Defs for arrow
+      svg.innerHTML = `
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" class="edge-arrow" />
+          </marker>
+        </defs>
+      `;
+
+      g.edges().forEach(e => {
+        const edge = g.edge(e);
+        const points = edge.points;
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        
+        let d = `M ${points[0].x} ${points[0].y} `;
+        // Simple curve or polyline, dagre gives intermediate points
+        // Let's use basis curve
+        for (let i = 1; i < points.length; i++) {
+            d += `L ${points[i].x} ${points[i].y} `;
+        }
+        
+        path.setAttribute('d', d);
+        path.setAttribute('class', 'edge-path');
+        path.setAttribute('marker-end', 'url(#arrow)');
+        svg.appendChild(path);
+      });
+    }
+
+    function showDetails(task) {
+      const panel = document.getElementById('details-panel');
+      const content = document.getElementById('details-content');
+      
+      let criteriaHtml = '';
+      if (task.done_criteria && task.done_criteria.length > 0) {
+        criteriaHtml = `<div class="space-y-2">
+          <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Done Criteria</label>
+          <ul class="space-y-1.5">
+            ${task.done_criteria.map(c => 
+              `<li class="flex gap-2 items-start text-slate-300">
+                <span class="${c.done ? 'text-emerald-400' : 'text-slate-600'} mt-0.5">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    ${c.done ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />' : '<circle cx="12" cy="12" r="9" stroke-width="2" />'}
+                  </svg>
+                </span>
+                <span class="${c.done ? 'line-through opacity-70' : ''}">${c.text}</span>
+              </li>`
+            ).join('')}
+          </ul>
+        </div>`;
+      }
+
+      let logsHtml = '<div class="text-slate-500 text-xs italic">No logs available.</div>';
+      if (task.logs && task.logs.length > 0) {
+        logsHtml = `<div class="space-y-3">
+          ${task.logs.map(log => {
+             // Basic markdown parsing for the log: - `date` text
+             const logClean = log.replace(/^- /, '');
+             return `<div class="p-3 bg-slate-900/50 rounded-lg border border-slate-700/50">
+               <p class="text-slate-300 text-sm leading-relaxed">${logClean}</p>
+             </div>`;
+          }).join('')}
+        </div>`;
+      }
+
+      content.innerHTML = `
+        <div class="mb-4 flex items-center justify-between">
+          <span class="status-badge ${getStatusClass(task.status)}">${task.status}</span>
+          <span class="text-xs font-mono text-slate-500 bg-slate-900 px-2 py-1 rounded">${task.id}</span>
+        </div>
+        
+        <h2 class="text-xl font-bold text-white mb-6">${task.title}</h2>
+        
+        <div class="space-y-1.5 mb-6">
+          <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Description</label>
+          <p class="text-slate-300 leading-relaxed">${task.description || '(No description)'}</p>
+        </div>
+        
+        <div class="grid grid-cols-2 gap-4 mb-6">
+          <div>
+            <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Priority</label>
+            <p class="text-slate-300 font-medium">${task.priority}</p>
+          </div>
+          <div>
+            <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Agent</label>
+            <p class="text-blue-400 font-medium">${task.agent}</p>
+          </div>
+          <div>
+            <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Created</label>
+            <p class="text-slate-300 font-mono text-xs mt-1">${task.created}</p>
+          </div>
+          <div>
+            <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Updated</label>
+            <p class="text-slate-300 font-mono text-xs mt-1">${task.updated}</p>
+          </div>
+        </div>
+
+        ${criteriaHtml}
+        
+        <div class="mt-8 mb-4 border-t border-slate-700 pt-6">
+          <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-3 block">Activity Logs</label>
+          ${logsHtml}
+        </div>
+      `;
+      
+      panel.classList.remove('translate-x-full');
+    }
+
+    function closePanel() {
+      document.getElementById('details-panel').classList.add('translate-x-full');
+    }
+
+    // Run
+    init();
+  </script>
+</body>
+</html>

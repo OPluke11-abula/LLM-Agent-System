@@ -17,10 +17,11 @@ Its product value is the combination of:
 
 - **Topological Workspace** — a structured-log, node-based visual workspace that turns complex AI agent sessions into an infinite canvas of interconnected task blocks
 - **Contract-First AI Handoff** — PAP-compatible `.agent/` workspace contracts that let both humans and AI safely inspect, verify, and extend the codebase
+- **Markdown SkillLoader** — seamlessly auto-discovers and bridges `anthropics/skills` format (`SKILL.md`) into Pydantic-executable tools
+- **Zero-Build Viewer** — extremely lightweight DAG topology viewer (`workspace/viewer.html`) without any build-step overhead
+- **Structured Log Memory** — intelligent auto-compression of completed task logs to maintain optimal context window utilization
 - **Multi-Provider LLM Abstraction** — native support for Gemini, Claude 3.5 Sonnet, GPT-4o, and Ollama with zero vendor lock-in
-- **FastAPI REST / SSE / WebSocket** — production-ready API layer with synchronous, streaming, and real-time bidirectional communication
 - **Pluggable Memory Backends** — SQLite (default) and Redis for enterprise-scale persistent long-term memory
-- **Local Viewer** — React + React Flow topology visualisation with live status animations
 
 ### Three-Minute Start
 
@@ -58,6 +59,13 @@ curl http://127.0.0.1:8000/v1/health
 
 ### Start the Viewer
 
+**Option A (Zero-Build Lightweight Viewer):**
+```powershell
+python -m http.server 8000
+# Open http://localhost:8000/workspace/viewer.html
+```
+
+**Option B (Full React Tauri App):**
 ```powershell
 cd viewer
 npm install
@@ -75,8 +83,9 @@ LLM-Agent-System/
 │   ├── core/
 │   │   ├── engine.py                # AgentEngine — closed-loop runtime
 │   │   ├── router.py                # AgentRouter — streaming orchestration
+│   │   ├── skill_loader.py          # Markdown SKILL.md Auto-Discovery
 │   │   └── providers.py             # Multi-LLM provider abstraction
-│   ├── skills/                      # Python tool implementations
+│   ├── skills/                      # Python tool & Markdown skill implementations
 │   ├── memory/                      # Generated session & memory data
 │   ├── api.py                       # FastAPI adapter (REST / SSE / WebSocket)
 │   ├── memory_backends.py           # MemoryBackend (SQLite, Redis)
@@ -87,12 +96,12 @@ LLM-Agent-System/
 │   ├── pap_validate.py              # Zero-dependency .agent/ contract validator
 │   └── config.yaml                  # Active LLM provider configuration
 ├── viewer/                          # React + React Flow topology viewer (Vite + Tauri)
-│   └── src/
-│       ├── components/TopologyView.tsx  # Infinite canvas topology view
-│       ├── utils/topologyUtils.ts       # Dagre layout & node mapping
-│       └── types.ts                     # Shared TypeScript type definitions
 ├── scripts/                         # Bootstrap and verification commands
 └── workspace/                       # Generated topology state output
+    ├── workspace.md                 # ASCII Topological DAG state
+    ├── workspace.json               # Structured state graph
+    ├── viewer.html                  # Zero-build frontend viewer
+    └── agents/                      # Generated PAP Agent Specifications
 ```
 
 #### Design Principles
@@ -204,10 +213,11 @@ Agent Runtime 標準樣板。
 
 - **拓撲式工作區 (Topological Workspace)** — 用結構化日誌將 AI agent session 轉化為視覺化無限畫布，每個方塊代表一個任務節點
 - **Contract-First AI 交接** — PAP 相容的 `.agent/` 合約讓人類與 AI 都能安全地檢視、驗證、擴充程式碼
+- **Markdown SkillLoader** — 完美橋接 `anthropics/skills` 格式，讓 `SKILL.md` 自動轉換成 Pydantic 可執行的原生工具
+- **結構化日誌系統 (Structured Logs)** — 透過優雅的壓縮演算法自動精簡已完成任務的日誌，並支援月份歸檔，保持記憶體最小佔用
+- **零編譯視覺化前端 (Zero-Build Viewer)** — 位於 `workspace/viewer.html`，以純淨的 Vanilla JS、Tailwind CSS 與 Dagre 打造極輕量無相依的前端展示
 - **多模型 LLM 抽象層** — 原生支援 Gemini、Claude 3.5 Sonnet、GPT-4o、Ollama，零供應商鎖定
-- **FastAPI REST / SSE / WebSocket** — 生產級 API 層，支援同步、串流、即時雙向通訊
 - **可插拔記憶體後端** — SQLite (預設) 與 Redis 企業級持久化長期記憶
-- **本地 Viewer** — React + React Flow 拓撲視覺化，具備即時狀態動畫
 
 ### 三分鐘啟動
 
@@ -244,6 +254,13 @@ curl http://127.0.0.1:8000/v1/health
 
 ### 啟動 Viewer
 
+**選項 A (極輕量無編譯 Viewer):**
+```powershell
+python -m http.server 8000
+# 打開 http://localhost:8000/workspace/viewer.html
+```
+
+**選項 B (完整 React Tauri App):**
 ```powershell
 cd viewer
 npm install

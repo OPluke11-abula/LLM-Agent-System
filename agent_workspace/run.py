@@ -116,6 +116,23 @@ class EventRegistry:
             elif event_type == "error":
                 print(f"\n[錯誤] {event['content']}\n")
 
+    @staticmethod
+    def run_log(args):
+        """管理工作區結構化日誌"""
+        try:
+            from skills.tool_log import CompressLogsArgs, log_compress_done, ArchiveMonthArgs, log_archive_month
+            context = {"workspace_path": workspace}
+            if args.compress:
+                result = log_compress_done(CompressLogsArgs(), context=context)
+                print(result)
+            elif args.archive:
+                result = log_archive_month(ArchiveMonthArgs(month=args.archive), context=context)
+                print(result)
+            else:
+                print("Usage: python run.py log --compress | --archive YYYY-MM")
+        except ImportError as e:
+            logger.error(f"Failed to load log tools: {e}")
+
 def main():
     parser = argparse.ArgumentParser(description="FindAi Studio Agent Task Runner")
     subparsers = parser.add_subparsers(dest="event", required=True, help="Event to run")
@@ -137,6 +154,11 @@ def main():
     parser_stream.add_argument("--msg", type=str, required=True, help="Message to send")
     parser_stream.add_argument("--session", type=str, help="Session ID for memory isolation")
 
+    # Event: log
+    parser_log = subparsers.add_parser("log", help="Manage structured logs")
+    parser_log.add_argument("--compress", action="store_true", help="Compress logs of done tasks")
+    parser_log.add_argument("--archive", type=str, help="Archive logs for a specific month (YYYY-MM)")
+
     args = parser.parse_args()
 
     # 事件分發路由
@@ -148,6 +170,8 @@ def main():
         asyncio.run(EventRegistry.run_chat(args))
     elif args.event == "stream":
         asyncio.run(EventRegistry.run_stream(args))
+    elif args.event == "log":
+        EventRegistry.run_log(args)
     else:
         logger.error(f"Unknown event: {args.event}")
 
