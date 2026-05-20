@@ -59,6 +59,11 @@ try:
 except ImportError:
     from agent_workspace.tool_manifest import ToolManifest
 
+try:
+    from core.account_manager import AccountManager
+except ImportError:
+    from agent_workspace.core.account_manager import AccountManager
+
 
 API_VERSION = "0.1.0"
 
@@ -67,6 +72,7 @@ class ChatRequest(BaseModel):
     msg: str = Field(..., min_length=1)
     session: str = "default-session"
     allowed_tools: list[str] | None = None
+    account_id: str | None = Field(None, description="Optional LLM account ID to route the call")
 
 
 class ChatResponse(BaseModel):
@@ -89,6 +95,21 @@ class ConfigUpdateRequest(BaseModel):
     model: str | None = Field(None, description="e.g. gemini-2.5-flash")
     api_key: str | None = Field(None, description="API Key. Will be written to .env securely.")
     base_url: str | None = Field(None, description="Optional Base URL for Ollama or custom endpoints.")
+
+
+class AccountCreateRequest(BaseModel):
+    id: str = Field(..., description="Unique identifier for the account")
+    provider: str = Field(..., description="e.g. google-genai, openai, anthropic, ollama")
+    model: str = Field(..., description="e.g. gemini-2.5-flash")
+    api_key: str = Field(..., description="API key literal, or env:VAR_NAME")
+    base_url: str | None = Field("", description="Optional custom base URL")
+    token_budget: int | None = Field(-1, description="Token limit, -1 for unlimited")
+    tokens_used: int | None = Field(0, description="Tokens used")
+    is_active: bool | None = Field(False, description="Set as active account")
+
+
+class ActiveAccountSelectRequest(BaseModel):
+    account_id: str = Field(..., description="The ID of the account to activate")
 
 
 class PreferenceRequest(BaseModel):
@@ -157,6 +178,10 @@ def get_engine() -> AgentEngine:
     return _engine
 
 
+def get_account_manager() -> AccountManager:
+    return AccountManager(workspace)
+
+
 def build_router(session_id: str) -> AgentRouter:
     return AgentRouter(get_engine(), session_id=session_id)
 
@@ -195,6 +220,16 @@ def required_env_for_provider(provider_name: str) -> str | None:
 
 
 def ensure_llm_configured() -> None:
+    try:
+        am = get_account_manager()
+        active_acc = am.get_active_account()
+        if active_acc:
+            api_key = am.resolve_api_key(active_acc)
+            if api_key:
+                return
+    except Exception:
+        pass
+
     llm_config = load_llm_config()
     provider = llm_config.get("provider", "google-genai")
     required_env = required_env_for_provider(provider)
@@ -247,7 +282,7 @@ async def list_tools() -> dict[str, Any]:
 async def chat(request: ChatRequest) -> ChatResponse:
     ensure_llm_configured()
     router = build_router(request.session)
-    response = await router.run_agent_loop(request.msg, allowed_tools=request.allowed_tools)
+    response = await router.run_agent_loop(request.msg, allowed_tools=request.allowed_tools, account_id=request.account_id)
     return ChatResponse(session=request.session, response=response)
 
 
@@ -257,7 +292,7 @@ async def stream(request: ChatRequest) -> StreamingResponse:
 
     async def event_generator():
         router = build_router(request.session)
-        async for event in router.stream_agent_loop(request.msg, allowed_tools=request.allowed_tools):
+        async for event in router.stream_agent_loop(request.msg, allowed_tools=request.allowed_tools, account_id=request.account_id):
             yield sse_event({"session": request.session, **event})
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
@@ -272,6 +307,7 @@ async def stream_ws(websocket: WebSocket):
         session = data.get("session", "default-session")
         msg = data.get("msg", "")
         allowed_tools = data.get("allowed_tools")
+        account_id = data.get("account_id")
         
         if not msg:
             await websocket.send_json({"error": "msg is required"})
@@ -286,7 +322,7 @@ async def stream_ws(websocket: WebSocket):
             return
 
         router = build_router(session)
-        async for event in router.stream_agent_loop(msg, allowed_tools=allowed_tools):
+        async for event in router.stream_agent_loop(msg, allowed_tools=allowed_tools, account_id=account_id):
             await websocket.send_json({"session": session, **event})
             
         await websocket.close()
@@ -320,18 +356,18 @@ async def websocket_stream(websocket: WebSocket):
                 continue
                 
             router = build_router(request.session)
-            async for event in router.stream_agent_loop(request.msg, allowed_tools=request.allowed_tools):
+            async for event in router.stream_agent_loop(request.msg, allowed_tools=request.allowed_tools, account_id=request.account_id):
                 await websocket.send_json({"session": request.session, **event})
     except WebSocketDisconnect:
         logger.info("WebSocket disconnected")
 
 
-async def run_background_task(record: TaskRecord, allowed_tools: list[str] | None) -> None:
+async def run_background_task(record: TaskRecord, allowed_tools: list[str] | None, account_id: str | None) -> None:
     record.status = "running"
     record.started_at = utc_now()
     try:
         router = build_router(record.session)
-        record.response = await router.run_agent_loop(record.msg, allowed_tools=allowed_tools)
+        record.response = await router.run_agent_loop(record.msg, allowed_tools=allowed_tools, account_id=account_id)
         record.status = "completed"
     except Exception as error:  # API adapter boundary: capture task failure state.
         record.status = "error"
@@ -355,7 +391,7 @@ async def submit_task(request: TaskRequest) -> TaskSubmitResponse:
         submitted_at=utc_now(),
     )
     _task_records[task_id] = record
-    asyncio.create_task(run_background_task(record, request.allowed_tools))
+    asyncio.create_task(run_background_task(record, request.allowed_tools, request.account_id))
     return TaskSubmitResponse(task_id=task_id, session=request.session, status=record.status)
 
 
@@ -521,3 +557,39 @@ async def update_config(req: ConfigUpdateRequest) -> dict[str, Any]:
     _engine = None
     
     return {"status": "success", "message": "Configuration updated successfully."}
+
+
+@app.get("/v1/accounts")
+async def list_accounts() -> list[dict[str, Any]]:
+    return get_account_manager().list_accounts()
+
+
+@app.post("/v1/accounts")
+async def add_update_account(req: AccountCreateRequest) -> dict[str, Any]:
+    acc = req.dict()
+    get_account_manager().add_account(acc)
+    return {"status": "success", "account": acc}
+
+
+@app.delete("/v1/accounts/{account_id}")
+async def delete_account(account_id: str) -> dict[str, Any]:
+    success = get_account_manager().delete_account(account_id)
+    if not success:
+        raise HTTPException(status_code=404, detail=f"Account not found: {account_id}")
+    return {"status": "success"}
+
+
+@app.post("/v1/accounts/active")
+async def set_active_account(req: ActiveAccountSelectRequest) -> dict[str, Any]:
+    success = get_account_manager().set_active_account(req.account_id)
+    if not success:
+        raise HTTPException(status_code=404, detail=f"Account not found: {req.account_id}")
+    return {"status": "success"}
+
+
+@app.get("/v1/accounts/active")
+async def get_active_account() -> dict[str, Any]:
+    acc = get_account_manager().get_active_account()
+    if not acc:
+        raise HTTPException(status_code=404, detail="No active account configured")
+    return acc

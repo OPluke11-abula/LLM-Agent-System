@@ -63,6 +63,10 @@ class MemoryBackend(ABC):
     def delete(self, session_id: str, key: str) -> bool:
         """Delete a record by session_id and key. Returns True if deleted, False if not found."""
 
+    def close(self) -> None:
+        """Close connection to backend."""
+        pass
+
 
 # ---------------------------------------------------------------------------
 # SQLite implementation — zero extra dependencies
@@ -129,6 +133,18 @@ class SQLiteBackend(MemoryBackend):
         self._local = threading.local()
         # Initialise schema on the calling thread's connection.
         self._init_schema()
+
+    def close(self) -> None:
+        conn = getattr(self._local, "conn", None)
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
+            self._local.conn = None
+
+    def __del__(self) -> None:
+        self.close()
 
     # -- connection-per-thread ------------------------------------------------
 

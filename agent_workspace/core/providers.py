@@ -194,12 +194,26 @@ def openai_messages(system_prompt: str, messages: list[Message]) -> list[dict[st
 class GoogleGenAIProvider(BaseLLMProvider):
     """Google Gemini provider using the official google-genai SDK."""
 
-    def __init__(self):
-        try:
-            from google import genai
-        except ImportError as error:
-            raise ImportError("google-genai SDK is required for GoogleGenAIProvider.") from error
-        self.client = genai.Client()
+    def __init__(self, api_key: str | None = None, base_url: str | None = None):
+        self.api_key = api_key
+        self.base_url = base_url
+        self._client = None
+
+    @property
+    def client(self):
+        if self._client is None:
+            try:
+                from google import genai
+            except ImportError as error:
+                raise ImportError("google-genai SDK is required for GoogleGenAIProvider.") from error
+            api_key = self.api_key or os.environ.get("GOOGLE_API_KEY")
+            client_args = {}
+            if api_key:
+                client_args["api_key"] = api_key
+            if self.base_url:
+                client_args["http_options"] = {"base_url": self.base_url}
+            self._client = genai.Client(**client_args)
+        return self._client
 
     def _build_google_contents(self, messages: list[Message], types: Any) -> list[Any]:
         contents = []
@@ -363,6 +377,10 @@ class GoogleGenAIProvider(BaseLLMProvider):
 class OpenAIProvider(BaseLLMProvider):
     """OpenAI Chat Completions provider using direct HTTP."""
 
+    def __init__(self, api_key: str | None = None, base_url: str | None = None):
+        self.api_key = api_key
+        self.base_url = base_url
+
     async def complete(
         self,
         system_prompt: str,
@@ -373,8 +391,10 @@ class OpenAIProvider(BaseLLMProvider):
         try:
             import httpx
 
-            api_key = require_env("OPENAI_API_KEY")
-            base_url = config.get("base_url") or os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1")
+            api_key = self.api_key or os.environ.get("OPENAI_API_KEY")
+            if not api_key:
+                raise ValueError("No OpenAI API key was provided.")
+            base_url = self.base_url or config.get("base_url") or os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1")
             payload: dict[str, Any] = {
                 "model": config.get("model", "gpt-4o"),
                 "messages": openai_messages(system_prompt, messages),
@@ -424,6 +444,10 @@ class OpenAIProvider(BaseLLMProvider):
 class AnthropicProvider(BaseLLMProvider):
     """Anthropic Messages API provider using direct HTTP."""
 
+    def __init__(self, api_key: str | None = None, base_url: str | None = None):
+        self.api_key = api_key
+        self.base_url = base_url
+
     def _messages(self, messages: list[Message]) -> list[dict[str, Any]]:
         result: list[dict[str, Any]] = []
         for message in messages:
@@ -472,7 +496,10 @@ class AnthropicProvider(BaseLLMProvider):
         try:
             import httpx
 
-            api_key = require_env("ANTHROPIC_API_KEY")
+            api_key = self.api_key or os.environ.get("ANTHROPIC_API_KEY")
+            if not api_key:
+                raise ValueError("No Anthropic API key was provided.")
+            base_url = self.base_url or config.get("base_url") or "https://api.anthropic.com/v1"
             payload: dict[str, Any] = {
                 "model": config.get("model", "claude-3-5-sonnet-latest"),
                 "system": system_prompt,
@@ -492,7 +519,7 @@ class AnthropicProvider(BaseLLMProvider):
 
             async with httpx.AsyncClient(timeout=config.get("timeout", 120.0)) as client:
                 response = await client.post(
-                    "https://api.anthropic.com/v1/messages",
+                    f"{base_url.rstrip('/')}/messages",
                     headers={
                         "x-api-key": api_key,
                         "anthropic-version": config.get("anthropic_version", "2023-06-01"),
@@ -532,6 +559,10 @@ class AnthropicProvider(BaseLLMProvider):
 class OllamaProvider(BaseLLMProvider):
     """Local Ollama provider using the /api/chat endpoint."""
 
+    def __init__(self, api_key: str | None = None, base_url: str | None = None):
+        self.api_key = api_key
+        self.base_url = base_url
+
     async def complete(
         self,
         system_prompt: str,
@@ -542,7 +573,7 @@ class OllamaProvider(BaseLLMProvider):
         try:
             import httpx
 
-            base_url = config.get("base_url") or os.environ.get("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
+            base_url = self.base_url or config.get("base_url") or os.environ.get("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
             payload: dict[str, Any] = {
                 "model": config.get("model", "llama3.1"),
                 "messages": openai_messages(system_prompt, messages),
@@ -600,10 +631,10 @@ class ProviderFactory:
     }
 
     @classmethod
-    def get_provider(cls, provider_name: str) -> BaseLLMProvider:
+    def get_provider(cls, provider_name: str, api_key: str | None = None, base_url: str | None = None) -> BaseLLMProvider:
         normalized_name = provider_name.strip().lower()
         provider_cls = cls._providers.get(normalized_name)
         if not provider_cls:
             supported = ", ".join(sorted(cls._providers))
             raise ValueError(f"Unsupported LLM provider: {provider_name!r}. Supported providers: {supported}")
-        return provider_cls()
+        return provider_cls(api_key=api_key, base_url=base_url)

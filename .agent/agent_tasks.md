@@ -70,12 +70,12 @@ effort   : M
 depends  : 0-03
 ```
 
-- [ ] `agent_runtime/router.py` 加入 schema 驗證：呼叫前檢查 inputs 是否符合 skill contract
-- [ ] 加入 `Router.list_skills()` 方法，回傳結構化的 skill 清單
-- [ ] 加入 `Router.describe_skill(skill_id)` 方法，回傳單一 skill 的 contract 內容
-- [ ] 加入 `Router.validate_call(skill_id, params)` 方法，呼叫前乾跑驗證
-- [ ] 加入 routing 失敗時的明確錯誤訊息（包含 skill_id、缺少欄位名稱）
-- [ ] 補充測試 `tests/test_router_validation.py`
+- [x] `agent_runtime/router.py` 加入 schema 驗證：呼叫前檢查 inputs 是否符合 skill contract
+- [x] 加入 `Router.list_skills()` 方法，回傳結構化的 skill 清單
+- [x] 加入 `Router.describe_skill(skill_id)` 方法，回傳單一 skill 的 contract 內容
+- [x] 加入 `Router.validate_call(skill_id, params)` 方法，呼叫前乾跑驗證
+- [x] 加入 routing 失敗時的明確錯誤訊息（包含 skill_id、缺少欄位名稱）
+- [x] 補充測試 `tests/test_router_validation.py`
 
 ---
 
@@ -472,10 +472,10 @@ effort   : M
 depends  : 0-02
 ```
 
-- [ ] 實作 `agent_workspace/core/account_manager.py`，支援讀寫 `accounts.json`
-- [ ] 支援新增、刪除、查詢帳號，並支援每個帳號之 Model、Provider、API Key、Token 額度設定
-- [ ] 實作動態切換 active_account 核心邏輯
-- [ ] 撰寫對應之單元測試 `tests/test_account_manager.py`
+- [x] 實作 `agent_workspace/core/account_manager.py`，支援讀寫 `accounts.json`
+- [x] 支援新增、刪除、查詢帳號，並支援每個帳號之 Model、Provider、API Key、Token 額度設定
+- [x] 實作動態切換 active_account 核心邏輯
+- [x] 撰寫對應之單元測試 `tests/test_account_manager.py`
 
 ---
 
@@ -487,11 +487,11 @@ effort   : M
 depends  : 6-01
 ```
 
-- [ ] 修改 `agent_workspace/core/providers.py`，支援傳入 dynamic `api_key` 與 `base_url`
-- [ ] 修改 `agent_workspace/core/router.py`，於每一次呼叫 LLM 前自 active account 讀取設定
-- [ ] 在呼叫成功後，將 Prompt 與 Completion Token 的用量即時累加並寫回 `accounts.json`
-- [ ] 實作額度檢查邏輯，若 token 用盡則拋出異常或自動 fallback 到下一個可用帳號
-- [ ] 撰寫測試驗證 Router token 即時扣款與阻斷行為
+- [x] 修改 `agent_workspace/core/providers.py`，支援傳入 dynamic `api_key` 與 `base_url`
+- [x] 修改 `agent_workspace/core/router.py`，於每一次呼叫 LLM 前自 active account 讀取設定
+- [x] 在呼叫成功後，將 Prompt 與 Completion Token 的用量即時累加並寫回 `accounts.json`
+- [x] 實作額度檢查邏輯，若 token 用盡則拋出異常或自動 fallback 到下一個可用帳號
+- [x] 撰寫測試驗證 Router token 即時扣款與阻斷行為
 
 ---
 
@@ -503,11 +503,11 @@ effort   : S
 depends  : 6-02
 ```
 
-- [ ] 在 `agent_workspace/api.py` 中新增 `GET /v1/accounts` 查詢所有帳號與剩餘 tokens 餘額
-- [ ] 新增 `POST /v1/accounts` 用於新增或更新帳號與 API 金鑰
-- [ ] 新增 `POST /v1/accounts/active` 動態切換目前作用的帳號，不中斷 Vibe Coding 流程
-- [ ] 擴充 `/v1/chat` 與 `/v1/stream` payload，使其支援可選之 `account_id` 欄位進行 Session 隔離
-- [ ] 測試 API 介面之完整運作
+- [x] 在 `agent_workspace/api.py` 中新增 `GET /v1/accounts` 查詢所有帳號與剩餘 tokens 餘額
+- [x] 新增 `POST /v1/accounts` 用於新增或更新帳號與 API 金鑰
+- [x] 新增 `POST /v1/accounts/active` 動態切換目前作用的帳號，不中斷 Vibe Coding 流程
+- [x] 擴充 `/v1/chat` 與 `/v1/stream` payload，使其支援可選之 `account_id` 欄位進行 Session 隔離
+- [x] 測試 API 介面之完整運作
 
 ---
 

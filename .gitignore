@@ -248,6 +248,8 @@ agent_workspace/test_*.py
 
 # Test knowledge data (example SKILL.md copied for testing)
 agent_workspace/knowledge_base/backend-architect/
+agent_workspace/accounts.json
+accounts.json
 
 # Topology Viewer
 viewer/node_modules/

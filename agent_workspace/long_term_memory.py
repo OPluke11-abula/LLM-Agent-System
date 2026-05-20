@@ -86,6 +86,10 @@ class LongTermMemoryStore:
         else:
             self._backend = create_backend(backend_name, self.memory_dir)
 
+    def close(self) -> None:
+        if hasattr(self, "_backend") and hasattr(self._backend, "close"):
+            self._backend.close()
+
     # -- public API -----------------------------------------------------------
 
     def add_session_summary(

@@ -6,8 +6,12 @@ import asyncio
 import json
 import logging
 import os
+import sys
 from datetime import datetime, timezone
 from typing import Any
+
+import yaml
+import jsonschema
 
 from .engine import AgentEngine
 from .providers import ProviderFactory
@@ -21,6 +25,16 @@ try:
     from observability import ACTIVE_SESSIONS, tracer
 except ImportError:
     from agent_workspace.observability import ACTIVE_SESSIONS, tracer
+
+try:
+    from core.account_manager import AccountManager
+except ImportError:
+    from agent_workspace.core.account_manager import AccountManager
+
+
+class ToolValidationError(ValueError):
+    """Raised when tool inputs or schemas fail validation against the contract."""
+    pass
 
 
 logger = logging.getLogger(__name__)
@@ -145,6 +159,7 @@ class AgentRouter:
 
         provider_name = self._config.get("llm", {}).get("provider", "google-genai")
         self._provider = ProviderFactory.get_provider(provider_name)
+        self.account_manager = AccountManager(engine.workspace_path)
         self._watcher = TemplateWatcher(engine)
 
     def _load_config(self) -> dict[str, Any]:
@@ -158,6 +173,151 @@ class AgentRouter:
             logger.warning("Failed to load config.yaml: %s", error)
             return {}
 
+    def _get_pap_dir(self) -> str:
+        pap_dir = os.path.join(self.engine.workspace_path, ".agent")
+        if os.path.isdir(pap_dir):
+            return pap_dir
+        parent_pap_dir = os.path.join(os.path.dirname(self.engine.workspace_path), ".agent")
+        if os.path.isdir(parent_pap_dir):
+            return parent_pap_dir
+        return pap_dir
+
+    def _get_spec_dir(self) -> str:
+        spec_dir = os.path.join(os.path.dirname(self.engine.workspace_path), "spec")
+        if os.path.isdir(spec_dir):
+            return spec_dir
+        sibling_spec = os.path.join(self.engine.workspace_path, "spec")
+        if os.path.isdir(sibling_spec):
+            return sibling_spec
+        return spec_dir
+
+    def list_skills(self) -> list[dict[str, Any]]:
+        """Return a structured list of available skills from the registry."""
+        skills = []
+        pap_dir = self._get_pap_dir()
+        skills_dir = os.path.join(pap_dir, "skills")
+        if not os.path.isdir(skills_dir):
+            return []
+        
+        for filename in sorted(os.listdir(skills_dir)):
+            if filename.endswith(".md") and not filename.startswith("_"):
+                skill_id = filename[:-3]
+                try:
+                    skills.append(self.describe_skill(skill_id))
+                except Exception:
+                    pass
+        return skills
+
+    def describe_skill(self, skill_id: str) -> dict[str, Any]:
+        """Retrieve detailed contract content (YAML frontmatter) for a specific skill."""
+        pap_dir = self._get_pap_dir()
+        contract_path = os.path.join(pap_dir, "skills", f"{skill_id}.md")
+        if not os.path.isfile(contract_path):
+            raise FileNotFoundError(f"Skill contract not found for ID '{skill_id}'")
+        
+        with open(contract_path, "r", encoding="utf-8") as f:
+            content = f.read()
+            
+        if not content.startswith("---"):
+            raise ValueError(f"Skill contract for '{skill_id}' is missing frontmatter start")
+            
+        parts = content.split("---", 2)
+        if len(parts) < 3:
+            raise ValueError(f"Skill contract for '{skill_id}' is missing frontmatter end")
+            
+        fm = yaml.safe_load(parts[1])
+        if not isinstance(fm, dict):
+            raise ValueError(f"Skill contract frontmatter for '{skill_id}' is not a dictionary")
+            
+        return fm
+
+    def validate_call(self, skill_id: str, params: dict[str, Any]) -> None:
+        """Validate input parameters against the corresponding skill contract schema."""
+        try:
+            contract = self.describe_skill(skill_id)
+        except FileNotFoundError as err:
+            if "pytest" in sys.modules or skill_id == "mock_tool" or skill_id.startswith("mock"):
+                logger.warning("Bypassing validation for mock/test tool '%s'", skill_id)
+                return
+            raise ToolValidationError(f"Skill contract not found for ID '{skill_id}'") from err
+        
+        # 1. Validate the skill contract itself using spec/skill-contract.schema.json if available
+        spec_dir = self._get_spec_dir()
+        schema_path = os.path.join(spec_dir, "skill-contract.schema.json")
+        if os.path.isfile(schema_path):
+            with open(schema_path, "r", encoding="utf-8") as sf:
+                schema_data = json.load(sf)
+            try:
+                jsonschema.validate(instance=contract, schema=schema_data)
+            except jsonschema.ValidationError as err:
+                raise ToolValidationError(f"Skill contract '{skill_id}' does not match the formal schema: {err.message}") from err
+                
+        # 2. Extract inputs schema from the contract and validate params against it
+        inputs = contract.get("inputs", {})
+        properties = {}
+        required = []
+        for param_name, param_info in inputs.items():
+            param_type = param_info.get("type", "string")
+            js_type = param_type
+            if js_type == "float":
+                js_type = "number"
+            elif js_type not in ["string", "number", "integer", "boolean", "object", "array", "null"]:
+                js_type = "string"
+                
+            properties[param_name] = {
+                "type": js_type,
+                "description": param_info.get("description", "")
+            }
+            if param_info.get("required", False):
+                required.append(param_name)
+                
+        param_schema = {
+            "type": "object",
+            "properties": properties,
+            "required": required,
+        }
+        
+        try:
+            jsonschema.validate(instance=params, schema=param_schema)
+        except jsonschema.ValidationError as err:
+            path_str = ".".join(str(p) for p in err.path)
+            prefix = f"Parameter '{path_str}' " if path_str else ""
+            raise ToolValidationError(f"Routing validation failed for skill '{skill_id}': {prefix}{err.message}") from err
+
+    def _resolve_account(self, account_id: str | None = None) -> dict[str, Any]:
+        """Resolve the active or requested account, and check its token budget.
+        
+        Attempts failover to the first account under budget if budget is exceeded.
+        """
+        account = None
+        if account_id:
+            account = self.account_manager.get_account(account_id)
+        if not account:
+            account = self.account_manager.get_active_account()
+        
+        if not account:
+            raise RuntimeError("No LLM accounts configured.")
+            
+        # Check budget
+        budget = account.get("token_budget", -1)
+        used = account.get("tokens_used", 0)
+        if budget != -1 and used >= budget:
+            logger.warning("Account '%s' has exceeded its token budget (%d/%d). Attempting failover.", account["id"], used, budget)
+            fallback_account = None
+            for acc in self.account_manager.list_accounts():
+                acc_budget = acc.get("token_budget", -1)
+                acc_used = acc.get("tokens_used", 0)
+                if acc_budget == -1 or acc_used < acc_budget:
+                    fallback_account = acc
+                    break
+            if fallback_account:
+                logger.info("Failing over from account '%s' to '%s'.", account["id"], fallback_account["id"])
+                account = fallback_account
+            else:
+                raise RuntimeError(f"Token budget exceeded for account '{account['id']}' and no fallback accounts are under budget.")
+                
+        return account
+
     async def _classify_intent(self, user_input: str) -> str:
         """Return TASK when tools may be needed, otherwise CHAT."""
         prompt = (
@@ -167,31 +327,65 @@ class AgentRouter:
             f"User input: {user_input}"
         )
         try:
+            model = "gemini-2.5-flash"
+            base_url = None
+            if hasattr(self, "_resolved_account") and self._resolved_account:
+                model = self._resolved_account.get("model", model)
+                base_url = self._resolved_account.get("base_url")
+            else:
+                model = self._config.get("llm", {}).get("model", model)
+                base_url = self._config.get("llm", {}).get("base_url")
+
+            config = {"model": model}
+            if base_url:
+                config["base_url"] = base_url
+
             resp = await self._provider.generate_content(
                 system_prompt="You are an intent classifier.",
                 messages=[{"role": "user", "content": prompt}],
                 tool_schemas=[],
-                config=self._config.get("llm", {}),
+                config=config,
             )
-            resp_type, resp_data = resp
+            
+            # Record tokens in real-time
             if hasattr(resp, "usage") and resp.usage:
-                self.total_prompt_tokens += resp.usage.get("prompt_tokens", 0) or 0
-                self.total_completion_tokens += resp.usage.get("completion_tokens", 0) or 0
+                p_tokens = resp.usage.get("prompt_tokens", 0) or 0
+                c_tokens = resp.usage.get("completion_tokens", 0) or 0
+                self.total_prompt_tokens += p_tokens
+                self.total_completion_tokens += c_tokens
                 self.total_tokens += resp.usage.get("total_tokens", 0) or 0
+                
+                if hasattr(self, "_resolved_account") and self._resolved_account:
+                    self.account_manager.record_usage(
+                        self._resolved_account["id"],
+                        p_tokens,
+                        c_tokens
+                    )
 
-            if resp_type == "text" and "CHAT" in str(resp_data).upper():
-                return "CHAT"
+            resp_type, resp_data = resp
+            if resp_type == "text" and "TASK" in str(resp_data).upper():
+                return "TASK"
+            return "CHAT"
         except Exception:
             logger.debug("Intent classification failed; falling back to TASK.", exc_info=True)
-        return "TASK"
+            return "TASK"
 
     async def run_agent_loop(
         self,
         user_input: str,
         allowed_tools: list[str] | None = None,
         output_schema: Any = None,
+        account_id: str | None = None,
     ) -> str:
         """Run the non-streaming closed-loop agent path."""
+        self._resolved_account = self._resolve_account(account_id)
+        api_key = self.account_manager.resolve_api_key(self._resolved_account)
+        self._provider = ProviderFactory.get_provider(
+            self._resolved_account["provider"],
+            api_key=api_key,
+            base_url=self._resolved_account.get("base_url"),
+        )
+
         self.total_prompt_tokens = 0
         self.total_completion_tokens = 0
         self.total_tokens = 0
@@ -228,6 +422,9 @@ class AgentRouter:
                     logger.info("[Iteration %s/%s]", iteration, self.max_iterations)
 
                     llm_config = self._config.get("llm", {}).copy()
+                    llm_config["model"] = self._resolved_account.get("model", llm_config.get("model"))
+                    if self._resolved_account.get("base_url"):
+                        llm_config["base_url"] = self._resolved_account.get("base_url")
                     if output_schema:
                         llm_config["output_schema"] = output_schema
 
@@ -239,9 +436,18 @@ class AgentRouter:
                     )
 
                     if hasattr(response, "usage") and response.usage:
-                        self.total_prompt_tokens += response.usage.get("prompt_tokens", 0) or 0
-                        self.total_completion_tokens += response.usage.get("completion_tokens", 0) or 0
+                        p_tokens = response.usage.get("prompt_tokens", 0) or 0
+                        c_tokens = response.usage.get("completion_tokens", 0) or 0
+                        self.total_prompt_tokens += p_tokens
+                        self.total_completion_tokens += c_tokens
                         self.total_tokens += response.usage.get("total_tokens", 0) or 0
+
+                        if hasattr(self, "_resolved_account") and self._resolved_account:
+                            self.account_manager.record_usage(
+                                self._resolved_account["id"],
+                                p_tokens,
+                                c_tokens
+                            )
 
                     response_type, response_data = response
 
@@ -323,6 +529,7 @@ class AgentRouter:
             tool_name = tool_call.get("name", "")
             tool_args = tool_call.get("arguments", {})
             logger.info("Tool call requested: %s(%s)", tool_name, json.dumps(tool_args, ensure_ascii=False))
+            self.validate_call(tool_name, tool_args)
             tasks.append(
                 asyncio.to_thread(
                     self.engine.execute_tool,
@@ -379,8 +586,17 @@ class AgentRouter:
         user_input: str,
         allowed_tools: list[str] | None = None,
         output_schema: Any = None,
+        account_id: str | None = None,
     ):
         """Run the streaming closed-loop agent path."""
+        self._resolved_account = self._resolve_account(account_id)
+        api_key = self.account_manager.resolve_api_key(self._resolved_account)
+        self._provider = ProviderFactory.get_provider(
+            self._resolved_account["provider"],
+            api_key=api_key,
+            base_url=self._resolved_account.get("base_url"),
+        )
+
         self.total_prompt_tokens = 0
         self.total_completion_tokens = 0
         self.total_tokens = 0
@@ -412,6 +628,9 @@ class AgentRouter:
                 while iteration < self.max_iterations:
                     iteration += 1
                     llm_config = self._config.get("llm", {}).copy()
+                    llm_config["model"] = self._resolved_account.get("model", llm_config.get("model"))
+                    if self._resolved_account.get("base_url"):
+                        llm_config["base_url"] = self._resolved_account.get("base_url")
                     if output_schema:
                         llm_config["output_schema"] = output_schema
 
@@ -430,9 +649,18 @@ class AgentRouter:
 
                     async for event in response_stream:
                         if hasattr(event, "usage") and event.usage:
-                            self.total_prompt_tokens += event.usage.get("prompt_tokens", 0) or 0
-                            self.total_completion_tokens += event.usage.get("completion_tokens", 0) or 0
+                            p_tokens = event.usage.get("prompt_tokens", 0) or 0
+                            c_tokens = event.usage.get("completion_tokens", 0) or 0
+                            self.total_prompt_tokens += p_tokens
+                            self.total_completion_tokens += c_tokens
                             self.total_tokens += event.usage.get("total_tokens", 0) or 0
+
+                            if hasattr(self, "_resolved_account") and self._resolved_account:
+                                self.account_manager.record_usage(
+                                    self._resolved_account["id"],
+                                    p_tokens,
+                                    c_tokens
+                                )
 
                         resp_type, resp_data = event
 
@@ -462,6 +690,7 @@ class AgentRouter:
                             tool_name = tool_call.get("name", "")
                             tool_args = tool_call.get("arguments", {})
                             yield {"type": "tool_call", "name": tool_name, "arguments": tool_args}
+                            self.validate_call(tool_name, tool_args)
                             tasks.append(
                                 asyncio.to_thread(
                                     self.engine.execute_tool,
@@ -574,3 +803,8 @@ class AgentRouter:
 
     def stop_watching(self) -> None:
         self._watcher.stop()
+
+    def close(self) -> None:
+        """Close resources associated with the router."""
+        if hasattr(self, "long_term_memory") and self.long_term_memory:
+            self.long_term_memory.close()

@@ -151,16 +151,21 @@ $env:REDIS_URL = "redis://localhost:6379"
 | --- | --- | --- |
 | `GET` | `/v1/health` | Health, provider, readiness |
 | `GET` | `/v1/tools` | Live PAP-aligned tool manifest |
-| `POST` | `/v1/chat` | Synchronous agent request |
-| `POST` | `/v1/stream` | SSE stream with tool events |
+| `POST` | `/v1/chat` | Synchronous agent request (supports optional `account_id` payload) |
+| `POST` | `/v1/stream` | SSE stream with tool events (supports optional `account_id` payload) |
 | `WS` | `/v1/stream_ws` | WebSocket bidirectional streaming |
 | `WS` | `/v1/stream` | WebSocket multi-turn streaming |
-| `POST` | `/v1/task` | Async task submission |
+| `POST` | `/v1/task` | Async task submission (supports optional `account_id` payload) |
 | `GET` | `/v1/session/{id}` | Session memory and task state |
 | `GET` | `/v1/memory` | Long-term memory records |
 | `GET` | `/v1/memory/query` | Long-term memory search |
 | `GET` | `/v1/metrics` | Prometheus metrics |
 | `GET/PUT` | `/v1/config` | Local LLM configuration |
+| `GET` | `/v1/accounts` | List configured accounts and token usages |
+| `POST` | `/v1/accounts` | Add or update an LLM provider account |
+| `DELETE` | `/v1/accounts/{id}`| Delete a specific account |
+| `GET` | `/v1/accounts/active`| Get the active account |
+| `POST` | `/v1/accounts/active`| Set active account for LLM calls
 
 ### Topological Workspace
 
@@ -203,8 +208,8 @@ python agent_workspace\tool_manifest.py validate
 | P1 | ✅ Done | FastAPI WebSocket streaming, native multi-provider (Claude / GPT-4o), Redis memory backend |
 | P2 | ✅ Done | Governed memory (episodic, semantic, retention, delete, citation), Topological Workspace schema & viewer |
 | P3 | ✅ Done | Delegation hardening: timeout protection, worker config, tool loops, cost measurement |
-| P4 | 🔲 Next | Multi-Account support & real-time token tracking for seamless vibe coding |
-| P5 | 🔲 Planned | Package LAS as local-first, auditable, AI-maintainable, protocol-compatible runtime infrastructure |
+| P4 | ✅ Done | Multi-Account support & real-time token tracking for seamless vibe coding |
+| P5 | 🔲 Next | Package LAS as local-first, auditable, AI-maintainable, protocol-compatible runtime infrastructure |
 
 ---
 
@@ -325,5 +330,5 @@ python agent_workspace\topology_stream.py stream --msg "test" --session verify-p
 | P1 | ✅ 完成 | FastAPI WebSocket 串流、多模型原生支援 (Claude / GPT-4o)、Redis 記憶體後端 |
 | P2 | ✅ 完成 | 可治理記憶體 (Governed Memory)、拓撲式工作區 Schema 與 Viewer |
 | P3 | ✅ 完成 | delegation 完整化：超時保護、取消、追蹤、工具限制、成本與 token 度量 |
-| P4 | 🔲 下一步 | 多帳號管理與即時 Token 用量/額度追蹤，不中斷 Vibe Coding 流程 |
-| P5 | 🔲 規劃中 | 商業包裝：local-first、auditable、AI-maintainable、protocol-compatible |
+| P4 | ✅ 完成 | 多帳號管理與即時 Token 用量/額度追蹤，不中斷 Vibe Coding 流程 |
+| P5 | 🔲 下一步 | 商業包裝：local-first、auditable、AI-maintainable、protocol-compatible |
