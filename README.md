@@ -176,7 +176,7 @@ Dry-run topology generation (no LLM required):
 python agent_workspace/topology_stream.py stream --msg "test" --session verify-p1 --dry-run
 ```
 
-### Contract Pipeline
+### Contract Pipeline & Workspace Contexts
 
 ```powershell
 python agent_workspace\pap_validate.py
@@ -184,9 +184,10 @@ python agent_workspace\tool_manifest.py sync
 python agent_workspace\tool_manifest.py validate
 ```
 
-`pap_validate.py` is dependency-free and checks the `.agent/` workspace
-contract. `tool_manifest.py` reflects live runtime tools and verifies that each
-tool has a matching PAP skill contract.
+- `pap_validate.py` is dependency-free and checks the `.agent/` workspace contract.
+- `tool_manifest.py` reflects live runtime tools and verifies that each tool has a matching PAP skill contract.
+- **Dynamic Context Loading**: The runtime engine (`AgentEngine`) auto-discovers and dynamic-loads `.agent/agent.md` (Agent Identity/Persona) and `.agent/agent_tasks.md` (Task Queue) as active knowledge contexts, injecting them directly into the system prompts.
+- **Agent Guidelines**: Strict end-of-turn development checklist rules are configured in `AGENT.md` (e.g., bug checks, architectural checks, bilingual README updates, and Git verification).
 
 ### Product Roadmap
 
@@ -288,7 +289,7 @@ LAS 的護城河不是「又一個聊天 agent」，而是 Contract-First Runtim
 
 每條連線 (edge) 定義任務相依性，支援型別：`handoff`、`tool`、`rbac`、`error`、`hitl`。
 
-### 驗證命令
+### 驗證命令與 PAP 整合
 
 ```powershell
 .\scripts\verify.cmd -SkipViewer
@@ -296,6 +297,9 @@ python agent_workspace\pap_validate.py
 python agent_workspace\tool_manifest.py validate
 python agent_workspace\topology_stream.py stream --msg "test" --session verify-p1 --dry-run
 ```
+
+- **動態上下文載入 (Dynamic Context Loading)**：LAS 執行引擎 (`AgentEngine`) 原生支援動態載入 `.agent/` 目錄下的 PAP 協定合約。它會自動偵測並解析目前運行的 Agent 身分宣告檔 (`.agent/agent.md`) 以及任務隊列 (`.agent/agent_tasks.md`)，並將其自動注入 Jinja2 系統提示詞中，使 Agent 具備完全的身分與任務自我認知。
+- **自我檢核檢索 (`AGENT.md`)**：專案根目錄下的 `AGENT.md` 定義了每次工作結束時的 5 項核心自我檢核步驟（Bug/冗餘清理、架構職責審查、`.agent/` 自主更新、中英文 `README.md` 分開維護、Git Commit/Push 前預檢測試），確保專案在開發中自我演進且架構不走樣。
 
 ### 開發原則
 

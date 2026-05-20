@@ -174,20 +174,37 @@ class AgentEngine:
         return "\n".join(lines)
 
     def _discover_markdown_contexts(self) -> None:
-        """Load Markdown knowledge files from knowledge_base/."""
+        """Load Markdown knowledge files from knowledge_base/ and PAP files from .agent/."""
+        # 1. Load standard domain knowledge files
         kb_dir = os.path.join(self.workspace_path, "knowledge_base")
-        if not os.path.isdir(kb_dir):
-            return
+        if os.path.isdir(kb_dir):
+            for entry in sorted(os.listdir(kb_dir)):
+                entry_path = os.path.join(kb_dir, entry)
 
-        for entry in sorted(os.listdir(kb_dir)):
-            entry_path = os.path.join(kb_dir, entry)
+                if os.path.isfile(entry_path) and entry.lower().endswith(".md"):
+                    self._parse_skill_md(entry_path)
+                elif os.path.isdir(entry_path):
+                    skill_file = os.path.join(entry_path, "SKILL.md")
+                    if os.path.isfile(skill_file):
+                        self._parse_skill_md(skill_file)
 
-            if os.path.isfile(entry_path) and entry.lower().endswith(".md"):
-                self._parse_skill_md(entry_path)
-            elif os.path.isdir(entry_path):
-                skill_file = os.path.join(entry_path, "SKILL.md")
-                if os.path.isfile(skill_file):
-                    self._parse_skill_md(skill_file)
+        # 2. Load PAP agent identity and tasks from .agent/ directory if they exist
+        pap_dir = os.path.join(self.workspace_path, ".agent")
+        if os.path.isdir(pap_dir):
+            agent_md = os.path.join(pap_dir, "agent.md")
+            if os.path.isfile(agent_md):
+                self._parse_pap_doc(
+                    agent_md,
+                    default_name="Agent Identity Manifest",
+                    default_desc="Agent identity, role, and capabilities definition"
+                )
+            tasks_md = os.path.join(pap_dir, "agent_tasks.md")
+            if os.path.isfile(tasks_md):
+                self._parse_pap_doc(
+                    tasks_md,
+                    default_name="Agent Tasks Queue",
+                    default_desc="List of development tasks, priorities, and implementation checklists"
+                )
 
     def _parse_skill_md(self, filepath: str) -> None:
         """Parse a Markdown knowledge document with optional YAML front matter."""
@@ -201,6 +218,28 @@ class AgentEngine:
         frontmatter, body = self._split_frontmatter(raw)
         name = str(frontmatter.get("name", os.path.basename(os.path.dirname(filepath))))
         description = str(frontmatter.get("description", ""))
+
+        self.knowledge_contexts.append(
+            {
+                "name": name,
+                "description": description,
+                "content": body.strip(),
+                "source_file": filepath,
+            }
+        )
+
+    def _parse_pap_doc(self, filepath: str, default_name: str, default_desc: str) -> None:
+        """Parse a PAP document and load it into knowledge contexts."""
+        try:
+            with open(filepath, "r", encoding="utf-8") as file:
+                raw = file.read()
+        except (OSError, IOError) as error:
+            logger.warning("Failed to read PAP file %s: %s", filepath, error)
+            return
+
+        frontmatter, body = self._split_frontmatter(raw)
+        name = str(frontmatter.get("name", default_name))
+        description = str(frontmatter.get("description", default_desc))
 
         self.knowledge_contexts.append(
             {

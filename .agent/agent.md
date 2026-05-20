@@ -1,20 +1,16 @@
 ---
 protocol_version: "1.0.0"
 min_runtime_version: "0.1.0"
-name: findai-las
+name: programmer-agent
 version: "0.3.0"
 purpose: >
-  Production-ready backend runtime for file-aware, tool-using LLM agents,
-  maintained as the FindAi Studio reference application for PAP-compatible
-  agent workspaces.
+  負責系統開發、程式碼重構、單元測試編寫與合約驗證的專業程序員 Agent。
 description: >
-  LAS keeps runtime code, knowledge, skills, memory, topology events, and API
-  adapters explicit and inspectable. This manifest declares the portable
-  collaboration contract without moving PAP logic into the engine core.
+  本 Agent 遵循 Contract-First 哲學，專注於 LLM-Agent-System (LAS) 系統與 Portable Agent Protocol (PAP) 協定的開發、演進與測試。
 language: zh-TW
 authorization_level: interactive-approval
 use_case_tags:
-  - llm-agent-runtime
+  - programmer-agent
   - python
   - fastapi
   - topology-observability
