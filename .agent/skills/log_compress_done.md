@@ -1,8 +1,25 @@
 ---
-name: "log_compress_done"
-description: "Compress all Done tasks' logs to ≤3 lines.  Keeps the first log entry (task start) and the last 2 entries (final results). All intermediate entries are removed and replaced with a compression marker.  [觸發時機] When a user says '壓縮舊日誌' or the workspace feels bloated. [限制條件] Only affects tasks with status 'Done'."
-version: "1.0.0"
-author: "LAS Tool Manifest Auto-Sync"
+id: log_compress_done
+description: 'Compress all Done tasks'' logs to ≤3 lines.
+
+
+  Keeps the first log entry (task start) and the last 2 entries (final results).
+
+  All intermediate entries are removed and replaced with a compression marker.
+
+
+  [觸發時機] When a user says ''壓縮舊日誌'' or the workspace feels bloated.
+
+  [限制條件] Only affects tasks with status ''Done''.'
+version: 1.0.0
+inputs: {}
+outputs:
+  success: Plain text result string.
+  error: String prefixed with Error:.
+safety_notes:
+- This contract is generated from runtime Pydantic reflection.
+- Review and harden safety notes before production use.
+author: LAS Tool Manifest Auto-Sync
 ---
 
 # log_compress_done
@@ -11,7 +28,13 @@ author: "LAS Tool Manifest Auto-Sync"
 
 ## 1. Purpose
 
-Compress all Done tasks' logs to ≤3 lines.  Keeps the first log entry (task start) and the last 2 entries (final results). All intermediate entries are removed and replaced with a compression marker.  [觸發時機] When a user says '壓縮舊日誌' or the workspace feels bloated. [限制條件] Only affects tasks with status 'Done'.
+Compress all Done tasks' logs to ≤3 lines.
+
+Keeps the first log entry (task start) and the last 2 entries (final results).
+All intermediate entries are removed and replaced with a compression marker.
+
+[觸發時機] When a user says '壓縮舊日誌' or the workspace feels bloated.
+[限制條件] Only affects tasks with status 'Done'.
 
 ## 2. Required Inputs
 
@@ -26,7 +49,6 @@ Compress all Done tasks' logs to ≤3 lines.  Keeps the first log entry (task st
 
 - This contract is generated from runtime Pydantic reflection.
 - Review and harden safety notes before production use.
-- The runtime mapping below is authoritative for this generated contract.
 
 ## 5. Runtime Mapping
 

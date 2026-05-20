@@ -1,8 +1,20 @@
 ---
-name: "workspace_cancel_task"
-description: "Mark a task and all of its recursive descendants as Cancelled in the workspace DAG."
-version: "1.0.0"
-author: "LAS Tool Manifest Auto-Sync"
+id: workspace_cancel_task
+description: Mark a task and all of its recursive descendants as Cancelled in the
+  workspace DAG.
+version: 1.0.0
+inputs:
+  task_id:
+    type: string
+    required: true
+    description: The ID of the task to cancel recursively.
+outputs:
+  success: Plain text result string.
+  error: String prefixed with Error:.
+safety_notes:
+- This contract is generated from runtime Pydantic reflection.
+- Review and harden safety notes before production use.
+author: LAS Tool Manifest Auto-Sync
 ---
 
 # workspace_cancel_task
@@ -26,7 +38,6 @@ Mark a task and all of its recursive descendants as Cancelled in the workspace D
 
 - This contract is generated from runtime Pydantic reflection.
 - Review and harden safety notes before production use.
-- The runtime mapping below is authoritative for this generated contract.
 
 ## 5. Runtime Mapping
 

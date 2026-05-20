@@ -1,8 +1,28 @@
 ---
-name: "log_append"
-description: "Append a timestamped log entry to a specific task.  [觸發時機] When a user says '記錄進度', '寫日誌', or wants to log progress. [限制條件] Task must exist in the workspace."
-version: "1.0.0"
-author: "LAS Tool Manifest Auto-Sync"
+id: log_append
+description: 'Append a timestamped log entry to a specific task.
+
+
+  [觸發時機] When a user says ''記錄進度'', ''寫日誌'', or wants to log progress.
+
+  [限制條件] Task must exist in the workspace.'
+version: 1.0.0
+inputs:
+  task_id:
+    type: string
+    required: true
+    description: The task ID to append a log entry to (e.g. TASK-003).
+  message:
+    type: string
+    required: true
+    description: The log message content to append.
+outputs:
+  success: Plain text result string.
+  error: String prefixed with Error:.
+safety_notes:
+- This contract is generated from runtime Pydantic reflection.
+- Review and harden safety notes before production use.
+author: LAS Tool Manifest Auto-Sync
 ---
 
 # log_append
@@ -11,7 +31,10 @@ author: "LAS Tool Manifest Auto-Sync"
 
 ## 1. Purpose
 
-Append a timestamped log entry to a specific task.  [觸發時機] When a user says '記錄進度', '寫日誌', or wants to log progress. [限制條件] Task must exist in the workspace.
+Append a timestamped log entry to a specific task.
+
+[觸發時機] When a user says '記錄進度', '寫日誌', or wants to log progress.
+[限制條件] Task must exist in the workspace.
 
 ## 2. Required Inputs
 
@@ -27,7 +50,6 @@ Append a timestamped log entry to a specific task.  [觸發時機] When a user s
 
 - This contract is generated from runtime Pydantic reflection.
 - Review and harden safety notes before production use.
-- The runtime mapping below is authoritative for this generated contract.
 
 ## 5. Runtime Mapping
 

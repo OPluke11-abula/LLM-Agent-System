@@ -1,8 +1,23 @@
 ---
-name: "topological_workspace"
-description: "建立並維護拓撲式視覺工作區。將多個 AI Agent 的任務節點 以有向圖（DAG）形式組織，並輸出可讀的 Markdown 或 JSON。 當使用者要求「建立任務圖」、「更新節點狀態」、「串接 Agent」時觸發。  Triggers: 建立任務圖, 更新節點, 拓撲視覺化, 工作區總覽"
-version: "1.0.0"
-author: "LAS Tool Manifest Auto-Sync"
+id: topological_workspace
+description: '建立並維護拓撲式視覺工作區。將多個 AI Agent 的任務節點 以有向圖（DAG）形式組織，並輸出可讀的 Markdown 或 JSON。
+  當使用者要求「建立任務圖」、「更新節點狀態」、「串接 Agent」時觸發。
+
+
+  Triggers: 建立任務圖, 更新節點, 拓撲視覺化, 工作區總覽'
+version: 1.0.0
+inputs:
+  intent:
+    type: string
+    required: false
+    description: The specific intent or question when invoking this skill.
+outputs:
+  success: Plain text result string.
+  error: String prefixed with Error:.
+safety_notes:
+- This contract is generated from runtime Pydantic reflection.
+- Review and harden safety notes before production use.
+author: LAS Tool Manifest Auto-Sync
 ---
 
 # topological_workspace
@@ -11,7 +26,9 @@ author: "LAS Tool Manifest Auto-Sync"
 
 ## 1. Purpose
 
-建立並維護拓撲式視覺工作區。將多個 AI Agent 的任務節點 以有向圖（DAG）形式組織，並輸出可讀的 Markdown 或 JSON。 當使用者要求「建立任務圖」、「更新節點狀態」、「串接 Agent」時觸發。  Triggers: 建立任務圖, 更新節點, 拓撲視覺化, 工作區總覽
+建立並維護拓撲式視覺工作區。將多個 AI Agent 的任務節點 以有向圖（DAG）形式組織，並輸出可讀的 Markdown 或 JSON。 當使用者要求「建立任務圖」、「更新節點狀態」、「串接 Agent」時觸發。
+
+Triggers: 建立任務圖, 更新節點, 拓撲視覺化, 工作區總覽
 
 ## 2. Required Inputs
 
@@ -26,7 +43,6 @@ author: "LAS Tool Manifest Auto-Sync"
 
 - This contract is generated from runtime Pydantic reflection.
 - Review and harden safety notes before production use.
-- The runtime mapping below is authoritative for this generated contract.
 
 ## 5. Runtime Mapping
 

@@ -1,8 +1,23 @@
 ---
-name: "workspace_link_tasks"
-description: "Link two tasks, establishing a dependency relationship in the DAG."
-version: "1.0.0"
-author: "LAS Tool Manifest Auto-Sync"
+id: workspace_link_tasks
+description: Link two tasks, establishing a dependency relationship in the DAG.
+version: 1.0.0
+inputs:
+  from_task_id:
+    type: string
+    required: true
+    description: The task that needs to be done first (dependency).
+  to_task_id:
+    type: string
+    required: true
+    description: The task that waits for from_task_id (dependent).
+outputs:
+  success: Plain text result string.
+  error: String prefixed with Error:.
+safety_notes:
+- This contract is generated from runtime Pydantic reflection.
+- Review and harden safety notes before production use.
+author: LAS Tool Manifest Auto-Sync
 ---
 
 # workspace_link_tasks
@@ -27,7 +42,6 @@ Link two tasks, establishing a dependency relationship in the DAG.
 
 - This contract is generated from runtime Pydantic reflection.
 - Review and harden safety notes before production use.
-- The runtime mapping below is authoritative for this generated contract.
 
 ## 5. Runtime Mapping
 

@@ -1,8 +1,22 @@
 ---
-name: "structured_log"
-description: "以最小空間記錄任務歷史。已完成任務只保留摘要（≤3行）， 進行中任務記錄完整 context。自動壓縮超過 30 天的舊日誌。 當使用者要求「記錄進度」、「寫日誌」、「更新狀態」時觸發。  Triggers: 記錄進度, 寫日誌, 更新狀態, 壓縮舊日誌"
-version: "1.0.0"
-author: "LAS Tool Manifest Auto-Sync"
+id: structured_log
+description: '以最小空間記錄任務歷史。已完成任務只保留摘要（≤3行）， 進行中任務記錄完整 context。自動壓縮超過 30 天的舊日誌。 當使用者要求「記錄進度」、「寫日誌」、「更新狀態」時觸發。
+
+
+  Triggers: 記錄進度, 寫日誌, 更新狀態, 壓縮舊日誌'
+version: 1.0.0
+inputs:
+  intent:
+    type: string
+    required: false
+    description: The specific intent or question when invoking this skill.
+outputs:
+  success: Plain text result string.
+  error: String prefixed with Error:.
+safety_notes:
+- This contract is generated from runtime Pydantic reflection.
+- Review and harden safety notes before production use.
+author: LAS Tool Manifest Auto-Sync
 ---
 
 # structured_log
@@ -11,7 +25,9 @@ author: "LAS Tool Manifest Auto-Sync"
 
 ## 1. Purpose
 
-以最小空間記錄任務歷史。已完成任務只保留摘要（≤3行）， 進行中任務記錄完整 context。自動壓縮超過 30 天的舊日誌。 當使用者要求「記錄進度」、「寫日誌」、「更新狀態」時觸發。  Triggers: 記錄進度, 寫日誌, 更新狀態, 壓縮舊日誌
+以最小空間記錄任務歷史。已完成任務只保留摘要（≤3行）， 進行中任務記錄完整 context。自動壓縮超過 30 天的舊日誌。 當使用者要求「記錄進度」、「寫日誌」、「更新狀態」時觸發。
+
+Triggers: 記錄進度, 寫日誌, 更新狀態, 壓縮舊日誌
 
 ## 2. Required Inputs
 
@@ -26,7 +42,6 @@ author: "LAS Tool Manifest Auto-Sync"
 
 - This contract is generated from runtime Pydantic reflection.
 - Review and harden safety notes before production use.
-- The runtime mapping below is authoritative for this generated contract.
 
 ## 5. Runtime Mapping
 

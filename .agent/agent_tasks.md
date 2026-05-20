@@ -54,11 +54,11 @@ effort   : S
 depends  : 0-01
 ```
 
-- [ ] 為現有每個 tool 補齊 `.agent/skills/<tool>.md`（若缺漏）
-- [ ] 確認每個 skill contract 包含欄位：`id`, `description`, `inputs`, `outputs`, `safety_notes`, `version`
-- [ ] 移除任何 skill contract 中對特定 AI 廠商的參照
-- [ ] 在 `.agent/skills.md` registry 加入 `schema_version` 欄位
-- [ ] 補充測試 `tests/test_skill_contracts.py`，驗證每個 skill 都符合 schema
+- [x] 為現有每個 tool 補齊 `.agent/skills/<tool>.md`（若缺漏）
+- [x] 確認每個 skill contract 包含欄位：`id`, `description`, `inputs`, `outputs`, `safety_notes`, `version`
+- [x] 移除任何 skill contract 中對特定 AI 廠商的參照
+- [x] 在 `.agent/skills.md` registry 加入 `schema_version` 欄位
+- [x] 補充測試 `tests/test_skill_contracts.py`，驗證每個 skill 都符合 schema
 
 ---
 

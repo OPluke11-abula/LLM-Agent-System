@@ -1,8 +1,27 @@
 ---
-name: "workspace_update_status"
-description: "Update task status and append to log."
-version: "1.0.0"
-author: "LAS Tool Manifest Auto-Sync"
+id: workspace_update_status
+description: Update task status and append to log.
+version: 1.0.0
+inputs:
+  task_id:
+    type: string
+    required: true
+    description: Task ID to update.
+  status:
+    type: string
+    required: true
+    description: 'New status: Todo, InProgress, Review, or Done.'
+  log_message:
+    type: string
+    required: false
+    description: Optional log message to append.
+outputs:
+  success: Plain text result string.
+  error: String prefixed with Error:.
+safety_notes:
+- This contract is generated from runtime Pydantic reflection.
+- Review and harden safety notes before production use.
+author: LAS Tool Manifest Auto-Sync
 ---
 
 # workspace_update_status
@@ -17,7 +36,7 @@ Update task status and append to log.
 
 - `task_id` (string, **Required**): Task ID to update.
 - `status` (string, **Required**): New status: Todo, InProgress, Review, or Done.
-- `log_message` (string, **Required**): Optional log message to append.
+- `log_message` (string, Optional): Optional log message to append.
 
 ## 3. Expected Outputs
 
@@ -28,7 +47,6 @@ Update task status and append to log.
 
 - This contract is generated from runtime Pydantic reflection.
 - Review and harden safety notes before production use.
-- The runtime mapping below is authoritative for this generated contract.
 
 ## 5. Runtime Mapping
 

@@ -1,8 +1,28 @@
 ---
-name: "memory_query"
-description: "Search long-term memory for records matching the query."
-version: "1.0.0"
-author: "LAS Tool Manifest Auto-Sync"
+id: memory_query
+description: Search long-term memory for records matching the query.
+version: 1.0.0
+inputs:
+  query_text:
+    type: string
+    required: true
+    description: Search keywords or phrase.
+  domain:
+    type: string
+    required: false
+    description: Optional domain to restrict search to (e.g. 'semantic', 'episodic',
+      'preference').
+  limit:
+    type: integer
+    required: false
+    description: Maximum number of records to return.
+outputs:
+  success: Plain text result string.
+  error: String prefixed with Error:.
+safety_notes:
+- This contract is generated from runtime Pydantic reflection.
+- Review and harden safety notes before production use.
+author: LAS Tool Manifest Auto-Sync
 ---
 
 # memory_query
@@ -16,8 +36,8 @@ Search long-term memory for records matching the query.
 ## 2. Required Inputs
 
 - `query_text` (string, **Required**): Search keywords or phrase.
-- `domain` (string, **Required**): Optional domain to restrict search to (e.g. 'semantic', 'episodic', 'preference').
-- `limit` (integer, **Required**): Maximum number of records to return.
+- `domain` (any, Optional): Optional domain to restrict search to (e.g. 'semantic', 'episodic', 'preference').
+- `limit` (integer, Optional): Maximum number of records to return.
 
 ## 3. Expected Outputs
 
@@ -28,7 +48,6 @@ Search long-term memory for records matching the query.
 
 - This contract is generated from runtime Pydantic reflection.
 - Review and harden safety notes before production use.
-- The runtime mapping below is authoritative for this generated contract.
 
 ## 5. Runtime Mapping
 

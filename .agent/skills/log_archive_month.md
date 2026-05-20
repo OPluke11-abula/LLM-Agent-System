@@ -1,8 +1,29 @@
 ---
-name: "log_archive_month"
-description: "Archive a specific month's log entries into workspace/logs/YYYY-MM.md.  Scans all tasks for log entries whose timestamp matches the given month, moves them into a dedicated archive file, and removes them from the task nodes.  [觸發時機] When a user says '歸檔日誌' or at the end of each month. [限制條件] Only moves log entries matching the specified month prefix."
-version: "1.0.0"
-author: "LAS Tool Manifest Auto-Sync"
+id: log_archive_month
+description: 'Archive a specific month''s log entries into workspace/logs/YYYY-MM.md.
+
+
+  Scans all tasks for log entries whose timestamp matches the given month,
+
+  moves them into a dedicated archive file, and removes them from the task nodes.
+
+
+  [觸發時機] When a user says ''歸檔日誌'' or at the end of each month.
+
+  [限制條件] Only moves log entries matching the specified month prefix.'
+version: 1.0.0
+inputs:
+  month:
+    type: string
+    required: true
+    description: Month to archive in YYYY-MM format (e.g. 2026-05).
+outputs:
+  success: Plain text result string.
+  error: String prefixed with Error:.
+safety_notes:
+- This contract is generated from runtime Pydantic reflection.
+- Review and harden safety notes before production use.
+author: LAS Tool Manifest Auto-Sync
 ---
 
 # log_archive_month
@@ -11,7 +32,13 @@ author: "LAS Tool Manifest Auto-Sync"
 
 ## 1. Purpose
 
-Archive a specific month's log entries into workspace/logs/YYYY-MM.md.  Scans all tasks for log entries whose timestamp matches the given month, moves them into a dedicated archive file, and removes them from the task nodes.  [觸發時機] When a user says '歸檔日誌' or at the end of each month. [限制條件] Only moves log entries matching the specified month prefix.
+Archive a specific month's log entries into workspace/logs/YYYY-MM.md.
+
+Scans all tasks for log entries whose timestamp matches the given month,
+moves them into a dedicated archive file, and removes them from the task nodes.
+
+[觸發時機] When a user says '歸檔日誌' or at the end of each month.
+[限制條件] Only moves log entries matching the specified month prefix.
 
 ## 2. Required Inputs
 
@@ -26,7 +53,6 @@ Archive a specific month's log entries into workspace/logs/YYYY-MM.md.  Scans al
 
 - This contract is generated from runtime Pydantic reflection.
 - Review and harden safety notes before production use.
-- The runtime mapping below is authoritative for this generated contract.
 
 ## 5. Runtime Mapping
 

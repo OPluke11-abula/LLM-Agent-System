@@ -1,8 +1,35 @@
 ---
-name: "workspace_add_task"
-description: "Add a new task node to the topological workspace."
-version: "1.0.0"
-author: "LAS Tool Manifest Auto-Sync"
+id: workspace_add_task
+description: Add a new task node to the topological workspace.
+version: 1.0.0
+inputs:
+  task_id:
+    type: string
+    required: true
+    description: Unique Task ID (e.g. TASK-005).
+  title:
+    type: string
+    required: true
+    description: Task title.
+  agent:
+    type: string
+    required: false
+    description: Assigned Agent.
+  description:
+    type: string
+    required: false
+    description: Task description.
+  depends_on:
+    type: array
+    required: false
+    description: List of task IDs this task depends on.
+outputs:
+  success: Plain text result string.
+  error: String prefixed with Error:.
+safety_notes:
+- This contract is generated from runtime Pydantic reflection.
+- Review and harden safety notes before production use.
+author: LAS Tool Manifest Auto-Sync
 ---
 
 # workspace_add_task
@@ -17,9 +44,9 @@ Add a new task node to the topological workspace.
 
 - `task_id` (string, **Required**): Unique Task ID (e.g. TASK-005).
 - `title` (string, **Required**): Task title.
-- `agent` (string, **Required**): Assigned Agent.
-- `description` (string, **Required**): Task description.
-- `depends_on` (string, **Required**): List of task IDs this task depends on.
+- `agent` (string, Optional): Assigned Agent.
+- `description` (string, Optional): Task description.
+- `depends_on` (array, Optional): List of task IDs this task depends on.
 
 ## 3. Expected Outputs
 
@@ -30,7 +57,6 @@ Add a new task node to the topological workspace.
 
 - This contract is generated from runtime Pydantic reflection.
 - Review and harden safety notes before production use.
-- The runtime mapping below is authoritative for this generated contract.
 
 ## 5. Runtime Mapping
 

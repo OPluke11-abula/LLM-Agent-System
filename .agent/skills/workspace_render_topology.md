@@ -1,8 +1,15 @@
 ---
-name: "workspace_render_topology"
-description: "Render and return the current topological ASCII graph."
-version: "1.0.0"
-author: "LAS Tool Manifest Auto-Sync"
+id: workspace_render_topology
+description: Render and return the current topological ASCII graph.
+version: 1.0.0
+inputs: {}
+outputs:
+  success: Plain text result string.
+  error: String prefixed with Error:.
+safety_notes:
+- This contract is generated from runtime Pydantic reflection.
+- Review and harden safety notes before production use.
+author: LAS Tool Manifest Auto-Sync
 ---
 
 # workspace_render_topology
@@ -26,7 +33,6 @@ Render and return the current topological ASCII graph.
 
 - This contract is generated from runtime Pydantic reflection.
 - Review and harden safety notes before production use.
-- The runtime mapping below is authoritative for this generated contract.
 
 ## 5. Runtime Mapping
 

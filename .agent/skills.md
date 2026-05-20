@@ -1,3 +1,7 @@
+---
+schema_version: "1.0.0"
+---
+
 # Skills Entry Point
 
 This file is the PAP-facing skill registry for LAS.

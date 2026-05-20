@@ -1,0 +1,95 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AgentManifestSchema",
+  "description": "JSON Schema defining canonical structure for the .agent/agent.md YAML front matter.",
+  "type": "object",
+  "properties": {
+    "protocol_version": {
+      "type": "string",
+      "description": "Version of the Portable Agent Protocol (PAP) used by this agent."
+    },
+    "min_runtime_version": {
+      "type": "string",
+      "description": "Minimum required version of the runtime engine to execute this agent."
+    },
+    "name": {
+      "type": "string",
+      "description": "Unique identifier/name of the agent."
+    },
+    "version": {
+      "type": "string",
+      "description": "Semantic version of the agent configuration."
+    },
+    "purpose": {
+      "type": "string",
+      "description": "High-level goal or role description of the agent."
+    },
+    "description": {
+      "type": "string",
+      "description": "Detailed explanation of the agent's responsibilities and behavior."
+    },
+    "language": {
+      "type": "string",
+      "description": "Primary language of interaction and logs (e.g., 'zh-TW', 'en')."
+    },
+    "authorization_level": {
+      "type": "string",
+      "enum": ["read-only", "interactive-approval", "autonomous"],
+      "description": "Security permission level required for execution."
+    },
+    "use_case_tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Semantic tags describing target applications and use-cases."
+    },
+    "tools": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Manifest declaring list of tools accessible to this agent."
+    },
+    "protocol": {
+      "type": "object",
+      "properties": {
+        "root": { "type": "string" },
+        "manifest": { "type": "string" },
+        "entrypoints": { "type": "object" },
+        "directories": { "type": "object" }
+      },
+      "required": ["root", "manifest"]
+    },
+    "memory": {
+      "type": "object",
+      "properties": {
+        "backend": { "type": "string" },
+        "path": { "type": "string" }
+      }
+    },
+    "prompts": {
+      "type": "object",
+      "properties": {
+        "path": { "type": "string" }
+      }
+    },
+    "workflows": {
+      "type": "object",
+      "properties": {
+        "path": { "type": "string" }
+      }
+    }
+  },
+  "required": [
+    "protocol_version",
+    "min_runtime_version",
+    "name",
+    "version",
+    "purpose",
+    "language",
+    "authorization_level",
+    "use_case_tags",
+    "tools"
+  ]
+}

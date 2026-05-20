@@ -1,8 +1,24 @@
 ---
-name: "memory_store_knowledge"
-description: "Store valuable experience or facts as semantic knowledge."
-version: "1.0.0"
-author: "LAS Tool Manifest Auto-Sync"
+id: memory_store_knowledge
+description: Store valuable experience or facts as semantic knowledge.
+version: 1.0.0
+inputs:
+  knowledge_text:
+    type: string
+    required: true
+    description: The factual knowledge, experience, or solution to store.
+  citations:
+    type: array
+    required: false
+    description: List of task IDs, URLs, or file paths referencing where this knowledge
+      came from.
+outputs:
+  success: Plain text result string.
+  error: String prefixed with Error:.
+safety_notes:
+- This contract is generated from runtime Pydantic reflection.
+- Review and harden safety notes before production use.
+author: LAS Tool Manifest Auto-Sync
 ---
 
 # memory_store_knowledge
@@ -16,7 +32,7 @@ Store valuable experience or facts as semantic knowledge.
 ## 2. Required Inputs
 
 - `knowledge_text` (string, **Required**): The factual knowledge, experience, or solution to store.
-- `citations` (string, **Required**): List of task IDs, URLs, or file paths referencing where this knowledge came from.
+- `citations` (array, Optional): List of task IDs, URLs, or file paths referencing where this knowledge came from.
 
 ## 3. Expected Outputs
 
@@ -27,7 +43,6 @@ Store valuable experience or facts as semantic knowledge.
 
 - This contract is generated from runtime Pydantic reflection.
 - Review and harden safety notes before production use.
-- The runtime mapping below is authoritative for this generated contract.
 
 ## 5. Runtime Mapping
 

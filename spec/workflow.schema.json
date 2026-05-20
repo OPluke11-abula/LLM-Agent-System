@@ -1,0 +1,62 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "WorkflowSchema",
+  "description": "JSON Schema defining canonical structure for Portable Agent Protocol (PAP) workflows.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier of the workflow."
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-readable name of the workflow."
+    },
+    "description": {
+      "type": "string",
+      "description": "Description of the workflow goal and process."
+    },
+    "version": {
+      "type": "string",
+      "description": "Semantic version of the workflow definition."
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "step_id": {
+            "type": "string",
+            "description": "Unique identifier for this step within the workflow."
+          },
+          "skill_id": {
+            "type": "string",
+            "description": "The skill called during this step."
+          },
+          "params": {
+            "type": "object",
+            "description": "Hardcoded or dynamically mapped parameters to pass to the skill."
+          },
+          "next_step": {
+            "type": ["string", "null"],
+            "description": "The ID of the step to execute next (null for end of workflow)."
+          },
+          "on_failure": {
+            "type": "string",
+            "enum": ["fail", "skip", "retry", "fallback"],
+            "description": "Strategy when step execution encounters an error."
+          }
+        },
+        "required": ["step_id", "skill_id", "params"]
+      },
+      "description": "Ordered sequence of steps to run."
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "description",
+    "version",
+    "steps"
+  ]
+}

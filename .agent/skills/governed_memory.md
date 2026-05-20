@@ -1,8 +1,19 @@
 ---
-name: "governed_memory"
-description: "Markdown skill for governed_memory"
-version: "1.0.0"
-author: "LAS Tool Manifest Auto-Sync"
+id: governed_memory
+description: Markdown skill for governed_memory
+version: 1.0.0
+inputs:
+  intent:
+    type: string
+    required: false
+    description: The specific intent or question when invoking this skill.
+outputs:
+  success: Plain text result string.
+  error: String prefixed with Error:.
+safety_notes:
+- This contract is generated from runtime Pydantic reflection.
+- Review and harden safety notes before production use.
+author: LAS Tool Manifest Auto-Sync
 ---
 
 # governed_memory
@@ -26,7 +37,6 @@ Markdown skill for governed_memory
 
 - This contract is generated from runtime Pydantic reflection.
 - Review and harden safety notes before production use.
-- The runtime mapping below is authoritative for this generated contract.
 
 ## 5. Runtime Mapping
 

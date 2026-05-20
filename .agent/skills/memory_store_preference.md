@@ -1,8 +1,19 @@
 ---
-name: "memory_store_preference"
-description: "Store a specific user preference."
-version: "1.0.0"
-author: "LAS Tool Manifest Auto-Sync"
+id: memory_store_preference
+description: Store a specific user preference.
+version: 1.0.0
+inputs:
+  preference_text:
+    type: string
+    required: true
+    description: The user preference to store.
+outputs:
+  success: Plain text result string.
+  error: String prefixed with Error:.
+safety_notes:
+- This contract is generated from runtime Pydantic reflection.
+- Review and harden safety notes before production use.
+author: LAS Tool Manifest Auto-Sync
 ---
 
 # memory_store_preference
@@ -26,7 +37,6 @@ Store a specific user preference.
 
 - This contract is generated from runtime Pydantic reflection.
 - Review and harden safety notes before production use.
-- The runtime mapping below is authoritative for this generated contract.
 
 ## 5. Runtime Mapping
 
