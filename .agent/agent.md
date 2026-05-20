@@ -22,7 +22,21 @@ use_case_tags:
 tools:
   - delegate_task
   - calculate
+  - log_append
+  - log_archive_month
+  - log_compress_done
+  - memory_query
+  - memory_store_knowledge
+  - memory_store_preference
+  - workspace_add_task
+  - workspace_cancel_task
+  - workspace_link_tasks
+  - workspace_render_topology
+  - workspace_update_status
   - transfer_agent
+  - governed_memory
+  - structured_log
+  - topological_workspace
 protocol:
   root: .agent/
   manifest: .agent/agent.md

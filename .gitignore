@@ -236,6 +236,8 @@ agent_workspace/agent_workspace/memory/*.db
 workspace/*.json
 workspace/*.tmp
 agent_workspace/tool_manifest.json
+memory/
+
 
 # Test scripts (development-only)
 agent_workspace/test_*.py

@@ -5,7 +5,6 @@ import os
 import yaml
 from pydantic import BaseModel, Field
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -20,6 +19,65 @@ class DelegateTaskArgs(BaseModel):
     )
 
 
+def load_worker_config(workspace_path: str, worker_name: str) -> dict:
+    """
+    Robust worker config loader.
+    Prioritizes PAP Markdown contract at workspace/agents/{worker_name}.md,
+    and falls back to legacy YAML at agents/{worker_name}.yaml.
+    """
+    config = {}
+    
+    # 1. Try markdown contract under workspace/agents/{worker_name}.md
+    md_paths = [
+        os.path.join(workspace_path, "agents", f"{worker_name}.md"),
+        os.path.join(workspace_path, "..", "workspace", "agents", f"{worker_name}.md"),
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "workspace", "agents", f"{worker_name}.md")),
+    ]
+    for md_path in md_paths:
+        if os.path.isfile(md_path):
+            try:
+                with open(md_path, "r", encoding="utf-8") as file:
+                    content = file.read()
+                # Parse frontmatter
+                if content.startswith("---"):
+                    parts = content.split("---", 2)
+                    if len(parts) >= 3:
+                        frontmatter = yaml.safe_load(parts[1]) or {}
+                        if isinstance(frontmatter, dict):
+                            config.update(frontmatter)
+                # Also try to parse markdown body for capability list or allowed tools
+                if "allowed_tools" not in config:
+                    import re
+                    # Look for allowed_tools list in markdown
+                    tools_section = re.findall(r"(?:allowed[-_]tools|tools|capabilities)\s*:\s*\n?((?:\s*-\s*\w+\n?)+)", content, re.IGNORECASE)
+                    if tools_section:
+                        tools = [t.strip("- ").strip() for t in tools_section[0].splitlines() if t.strip()]
+                        config["allowed_tools"] = tools
+                if config:
+                    logger.info("Loaded worker config from Markdown: %s", md_path)
+                    return config
+            except Exception as e:
+                logger.warning("Failed to parse markdown config at %s: %s", md_path, e)
+
+    # 2. Try legacy yaml contract under agents/{worker_name}.yaml
+    yaml_paths = [
+        os.path.join(workspace_path, "agents", f"{worker_name}.yaml"),
+        os.path.join(workspace_path, "..", "agent_workspace", "agents", f"{worker_name}.yaml"),
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "agents", f"{worker_name}.yaml")),
+    ]
+    for yaml_path in yaml_paths:
+        if os.path.isfile(yaml_path):
+            try:
+                with open(yaml_path, "r", encoding="utf-8") as file:
+                    yaml_config = yaml.safe_load(file) or {}
+                    logger.info("Loaded worker config from legacy YAML: %s", yaml_path)
+                    return yaml_config
+            except Exception as e:
+                logger.warning("Failed to parse legacy yaml config at %s: %s", yaml_path, e)
+                
+    return {}
+
+
 def delegate_task(args: DelegateTaskArgs, context: dict) -> str:
     """
     [Supervisor Tool] Delegate a complex sub-task to a specialized worker agent.
@@ -32,20 +90,14 @@ def delegate_task(args: DelegateTaskArgs, context: dict) -> str:
     worker_name = args.worker_name
     parent_session = context.get("session_id", "default")
 
-    config_path = os.path.join(engine.workspace_path, "agents", f"{worker_name}.yaml")
-    allowed_tools = None
-    if os.path.isfile(config_path):
-        try:
-            with open(config_path, "r", encoding="utf-8") as file:
-                worker_config = yaml.safe_load(file) or {}
-                allowed_tools = worker_config.get("allowed_tools")
-        except Exception as error:
-            return f"Error: failed to load worker config - {error}"
-    else:
+    worker_config = load_worker_config(engine.workspace_path, worker_name)
+    allowed_tools = worker_config.get("allowed_tools")
+    timeout = float(worker_config.get("timeout", 60.0))
+
+    if not worker_config:
         logger.warning(
-            "No config found for worker '%s' at %s. All tools will be allowed.",
+            "No config found for worker '%s' in Markdown or YAML. All tools will be allowed.",
             worker_name,
-            config_path,
         )
 
     from core.router import AgentRouter
@@ -61,18 +113,24 @@ def delegate_task(args: DelegateTaskArgs, context: dict) -> str:
         current_context = None
 
     async def run_with_context():
-        if current_context:
-            from opentelemetry import context as otel_context
+        async def execute():
+            if current_context:
+                from opentelemetry import context as otel_context
 
-            token = otel_context.attach(current_context)
-            try:
-                return await router.run_agent_loop(args.task_instructions, allowed_tools=allowed_tools)
-            finally:
-                otel_context.detach(token)
-        return await router.run_agent_loop(args.task_instructions, allowed_tools=allowed_tools)
+                token = otel_context.attach(current_context)
+                try:
+                    return await router.run_agent_loop(args.task_instructions, allowed_tools=allowed_tools)
+                finally:
+                    otel_context.detach(token)
+            return await router.run_agent_loop(args.task_instructions, allowed_tools=allowed_tools)
+
+        return await asyncio.wait_for(execute(), timeout=timeout)
 
     try:
         result = asyncio.run(run_with_context())
         return f"[Worker '{worker_name}' Result]:\n{result}"
+    except asyncio.TimeoutError:
+        return f"Error: Worker '{worker_name}' failed - Timeout: execution exceeded {timeout} seconds limit."
     except Exception as error:
         return f"Error: Worker '{worker_name}' failed - {error}"
+

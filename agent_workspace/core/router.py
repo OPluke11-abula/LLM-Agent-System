@@ -126,6 +126,10 @@ class AgentRouter:
         self._config = self._load_config()
 
         self.max_iterations = self._config.get("agent", {}).get("max_iterations", 5)
+        self.max_tool_calls = self._config.get("agent", {}).get("max_tool_calls", 15)
+        self.total_prompt_tokens = 0
+        self.total_completion_tokens = 0
+        self.total_tokens = 0
 
         memory_dir = os.path.join(engine.workspace_path, "memory")
         self.memory = MemoryManager(memory_dir, session_id=self.session_id)
@@ -163,12 +167,18 @@ class AgentRouter:
             f"User input: {user_input}"
         )
         try:
-            resp_type, resp_data = await self._provider.generate_content(
+            resp = await self._provider.generate_content(
                 system_prompt="You are an intent classifier.",
                 messages=[{"role": "user", "content": prompt}],
                 tool_schemas=[],
                 config=self._config.get("llm", {}),
             )
+            resp_type, resp_data = resp
+            if hasattr(resp, "usage") and resp.usage:
+                self.total_prompt_tokens += resp.usage.get("prompt_tokens", 0) or 0
+                self.total_completion_tokens += resp.usage.get("completion_tokens", 0) or 0
+                self.total_tokens += resp.usage.get("total_tokens", 0) or 0
+
             if resp_type == "text" and "CHAT" in str(resp_data).upper():
                 return "CHAT"
         except Exception:
@@ -182,6 +192,11 @@ class AgentRouter:
         output_schema: Any = None,
     ) -> str:
         """Run the non-streaming closed-loop agent path."""
+        self.total_prompt_tokens = 0
+        self.total_completion_tokens = 0
+        self.total_tokens = 0
+        total_tool_calls = 0
+
         with tracer.start_as_current_span("run_agent_loop") as span:
             span.set_attribute("session_id", self.session_id)
             intent = "TASK" if output_schema else await self._classify_intent(user_input)
@@ -216,12 +231,19 @@ class AgentRouter:
                     if output_schema:
                         llm_config["output_schema"] = output_schema
 
-                    response_type, response_data = await self._provider.generate_content(
+                    response = await self._provider.generate_content(
                         system_prompt=system_prompt,
                         messages=messages,
                         tool_schemas=tool_schemas,
                         config=llm_config,
                     )
+
+                    if hasattr(response, "usage") and response.usage:
+                        self.total_prompt_tokens += response.usage.get("prompt_tokens", 0) or 0
+                        self.total_completion_tokens += response.usage.get("completion_tokens", 0) or 0
+                        self.total_tokens += response.usage.get("total_tokens", 0) or 0
+
+                    response_type, response_data = response
 
                     if response_type == "error":
                         final_response = f"Error: LLM generation failed: {response_data}"
@@ -235,6 +257,14 @@ class AgentRouter:
 
                     if response_type in ("tool_call", "tool_calls"):
                         tool_calls_list = response_data if response_type == "tool_calls" else [response_data]
+
+                        # Check tool call limit
+                        total_tool_calls += len(tool_calls_list)
+                        if total_tool_calls > self.max_tool_calls:
+                            final_response = f"Error: Maximum tool execution limit ({self.max_tool_calls}) exceeded. Force ending loop to prevent runaway costs."
+                            logger.error(final_response)
+                            break
+
                         handoff_triggered = await self._handle_tool_calls(
                             tool_calls_list,
                             messages,
@@ -260,6 +290,9 @@ class AgentRouter:
                         "Stopping to avoid an infinite tool loop."
                     )
                     logger.warning(final_response)
+
+                token_summary = f"[Token Usage: Prompt: {self.total_prompt_tokens}, Completion: {self.total_completion_tokens}, Total: {self.total_tokens}]"
+                final_response = f"{final_response}\n\n{token_summary}"
 
                 limit_reached = self.memory.append_conversation(user_input, final_response)
                 if limit_reached:
@@ -348,6 +381,11 @@ class AgentRouter:
         output_schema: Any = None,
     ):
         """Run the streaming closed-loop agent path."""
+        self.total_prompt_tokens = 0
+        self.total_completion_tokens = 0
+        self.total_tokens = 0
+        total_tool_calls = 0
+
         with tracer.start_as_current_span("stream_agent_loop") as span:
             span.set_attribute("session_id", self.session_id)
             intent = "TASK" if output_schema else await self._classify_intent(user_input)
@@ -390,7 +428,14 @@ class AgentRouter:
                     tool_calls_list: list[dict[str, Any]] = []
                     current_text = ""
 
-                    async for resp_type, resp_data in response_stream:
+                    async for event in response_stream:
+                        if hasattr(event, "usage") and event.usage:
+                            self.total_prompt_tokens += event.usage.get("prompt_tokens", 0) or 0
+                            self.total_completion_tokens += event.usage.get("completion_tokens", 0) or 0
+                            self.total_tokens += event.usage.get("total_tokens", 0) or 0
+
+                        resp_type, resp_data = event
+
                         if resp_type == "error":
                             final_response = f"Error: LLM generation failed: {resp_data}"
                             logger.error(final_response)
@@ -466,6 +511,14 @@ class AgentRouter:
 
                         if handoff_triggered:
                             break
+
+                        # Check tool call limit
+                        total_tool_calls += len(tool_calls_list)
+                        if total_tool_calls > self.max_tool_calls:
+                            final_response = f"Error: Maximum tool execution limit ({self.max_tool_calls}) exceeded. Force ending loop to prevent runaway costs."
+                            yield {"type": "error", "content": final_response}
+                            break
+
                         continue
 
                     if current_text:
@@ -484,6 +537,9 @@ class AgentRouter:
                 logger.warning("Stream Agent Loop cancelled for session %s", self.session_id)
                 final_response += "\n[Session cancelled before completion]"
             finally:
+                token_summary = f"[Token Usage: Prompt: {self.total_prompt_tokens}, Completion: {self.total_completion_tokens}, Total: {self.total_tokens}]"
+                final_response = f"{final_response}\n\n{token_summary}"
+
                 limit_reached = self.memory.append_conversation(user_input, final_response)
                 if limit_reached:
                     self._on_memory_limit_reached(self.session_id, self.memory.get_recent_context(20))

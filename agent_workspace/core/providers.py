@@ -22,6 +22,14 @@ try:
 except ImportError:
     from agent_workspace.observability import LLM_CALL_COUNT, LLM_CALL_LATENCY, Timer, tracer, TRACING_AVAILABLE
 
+
+class ProviderResponse(tuple):
+    def __new__(cls, response_type: str, response_data: Any, usage: dict[str, Any] | None = None):
+        obj = super().__new__(cls, (response_type, response_data))
+        obj.usage = usage or {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+        return obj
+
+
 ProviderResult = tuple[str, Any]
 Message = dict[str, Any]
 ToolSchema = dict[str, Any]
@@ -266,10 +274,25 @@ class GoogleGenAIProvider(BaseLLMProvider):
                 contents=self._build_google_contents(messages, types),
                 config=req_config,
             )
-            return self._parse_response(response)
+            resp_type, resp_data = self._parse_response(response)
+            
+            prompt_tokens = 0
+            completion_tokens = 0
+            total_tokens = 0
+            if hasattr(response, "usage_metadata") and response.usage_metadata:
+                prompt_tokens = getattr(response.usage_metadata, "prompt_token_count", 0) or 0
+                completion_tokens = getattr(response.usage_metadata, "candidates_token_count", 0) or 0
+                total_tokens = getattr(response.usage_metadata, "total_token_count", 0) or 0
+            
+            usage = {
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
+                "total_tokens": total_tokens
+            }
+            return ProviderResponse(resp_type, resp_data, usage)
         except Exception as error:
             logger.error("Google GenAI API call failed: %s", error)
-            return "error", str(error)
+            return ProviderResponse("error", str(error))
 
     async def stream(
         self,
@@ -297,10 +320,23 @@ class GoogleGenAIProvider(BaseLLMProvider):
                 config=req_config,
             )
             async for chunk in response_stream:
-                yield self._parse_response(chunk)
+                resp_type, resp_data = self._parse_response(chunk)
+                prompt_tokens = 0
+                completion_tokens = 0
+                total_tokens = 0
+                if hasattr(chunk, "usage_metadata") and chunk.usage_metadata:
+                    prompt_tokens = getattr(chunk.usage_metadata, "prompt_token_count", 0) or 0
+                    completion_tokens = getattr(chunk.usage_metadata, "candidates_token_count", 0) or 0
+                    total_tokens = getattr(chunk.usage_metadata, "total_token_count", 0) or 0
+                usage = {
+                    "prompt_tokens": prompt_tokens,
+                    "completion_tokens": completion_tokens,
+                    "total_tokens": total_tokens
+                }
+                yield ProviderResponse(resp_type, resp_data, usage)
         except Exception as error:
             logger.error("Google GenAI API stream failed: %s", error)
-            yield "error", str(error)
+            yield ProviderResponse("error", str(error))
 
     def _parse_response(self, response: Any) -> ProviderResult:
         try:
@@ -360,18 +396,29 @@ class OpenAIProvider(BaseLLMProvider):
             data = response.json()
             message = data["choices"][0]["message"]
             tool_calls = message.get("tool_calls") or []
+            
+            # Extract usage
+            usage_data = data.get("usage") or {}
+            usage = {
+                "prompt_tokens": usage_data.get("prompt_tokens", 0) or 0,
+                "completion_tokens": usage_data.get("completion_tokens", 0) or 0,
+                "total_tokens": usage_data.get("total_tokens", 0) or 0
+            }
+
             if tool_calls:
-                return "tool_calls", [
+                resp_type, resp_data = "tool_calls", [
                     {
                         "name": call["function"]["name"],
                         "arguments": parse_json_arguments(call["function"].get("arguments")),
                     }
                     for call in tool_calls
                 ]
-            return "text", message.get("content") or ""
+            else:
+                resp_type, resp_data = "text", message.get("content") or ""
+            return ProviderResponse(resp_type, resp_data, usage)
         except Exception as error:
             logger.error("OpenAI API call failed: %s", error)
-            return "error", str(error)
+            return ProviderResponse("error", str(error))
 
 
 class AnthropicProvider(BaseLLMProvider):
@@ -461,12 +508,25 @@ class AnthropicProvider(BaseLLMProvider):
                     tool_calls.append({"name": block.get("name", ""), "arguments": block.get("input", {})})
                 elif block.get("type") == "text":
                     text_parts.append(block.get("text", ""))
+            
+            # Extract usage
+            usage_data = data.get("usage") or {}
+            prompt_tokens = usage_data.get("input_tokens", 0) or 0
+            completion_tokens = usage_data.get("output_tokens", 0) or 0
+            usage = {
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
+                "total_tokens": prompt_tokens + completion_tokens
+            }
+
             if tool_calls:
-                return "tool_calls", tool_calls
-            return "text", "".join(text_parts)
+                resp_type, resp_data = "tool_calls", tool_calls
+            else:
+                resp_type, resp_data = "text", "".join(text_parts)
+            return ProviderResponse(resp_type, resp_data, usage)
         except Exception as error:
             logger.error("Anthropic API call failed: %s", error)
-            return "error", str(error)
+            return ProviderResponse("error", str(error))
 
 
 class OllamaProvider(BaseLLMProvider):
@@ -502,18 +562,30 @@ class OllamaProvider(BaseLLMProvider):
             data = response.json()
             message = data.get("message", {})
             tool_calls = message.get("tool_calls") or []
+            
+            # Extract usage
+            prompt_tokens = data.get("prompt_eval_count", 0) or 0
+            completion_tokens = data.get("eval_count", 0) or 0
+            usage = {
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
+                "total_tokens": prompt_tokens + completion_tokens
+            }
+
             if tool_calls:
-                return "tool_calls", [
+                resp_type, resp_data = "tool_calls", [
                     {
                         "name": call.get("function", {}).get("name", ""),
                         "arguments": parse_json_arguments(call.get("function", {}).get("arguments")),
                     }
                     for call in tool_calls
                 ]
-            return "text", message.get("content") or data.get("response", "")
+            else:
+                resp_type, resp_data = "text", message.get("content") or data.get("response", "")
+            return ProviderResponse(resp_type, resp_data, usage)
         except Exception as error:
             logger.error("Ollama API call failed: %s", error)
-            return "error", str(error)
+            return ProviderResponse("error", str(error))
 
 
 class ProviderFactory:

@@ -345,3 +345,39 @@ def workspace_render_topology(args: RenderTopologyArgs, context: Optional[Dict] 
     workspace_path = context.get("workspace_path", ".") if context else "."
     manager = WorkspaceManager(workspace_path)
     return manager._render_ascii_dag()
+
+class CancelTaskArgs(BaseModel):
+    task_id: str = Field(description="The ID of the task to cancel recursively.")
+
+def workspace_cancel_task(args: CancelTaskArgs, context: Optional[Dict] = None) -> str:
+    """Mark a task and all of its recursive descendants as Cancelled in the workspace DAG."""
+    workspace_path = context.get("workspace_path", ".") if context else "."
+    manager = WorkspaceManager(workspace_path)
+    
+    if args.task_id not in manager.tasks:
+        return f"Error: Task {args.task_id} not found."
+        
+    cancelled_ids = []
+    visited = set()
+    today = datetime.now().strftime("%Y-%m-%d")
+    
+    def cancel_recursive(tid: str):
+        if tid in visited:
+            return
+        visited.add(tid)
+        
+        if tid in manager.tasks:
+            task = manager.tasks[tid]
+            if task.status != "Cancelled":
+                task.status = "Cancelled"
+                task.updated = today
+                task.logs.append(f"- `{today}` Task and descendants cancelled recursively.")
+                cancelled_ids.append(tid)
+                
+            for child_id in task.depended_by:
+                cancel_recursive(child_id)
+                
+    cancel_recursive(args.task_id)
+    manager.save()
+    
+    return f"Successfully cancelled task(s): {', '.join(cancelled_ids)}"

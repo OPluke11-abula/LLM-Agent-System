@@ -2,8 +2,8 @@
 
 > Topological Workspace for Multi-Agent Systems
 
-**最後更新：** 2026-05-19 | **活躍 Agents：** 接手 AI（或前端專責 Agent）, Assistant, 接手 AI
-**進度：** Todo(0) / InProgress(0) / Review(0) / Done(6)
+**最後更新：** 2026-05-20 | **活躍 Agents：** 接手 AI, Assistant, 接手 AI（或前端專責 Agent）
+**進度：** Todo(0) / InProgress(0) / Review(0) / Done(7)
 
 ---
 
@@ -58,7 +58,7 @@
 
 ### 連結節點
 → 依賴：[TASK-001]  
-→ 被依賴：[TASK-004], [TASK-005]
+→ 被依賴：[TASK-004], [TASK-005], [TASK-007]
 
 ---
 
@@ -154,4 +154,30 @@
 
 ### 連結節點
 → 依賴：[TASK-001]  
+→ 被依賴：[TASK-007]
+
+---
+
+## [TASK-007] 委派系統與執行邊界強化 (Phase 3: Delegation Hardening)
+
+**負責 Agent：** 接手 AI  
+**狀態：** `Done`  
+**優先級：** High  
+**建立：** 2026-05-20 | **更新：** 2026-05-20
+
+### 說明
+實作委派系統強化、工具限制 (max 15 次)、超時保護、Token/Cost 計量統計，以及新增 workspace_cancel_task 動態任務取消工具並通過單元測試驗證。
+
+### 完成條件 (Done When)
+- [x] 修復 delegate_task 中的 Markdown 規格檔載入邏輯與加上超時保護
+- [x] 限制 router 中工具呼叫次數 (預設 max 15 次) 避免死循環與成本爆增
+- [x] 整合 Token/Cost 計算並於回覆尾端輸出報告
+- [x] 新增 workspace_cancel_task 遞迴取消任務與其子代任務
+- [x] 新增測試 test_delegation_limits.py 覆蓋 100% 機能
+
+### 日誌
+- `2026-05-20` Successfully implemented all delegation hardening tasks and achieved 100% pass on all 8 test cases.
+
+### 連結節點
+→ 依賴：[TASK-002], [TASK-006]  
 → 被依賴：無
