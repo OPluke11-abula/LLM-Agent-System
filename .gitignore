@@ -223,6 +223,9 @@ __marimo__/
 
 # AI agent configuration (local-only, each developer/AI creates their own)
 AGENTS.md
+.agent.md
+.AGENT.md
+.agent.local.md
 
 # Runtime memory data (generated at runtime, not part of the template)
 agent_workspace/memory/*.json
