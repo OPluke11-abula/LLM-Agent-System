@@ -202,8 +202,9 @@ python agent_workspace\tool_manifest.py validate
 | P0 | ✅ Done | UTF-8 docs, bootstrap/verify, generated-data governance |
 | P1 | ✅ Done | FastAPI WebSocket streaming, native multi-provider (Claude / GPT-4o), Redis memory backend |
 | P2 | ✅ Done | Governed memory (episodic, semantic, retention, delete, citation), Topological Workspace schema & viewer |
-| P3 | 🔲 Next | Delegation hardening: cancellation, traceability, replay, audit, tool limits, cost measurement |
-| P4 | 🔲 Planned | Package LAS as local-first, auditable, AI-maintainable, protocol-compatible runtime infrastructure |
+| P3 | ✅ Done | Delegation hardening: timeout protection, worker config, tool loops, cost measurement |
+| P4 | 🔲 Next | Multi-Account support & real-time token tracking for seamless vibe coding |
+| P5 | 🔲 Planned | Package LAS as local-first, auditable, AI-maintainable, protocol-compatible runtime infrastructure |
 
 ---
 
@@ -323,5 +324,6 @@ python agent_workspace\topology_stream.py stream --msg "test" --session verify-p
 | P0 | ✅ 完成 | 亂碼修復、bootstrap/verify、generated data 治理 |
 | P1 | ✅ 完成 | FastAPI WebSocket 串流、多模型原生支援 (Claude / GPT-4o)、Redis 記憶體後端 |
 | P2 | ✅ 完成 | 可治理記憶體 (Governed Memory)、拓撲式工作區 Schema 與 Viewer |
-| P3 | 🔲 下一步 | delegation 完整化：取消、追蹤、重放、審計、工具限額、成本度量 |
-| P4 | 🔲 規劃中 | 商業包裝：local-first、auditable、AI-maintainable、protocol-compatible |
+| P3 | ✅ 完成 | delegation 完整化：超時保護、取消、追蹤、工具限制、成本與 token 度量 |
+| P4 | 🔲 下一步 | 多帳號管理與即時 Token 用量/額度追蹤，不中斷 Vibe Coding 流程 |
+| P5 | 🔲 規劃中 | 商業包裝：local-first、auditable、AI-maintainable、protocol-compatible |

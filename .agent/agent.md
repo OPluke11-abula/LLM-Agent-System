@@ -2,7 +2,7 @@
 protocol_version: "1.0.0"
 min_runtime_version: "0.1.0"
 name: programmer-agent
-version: "0.3.0"
+version: "0.4.0"
 purpose: >
   負責系統開發、程式碼重構、單元測試編寫與合約驗證的專業程序員 Agent。
 description: >
@@ -15,6 +15,8 @@ use_case_tags:
   - fastapi
   - topology-observability
   - pap-compatible
+  - account-management
+  - token-tracking
 tools:
   - delegate_task
   - calculate

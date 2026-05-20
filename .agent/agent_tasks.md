@@ -462,6 +462,55 @@ depends  : 0-03, 5-01
 
 ---
 
+## PHASE 6 — Account & Token Management / 帳號與 Token 管理
+
+### 6-01 Account Management Core / 多帳號管理核心
+
+```
+priority : HIGH
+effort   : M
+depends  : 0-02
+```
+
+- [ ] 實作 `agent_workspace/core/account_manager.py`，支援讀寫 `accounts.json`
+- [ ] 支援新增、刪除、查詢帳號，並支援每個帳號之 Model、Provider、API Key、Token 額度設定
+- [ ] 實作動態切換 active_account 核心邏輯
+- [ ] 撰寫對應之單元測試 `tests/test_account_manager.py`
+
+---
+
+### 6-02 Router & Provider Integration / 路由與 Provider 整合
+
+```
+priority : HIGH
+effort   : M
+depends  : 6-01
+```
+
+- [ ] 修改 `agent_workspace/core/providers.py`，支援傳入 dynamic `api_key` 與 `base_url`
+- [ ] 修改 `agent_workspace/core/router.py`，於每一次呼叫 LLM 前自 active account 讀取設定
+- [ ] 在呼叫成功後，將 Prompt 與 Completion Token 的用量即時累加並寫回 `accounts.json`
+- [ ] 實作額度檢查邏輯，若 token 用盡則拋出異常或自動 fallback 到下一個可用帳號
+- [ ] 撰寫測試驗證 Router token 即時扣款與阻斷行為
+
+---
+
+### 6-03 API Endpoints & DX / API 端點與開發體驗
+
+```
+priority : HIGH
+effort   : S
+depends  : 6-02
+```
+
+- [ ] 在 `agent_workspace/api.py` 中新增 `GET /v1/accounts` 查詢所有帳號與剩餘 tokens 餘額
+- [ ] 新增 `POST /v1/accounts` 用於新增或更新帳號與 API 金鑰
+- [ ] 新增 `POST /v1/accounts/active` 動態切換目前作用的帳號，不中斷 Vibe Coding 流程
+- [ ] 擴充 `/v1/chat` 與 `/v1/stream` payload，使其支援可選之 `account_id` 欄位進行 Session 隔離
+- [ ] 測試 API 介面之完整運作
+
+---
+
 ## Task Summary
 
 | Phase | 任務數 | 預估規模 |
@@ -472,7 +521,8 @@ depends  : 0-03, 5-01
 | PHASE 3 Quality | 4 tasks, 23 items | 品質保證 |
 | PHASE 4 Ecosystem | 3 tasks, 16 items | 生態建設 |
 | PHASE 5 Self-Evolution | 3 tasks, 12 items | 長期目標 |
-| **Total** | **25 tasks** | **153 items** |
+| PHASE 6 Account & Token | 3 tasks, 13 items | 帳號與 Token 管理 |
+| **Total** | **28 tasks** | **166 items** |
 
 ---
 
