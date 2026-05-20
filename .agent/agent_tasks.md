@@ -34,15 +34,15 @@ effort   : M
 depends  : 0-01
 ```
 
-- [ ] 建立 `.agent/memory/episodic/` 目錄，加入 `README.md` 說明格式
-- [ ] 建立 `.agent/memory/semantic/` 目錄，加入 `README.md`
-- [ ] 建立 `.agent/memory/handoff/` 目錄，用於跨 agent 交接
-- [ ] 撰寫 `.agent/memory/schema.json`，定義所有欄位與型別
-- [ ] 新增範例檔 `examples/memory_episodic_sample.jsonl`
-- [ ] 新增範例檔 `examples/memory_semantic_sample.json`
-- [ ] 新增範例檔 `examples/memory_handoff_sample.json`
-- [ ] 在 `agent_runtime/` 實作 `MemoryBackend` 類別，支援 read / write / query
-- [ ] 補充對應測試 `tests/test_memory_backend.py`
+- [x] 建立 `.agent/memory/episodic/` 目錄，加入 `README.md` 說明格式
+- [x] 建立 `.agent/memory/semantic/` 目錄，加入 `README.md`
+- [x] 建立 `.agent/memory/handoff/` 目錄，用於跨 agent 交接
+- [x] 撰寫 `.agent/memory/schema.json`，定義所有欄位與型別
+- [x] 新增範例檔 `examples/memory_episodic_sample.jsonl`
+- [x] 新增範例檔 `examples/memory_semantic_sample.json`
+- [x] 新增範例檔 `examples/memory_handoff_sample.json`
+- [x] 在 `agent_runtime/` 實作 `MemoryBackend` 類別，支援 read / write / query
+- [x] 補充對應測試 `tests/test_memory_backend.py`
 
 ---
 

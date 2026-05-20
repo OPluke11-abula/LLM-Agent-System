@@ -239,7 +239,8 @@ agent_workspace/agent_workspace/memory/*.db
 workspace/*.json
 workspace/*.tmp
 agent_workspace/tool_manifest.json
-memory/
+/memory/
+!.agent/memory/
 
 
 # Test scripts (development-only)

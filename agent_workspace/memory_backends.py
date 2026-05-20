@@ -349,12 +349,111 @@ class RedisBackend(MemoryBackend):
 
 
 # ---------------------------------------------------------------------------
+# File implementation — pure local files (episodic, semantic, handoff)
+# ---------------------------------------------------------------------------
+
+class FileBackend(MemoryBackend):
+    """File-backed long-term memory storing records in standard PAP directories."""
+
+    def __init__(self, memory_dir: str | Path) -> None:
+        self.memory_dir = Path(memory_dir)
+        self.memory_dir.mkdir(parents=True, exist_ok=True)
+        (self.memory_dir / "episodic").mkdir(parents=True, exist_ok=True)
+        (self.memory_dir / "semantic").mkdir(parents=True, exist_ok=True)
+        (self.memory_dir / "handoff").mkdir(parents=True, exist_ok=True)
+
+    def write(self, session_id: str, key: str, value: dict[str, Any]) -> None:
+        domain = value.get("domain", "episodic")
+        if domain == "episodic":
+            target_dir = self.memory_dir / "episodic"
+        elif domain in ("semantic", "preference"):
+            target_dir = self.memory_dir / "semantic"
+        elif domain == "handoff":
+            target_dir = self.memory_dir / "handoff"
+        else:
+            target_dir = self.memory_dir
+        
+        target_dir.mkdir(parents=True, exist_ok=True)
+        file_path = target_dir / f"{key}.json"
+        
+        import json
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(value, f, ensure_ascii=False, indent=2)
+
+    def read(self, session_id: str, key: str) -> dict[str, Any] | None:
+        for p in self.memory_dir.rglob(f"{key}.json"):
+            try:
+                with open(p, "r", encoding="utf-8") as f:
+                    import json
+                    return json.load(f)
+            except Exception:
+                pass
+        return None
+
+    def search(
+        self,
+        query: str,
+        session_id: str | None = None,
+        top_k: int = 5,
+    ) -> list[dict[str, Any]]:
+        tokens = [t.lower() for t in query.strip().split() if t]
+        if not tokens:
+            return self.all_records()[:top_k]
+        
+        matched = []
+        for record in self.all_records():
+            if session_id and record.get("session_id") != session_id:
+                continue
+            summary = (record.get("summary") or "").lower()
+            keywords = [k.lower() for k in record.get("keywords") or []]
+            
+            score = 0
+            for token in tokens:
+                if token in summary:
+                    score += 1
+                for kw in keywords:
+                    if token in kw:
+                        score += 2
+            if score > 0:
+                matched.append((score, record))
+        
+        matched.sort(key=lambda x: x[0], reverse=True)
+        return [r for score, r in matched[:top_k]]
+
+    def all_records(self) -> list[dict[str, Any]]:
+        records = []
+        for p in self.memory_dir.rglob("*.json"):
+            if p.name == "schema.json":
+                continue
+            try:
+                with open(p, "r", encoding="utf-8") as f:
+                    import json
+                    records.append(json.load(f))
+            except Exception:
+                pass
+        # Sort by created_at descending
+        records.sort(key=lambda r: r.get("created_at", ""), reverse=True)
+        return records
+
+    def delete(self, session_id: str, key: str) -> bool:
+        deleted = False
+        for p in self.memory_dir.rglob(f"{key}.json"):
+            try:
+                p.unlink()
+                deleted = True
+            except Exception:
+                pass
+        return deleted
+
+
+# ---------------------------------------------------------------------------
 # Factory
 # ---------------------------------------------------------------------------
 
 _BACKEND_REGISTRY: dict[str, type[MemoryBackend]] = {
     "sqlite": SQLiteBackend,
     "redis": RedisBackend,
+    "file": FileBackend,
 }
 
 
