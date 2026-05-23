@@ -186,6 +186,33 @@ Dry-run topology generation (no LLM required):
 python agent_workspace/topology_stream.py stream --msg "test" --session verify-p1 --dry-run
 ```
 
+### Developer Operations CLI & Workflows
+
+LAS provides a unified Developer CLI toolbelt (`agent_workspace/cli.py`) for managing runtime skills, memory, validation, and declarative n8n-like workflows:
+
+```powershell
+# List all registered local and global skills
+python agent_workspace/cli.py --list-skills
+
+# Describe a specific skill contract schema in YAML
+python agent_workspace/cli.py --describe-skill calculate
+
+# Run zero-dependency PAP workspace validation
+python agent_workspace/cli.py --validate
+
+# Read/Write persistent long-term memory records
+python agent_workspace/cli.py --session my-session --memory-write sem-rule-1 "Direct memory update"
+python agent_workspace/cli.py --session my-session --memory-read sem-rule-1
+
+# Execute a declarative DAG workflow defined in .agent/workflows/<id>.md
+python agent_workspace/cli.py --run-workflow my_workflow
+
+# Resume a failed workflow run from its last checkpoint
+python agent_workspace/cli.py --run-workflow my_workflow --resume
+```
+
+Declarative workflows run step-by-step using an **Asynchronous Workflow Engine** (`core/workflow_engine.py`) which tracks state transitions (`pending` -> `running` -> `success` / `failed`), manages dynamic Jinja2 parameter rendering, and supports checkpoint serialization to `.agent/workflows/runs/<session_id>.json` for automatic resumption.
+
 ### Contract Pipeline & Workspace Contexts
 
 ```powershell
@@ -300,6 +327,33 @@ LAS 的護城河不是「又一個聊天 agent」，而是 Contract-First Runtim
 - **執行摘要 (result_summary)** — 任務完成後自動濃縮的結果
 
 每條連線 (edge) 定義任務相依性，支援型別：`handoff`、`tool`、`rbac`、`error`、`hitl`。
+
+### 開發者指令集與工作流 (Developer CLI & Workflows)
+
+LAS 提供統一的開發者工具箱 (`agent_workspace/cli.py`)，用於管理執行期工具、長期記憶、工作區驗證以及執行 n8n 式的宣告式工作流：
+
+```powershell
+# 列出所有已註冊的本地與全域工具合約
+python agent_workspace/cli.py --list-skills
+
+# 以 YAML 格式展示特定工具合約細節
+python agent_workspace/cli.py --describe-skill calculate
+
+# 執行零相依性 PAP 工作區合約結構驗證
+python agent_workspace/cli.py --validate
+
+# 讀取/寫入持久化長期記憶記錄
+python agent_workspace/cli.py --session my-session --memory-write sem-rule-1 "直接更新記憶"
+python agent_workspace/cli.py --session my-session --memory-read sem-rule-1
+
+# 執行定義於 .agent/workflows/<id>.md 的宣告式 DAG 工作流
+python agent_workspace/cli.py --run-workflow my_workflow
+
+# 從上次失敗的檢查點恢復（Resume）工作流執行
+python agent_workspace/cli.py --run-workflow my_workflow --resume
+```
+
+宣告式工作流採用**非同步工作流引擎** (`core/workflow_engine.py`) 進行，全程追蹤狀態轉換（`pending` -> `running` -> `success` / `failed`），並會將進度與資料序列化至 `.agent/workflows/runs/<session_id>.json` 供隨時中斷重啟。
 
 ### 驗證命令與 PAP 整合
 

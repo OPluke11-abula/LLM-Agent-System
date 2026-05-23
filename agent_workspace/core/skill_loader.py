@@ -15,23 +15,37 @@ class SkillLoader:
 
     def discover_skills(self) -> dict[str, dict[str, Any]]:
         """
-        Scan skills/*/SKILL.md, extract frontmatter, and generate Pydantic tools.
+        Scan both global skills directory and local workspace skills/ directory,
+        extract frontmatter, and generate Pydantic tools.
         Returns a registry dictionary compatible with AgentEngine.tools_registry.
         """
-        skills_dir = os.path.join(self.workspace_path, "skills")
-        if not os.path.isdir(skills_dir):
-            return {}
+        import sys
+        is_testing = "pytest" in sys.modules
 
-        for entry in sorted(os.listdir(skills_dir)):
-            entry_path = os.path.join(skills_dir, entry)
-            if os.path.isdir(entry_path):
-                skill_file = os.path.join(entry_path, "SKILL.md")
-                if os.path.isfile(skill_file):
-                    self._parse_and_register_skill(skill_file)
+        # 1. Load global skills first (so local skills can override them)
+        if not is_testing:
+            global_skills_dir = os.path.join(os.path.expanduser("~"), ".gemini", "antigravity", "skills")
+            if os.path.isdir(global_skills_dir):
+                for entry in sorted(os.listdir(global_skills_dir)):
+                    entry_path = os.path.join(global_skills_dir, entry)
+                    if os.path.isdir(entry_path):
+                        skill_file = os.path.join(entry_path, "SKILL.md")
+                        if os.path.isfile(skill_file):
+                            self._parse_and_register_skill(skill_file, is_global=True)
+
+        # 2. Load local skills (overriding global if naming collides)
+        skills_dir = os.path.join(self.workspace_path, "skills")
+        if os.path.isdir(skills_dir):
+            for entry in sorted(os.listdir(skills_dir)):
+                entry_path = os.path.join(skills_dir, entry)
+                if os.path.isdir(entry_path):
+                    skill_file = os.path.join(entry_path, "SKILL.md")
+                    if os.path.isfile(skill_file):
+                        self._parse_and_register_skill(skill_file, is_global=False)
 
         return self.markdown_skills
 
-    def _parse_and_register_skill(self, filepath: str) -> None:
+    def _parse_and_register_skill(self, filepath: str, is_global: bool = False) -> None:
         """Parse SKILL.md and register it as a Pydantic tool."""
         try:
             with open(filepath, "r", encoding="utf-8") as file:
@@ -81,6 +95,7 @@ class SkillLoader:
             "schema": ArgsModel.model_json_schema(),
             "wants_context": False,
             "is_markdown_skill": True, # Flag to distinguish from Python skills
+            "is_global_skill": is_global, # Track global skills
         }
 
     @staticmethod

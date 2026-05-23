@@ -196,24 +196,50 @@ class AgentRouter:
         skills = []
         pap_dir = self._get_pap_dir()
         skills_dir = os.path.join(pap_dir, "skills")
-        if not os.path.isdir(skills_dir):
-            return []
         
-        for filename in sorted(os.listdir(skills_dir)):
-            if filename.endswith(".md") and not filename.startswith("_"):
-                skill_id = filename[:-3]
-                try:
-                    skills.append(self.describe_skill(skill_id))
-                except Exception:
-                    pass
+        # 1. List local skills
+        if os.path.isdir(skills_dir):
+            for filename in sorted(os.listdir(skills_dir)):
+                if filename.endswith(".md") and not filename.startswith("_"):
+                    skill_id = filename[:-3]
+                    try:
+                        skills.append(self.describe_skill(skill_id))
+                    except Exception:
+                        pass
+
+        # 2. List global skills (avoiding duplicates and skipping during tests)
+        import sys
+        is_testing = "pytest" in sys.modules
+        if not is_testing:
+            global_skills_dir = os.path.join(os.path.expanduser("~"), ".gemini", "antigravity", "skills")
+            if os.path.isdir(global_skills_dir):
+                for entry in sorted(os.listdir(global_skills_dir)):
+                    entry_path = os.path.join(global_skills_dir, entry)
+                    if os.path.isdir(entry_path):
+                        skill_file = os.path.join(entry_path, "SKILL.md")
+                        if os.path.isfile(skill_file):
+                            skill_id = entry.replace("-", "_")
+                            # Avoid duplicates if local already registered it
+                            if not any(s.get("id") == skill_id for s in skills):
+                                try:
+                                    skills.append(self.describe_skill(skill_id))
+                                except Exception:
+                                    pass
         return skills
 
     def describe_skill(self, skill_id: str) -> dict[str, Any]:
         """Retrieve detailed contract content (YAML frontmatter) for a specific skill."""
         pap_dir = self._get_pap_dir()
         contract_path = os.path.join(pap_dir, "skills", f"{skill_id}.md")
+        
+        # Fallback to global registry
         if not os.path.isfile(contract_path):
-            raise FileNotFoundError(f"Skill contract not found for ID '{skill_id}'")
+            global_dir = os.path.join(os.path.expanduser("~"), ".gemini", "antigravity", "skills", skill_id.replace("_", "-"))
+            global_contract = os.path.join(global_dir, "SKILL.md")
+            if os.path.isfile(global_contract):
+                contract_path = global_contract
+            else:
+                raise FileNotFoundError(f"Skill contract not found for ID '{skill_id}' in local or global directories")
         
         with open(contract_path, "r", encoding="utf-8") as f:
             content = f.read()
@@ -228,6 +254,10 @@ class AgentRouter:
         fm = yaml.safe_load(parts[1])
         if not isinstance(fm, dict):
             raise ValueError(f"Skill contract frontmatter for '{skill_id}' is not a dictionary")
+            
+        # Standardize "id" key in return manifest if it's a global SKILL.md
+        if "id" not in fm and "name" in fm:
+            fm["id"] = fm["name"].replace("-", "_")
             
         return fm
 

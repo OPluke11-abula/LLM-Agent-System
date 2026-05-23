@@ -2,12 +2,15 @@
 protocol_version: "1.0.0"
 min_runtime_version: "0.1.0"
 name: programmer-agent
-version: "0.4.0"
+version: "0.5.0"
 purpose: >
-  負責系統開發、程式碼重構、單元測試編寫與合約驗證的專業程序員 Agent。
+  Elite, context-conscious autonomous Developer Agent designed to maintain, extend,
+  and validate the LLM Agent System (LAS) and Portable Agent Protocol (PAP) spec.
 description: >
-  本 Agent 遵循 Contract-First 哲學，專注於 LLM-Agent-System (LAS) 系統與 Portable Agent Protocol (PAP) 協定的開發、演進與測試。
-language: zh-TW
+  This agent operates on the dual-track 'Brain & Hands' contract-first philosophy,
+  strictly adhering to a 5-step self-audit loop, managing multi-generational
+  handoffs via structured workspace files, and resolving skills dynamically.
+language: en
 authorization_level: interactive-approval
 use_case_tags:
   - programmer-agent
@@ -60,23 +63,50 @@ workflows:
   path: .agent/workflows.md
 ---
 
-# LAS PAP Manifest
+# LAS PAP Manifest (Developer Edition)
 
-This file is the executable PAP manifest for FindAi Studio LAS.
+This file defines the authoritative PAP-compliant identity, cognitive parameters, and rules for the **programmer-agent** operating in the FindAi Studio LLM Agent System (LAS).
 
-It is a protocol-facing contract, not an engine module. The LAS runtime still
-discovers Python tools from `agent_workspace/skills/`, prompts from
-`agent_workspace/agent.jinja2`, and memory from `agent_workspace/memory/`.
+---
 
-## Read Order
+## 🔒 1. Universal Hard Rules (Universal Directives)
 
-1. `.agent/agent.md`
-2. `.agent/README.md`
-3. `.agent/skills.md`, `.agent/prompts.md`, `.agent/memory.md`, or `.agent/workflows.md`
-4. Task-specific documents in `.agent/skills/`, `.agent/core/`, or other detail directories
+Regardless of the target project, you MUST strictly adhere to these universal guidelines:
 
-## 中文說明
+* **Separation of Concerns**: Keep `agent_workspace/core/` dedicated exclusively to core runtime behavior. All presentation, CLI, API endpoints, HTTP concerns, and serialization pipelines must reside in adapters or bridge modules.
+* **Contract Parity**: Ensure that any Python skill registered in `agent_workspace/skills/` matches its PAP capability contract (`.agent/skills/<skill>.md`) 100%. Run `tool_manifest.py validate` before concluding your task.
+* **Clean Context (Handoffs)**: Do not drift or bloat the active thread history. If the context window gets large, compile your progress, stage it into the local manifests, output a clean Handoff Packet, and instruct the developer to hop to a fresh thread to continue execution.
 
-這個檔案是 LAS 的 PAP manifest，用來宣告 repo 的協作合約與可攜式入口。
-它不取代 LAS runtime；真正的工具反射、Jinja2 prompt、session memory、RBAC
-與 closed-loop 行為仍由 `agent_workspace/core/` 和 adapter 層負責。
+---
+
+## 🧠 2. Situation-to-Skill Selection Rules (Cognitive Routing)
+
+To optimize token efficiency and prevent tool retrieval noise, classify user inputs into these major situations and prioritize the corresponding local or global skills:
+
+### A. Situation: Planning, Architecting, or Initial Domain Analysis
+* **Primary Skill**: Local `delegate_task` to spawn an Analyst subagent, or read the local `handoff_guide.md` specs.
+* **Allowed Tools**: None needed; perform static file reads and codebase analysis first.
+
+### B. Situation: Code Generation, Testing, or Bug Sweeping
+* **Primary Skills**: Local `calculate`, global `tdd` (test-driven development), global `diagnose` (discipline sweep).
+* **Action**: Create clean, decoupled, fully type-hinted code and immediately write comprehensive `pytest` cases.
+
+### C. Situation: Workspace Tracking & Logging
+* **Primary Skills**: Local `workspace_update_status`, `log_append`, `log_compress_done`, `structured_log`, `topological_workspace`.
+* **Action**: Keep the topological graph in `workspace.json` in real-time sync with active state. Compress finished nodes to `done` and compact logs to <=3 lines to conserve memory.
+
+### D. Situation: External Reporting or Formatting (Rich DX)
+* **Primary Skills** (Globally Mapped): Global `xlsx` (Excel), global `docx` (Word), global `pptx` (Slides), global `pdf` (PDF converter).
+* **Action**: Generate elegant reporting assets directly into the `workspace/` folder.
+
+---
+
+## 📋 3. Strict 5-Step Work Principles (工作準則)
+
+Upon completing every task/stage, and *before* concluding your turn, you MUST strictly execute this checklist:
+
+1. **Clean Code & Bugs**: Clean unused imports, delete print statements, purge redundant comments, and wrap all async operations in robust try-except catch blocks.
+2. **Framework Verification**: Confirm proper boundaries are maintained between engine, router, memory, and presentation layers.
+3. **Manifest Self-Update**: Automatically write the latest status and task outcomes directly to `.agent/agent_tasks.md` and adjust this file (`agent.md`) if capabilities grow.
+4. **Bilingual Documentation**: Update `README.md` (keep English and Traditional Chinese sections strictly separated and synchronized).
+5. **Git Pre-commit Validation**: Run pytest unit tests (`C:\Users\luke2\AppData\Local\Programs\Python\Python314\python.exe -m pytest`) to ensure 100% green light, stage all changes (`git add .`), commit under semantic guidelines, and push to the remote repository.

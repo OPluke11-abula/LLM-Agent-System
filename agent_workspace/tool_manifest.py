@@ -69,6 +69,8 @@ class ToolManifest:
         project_root = Path(engine.workspace_path).parent
 
         for name, tool_info in engine.tools_registry.items():
+            if tool_info.get("is_global_skill"):
+                continue  # Skip global skills from local manifest sync/validation
             func = tool_info["function"]
             module_file = getattr(sys.modules.get(func.__module__), "__file__", None)
             if module_file:
