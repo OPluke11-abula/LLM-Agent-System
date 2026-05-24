@@ -37,6 +37,15 @@ class ToolValidationError(ValueError):
     pass
 
 
+class ApprovalDeniedError(PermissionError):
+    """Raised when human approval is denied for a tool execution."""
+    pass
+
+
+ACTIVE_APPROVALS: dict[str, dict[str, Any]] = {}
+
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -173,6 +182,141 @@ class AgentRouter:
             logger.warning("Failed to load config.yaml: %s", error)
             return {}
 
+    def _get_authorization_level(self) -> str:
+        try:
+            pap_dir = self._get_pap_dir()
+            agent_md_path = os.path.join(pap_dir, "agent.md")
+            if os.path.isfile(agent_md_path):
+                with open(agent_md_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                parts = content.split("---", 2)
+                if len(parts) >= 3:
+                    fm = yaml.safe_load(parts[1])
+                    if isinstance(fm, dict):
+                        return fm.get("authorization_level", "standard")
+        except Exception as e:
+            logger.warning("Failed to parse agent.md for authorization_level: %s", e)
+        return "standard"
+
+    def _get_topology_emitter(self):
+        try:
+            from topology_bridge import TopologyEmitter
+        except ImportError:
+            from agent_workspace.topology_bridge import TopologyEmitter
+        
+        workspace_dir = os.environ.get("AGENT_WORKSPACE_DIR")
+        if workspace_dir:
+            path = os.path.join(workspace_dir, "topology_state.json")
+        else:
+            path = os.path.join(self.engine.workspace_path, "..", "workspace", "topology_state.json")
+        return TopologyEmitter(session_id=self.session_id, output_path=path)
+
+    async def _wait_for_approval(self, tool_name: str, arguments: dict[str, Any]) -> bool:
+        """Wait for human approval of the tool execution.
+        Returns True if approved, False if rejected.
+        """
+        future = asyncio.get_running_loop().create_future()
+        
+        req = {
+            "future": future,
+            "tool_name": tool_name,
+            "arguments": arguments,
+            "status": "awaiting_approval",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        ACTIVE_APPROVALS[self.session_id] = req
+        
+        try:
+            from topology_bridge import TopologyEvent
+        except ImportError:
+            from agent_workspace.topology_bridge import TopologyEvent
+
+        # Emit awaiting_approval hitl_gate topology event
+        try:
+            emitter = self._get_topology_emitter()
+            event = TopologyEvent.create(
+                session_id=self.session_id,
+                node_id=f"hitl-{tool_name}-{self.session_id}",
+                parent_node_id=f"session-{self.session_id}",
+                node_type="hitl_gate",
+                edge_type="hitl",
+                status="awaiting_approval",
+                payload={
+                    "title": f"HITL Gate: {tool_name}",
+                    "description": f"Awaiting approval for executing tool '{tool_name}'",
+                    "assigned_agent": self.agent_name,
+                    "tool_name": tool_name,
+                    "arguments": arguments,
+                }
+            )
+            emitter.emit(event)
+        except Exception as e:
+            logger.warning("Failed to emit awaiting_approval event: %s", e)
+            
+        try:
+            approved = await future
+            
+            # Emit outcome to topology
+            try:
+                emitter = self._get_topology_emitter()
+                event = TopologyEvent.create(
+                    session_id=self.session_id,
+                    node_id=f"hitl-{tool_name}-{self.session_id}",
+                    parent_node_id=f"session-{self.session_id}",
+                    node_type="hitl_gate",
+                    edge_type="hitl",
+                    status="completed" if approved else "error",
+                    payload={
+                        "title": f"HITL Gate: {tool_name}",
+                        "description": f"Approval {'granted' if approved else 'denied'} for tool '{tool_name}'",
+                        "assigned_agent": self.agent_name,
+                        "tool_name": tool_name,
+                        "arguments": arguments,
+                        "result_summary": "Approved" if approved else "Rejected",
+                    }
+                )
+                emitter.emit(event)
+            except Exception as e:
+                logger.warning("Failed to update topology event status: %s", e)
+                
+            return approved
+        finally:
+            ACTIVE_APPROVALS.pop(self.session_id, None)
+
+    def resolve_approval(self, approved: bool) -> None:
+        req = ACTIVE_APPROVALS.get(self.session_id)
+        if req and not req["future"].done():
+            req["future"].set_result(approved)
+
+    async def _execute_tool_with_approval(
+        self,
+        tool_name: str,
+        tool_args: dict[str, Any],
+        allowed_tools: list[str] | None,
+        system_context: dict[str, Any],
+    ) -> Any:
+        auth_level = self._get_authorization_level()
+        is_sensitive = False
+        try:
+            contract = self.describe_skill(tool_name)
+            is_sensitive = contract.get("sensitive", False)
+        except Exception:
+            pass
+
+        if is_sensitive or auth_level == "interactive-approval":
+            approved = await self._wait_for_approval(tool_name, tool_args)
+            if not approved:
+                raise ApprovalDeniedError(f"Human approval denied for tool '{tool_name}'")
+
+        return await asyncio.to_thread(
+            self.engine.execute_tool,
+            tool_name,
+            tool_args,
+            allowed_tools,
+            system_context,
+        )
+
+
     def _get_pap_dir(self) -> str:
         pap_dir = os.path.join(self.engine.workspace_path, ".agent")
         if os.path.isdir(pap_dir):
@@ -270,6 +414,56 @@ class AgentRouter:
                 logger.warning("Bypassing validation for mock/test tool '%s'", skill_id)
                 return
             raise ToolValidationError(f"Skill contract not found for ID '{skill_id}'") from err
+
+        # RBAC validation
+        user_role = "standard"
+        resolved_account = getattr(self, "_resolved_account", None)
+        if resolved_account is None:
+            try:
+                resolved_account = self._resolve_account()
+            except Exception:
+                pass
+        if resolved_account:
+            user_role = resolved_account.get("role", resolved_account.get("rbac_role", "standard"))
+            
+        required_role = contract.get("required_role") if contract else None
+        if required_role:
+            ROLE_HIERARCHY = {
+                "standard": 1,
+                "developer": 2,
+                "admin": 3
+            }
+            user_level = ROLE_HIERARCHY.get(user_role, 1)
+            req_level = ROLE_HIERARCHY.get(required_role, 1)
+            if user_level < req_level:
+                try:
+                    from topology_bridge import TopologyEvent
+                except ImportError:
+                    from agent_workspace.topology_bridge import TopologyEvent
+                
+                try:
+                    emitter = self._get_topology_emitter()
+                    event = TopologyEvent.create(
+                        session_id=self.session_id,
+                        node_id=f"rbac-error-{skill_id}-{self.session_id}",
+                        parent_node_id=f"session-{self.session_id}",
+                        node_type="error",
+                        edge_type="rbac",
+                        status="error",
+                        payload={
+                            "title": "RBAC Authorization Failed",
+                            "description": f"User role '{user_role}' is insufficient for tool '{skill_id}' requiring role '{required_role}'",
+                            "assigned_agent": self.agent_name,
+                            "result_summary": "Permission Denied",
+                        }
+                    )
+                    emitter.emit(event)
+                except Exception as e:
+                    logger.warning("Failed to emit RBAC failure topology event: %s", e)
+                
+                raise PermissionError(
+                    f"RBAC authorization failed: role '{user_role}' is insufficient for tool '{skill_id}' requiring role '{required_role}'"
+                )
         
         # 1. Validate the skill contract itself using spec/skill-contract.schema.json if available
         spec_dir = self._get_spec_dir()
@@ -561,8 +755,7 @@ class AgentRouter:
             logger.info("Tool call requested: %s(%s)", tool_name, json.dumps(tool_args, ensure_ascii=False))
             self.validate_call(tool_name, tool_args)
             tasks.append(
-                asyncio.to_thread(
-                    self.engine.execute_tool,
+                self._execute_tool_with_approval(
                     tool_name,
                     tool_args,
                     allowed_tools,
@@ -721,9 +914,26 @@ class AgentRouter:
                             tool_args = tool_call.get("arguments", {})
                             yield {"type": "tool_call", "name": tool_name, "arguments": tool_args}
                             self.validate_call(tool_name, tool_args)
+                            # Check if approval is needed to yield hitl_gate event
+                            auth_level = self._get_authorization_level()
+                            is_sensitive = False
+                            try:
+                                contract = self.describe_skill(tool_name)
+                                is_sensitive = contract.get("sensitive", False)
+                            except Exception:
+                                pass
+
+                            if is_sensitive or auth_level == "interactive-approval":
+                                yield {
+                                    "type": "hitl_gate",
+                                    "status": "awaiting_approval",
+                                    "name": tool_name,
+                                    "arguments": tool_args,
+                                    "session_id": self.session_id,
+                                }
+
                             tasks.append(
-                                asyncio.to_thread(
-                                    self.engine.execute_tool,
+                                self._execute_tool_with_approval(
                                     tool_name,
                                     tool_args,
                                     allowed_tools,

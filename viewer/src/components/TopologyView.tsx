@@ -150,6 +150,24 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
   const copy = COPY[lang];
   const [visibleSessionIds, setVisibleSessionIds] = useState<string[]>([]);
   const [selectedNode, setSelectedNode] = useState<TopologyEvent | null>(null);
+  const [resolving, setResolving] = useState<string | null>(null);
+
+  const handleResolveApproval = async (sessionId: string, approved: boolean) => {
+    setResolving(approved ? "approving" : "rejecting");
+    const action = approved ? "approve" : "reject";
+    try {
+      const response = await fetch(`http://localhost:8000/v1/sessions/${sessionId}/${action}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!response.ok) throw new Error("API call failed");
+    } catch (e) {
+      console.error(e);
+      alert(`Failed to ${action} session: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setResolving(null);
+    }
+  };
 
   useEffect(() => {
     if (sessions.length === 0) return;
@@ -262,6 +280,31 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
                 <h3 className="mt-1 text-lg font-black t1">{selectedNode.title || selectedNode.payload?.name || selectedNode.id || selectedNode.node_id}</h3>
                 <p className="mt-1 text-xs t2">{selectedNode.description || selectedNode.payload?.description || selectedNode.status}</p>
               </div>
+              
+              {(selectedNode.status === "awaiting_approval" || selectedNode.status === "review" || selectedNode.node_type === "hitl_gate") && (
+                <div className="rounded-lg border p-3 border-amber-500/20 bg-amber-500/5 space-y-3">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-500">Human-in-the-Loop Required</p>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      disabled={resolving !== null}
+                      onClick={() => handleResolveApproval(selectedNode.session_id, true)}
+                      className="flex-1 py-1.5 px-3 rounded bg-amber-500 text-slate-950 text-xs font-bold hover:bg-amber-600 disabled:opacity-50 transition-colors flex items-center justify-center gap-1"
+                    >
+                      {resolving === "approving" ? "..." : "Approve"}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={resolving !== null}
+                      onClick={() => handleResolveApproval(selectedNode.session_id, false)}
+                      className="flex-1 py-1.5 px-3 rounded bg-slate-800 text-slate-200 border border-slate-700 text-xs font-bold hover:bg-slate-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-1"
+                    >
+                      {resolving === "rejecting" ? "..." : "Reject"}
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-2">
                 <div className="rounded-lg border p-2" style={{ background: "var(--bg-card)", borderColor: "var(--border-c)" }}>
                   <p className="text-[10px] font-bold t3">Status</p>

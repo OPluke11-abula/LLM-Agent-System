@@ -418,6 +418,34 @@ async def get_session(session_id: str) -> dict[str, Any]:
     }
 
 
+@app.post("/v1/sessions/{session_id}/approve")
+@app.post("/v1/session/{session_id}/approve")
+async def approve_session(session_id: str) -> dict[str, Any]:
+    from core.router import ACTIVE_APPROVALS
+    req = ACTIVE_APPROVALS.get(session_id)
+    if not req:
+        raise HTTPException(status_code=404, detail=f"No pending approval for session '{session_id}'")
+    future = req["future"]
+    if not future.done():
+        future.set_result(True)
+        return {"status": "approved", "session_id": session_id}
+    return {"status": "already_resolved", "session_id": session_id}
+
+
+@app.post("/v1/sessions/{session_id}/reject")
+@app.post("/v1/session/{session_id}/reject")
+async def reject_session(session_id: str) -> dict[str, Any]:
+    from core.router import ACTIVE_APPROVALS
+    req = ACTIVE_APPROVALS.get(session_id)
+    if not req:
+        raise HTTPException(status_code=404, detail=f"No pending approval for session '{session_id}'")
+    future = req["future"]
+    if not future.done():
+        future.set_result(False)
+        return {"status": "rejected", "session_id": session_id}
+    return {"status": "already_resolved", "session_id": session_id}
+
+
 @app.get("/v1/memory")
 async def list_long_term_memory() -> dict[str, Any]:
     store = get_long_term_memory()

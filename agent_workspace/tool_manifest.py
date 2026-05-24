@@ -50,6 +50,8 @@ class ToolEntry:
     input_schema: dict[str, Any]
     wants_context: bool = False
     pap_contract: str | None = None
+    required_role: str | None = None
+    sensitive: bool = False
 
 
 @dataclass
@@ -83,6 +85,7 @@ class ToolManifest:
 
             pap_path = project_root / ".agent" / "skills" / f"{name}.md"
             pap_contract = str(pap_path.relative_to(project_root)) if pap_path.exists() else None
+            required_role, sensitive = _parse_role_and_sensitivity(pap_path)
 
             schema = tool_info["schema"].copy()
             schema.pop("title", None)
@@ -96,6 +99,8 @@ class ToolManifest:
                     input_schema=schema,
                     wants_context=tool_info["wants_context"],
                     pap_contract=pap_contract.replace("\\", "/") if pap_contract else None,
+                    required_role=required_role,
+                    sensitive=sensitive,
                 )
             )
 
@@ -279,6 +284,7 @@ def _parse_skill_file(skill_file: Path, project_root: Path) -> list[ToolEntry]:
 
         pap_path = project_root / ".agent" / "skills" / f"{node.name}.md"
         pap_contract = str(pap_path.relative_to(project_root)).replace("\\", "/") if pap_path.exists() else None
+        required_role, sensitive = _parse_role_and_sensitivity(pap_path)
         module_rel = str(skill_file.relative_to(project_root)).replace("\\", "/")
         entries.append(
             ToolEntry(
@@ -289,6 +295,8 @@ def _parse_skill_file(skill_file: Path, project_root: Path) -> list[ToolEntry]:
                 input_schema=models[model_name],
                 wants_context=any(arg.arg == "context" for arg in node.args.args[1:]),
                 pap_contract=pap_contract,
+                required_role=required_role,
+                sensitive=sensitive,
             )
         )
 
@@ -315,6 +323,24 @@ def _extract_safety_notes(content: str) -> list[str]:
             elif stripped.startswith("---") or (stripped.startswith("#") and not stripped.startswith("##")):
                 in_section = False
     return notes
+
+
+def _parse_role_and_sensitivity(pap_path: Path) -> tuple[str | None, bool]:
+    required_role = None
+    sensitive = False
+    if pap_path.exists():
+        try:
+            content = pap_path.read_text(encoding="utf-8")
+            if content.startswith("---"):
+                parts = content.split("---", 2)
+                if len(parts) >= 3:
+                    fm = yaml.safe_load(parts[1])
+                    if isinstance(fm, dict):
+                        required_role = fm.get("required_role")
+                        sensitive = bool(fm.get("sensitive", False))
+        except Exception:
+            pass
+    return required_role, sensitive
 
 
 def sync_pap_contracts(manifest: ToolManifest, project_root: Path) -> list[str]:
@@ -365,6 +391,10 @@ def sync_pap_contracts(manifest: ToolManifest, project_root: Path) -> list[str]:
             "safety_notes": safety_notes_list,
             "author": "LAS Tool Manifest Auto-Sync"
         }
+        if tool.required_role:
+            frontmatter["required_role"] = tool.required_role
+        if tool.sensitive:
+            frontmatter["sensitive"] = tool.sensitive
         
         frontmatter_yaml = yaml.safe_dump(frontmatter, allow_unicode=True, sort_keys=False).strip()
         
@@ -564,13 +594,18 @@ def validate(manifest: ToolManifest, project_root: Path) -> list[str]:
                     elif not isinstance(fm["outputs"][ok], str) or not fm["outputs"][ok].strip():
                         warnings.append(f"INVALID_OUTPUT_TYPE: .agent/skills/{tool.name}.md front matter 'outputs.{ok}' must be a non-empty string")
 
-            # Validate safety_notes
             if not isinstance(fm["safety_notes"], list):
                 warnings.append(f"INVALID_SAFETY_NOTES: .agent/skills/{tool.name}.md front matter 'safety_notes' must be a list of strings")
             else:
                 for idx, note in enumerate(fm["safety_notes"]):
                     if not isinstance(note, str) or not note.strip():
                         warnings.append(f"INVALID_SAFETY_NOTE_ITEM: .agent/skills/{tool.name}.md front matter 'safety_notes[{idx}]' must be a non-empty string")
+
+            # Validate required_role
+            if "required_role" in fm:
+                req_role = fm["required_role"]
+                if not isinstance(req_role, str) or req_role not in ["admin", "developer", "standard"]:
+                    warnings.append(f"INVALID_REQUIRED_ROLE: .agent/skills/{tool.name}.md front matter 'required_role' must be 'admin', 'developer', or 'standard'")
 
         except Exception as e:
             warnings.append(f"PARSE_ERROR: Failed to parse .agent/skills/{tool.name}.md: {e}")

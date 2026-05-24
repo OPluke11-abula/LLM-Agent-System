@@ -40,7 +40,7 @@ export function TopologyEdgeBase({
           filter: `drop-shadow(0 0 8px ${color}55)`,
         }}
       />
-      {(tone === "handoff" || tone === "tool") && (
+      {(tone === "handoff" || tone === "tool" || tone === "hitl" || tone === "rbac") && (
         <path
           d={edgePath}
           fill="none"

@@ -481,6 +481,91 @@ def handle_run_debate(args):
         print(f"Error running debate session: {e}", file=sys.stderr)
         sys.exit(1)
 
+
+def handle_chat(args):
+    """Run an interactive chat session with the agent."""
+    engine = AgentEngine(workspace_path=workspace)
+    session = args.session or f"chat-session-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+    router = AgentRouter(engine, session_id=session)
+    
+    print(f"Starting chat session isolation: {session}")
+    print("Type '/exit' or '/quit' to end the session.")
+    print("-" * 60)
+    
+    async def chat_loop():
+        while True:
+            try:
+                loop = asyncio.get_running_loop()
+                user_input = await loop.run_in_executor(None, input, "\nUser: ")
+                user_input = user_input.strip()
+                if not user_input:
+                    continue
+                if user_input.lower() in ("/exit", "/quit"):
+                    break
+                
+                print("Agent: ", end="", flush=True)
+                async for event in router.stream_agent_loop(user_input):
+                    event_type = event.get("type")
+                    if event_type == "text_chunk":
+                        print(event["content"], end="", flush=True)
+                    elif event_type == "hitl_gate":
+                        tool_name = event.get("name")
+                        arguments = event.get("arguments")
+                        print(f"\n[HITL Gate] Awaiting approval for execution of tool '{tool_name}' with arguments: {json.dumps(arguments, ensure_ascii=False)}")
+                        choice = await loop.run_in_executor(None, input, f"Approve execution of tool '{tool_name}'? [y/N]: ")
+                        approved = choice.strip().lower() in ("y", "yes")
+                        router.resolve_approval(approved)
+                        print(f"Approval {'granted' if approved else 'denied'}.\nAgent: ", end="", flush=True)
+                    elif event_type == "error":
+                        print(f"\nError: {event['content']}", flush=True)
+                    elif event_type == "done":
+                        print(flush=True)
+            except KeyboardInterrupt:
+                break
+            except Exception as e:
+                print(f"\nError during run: {e}", flush=True)
+
+    try:
+        asyncio.run(chat_loop())
+    finally:
+        router.close()
+
+
+def handle_stream(args):
+    """Stream a single agent execution for a message."""
+    engine = AgentEngine(workspace_path=workspace)
+    session = args.session or "stream-session"
+    router = AgentRouter(engine, session_id=session)
+    
+    async def stream_run():
+        print(f"Streaming run (Session: {session})...")
+        print(f"User: {args.stream}")
+        print("Agent: ", end="", flush=True)
+        
+        loop = asyncio.get_running_loop()
+        async for event in router.stream_agent_loop(args.stream):
+            event_type = event.get("type")
+            if event_type == "text_chunk":
+                print(event["content"], end="", flush=True)
+            elif event_type == "hitl_gate":
+                tool_name = event.get("name")
+                arguments = event.get("arguments")
+                print(f"\n[HITL Gate] Awaiting approval for execution of tool '{tool_name}' with arguments: {json.dumps(arguments, ensure_ascii=False)}")
+                choice = await loop.run_in_executor(None, input, f"Approve execution of tool '{tool_name}'? [y/N]: ")
+                approved = choice.strip().lower() in ("y", "yes")
+                router.resolve_approval(approved)
+                print(f"Approval {'granted' if approved else 'denied'}.\nAgent: ", end="", flush=True)
+            elif event_type == "error":
+                print(f"\nError: {event['content']}", flush=True)
+            elif event_type == "done":
+                print(flush=True)
+
+    try:
+        asyncio.run(stream_run())
+    finally:
+        router.close()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Unified Operations Developer CLI toolbelt for LAS.")
     
@@ -496,11 +581,13 @@ def main() -> None:
     group.add_argument("--describe-skill", type=str, metavar="SKILL_ID", help="Display details for a specific skill contract.")
     group.add_argument("--validate", action="store_true", help="Run PAP structural validation.")
     group.add_argument("--memory-read", type=str, metavar="KEY", help="Read memory record by key.")
-    group.add_argument("--memory-write", nargs=2, metavar=("KEY", "VALUE"), help="Write custom memory record.")
+    group.add_argument("--memory-write", type=str, nargs=2, metavar=("KEY", "VALUE"), help="Write a memory record by key and value.")
     group.add_argument("--run-workflow", type=str, metavar="WORKFLOW_ID", help="Execute or resume declarative workflow.")
     group.add_argument("--init", action="store_true", help="Bootstrap a standard skeletal .agent/ folder structure.")
     group.add_argument("--lint", action="store_true", help="Statically check the .agent/ workspace integrity.")
     group.add_argument("--run-debate", action="store_true", help="Orchestrate a multi-agent debate and consensus loop.")
+    group.add_argument("--chat", action="store_true", help="Run an interactive, closed-loop chat session with the agent.")
+    group.add_argument("--stream", type=str, metavar="MESSAGE", help="Stream a single agent run execution for a message.")
     
     parser.add_argument("--resume", action="store_true", help="Resume workflow execution from last failed step.")
     parser.add_argument("--dry-run", action="store_true", help="Simulate init subcommand without creating files.")
@@ -512,7 +599,7 @@ def main() -> None:
     parser.add_argument("--agents", type=str, help="Comma-separated list of agent roles (e.g. analyst,programmer).")
     parser.add_argument("--rounds", type=int, default=2, help="Number of discussion rounds per agent.")
     
-    # Map command words "init", "lint", and "run-debate" to flags for backward compatibility and DX
+    # Map command words "init", "lint", "run-debate", "chat", and "stream" to flags for backward compatibility and DX
     sys_args = sys.argv[1:]
     if "init" in sys_args:
         idx = sys_args.index("init")
@@ -523,6 +610,12 @@ def main() -> None:
     elif "run-debate" in sys_args:
         idx = sys_args.index("run-debate")
         sys_args[idx] = "--run-debate"
+    elif "chat" in sys_args:
+        idx = sys_args.index("chat")
+        sys_args[idx] = "--chat"
+    elif "stream" in sys_args:
+        idx = sys_args.index("stream")
+        sys_args[idx] = "--stream"
         
     args = parser.parse_args(sys_args)
     
@@ -544,6 +637,10 @@ def main() -> None:
         handle_lint(args)
     elif args.run_debate:
         handle_run_debate(args)
-
+    elif args.chat:
+        handle_chat(args)
+    elif args.stream:
+        handle_stream(args)
+ 
 if __name__ == "__main__":
     main()

@@ -292,6 +292,40 @@ depends  : 6-03, 8-02
 
 ---
 
+## 🔒 PHASE 9 — Human-in-the-Loop & Dynamic RBAC / 人機協同與動態角色存取控制
+
+### 9-01 Intercept & Paused Loop in AgentRouter / 路由器攔截與暫停迴圈
+- [x] Implement global approval registry and custom exception `ApprovalDeniedError` / 實作全域核准註冊表與自訂異常 `ApprovalDeniedError`
+- [x] Intercept sensitive tools or `interactive-approval` authorization limits / 攔截敏感工具或 `interactive-approval` 授權限制
+- [x] Emit `hitl_gate` topology event with status `awaiting_approval` / 發送狀態為 `awaiting_approval` 的 `hitl_gate` 拓撲事件
+- [x] Write `test_hitl.py` unit tests with SQLite locks prevention / 撰寫 `test_hitl.py` 單元測試並防止 SQLite 鎖定
+
+---
+
+### 9-02 RBAC Static Guard / 角色型存取控制靜態防禦
+- [x] Parse and validate `required_role` contract property / 解析並驗證 `required_role` 合約屬性
+- [x] Enforce role permission hierarchy (`admin` > `developer` > `standard`) / 強制執行角色權限階級 (`admin` > `developer` > `standard`)
+- [x] Raise `PermissionError` and emit `rbac` edge event with status `error` on violation / 違規時引發 `PermissionError` 並發送 `error` 狀態的 `rbac` 邊緣事件
+- [x] Write `test_rbac.py` unit tests / 撰寫 `test_rbac.py` 單元測試
+
+---
+
+### 9-03 API Endpoints & Interactive CLI / API 端點與互動式 CLI
+- [x] Expose `POST /v1/sessions/{session_id}/approve` and `/reject` in `api.py` / 在 `api.py` 中公開 `POST /v1/sessions/{session_id}/approve` 與 `/reject`
+- [x] Update `cli.py` to support `--chat` and `--stream` commands / 更新 `cli.py` 支援 `--chat` 與 `--stream` 指令
+- [x] Handle interactive prompt approvals `[y/N]` without blocking asyncio loops / 處理互動式提示核准 `[y/N]` 且不阻塞 asyncio 迴圈
+
+---
+
+### 9-04 Pulsing Visuals & Zero-Build Dashboard / 脈動視覺與零編譯儀表板
+- [x] Style goldPulse amber border for awaiting_approval nodes in `viewer.html` / 在 `viewer.html` 中為等待核准的節點設計金黃脈動邊框
+- [x] Style dynamic glowing edge flow colors based on status (gold for HITL, red for RBAC errors) / 根據狀態動態調整流動粒子邊緣色彩 (核准路徑為金色，錯誤路徑為紅色)
+- [x] Render glassmorphic card Approve/Reject action buttons in `viewer.html` / 在 `viewer.html` 的卡片中渲染玻璃擬態核准/拒絕按鈕
+- [x] Enable flow particles for React Flow `hitl` / `rbac` edge types in `TopologyEdgeBase.tsx` / 在 `TopologyEdgeBase.tsx` 中為 React Flow 的 `hitl`/`rbac` 邊緣啟用粒子流
+- [x] Integrate interactive sidebar card actions in `TopologyView.tsx` / 在 `TopologyView.tsx` 中整合互動式側邊欄卡片操作
+
+---
+
 ## 📈 Queue Summary & Progress
 
 | Phase | Total Tasks | Completed Tasks | Status |
@@ -303,5 +337,6 @@ depends  : 6-03, 8-02
 | **Phase 6: Multi-Account** | 3 tasks | 3 tasks | 100% Done |
 | **Phase 7: Consensus** | 2 tasks | 2 tasks | 100% Done |
 | **Phase 8: UI/UX & Visuals** | 3 tasks | 3 tasks | 100% Done |
+| **Phase 9: HITL & RBAC** | 4 tasks | 4 tasks | 100% Done |
 
 *This queue is managed dynamically by the active LAS Developer Agent. All task updates, outcome logs, and progress status updates are written directly to this file before turn conclusion.*

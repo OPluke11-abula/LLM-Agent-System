@@ -49,10 +49,21 @@
       box-shadow: 0 0 15px rgba(59, 130, 246, 0.25);
       background: rgba(59, 130, 246, 0.12);
     }
+    @keyframes goldPulse {
+      0%, 100% {
+        box-shadow: 0 0 12px rgba(245, 158, 11, 0.35), inset 0 0 8px rgba(245, 158, 11, 0.15);
+        border-color: hsla(45, 100%, 50%, 0.6) !important;
+      }
+      50% {
+        box-shadow: 0 0 24px rgba(245, 158, 11, 0.8), inset 0 0 16px rgba(245, 158, 11, 0.4);
+        border-color: hsla(45, 100%, 50%, 1.0) !important;
+      }
+    }
     .status-review { 
-      border: 2px solid hsl(25, 95%, 53%) !important; 
-      box-shadow: 0 0 15px rgba(249, 115, 22, 0.25);
-      background: rgba(249, 115, 22, 0.12);
+      border: 2px solid hsl(45, 100%, 50%) !important; 
+      box-shadow: 0 0 15px rgba(245, 158, 11, 0.25);
+      background: rgba(245, 158, 11, 0.08);
+      animation: goldPulse 2s ease-in-out infinite !important;
     }
     .status-done { 
       border: 2px solid hsl(142, 70%, 45%) !important; 
@@ -66,7 +77,7 @@
     }
     .badge-todo { background-color: rgba(71, 85, 105, 0.3); color: #cbd5e1; border: 1px solid #475569; }
     .badge-inprogress { background-color: rgba(59, 130, 246, 0.25); color: #93c5fd; border: 1px solid #3b82f6; }
-    .badge-review { background-color: rgba(249, 115, 22, 0.25); color: #fdba74; border: 1px solid #f97316; }
+    .badge-review { background-color: rgba(245, 158, 11, 0.25); color: #fef08a; border: 1px solid #f59e0b; }
     .badge-done { background-color: rgba(34, 197, 94, 0.25); color: #86efac; border: 1px solid #22c55e; }
     .badge-error { background-color: rgba(239, 68, 68, 0.25); color: #fca5a5; border: 1px solid #ef4444; }
     
@@ -397,9 +408,16 @@
         
         // Find if work is flowing from source (source is active)
         const sourceTask = currentTasks[e.v];
-        const isFlowing = sourceTask && (sourceTask.status === 'InProgress' || sourceTask.status === 'Review');
+        const targetTask = currentTasks[e.w];
+        const isFlowing = sourceTask && (sourceTask.status.toLowerCase() === 'inprogress' || sourceTask.status.toLowerCase() === 'review');
         
-        glowPath.setAttribute('style', `fill: none; stroke: #3b82f6; stroke-width: 3px; stroke-dasharray: 8 16; pointer-events: none; opacity: ${isFlowing ? '0.85' : '0'};`);
+        const isHitlEdge = targetTask && (targetTask.status.toLowerCase() === 'review');
+        const isErrorEdge = targetTask && (targetTask.status.toLowerCase() === 'error');
+        let strokeColor = '#3b82f6';
+        if (isHitlEdge) strokeColor = '#f59e0b';
+        else if (isErrorEdge) strokeColor = '#ef4444';
+        
+        glowPath.setAttribute('style', `fill: none; stroke: ${strokeColor}; stroke-width: 3px; stroke-dasharray: 8 16; pointer-events: none; opacity: ${isFlowing ? '0.85' : '0'};`);
         if (isFlowing) {
           glowPath.classList.add('edge-glow-active');
         }
@@ -440,6 +458,26 @@
              </div>`;
           }).join('')}
         </div>`;
+      }
+
+      // Human-in-the-Loop Action buttons (Task 9-04)
+      let approvalActionsHtml = '';
+      if (task.status.toLowerCase() === 'review') {
+        approvalActionsHtml = `
+        <div id="approval-actions-container" class="border-t border-slate-800/80 pt-4 mb-6">
+          <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-3 block">Human-in-the-Loop Action Required</label>
+          <div class="flex gap-3">
+            <button onclick="resolveApproval('${task.id}', true)" class="flex-1 py-2 px-3 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-900 rounded-lg font-bold text-xs shadow-lg hover:shadow-amber-500/20 transition-all flex items-center justify-center gap-1">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" /></svg>
+              Approve
+            </button>
+            <button onclick="resolveApproval('${task.id}', false)" class="flex-1 py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg font-bold text-xs transition-all flex items-center justify-center gap-1">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+              Reject
+            </button>
+          </div>
+        </div>
+        `;
       }
 
       // Latency and cost metric simulations / mappings (Task 8-01)
@@ -509,6 +547,8 @@
           </div>
         </div>
 
+        ${approvalActionsHtml}
+
         ${criteriaHtml}
         
         <div class="mt-8 mb-4 border-t border-slate-800/80 pt-6">
@@ -522,6 +562,47 @@
 
     function closePanel() {
       document.getElementById('details-panel').classList.add('translate-x-full');
+    }
+
+    async function resolveApproval(taskId, approved) {
+      const sessionId = cachedWorkspaceData ? cachedWorkspaceData.session_id || 'test-session-hitl' : 'test-session-hitl';
+      const action = approved ? 'approve' : 'reject';
+      
+      const container = document.getElementById('approval-actions-container');
+      if (container) {
+        container.innerHTML = `<div class="text-xs text-slate-400 italic py-2 flex items-center gap-2">
+          <svg class="animate-spin h-4 w-4 text-amber-500" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          Submitting human choice to LAS backend...
+        </div>`;
+      }
+
+      try {
+        const response = await fetch(`http://localhost:8000/v1/sessions/${sessionId}/${action}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        if (!response.ok) throw new Error('API request failed');
+        const res = await response.json();
+        
+        if (container) {
+          container.innerHTML = `<div class="text-xs text-emerald-400 font-bold py-2 flex items-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            Human choice '${action}' processed!
+          </div>`;
+        }
+        
+        setTimeout(init, 1000);
+      } catch (err) {
+        console.error(err);
+        if (container) {
+          container.innerHTML = `<div class="text-xs text-red-400 font-bold py-2">
+            Failed to resolve: ${err.message}. Backend might be offline.
+          </div>`;
+        }
+      }
     }
 
     function connectRealTime() {

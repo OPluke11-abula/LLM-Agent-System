@@ -206,6 +206,19 @@ async def run_stream(args: argparse.Namespace) -> int:
         elif event_type == "text_chunk":
             print(event["content"], end="", flush=True)
 
+        elif event_type == "hitl_gate":
+            tool_name = str(event.get("name") or "unknown_tool")
+            arguments = event.get("arguments") or {}
+            print(f"\n[HITL Gate] Awaiting approval for execution of tool '{tool_name}' with arguments: {json.dumps(arguments, ensure_ascii=False)}", flush=True)
+            loop = asyncio.get_running_loop()
+            try:
+                choice = await loop.run_in_executor(None, input, f"Approve execution of tool '{tool_name}'? [y/N]: ")
+                approved = choice.strip().lower() in ("y", "yes")
+            except Exception:
+                approved = False
+            router.resolve_approval(approved)
+            print(f"Approval {'granted' if approved else 'denied'}.\nAgent: ", end="", flush=True)
+
         elif event_type == "done":
             emit_session_root(emitter, root_id, msg, "completed")
             print("\n")

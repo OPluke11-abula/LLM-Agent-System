@@ -58,6 +58,7 @@ async def test_router_tool_limit():
         # Create router
         router = AgentRouter(mock_engine, session_id="test_session", agent_name="test_agent")
         router.max_tool_calls = 2  # Set a low tool limit
+        router._get_authorization_level = MagicMock(return_value="standard")
         
         # Provider will keep returning tool calls to simulate an infinite loop
         async def mock_generate_content(*args, **kwargs):
@@ -91,6 +92,7 @@ async def test_stream_router_tool_limit():
          
         router = AgentRouter(mock_engine, session_id="test_session", agent_name="test_agent")
         router.max_tool_calls = 2
+        router._get_authorization_level = MagicMock(return_value="standard")
         
         async def mock_stream(*args, **kwargs):
             yield ProviderResponse("tool_calls", [{"name": "mock_tool", "arguments": {}}])
