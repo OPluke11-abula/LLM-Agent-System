@@ -87,6 +87,7 @@ LLM-Agent-System/
 ├── agent_workspace/
 │   ├── core/
 │   │   ├── engine.py                # AgentEngine — closed-loop runtime
+│   │   ├── knowledge.py             # KnowledgeBase — secure static query engine
 │   │   ├── router.py                # AgentRouter — streaming orchestration
 │   │   ├── skill_loader.py          # Markdown SKILL.md Auto-Discovery
 │   │   └── providers.py             # Multi-LLM provider abstraction
