@@ -197,6 +197,33 @@ depends  : 0-05, 2-01
 
 ---
 
+## 🤝 PHASE 7 — Multi-Agent Consensus & Debate / 多智慧體共識與辯論
+
+### 7-01 Discussion Room Coordinator
+```
+priority : HIGH
+effort   : M
+depends  : 6-01
+```
+- [x] Create core coordinator `agent_workspace/core/discussion_room.py`
+- [x] Implement round-robin dialogue loops with context-aware cumulative transcripts
+- [x] Conclude with Moderator-led final Consensus Summary compilation
+- [x] Add automated unit tests under `tests/test_discussion_room.py`
+
+---
+
+### 7-02 CLI Subcommand Integration
+```
+priority : HIGH
+effort   : M
+depends  : 0-05, 7-01
+```
+- [x] Expose consensus debate feature in `cli.py` via `run-debate` subcommand
+- [x] Support custom topic, agent roles, and rounds parameter mapping
+- [x] Format transcript prints and print final synthesized Consensus Summary
+
+---
+
 ## 📈 Queue Summary & Progress
 
 | Phase | Total Tasks | Completed Tasks | Status |
@@ -205,5 +232,6 @@ depends  : 0-05, 2-01
 | **Phase 1: Protocol** | 5 tasks | 5 tasks | 100% Done |
 | **Phase 2: Tooling** | 2 tasks | 2 tasks | 100% Done |
 | **Phase 6: Multi-Account** | 3 tasks | 3 tasks | 100% Done |
+| **Phase 7: Consensus** | 2 tasks | 2 tasks | 100% Done |
 
 *This queue is managed dynamically by the active LAS Developer Agent. All task updates, outcome logs, and progress status updates are written directly to this file before turn conclusion.*

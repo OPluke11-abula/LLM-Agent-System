@@ -442,6 +442,45 @@ def handle_lint(args):
     else:
         print("PAP Workspace contracts are 100% healthy and aligned! (0 blocking errors)")
 
+def handle_run_debate(args):
+    """Run a multi-agent consensus and debate room session."""
+    if not args.topic:
+        print("Error: --topic is required for running a debate.", file=sys.stderr)
+        sys.exit(1)
+        
+    roles = [r.strip() for r in (args.agents or "analyst,programmer,architect").split(",")]
+    agents_list = [{"role": r} for r in roles]
+    
+    try:
+        from core.discussion_room import DiscussionRoom
+    except ImportError:
+        from agent_workspace.core.discussion_room import DiscussionRoom
+        
+    room = DiscussionRoom(workspace_path=workspace)
+    print(f"Initializing debate on: '{args.topic}'...")
+    print(f"Participants: {', '.join(roles)}")
+    print(f"Rounds: {args.rounds}")
+    print("-" * 60)
+    
+    try:
+        result = asyncio.run(room.run(
+            topic=args.topic,
+            agents=agents_list,
+            max_rounds=args.rounds
+        ))
+        
+        print("\n=== MEETING DIALOGUE TRANSCRIPT ===")
+        for msg in result["transcript"]:
+            print(f"\n[{msg['agent']} ({msg['role']})]:\n{msg['content']}")
+            print("-" * 50)
+            
+        print("\n=== FINAL CONSENSUS SUMMARY ===")
+        print(result["consensus_summary"])
+        print("=" * 60)
+    except Exception as e:
+        print(f"Error running debate session: {e}", file=sys.stderr)
+        sys.exit(1)
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Unified Operations Developer CLI toolbelt for LAS.")
     
@@ -461,13 +500,19 @@ def main() -> None:
     group.add_argument("--run-workflow", type=str, metavar="WORKFLOW_ID", help="Execute or resume declarative workflow.")
     group.add_argument("--init", action="store_true", help="Bootstrap a standard skeletal .agent/ folder structure.")
     group.add_argument("--lint", action="store_true", help="Statically check the .agent/ workspace integrity.")
+    group.add_argument("--run-debate", action="store_true", help="Orchestrate a multi-agent debate and consensus loop.")
     
     parser.add_argument("--resume", action="store_true", help="Resume workflow execution from last failed step.")
     parser.add_argument("--dry-run", action="store_true", help="Simulate init subcommand without creating files.")
     parser.add_argument("--fix", action="store_true", help="Automatically correct linting anomalies if possible.")
     parser.add_argument("path", nargs="?", default=".", help="Target path for bootstrap or lint (for init/lint subcommands).")
     
-    # Map command words "init" and "lint" to flags for backward compatibility and DX
+    # Debate-specific parameters
+    parser.add_argument("--topic", type=str, help="Topic for the multi-agent debate.")
+    parser.add_argument("--agents", type=str, help="Comma-separated list of agent roles (e.g. analyst,programmer).")
+    parser.add_argument("--rounds", type=int, default=2, help="Number of discussion rounds per agent.")
+    
+    # Map command words "init", "lint", and "run-debate" to flags for backward compatibility and DX
     sys_args = sys.argv[1:]
     if "init" in sys_args:
         idx = sys_args.index("init")
@@ -475,6 +520,9 @@ def main() -> None:
     elif "lint" in sys_args:
         idx = sys_args.index("lint")
         sys_args[idx] = "--lint"
+    elif "run-debate" in sys_args:
+        idx = sys_args.index("run-debate")
+        sys_args[idx] = "--run-debate"
         
     args = parser.parse_args(sys_args)
     
@@ -494,6 +542,8 @@ def main() -> None:
         handle_init(args)
     elif args.lint:
         handle_lint(args)
+    elif args.run_debate:
+        handle_run_debate(args)
 
 if __name__ == "__main__":
     main()

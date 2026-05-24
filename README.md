@@ -216,6 +216,9 @@ python agent_workspace/cli.py init
 
 # Statically lint the PAP workspace contracts for schema and reference integrity
 python agent_workspace/cli.py lint
+
+# Orchestrate a multi-agent debate and consensus session on a given topic
+python agent_workspace/cli.py run-debate --topic "Should we adopt contract-first design?" --agents "analyst,programmer" --rounds 2
 ```
 
 Declarative workflows run step-by-step using an **Asynchronous Workflow Engine** (`core/workflow_engine.py`) which tracks state transitions (`pending` -> `running` -> `success` / `failed`), manages dynamic Jinja2 parameter rendering, and supports checkpoint serialization to `.agent/workflows/runs/<session_id>.json` for automatic resumption.
@@ -364,6 +367,9 @@ python agent_workspace/cli.py init
 
 # 靜態檢查（Lint）整個 PAP 工作區合約的結構、版本格式與 Workflow 參照完整性
 python agent_workspace/cli.py lint
+
+# 啟動多智慧體共識會議與辯論（Debate），並由主持人自動生成決策與共識報告
+python agent_workspace/cli.py run-debate --topic "我們是否應該採用 Contract-First 設計？" --agents "analyst,programmer" --rounds 2
 ```
 
 宣告式工作流採用**非同步工作流引擎** (`core/workflow_engine.py`) 進行，全程追蹤狀態轉換（`pending` -> `running` -> `success` / `failed`），並會將進度與資料序列化至 `.agent/workflows/runs/<session_id>.json` 供隨時中斷重啟。
