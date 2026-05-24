@@ -50,6 +50,9 @@ logger = logging.getLogger(__name__)
 class AgentEngine:
     """Runtime owner for prompt rendering and reflected tool execution."""
 
+    PROTOCOL_VERSION = "1.0.0"
+    RUNTIME_VERSION = "0.5.0"
+
     def __init__(self, workspace_path: str = "."):
         self.workspace_path = os.path.abspath(workspace_path)
         self.jinja_env = (
@@ -228,6 +231,22 @@ class AgentEngine:
             }
         )
 
+    @staticmethod
+    def _parse_version(version_str: str) -> tuple[int, ...]:
+        """Parse a semantic version string into a tuple of integers for comparison."""
+        try:
+            clean_str = version_str.strip().lstrip("v")
+            clean_str = clean_str.split("-")[0].split("+")[0]
+            parts = []
+            for part in clean_str.split("."):
+                if part.isdigit():
+                    parts.append(int(part))
+                else:
+                    parts.append(0)
+            return tuple(parts)
+        except Exception:
+            return (0,)
+
     def _parse_pap_doc(self, filepath: str, default_name: str, default_desc: str) -> None:
         """Parse a PAP document and load it into knowledge contexts."""
         try:
@@ -240,6 +259,29 @@ class AgentEngine:
         frontmatter, body = self._split_frontmatter(raw)
         name = str(frontmatter.get("name", default_name))
         description = str(frontmatter.get("description", default_desc))
+
+        # Version compatibility verification (Task 1-05)
+        protocol_ver = frontmatter.get("protocol_version")
+        min_runtime_ver = frontmatter.get("min_runtime_version")
+
+        if protocol_ver:
+            parsed_manifest_proto = self._parse_version(str(protocol_ver))
+            parsed_engine_proto = self._parse_version(self.PROTOCOL_VERSION)
+            if len(parsed_manifest_proto) > 0 and len(parsed_engine_proto) > 0:
+                if parsed_manifest_proto[0] != parsed_engine_proto[0]:
+                    import warnings
+                    msg = f"Protocol version mismatch: manifest protocol version '{protocol_ver}' is incompatible with engine protocol version '{self.PROTOCOL_VERSION}'"
+                    warnings.warn(msg, UserWarning)
+                    logger.warning(msg)
+
+        if min_runtime_ver:
+            parsed_min_runtime = self._parse_version(str(min_runtime_ver))
+            parsed_engine_runtime = self._parse_version(self.RUNTIME_VERSION)
+            if parsed_min_runtime > parsed_engine_runtime:
+                import warnings
+                msg = f"Runtime version mismatch: manifest requires min_runtime_version '{min_runtime_ver}' but engine runtime version is '{self.RUNTIME_VERSION}'"
+                warnings.warn(msg, UserWarning)
+                logger.warning(msg)
 
         self.knowledge_contexts.append(
             {

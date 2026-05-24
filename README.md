@@ -210,6 +210,12 @@ python agent_workspace/cli.py --run-workflow my_workflow
 
 # Resume a failed workflow run from its last checkpoint
 python agent_workspace/cli.py --run-workflow my_workflow --resume
+
+# Bootstrap a standard skeletal .agent/ folder structure
+python agent_workspace/cli.py init
+
+# Statically lint the PAP workspace contracts for schema and reference integrity
+python agent_workspace/cli.py lint
 ```
 
 Declarative workflows run step-by-step using an **Asynchronous Workflow Engine** (`core/workflow_engine.py`) which tracks state transitions (`pending` -> `running` -> `success` / `failed`), manages dynamic Jinja2 parameter rendering, and supports checkpoint serialization to `.agent/workflows/runs/<session_id>.json` for automatic resumption.
@@ -352,6 +358,12 @@ python agent_workspace/cli.py --run-workflow my_workflow
 
 # 從上次失敗的檢查點恢復（Resume）工作流執行
 python agent_workspace/cli.py --run-workflow my_workflow --resume
+
+# 自動引導（Bootstrap）建立標準的 .agent/ 骨架結構目錄與 Manifest 檔案
+python agent_workspace/cli.py init
+
+# 靜態檢查（Lint）整個 PAP 工作區合約的結構、版本格式與 Workflow 參照完整性
+python agent_workspace/cli.py lint
 ```
 
 宣告式工作流採用**非同步工作流引擎** (`core/workflow_engine.py`) 進行，全程追蹤狀態轉換（`pending` -> `running` -> `success` / `failed`），並會將進度與資料序列化至 `.agent/workflows/runs/<session_id>.json` 供隨時中斷重啟。

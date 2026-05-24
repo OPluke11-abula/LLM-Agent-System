@@ -129,6 +129,48 @@ depends  : 0-02, 1-01
 
 ---
 
+### 1-05 Protocol Version Management
+```
+priority : HIGH
+effort   : M
+depends  : 0-01
+```
+- [x] Implement semantic version parser in core engine
+- [x] Enable strict manifest requirement checks (min_runtime_version and protocol_version)
+- [x] Log and raise warnings for runtime or protocol incompatibilities
+- [x] Add version compatibility unit tests in `tests/test_version_compat.py`
+
+---
+
+## 🛠️ PHASE 2 — Developer Tooling & Operations / 開發者工具與維運
+
+### 2-01 CLI Init Subcommand
+```
+priority : HIGH
+effort   : M
+depends  : 0-05
+```
+- [x] Register `init` subcommand supporting `--dry-run` and target output directory
+- [x] Model standard skeletal PAP directory structure and entrypoint manifests
+- [x] Safely scaffold skeletal configs and contract files
+- [x] Write init test coverage in `tests/test_cli_init.py`
+
+---
+
+### 2-02 CLI Lint Subcommand
+```
+priority : HIGH
+effort   : M
+depends  : 0-05, 2-01
+```
+- [x] Implement `lint` command parser supporting `--fix`
+- [x] Statically check schema integrity and semver format validation
+- [x] Enable contract parity scanning (missing and orphan contracts)
+- [x] Verify workflow action resolution and next_step references
+- [x] Write lint verification cases in `tests/test_cli_lint.py`
+
+---
+
 ## 📊 PHASE 6 — Multi-Account & Token Management / 帳號與額度管理
 
 ### 6-01 Account Management Core
@@ -160,7 +202,8 @@ depends  : 0-02, 1-01
 | Phase | Total Tasks | Completed Tasks | Status |
 |---|---|---|---|
 | **Phase 0: Foundation** | 6 tasks | 6 tasks | 100% Done |
-| **Phase 1: Protocol** | 5 tasks | 4 tasks | 80% (Workflow/Prompt/Handoff/Knowledge Done) |
+| **Phase 1: Protocol** | 5 tasks | 5 tasks | 100% Done |
+| **Phase 2: Tooling** | 2 tasks | 2 tasks | 100% Done |
 | **Phase 6: Multi-Account** | 3 tasks | 3 tasks | 100% Done |
 
 *This queue is managed dynamically by the active LAS Developer Agent. All task updates, outcome logs, and progress status updates are written directly to this file before turn conclusion.*
