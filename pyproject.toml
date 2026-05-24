@@ -1,0 +1,14 @@
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q --cov=agent_workspace --cov-report=term-missing"
+testpaths = [
+    "agent_workspace/tests",
+]
+asyncio_mode = "strict"
+
+[tool.coverage.run]
+source = ["agent_workspace"]
+omit = [
+    "*/tests/*",
+    "agent_workspace/tests/*",
+]

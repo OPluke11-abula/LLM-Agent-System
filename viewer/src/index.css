@@ -148,3 +148,47 @@ body { margin: 0; background: var(--bg-base); }
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border-c); border-radius: 9999px; }
+
+/* Real-time flowing particles for dynamic handoffs and streams (Task 8-02 & Task 8-03) */
+@keyframes dash {
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.animate-flow-particles {
+  animation: dash 1.35s linear infinite !important;
+}
+
+/* Pulsing border animation for active streaming nodes (Task 8-03) */
+@keyframes activeNodePulse {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.2), inset 0 0 8px rgba(59, 130, 246, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.5), inset 0 0 16px rgba(59, 130, 246, 0.25);
+  }
+}
+
+.active-streaming-node {
+  animation: activeNodePulse 1.8s ease-in-out infinite !important;
+}
+
+/* Dynamic typing text animation */
+.typing-dots::after {
+  content: '...';
+  animation: typing 1.5s steps(4, end) infinite;
+  display: inline-block;
+  width: 12px;
+  text-align: left;
+}
+
+@keyframes typing {
+  0%, 100% { content: ''; }
+  25% { content: '.'; }
+  50% { content: '..'; }
+  75% { content: '...'; }
+}

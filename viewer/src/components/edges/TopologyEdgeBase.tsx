@@ -40,6 +40,20 @@ export function TopologyEdgeBase({
           filter: `drop-shadow(0 0 8px ${color}55)`,
         }}
       />
+      {(tone === "handoff" || tone === "tool") && (
+        <path
+          d={edgePath}
+          fill="none"
+          stroke={color}
+          strokeWidth={3.2}
+          strokeDasharray="8 16"
+          className="animate-flow-particles"
+          style={{
+            opacity: 0.85,
+            pointerEvents: "none",
+          }}
+        />
+      )}
       {data?.label && (
         <EdgeLabelRenderer>
           <div

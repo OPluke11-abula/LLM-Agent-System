@@ -42,12 +42,49 @@ export function useTopology() {
     })
       .then((dispose) => {
         disposeListener = dispose;
-      })
       .catch(() => undefined);
 
     return () => {
       cancelled = true;
       disposeListener?.();
+    };
+  }, [isTauriAvailable]);
+
+  // Connect to live WebSocket topology stream in the browser (Task 8-03)
+  useEffect(() => {
+    let cancelled = false;
+    let ws: WebSocket | null = null;
+    
+    function connect() {
+      if (cancelled) return;
+      
+      ws = new WebSocket("ws://127.0.0.1:8000/v1/stream");
+      
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (cancelled) return;
+          if (data && isTopologyState(data)) {
+            setSessions((current) => ({ ...current, [data.session_id]: data }));
+            setLastUpdatedSessionId(data.session_id);
+          }
+        } catch (e) {
+          // ignore
+        }
+      };
+      
+      ws.onclose = () => {
+        setTimeout(connect, 5000);
+      };
+    }
+
+    if (!isTauriAvailable) {
+      connect();
+    }
+
+    return () => {
+      cancelled = true;
+      ws?.close();
     };
   }, [isTauriAvailable]);
 

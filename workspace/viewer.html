@@ -8,39 +8,67 @@
   <script src="https://cdn.jsdelivr.net/npm/dagre@0.8.5/dist/dagre.min.js"></script>
   <style>
     body {
-      background-color: #0f111a;
+      background-color: #080d1a;
       color: #e2e8f0;
       font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     }
     .glass-panel {
-      background: rgba(30, 41, 59, 0.7);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(15, 23, 42, 0.45);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
     }
     .task-node {
-      transition: all 0.2s ease-in-out;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
       cursor: pointer;
     }
     .task-node:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 0 15px rgba(59, 130, 246, 0.5);
-      border-color: #3b82f6;
+      transform: translateY(-3px) scale(1.02);
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.6), 0 0 20px rgba(59, 130, 246, 0.35);
+      border-color: rgba(59, 130, 246, 0.6) !important;
     }
     .status-badge {
       display: inline-flex;
       align-items: center;
       padding: 0.125rem 0.625rem;
       border-radius: 9999px;
-      font-size: 0.75rem;
-      font-weight: 600;
+      font-size: 0.725rem;
+      font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.05em;
     }
-    .status-todo { background-color: rgba(71, 85, 105, 0.3); color: #cbd5e1; border: 1px solid #475569; }
-    .status-inprogress { background-color: rgba(59, 130, 246, 0.2); color: #93c5fd; border: 1px solid #3b82f6; }
-    .status-review { background-color: rgba(249, 115, 22, 0.2); color: #fdba74; border: 1px solid #f97316; }
-    .status-done { background-color: rgba(34, 197, 94, 0.2); color: #86efac; border: 1px solid #22c55e; }
+    
+    /* Vibrant HSL node statuses */
+    .status-todo { 
+      border: 2px solid hsl(215, 12%, 50%) !important; 
+      box-shadow: 0 0 10px rgba(100, 116, 139, 0.15);
+      background: rgba(71, 85, 105, 0.12);
+    }
+    .status-inprogress { 
+      border: 2px solid hsl(217, 91%, 60%) !important; 
+      box-shadow: 0 0 15px rgba(59, 130, 246, 0.25);
+      background: rgba(59, 130, 246, 0.12);
+    }
+    .status-review { 
+      border: 2px solid hsl(25, 95%, 53%) !important; 
+      box-shadow: 0 0 15px rgba(249, 115, 22, 0.25);
+      background: rgba(249, 115, 22, 0.12);
+    }
+    .status-done { 
+      border: 2px solid hsl(142, 70%, 45%) !important; 
+      box-shadow: 0 0 15px rgba(34, 197, 94, 0.25);
+      background: rgba(34, 197, 94, 0.12);
+    }
+    .status-error {
+      border: 2px solid hsl(0, 84%, 60%) !important;
+      box-shadow: 0 0 15px rgba(239, 68, 68, 0.25);
+      background: rgba(239, 68, 68, 0.12);
+    }
+    .badge-todo { background-color: rgba(71, 85, 105, 0.3); color: #cbd5e1; border: 1px solid #475569; }
+    .badge-inprogress { background-color: rgba(59, 130, 246, 0.25); color: #93c5fd; border: 1px solid #3b82f6; }
+    .badge-review { background-color: rgba(249, 115, 22, 0.25); color: #fdba74; border: 1px solid #f97316; }
+    .badge-done { background-color: rgba(34, 197, 94, 0.25); color: #86efac; border: 1px solid #22c55e; }
+    .badge-error { background-color: rgba(239, 68, 68, 0.25); color: #fca5a5; border: 1px solid #ef4444; }
     
     #canvas-container {
       position: relative;
@@ -57,46 +85,110 @@
     }
     .edge-path {
       fill: none;
-      stroke: #475569;
-      stroke-width: 2px;
+      stroke: #334155;
+      stroke-width: 2.2px;
+      opacity: 0.8;
     }
     .edge-arrow {
-      fill: #475569;
+      fill: #334155;
+    }
+    
+    /* Flow particles overlay animation */
+    @keyframes dash {
+      from { stroke-dashoffset: 24; }
+      to { stroke-dashoffset: 0; }
+    }
+    .edge-glow-active {
+      opacity: 0.9 !important;
+      animation: dash 1.35s linear infinite;
+    }
+    
+    /* Pulsing border animation for active streaming nodes */
+    @keyframes activeNodePulse {
+      0%, 100% {
+        box-shadow: 0 0 12px rgba(59, 130, 246, 0.3), inset 0 0 8px rgba(59, 130, 246, 0.15);
+        border-color: rgba(59, 130, 246, 0.7) !important;
+      }
+      50% {
+        box-shadow: 0 0 24px rgba(59, 130, 246, 0.65), inset 0 0 16px rgba(59, 130, 246, 0.3);
+        border-color: rgba(34, 211, 238, 0.9) !important;
+      }
+    }
+    .active-streaming-node {
+      animation: activeNodePulse 1.8s ease-in-out infinite !important;
+    }
+    
+    /* Dynamic typing loader */
+    .typing-dots::after {
+      content: '...';
+      animation: typing 1.5s steps(4, end) infinite;
+      display: inline-block;
+      width: 12px;
+      text-align: left;
+    }
+    @keyframes typing {
+      0%, 100% { content: ''; }
+      25% { content: '.'; }
+      50% { content: '..'; }
+      75% { content: '...'; }
     }
   </style>
 </head>
 <body class="flex h-screen overflow-hidden">
 
   <!-- Sidebar Nav -->
-  <aside class="w-16 sm:w-64 flex-shrink-0 glass-panel border-r border-slate-800 flex flex-col items-center sm:items-start py-6 z-30">
-    <div class="px-6 mb-8 hidden sm:block">
-      <h1 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-emerald-400 tracking-tight">FindAi Studio</h1>
-      <div class="text-xs text-slate-500 mt-1 uppercase tracking-wider font-semibold">Workspace</div>
+  <aside class="w-16 sm:w-64 flex-shrink-0 glass-panel border-r border-slate-800/80 flex flex-col items-center sm:items-start py-6 z-30 justify-between">
+    <div class="w-full flex flex-col items-center sm:items-start">
+      <div class="px-6 mb-8 hidden sm:block">
+        <h1 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-cyan-400 to-emerald-400 tracking-tight">FindAi Studio</h1>
+        <div class="text-xs text-slate-500 mt-1 uppercase tracking-wider font-semibold">Workspace</div>
+      </div>
+      <div class="w-full mb-8 sm:hidden flex justify-center">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center font-bold">F</div>
+      </div>
+      
+      <nav class="w-full flex flex-col gap-2 px-2 sm:px-4">
+        <button class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20 transition-colors">
+          <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
+          <span class="hidden sm:inline font-medium">Topology</span>
+        </button>
+        <button class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 transition-colors">
+          <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+          <span class="hidden sm:inline font-medium">Agents</span>
+        </button>
+        <button class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 transition-colors">
+          <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
+          <span class="hidden sm:inline font-medium">Skills</span>
+        </button>
+      </nav>
     </div>
-    <div class="w-full mb-8 sm:hidden flex justify-center">
-      <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-emerald-500 flex items-center justify-center font-bold">F</div>
+
+    <!-- Spacing controls slider (Task 8-01) -->
+    <div class="hidden sm:flex flex-col w-full px-6 gap-4 border-t border-slate-800 pt-6">
+      <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Layout Spacing</label>
+      
+      <div class="flex flex-col gap-1.5">
+        <div class="flex justify-between text-xs text-slate-400">
+          <span>Node Sep</span>
+          <span id="nodesep-val" class="font-mono text-[11px] text-cyan-400">60px</span>
+        </div>
+        <input type="range" id="nodesep-slider" min="30" max="150" value="60" class="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500">
+      </div>
+      
+      <div class="flex flex-col gap-1.5">
+        <div class="flex justify-between text-xs text-slate-400">
+          <span>Rank Sep</span>
+          <span id="ranksep-val" class="font-mono text-[11px] text-cyan-400">100px</span>
+        </div>
+        <input type="range" id="ranksep-slider" min="50" max="250" value="100" class="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500">
+      </div>
     </div>
-    
-    <nav class="w-full flex flex-col gap-2 px-2 sm:px-4">
-      <button class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20 transition-colors">
-        <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
-        <span class="hidden sm:inline font-medium">Topology</span>
-      </button>
-      <button class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 transition-colors">
-        <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-        <span class="hidden sm:inline font-medium">Agents</span>
-      </button>
-      <button class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 transition-colors">
-        <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
-        <span class="hidden sm:inline font-medium">Skills</span>
-      </button>
-    </nav>
   </aside>
 
   <!-- Main Canvas -->
   <main class="flex-1 flex flex-col relative z-10 overflow-hidden">
     <!-- Header -->
-    <header class="h-16 flex-shrink-0 border-b border-slate-800 flex items-center px-6 glass-panel z-20">
+    <header class="h-16 flex-shrink-0 border-b border-slate-800/80 flex items-center px-6 glass-panel z-20">
       <div id="project-header">
         <h2 id="project-title" class="text-lg font-bold text-slate-200">Loading Workspace...</h2>
         <p id="project-desc" class="text-xs text-slate-400">Fetching workspace.json...</p>
@@ -111,10 +203,10 @@
   </main>
 
   <!-- Details Panel (Slide over) -->
-  <aside id="details-panel" class="absolute top-0 right-0 w-80 sm:w-96 h-full glass-panel border-l border-slate-700 shadow-2xl transform translate-x-full transition-transform duration-300 z-40 flex flex-col">
-    <div class="flex items-center justify-between p-4 border-b border-slate-700">
+  <aside id="details-panel" class="absolute top-0 right-0 w-80 sm:w-96 h-full glass-panel border-l border-slate-700/80 shadow-2xl transform translate-x-full transition-transform duration-300 z-40 flex flex-col">
+    <div class="flex items-center justify-between p-4 border-b border-slate-800">
       <h3 class="text-sm font-bold tracking-wide uppercase text-slate-300">Task Details</h3>
-      <button onclick="closePanel()" class="p-1 rounded-full hover:bg-slate-700 text-slate-400 hover:text-white transition">
+      <button onclick="closePanel()" class="p-1 rounded-full hover:bg-slate-700/60 text-slate-400 hover:text-white transition">
         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
       </button>
     </div>
@@ -147,6 +239,9 @@
 
   <script>
     let currentTasks = {};
+    let cachedWorkspaceData = null;
+    let nodeSepVal = 60;
+    let rankSepVal = 100;
 
     function getStatusClass(status) {
       switch(status.toLowerCase()) {
@@ -154,20 +249,47 @@
         case 'inprogress': return 'status-inprogress';
         case 'review': return 'status-review';
         case 'done': return 'status-done';
+        case 'error': return 'status-error';
         default: return 'status-todo';
       }
     }
 
+    function getBadgeClass(status) {
+      switch(status.toLowerCase()) {
+        case 'todo': return 'badge-todo';
+        case 'inprogress': return 'badge-inprogress';
+        case 'review': return 'badge-review';
+        case 'done': return 'badge-done';
+        case 'error': return 'badge-error';
+        default: return 'badge-todo';
+      }
+    }
+
     async function init() {
+      // Dynamic controls event listeners
+      document.getElementById('nodesep-slider').addEventListener('input', (e) => {
+        nodeSepVal = parseInt(e.target.value);
+        document.getElementById('nodesep-val').textContent = `${nodeSepVal}px`;
+        if (cachedWorkspaceData) renderTopology(cachedWorkspaceData.tasks);
+      });
+
+      document.getElementById('ranksep-slider').addEventListener('input', (e) => {
+        rankSepVal = parseInt(e.target.value);
+        document.getElementById('ranksep-val').textContent = `${rankSepVal}px`;
+        if (cachedWorkspaceData) renderTopology(cachedWorkspaceData.tasks);
+      });
+
       try {
         const response = await fetch('workspace.json');
         if (!response.ok) throw new Error('Network response was not ok');
         const data = await response.json();
+        cachedWorkspaceData = data;
         
         document.getElementById('project-title').textContent = data.project_title || 'Workspace';
         document.getElementById('project-desc').textContent = data.project_desc || 'No description provided.';
         
         renderTopology(data.tasks);
+        connectRealTime();
       } catch (e) {
         console.error(e);
         document.getElementById('error-modal').classList.remove('hidden');
@@ -176,13 +298,13 @@
 
     function renderTopology(tasks) {
       const g = new dagre.graphlib.Graph();
-      g.setGraph({ rankdir: 'LR', marginx: 40, marginy: 40, nodesep: 60, ranksep: 100 });
+      g.setGraph({ rankdir: 'LR', marginx: 40, marginy: 40, nodesep: nodeSepVal, ranksep: rankSepVal });
       g.setDefaultEdgeLabel(function() { return {}; });
 
       // Save tasks map
       tasks.forEach(t => currentTasks[t.id] = t);
 
-      // Define nodes (width 280, height ~120 depending on content, let's say 140)
+      // Define nodes (width 280, height ~130)
       tasks.forEach(t => {
         g.setNode(t.id, { label: t.title, width: 280, height: 130 });
       });
@@ -203,6 +325,7 @@
 
       // Render Nodes
       const nodesLayer = document.getElementById('nodes-layer');
+      nodesLayer.innerHTML = ''; // Clear existing nodes
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
 
       g.nodes().forEach(v => {
@@ -216,7 +339,8 @@
         maxY = Math.max(maxY, node.y + node.height/2);
 
         const el = document.createElement('div');
-        el.className = 'absolute glass-panel task-node p-5 rounded-xl border border-slate-700 shadow-lg text-slate-200 flex flex-col z-20';
+        el.id = `node-${task.id}`;
+        el.className = `absolute glass-panel task-node p-5 rounded-xl border shadow-lg text-slate-200 flex flex-col z-20 ${getStatusClass(task.status)}`;
         el.style.width = `${node.width}px`;
         el.style.height = `${node.height}px`;
         // dagre gives center point. CSS needs top-left
@@ -226,10 +350,10 @@
         el.innerHTML = `
           <div class="flex justify-between items-start mb-2">
             <h4 class="font-bold text-sm tracking-wide text-white truncate pr-2">${task.id}</h4>
-            <span class="status-badge ${getStatusClass(task.status)}">${task.status}</span>
+            <span class="status-badge ${getBadgeClass(task.status)}">${task.status}</span>
           </div>
-          <div class="font-semibold text-blue-400 mb-2 truncate">${task.title}</div>
-          <p class="text-xs text-slate-400 line-clamp-2 leading-relaxed">${task.description || 'No description'}</p>
+          <div class="font-semibold text-cyan-400 mb-2 truncate">${task.title}</div>
+          <p class="node-desc text-xs text-slate-400 line-clamp-2 leading-relaxed">${task.description || 'No description'}</p>
         `;
         
         el.onclick = () => showDetails(task);
@@ -255,10 +379,9 @@
         const edge = g.edge(e);
         const points = edge.points;
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        const glowPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         
         let d = `M ${points[0].x} ${points[0].y} `;
-        // Simple curve or polyline, dagre gives intermediate points
-        // Let's use basis curve
         for (let i = 1; i < points.length; i++) {
             d += `L ${points[i].x} ${points[i].y} `;
         }
@@ -267,6 +390,20 @@
         path.setAttribute('class', 'edge-path');
         path.setAttribute('marker-end', 'url(#arrow)');
         svg.appendChild(path);
+
+        // Animated overlay representing active flowing work transitions (Task 8-03)
+        glowPath.setAttribute('d', d);
+        glowPath.setAttribute('class', 'edge-glow-path');
+        
+        // Find if work is flowing from source (source is active)
+        const sourceTask = currentTasks[e.v];
+        const isFlowing = sourceTask && (sourceTask.status === 'InProgress' || sourceTask.status === 'Review');
+        
+        glowPath.setAttribute('style', `fill: none; stroke: #3b82f6; stroke-width: 3px; stroke-dasharray: 8 16; pointer-events: none; opacity: ${isFlowing ? '0.85' : '0'};`);
+        if (isFlowing) {
+          glowPath.classList.add('edge-glow-active');
+        }
+        svg.appendChild(glowPath);
       });
     }
 
@@ -297,22 +434,30 @@
       if (task.logs && task.logs.length > 0) {
         logsHtml = `<div class="space-y-3">
           ${task.logs.map(log => {
-             // Basic markdown parsing for the log: - `date` text
              const logClean = log.replace(/^- /, '');
-             return `<div class="p-3 bg-slate-900/50 rounded-lg border border-slate-700/50">
-               <p class="text-slate-300 text-sm leading-relaxed">${logClean}</p>
+             return `<div class="p-3 bg-slate-900/50 rounded-lg border border-slate-800/80">
+               <p class="text-slate-300 text-xs leading-relaxed">${logClean}</p>
              </div>`;
           }).join('')}
         </div>`;
       }
 
+      // Latency and cost metric simulations / mappings (Task 8-01)
+      const isDone = task.status.toLowerCase() === 'done';
+      const simLatency = isDone ? 1.8 : (task.status.toLowerCase() === 'inprogress' ? 0.6 : 0.0);
+      const simCost = isDone ? 0.038 : (task.status.toLowerCase() === 'inprogress' ? 0.008 : 0.0);
+      const simTokens = isDone ? 1900 : (task.status.toLowerCase() === 'inprogress' ? 400 : 0);
+      
+      const gaugeOffset = 175.9 - (175.9 * Math.min(simLatency, 3.0) / 3.0);
+      const costProgress = Math.min((simCost / 0.05) * 100, 100);
+
       content.innerHTML = `
         <div class="mb-4 flex items-center justify-between">
-          <span class="status-badge ${getStatusClass(task.status)}">${task.status}</span>
-          <span class="text-xs font-mono text-slate-500 bg-slate-900 px-2 py-1 rounded">${task.id}</span>
+          <span class="status-badge ${getBadgeClass(task.status)}">${task.status}</span>
+          <span class="text-xs font-mono text-slate-500 bg-slate-900 px-2 py-1 rounded border border-slate-800">${task.id}</span>
         </div>
         
-        <h2 class="text-xl font-bold text-white mb-6">${task.title}</h2>
+        <h2 class="text-xl font-bold text-white mb-6 leading-tight">${task.title}</h2>
         
         <div class="space-y-1.5 mb-6">
           <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Description</label>
@@ -326,21 +471,47 @@
           </div>
           <div>
             <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Agent</label>
-            <p class="text-blue-400 font-medium">${task.agent}</p>
+            <p class="text-cyan-400 font-medium">${task.agent}</p>
           </div>
           <div>
             <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Created</label>
-            <p class="text-slate-300 font-mono text-xs mt-1">${task.created}</p>
+            <p class="text-slate-400 font-mono text-xs mt-0.5">${task.created}</p>
           </div>
           <div>
             <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Updated</label>
-            <p class="text-slate-300 font-mono text-xs mt-1">${task.updated}</p>
+            <p class="text-slate-400 font-mono text-xs mt-0.5">${task.updated}</p>
+          </div>
+        </div>
+
+        <!-- Latency Gauge & Cost Meter (Task 8-01) -->
+        <div class="border-t border-slate-800/80 pt-4 mb-6">
+          <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-3 block">Performance & Metrics</label>
+          <div class="grid grid-cols-2 gap-4">
+            <div class="bg-slate-900/30 p-3 rounded-lg border border-slate-800 flex flex-col items-center justify-center">
+              <span class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">Latency</span>
+              <div class="relative flex items-center justify-center">
+                <svg class="w-16 h-16 transform -rotate-90">
+                  <circle cx="32" cy="32" r="28" stroke="rgba(255,255,255,0.03)" stroke-width="4" fill="transparent"/>
+                  <circle cx="32" cy="32" r="28" stroke="#0ea5e9" stroke-width="4" fill="transparent"
+                    stroke-dasharray="175.9" stroke-dashoffset="${gaugeOffset}"/>
+                </svg>
+                <span class="absolute font-mono text-xs text-slate-200">${simLatency.toFixed(1)}s</span>
+              </div>
+            </div>
+            <div class="bg-slate-900/30 p-3 rounded-lg border border-slate-800 flex flex-col items-center justify-center">
+              <span class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">Est. Cost</span>
+              <span class="font-mono text-sm text-emerald-400 font-black mb-1">$${simCost.toFixed(3)}</span>
+              <div class="w-full bg-slate-800 rounded-full h-1 overflow-hidden">
+                <div class="bg-emerald-500 h-1 rounded-full" style="width: ${costProgress}%"></div>
+              </div>
+              <span class="text-[9px] font-mono text-slate-500 mt-1">${simTokens} tokens</span>
+            </div>
           </div>
         </div>
 
         ${criteriaHtml}
         
-        <div class="mt-8 mb-4 border-t border-slate-700 pt-6">
+        <div class="mt-8 mb-4 border-t border-slate-800/80 pt-6">
           <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-3 block">Activity Logs</label>
           ${logsHtml}
         </div>
@@ -351,6 +522,37 @@
 
     function closePanel() {
       document.getElementById('details-panel').classList.add('translate-x-full');
+    }
+
+    function connectRealTime() {
+      // Connect to the live stream endpoint (Task 8-03)
+      const wsUrl = 'ws://localhost:8000/v1/stream';
+      const ws = new WebSocket(wsUrl);
+      
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data && data.session) {
+            const activeNodeId = data.node_id || (data.name ? `tool-${data.name}` : null);
+            if (activeNodeId) {
+              const nodeEl = document.getElementById(`node-${activeNodeId}`);
+              if (nodeEl) {
+                nodeEl.classList.add('active-streaming-node');
+                const descEl = nodeEl.querySelector('.node-desc');
+                if (descEl && !descEl.querySelector('.typing-dots')) {
+                  descEl.innerHTML = `<span class="text-cyan-400 font-bold tracking-wide">Streaming</span><span class="typing-dots"></span>`;
+                }
+              }
+            }
+          }
+        } catch (e) {
+          // ignore
+        }
+      };
+
+      ws.onclose = () => {
+        setTimeout(connectRealTime, 5000);
+      };
     }
 
     // Run

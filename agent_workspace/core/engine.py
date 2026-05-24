@@ -211,6 +211,34 @@ class AgentEngine:
 
     def _parse_skill_md(self, filepath: str) -> None:
         """Parse a Markdown knowledge document with optional YAML front matter."""
+        from pathlib import Path
+        resolved = Path(filepath).resolve()
+
+        is_allowed = False
+        workspace_resolved = Path(self.workspace_path).resolve()
+        try:
+            resolved.relative_to(workspace_resolved)
+            is_allowed = True
+        except ValueError:
+            pass
+
+        try:
+            resolved.relative_to(workspace_resolved.parent)
+            is_allowed = True
+        except ValueError:
+            pass
+
+        import tempfile
+        try:
+            temp_dir = Path(tempfile.gettempdir()).resolve()
+            resolved.relative_to(temp_dir)
+            is_allowed = True
+        except ValueError:
+            pass
+
+        if not is_allowed:
+            raise PermissionError("Directory traversal warning: Access denied outside project boundary")
+
         try:
             with open(filepath, "r", encoding="utf-8") as file:
                 raw = file.read()
@@ -249,6 +277,34 @@ class AgentEngine:
 
     def _parse_pap_doc(self, filepath: str, default_name: str, default_desc: str) -> None:
         """Parse a PAP document and load it into knowledge contexts."""
+        from pathlib import Path
+        resolved = Path(filepath).resolve()
+
+        is_allowed = False
+        workspace_resolved = Path(self.workspace_path).resolve()
+        try:
+            resolved.relative_to(workspace_resolved)
+            is_allowed = True
+        except ValueError:
+            pass
+
+        try:
+            resolved.relative_to(workspace_resolved.parent)
+            is_allowed = True
+        except ValueError:
+            pass
+
+        import tempfile
+        try:
+            temp_dir = Path(tempfile.gettempdir()).resolve()
+            resolved.relative_to(temp_dir)
+            is_allowed = True
+        except ValueError:
+            pass
+
+        if not is_allowed:
+            raise PermissionError("Directory traversal warning: Access denied outside project boundary")
+
         try:
             with open(filepath, "r", encoding="utf-8") as file:
                 raw = file.read()
@@ -416,7 +472,12 @@ class AgentEngine:
 
         # 2. Gather memory_snapshot (working memory)
         memory_snapshot = {}
-        session_file = Path(self.workspace_path) / "memory" / f"{session_id}.json"
+        memory_dir = Path(self.workspace_path) / "memory"
+        session_file = (memory_dir / f"{session_id}.json").resolve()
+        try:
+            session_file.relative_to(memory_dir.resolve())
+        except ValueError:
+            raise PermissionError("Directory traversal warning: Access denied outside memory boundary")
         if session_file.is_file():
             try:
                 memory_snapshot["working_memory"] = json.loads(session_file.read_text(encoding="utf-8"))
@@ -471,8 +532,13 @@ class AgentEngine:
         from pathlib import Path
 
         project_root = Path(self.workspace_path).parent
-        handoff_file = project_root / ".agent" / "memory" / "handoff" / f"{handoff_id}.json"
-
+        handoff_dir = (project_root / ".agent" / "memory" / "handoff").resolve()
+        handoff_file = (handoff_dir / f"{handoff_id}.json").resolve()
+        try:
+            handoff_file.relative_to(handoff_dir)
+        except ValueError:
+            raise PermissionError("Directory traversal warning: Access denied outside handoff boundary")
+        
         if not handoff_file.is_file():
             raise FileNotFoundError(f"Handoff packet file '{handoff_id}' not found at {handoff_file}")
 

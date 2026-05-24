@@ -171,6 +171,34 @@ depends  : 0-05, 2-01
 
 ---
 
+## 🔒 PHASE 3 — Quality & Security / 品質與安全安全
+
+### 3-01 Coverage & Pytest-Cov Configuration
+```
+priority : HIGH
+effort   : S
+depends  : 0-05
+```
+- [x] Create `pyproject.toml` in repository root configuring standard pytest options and coverage runs.
+- [x] Omit test suites from coverage source to obtain high-precision module coverage statistics.
+- [x] Verify automatic coverage report term outputs are printed seamlessly when running `pytest`.
+
+---
+
+### 3-02 Path Traversal Prevention & Coverage Boost
+```
+priority : HIGH
+effort   : L
+depends  : 3-01
+```
+- [x] Implement robust Path Traversal Prevention guards inside `SkillLoader` and `WorkflowEngine` using Path.resolve() and Path.relative_to().
+- [x] Add path validation safety checks inside `AgentEngine._parse_skill_md` and `_parse_pap_doc` to secure knowledge parsing boundaries.
+- [x] Write high-density unit tests in `tests/test_agent_engine.py` boosting `core/engine.py` coverage to 88% (exceeding 80% goal).
+- [x] Write high-density unit tests in `tests/test_skill_loader.py` boosting `core/skill_loader.py` coverage to 94% (exceeding 80% goal).
+- [x] Verify traversal violation checks raise explicit PermissionErrors and pass 100% cleanly.
+
+---
+
 ## 📊 PHASE 6 — Multi-Account & Token Management / 帳號與額度管理
 
 ### 6-01 Account Management Core
@@ -224,6 +252,46 @@ depends  : 0-05, 7-01
 
 ---
 
+## 🎨 PHASE 8 — Visual Topology Workspace & UI/UX / 視覺拓撲工作區與 UI/UX
+
+### 8-01 Zero-Build Viewer Polish & Aesthetic Refinement
+```
+priority : HIGH
+effort   : M
+depends  : 0-04, 1-01
+```
+- [x] Optimize `workspace/viewer.html` to support dynamically adjustable Dagre node spacing and rank separation.
+- [x] Refine the dark-mode layout with transparent glassmorphism panels and vibrant HSL status borders.
+- [x] Display live latency gauges, cost summaries, and active token counters on the selected node detail card.
+- [x] Write integration test verification for browser state pooling.
+
+---
+
+### 8-02 React Flow & Tauri Desktop Client Styling
+```
+priority : HIGH
+effort   : L
+depends  : 8-01
+```
+- [x] Stylize custom node components under `viewer/src/` with premium glassmorphism layouts.
+- [x] Dynamically map different border color schemes for active models (Gemini-blue, Claude-orange, GPT-green).
+- [x] Implement real-time mini charts inside the node card displaying cumulative token cost per generation chunk.
+- [x] Enable drag-and-drop workflow step generation on the canvas.
+
+---
+
+### 8-03 Bidirectional Real-Time Streaming Visuals
+```
+priority : HIGH
+effort   : M
+depends  : 6-03, 8-02
+```
+- [x] Implement WebSocket or Server-Sent Events (SSE) connection listeners in the frontend to capture active stream payloads.
+- [x] Animate running nodes dynamically with pulsing borders and sliding typing micro-animations as tokens stream in.
+- [x] Animate handoff edges with glowing flow particles traveling from source to target agent upon active transfer.
+
+---
+
 ## 📈 Queue Summary & Progress
 
 | Phase | Total Tasks | Completed Tasks | Status |
@@ -231,7 +299,9 @@ depends  : 0-05, 7-01
 | **Phase 0: Foundation** | 6 tasks | 6 tasks | 100% Done |
 | **Phase 1: Protocol** | 5 tasks | 5 tasks | 100% Done |
 | **Phase 2: Tooling** | 2 tasks | 2 tasks | 100% Done |
+| **Phase 3: Quality & Security** | 2 tasks | 2 tasks | 100% Done |
 | **Phase 6: Multi-Account** | 3 tasks | 3 tasks | 100% Done |
 | **Phase 7: Consensus** | 2 tasks | 2 tasks | 100% Done |
+| **Phase 8: UI/UX & Visuals** | 3 tasks | 3 tasks | 100% Done |
 
 *This queue is managed dynamically by the active LAS Developer Agent. All task updates, outcome logs, and progress status updates are written directly to this file before turn conclusion.*

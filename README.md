@@ -229,6 +229,9 @@ Declarative workflows run step-by-step using an **Asynchronous Workflow Engine**
 python agent_workspace\pap_validate.py
 python agent_workspace\tool_manifest.py sync
 python agent_workspace\tool_manifest.py validate
+
+# Run unit tests and generate high-precision coverage reports automatically
+python -m pytest
 ```
 
 - `pap_validate.py` is dependency-free and checks the `.agent/` workspace contract.
@@ -381,6 +384,9 @@ python agent_workspace/cli.py run-debate --topic "我們是否應該採用 Contr
 python agent_workspace\pap_validate.py
 python agent_workspace\tool_manifest.py validate
 python agent_workspace\topology_stream.py stream --msg "test" --session verify-p1 --dry-run
+
+# 執行單元測試並自動生成高精度的模組覆蓋率報告
+python -m pytest
 ```
 
 - **規格 Schema 正式化 (`spec/`)**：在根目錄的 `spec/` 資料夾內定義了 Agent 身分、Skill 工具合約、Episodic/Semantic 記憶體以及 Workflow 流程的完整 JSON Schema 規範。

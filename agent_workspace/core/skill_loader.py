@@ -47,6 +47,36 @@ class SkillLoader:
 
     def _parse_and_register_skill(self, filepath: str, is_global: bool = False) -> None:
         """Parse SKILL.md and register it as a Pydantic tool."""
+        from pathlib import Path
+        resolved_path = Path(filepath).resolve()
+
+        local_skills_dir = Path(self.workspace_path) / "skills"
+        global_skills_dir = Path(os.path.expanduser("~")) / ".gemini" / "antigravity" / "skills"
+
+        is_allowed = False
+        try:
+            resolved_path.relative_to(local_skills_dir.resolve())
+            is_allowed = True
+        except ValueError:
+            pass
+
+        try:
+            resolved_path.relative_to(global_skills_dir.resolve())
+            is_allowed = True
+        except ValueError:
+            pass
+
+        import tempfile
+        try:
+            temp_dir = Path(tempfile.gettempdir()).resolve()
+            resolved_path.relative_to(temp_dir)
+            is_allowed = True
+        except ValueError:
+            pass
+
+        if not is_allowed:
+            raise PermissionError("Directory traversal warning: Access denied outside skill directories")
+
         try:
             with open(filepath, "r", encoding="utf-8") as file:
                 raw = file.read()

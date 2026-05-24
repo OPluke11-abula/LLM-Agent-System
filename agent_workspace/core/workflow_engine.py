@@ -63,11 +63,21 @@ class WorkflowEngine:
 
     def _get_workflow_file(self, workflow_id: str) -> Path:
         """Get the absolute path to a workflow markdown definition."""
-        return self.workflows_dir / f"{workflow_id}.md"
+        resolved = (self.workflows_dir / f"{workflow_id}.md").resolve()
+        try:
+            resolved.relative_to(self.workflows_dir.resolve())
+        except ValueError:
+            raise PermissionError("Directory traversal warning: Access denied outside workflow boundaries")
+        return resolved
 
     def _get_run_file(self, session_id: str) -> Path:
         """Get the absolute path to a workflow run state snapshot."""
-        return self.runs_dir / f"{session_id}.json"
+        resolved = (self.runs_dir / f"{session_id}.json").resolve()
+        try:
+            resolved.relative_to(self.runs_dir.resolve())
+        except ValueError:
+            raise PermissionError("Directory traversal warning: Access denied outside workflow run boundaries")
+        return resolved
 
     def load_workflow(self, workflow_id: str) -> dict[str, Any]:
         """Load and parse the declarative workflow from .agent/workflows/<id>.md."""
