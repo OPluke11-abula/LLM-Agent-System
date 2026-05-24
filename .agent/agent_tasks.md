@@ -108,10 +108,10 @@ priority : HIGH
 effort   : M
 depends  : 0-01
 ```
-- [ ] Structure dynamic prompt snippets with `id`, `template`, `variables`, `version`
-- [ ] Build `PromptComposer.build(id, vars)` in `agent_workspace/core/prompt_composer.py`
-- [ ] Implement prompt injection validation (automatic variable escaping to prevent SSTI)
-- [ ] Add compositor unit tests covering validation and injection guards
+- [x] Structure dynamic prompt snippets with `id`, `template`, `variables`, `version`
+- [x] Build `PromptComposer.build(id, vars)` in `agent_workspace/core/prompt_composer.py`
+- [x] Implement prompt injection validation (automatic variable escaping to prevent SSTI)
+- [x] Add compositor unit tests covering validation and injection guards
 
 ---
 
@@ -121,11 +121,11 @@ priority : HIGH
 effort   : M
 depends  : 0-02, 1-01
 ```
-- [ ] Define standardized Handoff Packet schema (`task_state`, `context_summary`, `memory_snapshot`, `checksum`)
-- [ ] Implement `AgentEngine.export_handoff()` to bundle state and write into `.agent/memory/handoff/`
-- [ ] Implement `AgentEngine.import_handoff(id)` to restore and onboard the next agent thread
-- [ ] Add packet integrity verification (hash checksum verification)
-- [ ] Write transition and state serialization tests under `tests/test_handoff.py`
+- [x] Define standardized Handoff Packet schema (`task_state`, `context_summary`, `memory_snapshot`, `checksum`)
+- [x] Implement `AgentEngine.export_handoff()` to bundle state and write into `.agent/memory/handoff/`
+- [x] Implement `AgentEngine.import_handoff(id)` to restore and onboard the next agent thread
+- [x] Add packet integrity verification (hash checksum verification)
+- [x] Write transition and state serialization tests under `tests/test_handoff.py`
 
 ---
 
@@ -160,7 +160,7 @@ depends  : 0-02, 1-01
 | Phase | Total Tasks | Completed Tasks | Status |
 |---|---|---|---|
 | **Phase 0: Foundation** | 6 tasks | 6 tasks | 100% Done |
-| **Phase 1: Protocol** | 5 tasks | 1 task | 20% (Workflow Engine Done) |
+| **Phase 1: Protocol** | 5 tasks | 3 tasks | 60% (Workflow/Prompt/Handoff Done) |
 | **Phase 6: Multi-Account** | 3 tasks | 3 tasks | 100% Done |
 
 *This queue is managed dynamically by the active LAS Developer Agent. All task updates, outcome logs, and progress status updates are written directly to this file before turn conclusion.*

@@ -350,6 +350,133 @@ class AgentEngine:
         except ImportError as e:
             logger.warning("Failed to load SkillLoader: %s", e)
 
+    def export_handoff(self, session_id: str, context_summary: str) -> str:
+        """Export session working memory and agent task state into a standardized PAP handoff packet.
+
+        Verifies state integrity with a SHA256 checksum and writes the packet
+        to .agent/memory/handoff/handoff-<checksum>.json.
+        """
+        import hashlib
+        import json
+        from datetime import datetime, timezone
+        from pathlib import Path
+
+        project_root = Path(self.workspace_path).parent
+        
+        # 1. Gather task_state
+        task_state = {}
+        tasks_file = project_root / ".agent" / "agent_tasks.md"
+        if tasks_file.is_file():
+            try:
+                task_state["agent_tasks_content"] = tasks_file.read_text(encoding="utf-8")
+            except Exception as e:
+                logger.warning("Failed to read agent_tasks.md for handoff: %s", e)
+
+        # 2. Gather memory_snapshot (working memory)
+        memory_snapshot = {}
+        session_file = Path(self.workspace_path) / "memory" / f"{session_id}.json"
+        if session_file.is_file():
+            try:
+                memory_snapshot["working_memory"] = json.loads(session_file.read_text(encoding="utf-8"))
+            except Exception as e:
+                logger.warning("Failed to read session memory %s for handoff: %s", session_id, e)
+        memory_snapshot["session_id"] = session_id
+
+        # 3. Calculate SHA256 Checksum
+        payload = {
+            "task_state": task_state,
+            "context_summary": context_summary,
+            "memory_snapshot": memory_snapshot
+        }
+        serialized = json.dumps(payload, sort_keys=True, ensure_ascii=False).encode("utf-8")
+        checksum = hashlib.sha256(serialized).hexdigest()
+
+        # 4. Construct complete handoff packet
+        handoff_id = f"handoff-{checksum[:16]}"
+        packet = {
+            "protocol": "PAP-Handoff",
+            "version": "1.0.0",
+            "handoff_id": handoff_id,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "task_state": task_state,
+            "context_summary": context_summary,
+            "memory_snapshot": memory_snapshot,
+            "checksum": checksum
+        }
+
+        # 5. Persist to filesystem
+        handoff_dir = project_root / ".agent" / "memory" / "handoff"
+        handoff_dir.mkdir(parents=True, exist_ok=True)
+        handoff_file = handoff_dir / f"{handoff_id}.json"
+        
+        try:
+            handoff_file.write_text(json.dumps(packet, ensure_ascii=False, indent=2), encoding="utf-8")
+            logger.info("Successfully exported handoff packet %s", handoff_id)
+        except Exception as e:
+            logger.error("Failed to write handoff packet to %s: %s", handoff_file, e)
+            raise RuntimeError(f"Failed to save handoff packet: {e}") from e
+
+        return handoff_id
+
+    def import_handoff(self, handoff_id: str) -> dict[str, Any]:
+        """Import a PAP handoff packet and restore session working memory.
+
+        Verifies cryptographic integrity with SHA256 checksum and raises ValueError
+        on any mismatch or malformed packet.
+        """
+        import hashlib
+        import json
+        from pathlib import Path
+
+        project_root = Path(self.workspace_path).parent
+        handoff_file = project_root / ".agent" / "memory" / "handoff" / f"{handoff_id}.json"
+
+        if not handoff_file.is_file():
+            raise FileNotFoundError(f"Handoff packet file '{handoff_id}' not found at {handoff_file}")
+
+        try:
+            packet = json.loads(handoff_file.read_text(encoding="utf-8"))
+        except Exception as e:
+            raise ValueError(f"Malformed handoff packet JSON for '{handoff_id}': {e}") from e
+
+        # Validate packet fields
+        required = ["protocol", "version", "task_state", "context_summary", "memory_snapshot", "checksum"]
+        missing = [k for k in required if k not in packet]
+        if missing:
+            raise ValueError(f"Handoff packet '{handoff_id}' is missing required fields: {missing}")
+
+        # Verify integrity checksum
+        task_state = packet["task_state"]
+        context_summary = packet["context_summary"]
+        memory_snapshot = packet["memory_snapshot"]
+        checksum_expected = packet["checksum"]
+
+        payload = {
+            "task_state": task_state,
+            "context_summary": context_summary,
+            "memory_snapshot": memory_snapshot
+        }
+        serialized = json.dumps(payload, sort_keys=True, ensure_ascii=False).encode("utf-8")
+        checksum_actual = hashlib.sha256(serialized).hexdigest()
+
+        if checksum_actual != checksum_expected:
+            raise ValueError("Handoff packet integrity verification failed (checksum mismatch)")
+
+        # Restore working memory snapshot
+        working_memory = memory_snapshot.get("working_memory")
+        if working_memory:
+            session_id = memory_snapshot.get("session_id", "default")
+            session_file = Path(self.workspace_path) / "memory" / f"{session_id}.json"
+            session_file.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                session_file.write_text(json.dumps(working_memory, ensure_ascii=False, indent=2), encoding="utf-8")
+                logger.info("Successfully restored working memory for session %s", session_id)
+            except Exception as e:
+                logger.error("Failed to restore working memory to %s: %s", session_file, e)
+                raise RuntimeError(f"Failed to restore working memory: {e}") from e
+
+        return packet
+
 
 if __name__ == "__main__":
     import json
