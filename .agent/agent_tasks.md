@@ -95,10 +95,10 @@ priority : MEDIUM
 effort   : M
 depends  : 0-01
 ```
-- [ ] Create `.agent/knowledge_base/index.json` to catalog tags, creators, and versions
-- [ ] Format structured frontmatter for all knowledge base documents
-- [ ] Add indexing helper `KnowledgeBase.query(keyword)` in `agent_workspace/core/knowledge.py`
-- [ ] Secure read-only access boundaries for static knowledge
+- [x] Create `.agent/knowledge_base/index.json` to catalog tags, creators, and versions
+- [x] Format structured frontmatter for all knowledge base documents
+- [x] Add indexing helper `KnowledgeBase.query(keyword)` in `agent_workspace/core/knowledge.py`
+- [x] Secure read-only access boundaries for static knowledge
 
 ---
 
@@ -160,7 +160,7 @@ depends  : 0-02, 1-01
 | Phase | Total Tasks | Completed Tasks | Status |
 |---|---|---|---|
 | **Phase 0: Foundation** | 6 tasks | 6 tasks | 100% Done |
-| **Phase 1: Protocol** | 5 tasks | 3 tasks | 60% (Workflow/Prompt/Handoff Done) |
+| **Phase 1: Protocol** | 5 tasks | 4 tasks | 80% (Workflow/Prompt/Handoff/Knowledge Done) |
 | **Phase 6: Multi-Account** | 3 tasks | 3 tasks | 100% Done |
 
 *This queue is managed dynamically by the active LAS Developer Agent. All task updates, outcome logs, and progress status updates are written directly to this file before turn conclusion.*
