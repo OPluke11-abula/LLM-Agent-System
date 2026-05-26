@@ -118,3 +118,22 @@ def test_knowledge_base_boundary_protection(mock_kb_env):
         KnowledgeBase.query("exploit", workspace_path=str(workspace_path))
         
     assert "Directory traversal warning" in str(excinfo.value)
+
+
+def test_knowledge_base_semantic_fallback(mock_kb_env):
+    workspace_path = os.path.join(mock_kb_env, "agent_workspace")
+    
+    # Query "clean first" which does NOT exist as an exact substring anywhere in index.json or documents.
+    # Therefore, exact matching fails (returning empty list), triggering the semantic search fallback.
+    results = KnowledgeBase.query("clean first", workspace_path=workspace_path)
+    assert len(results) == 1
+    assert results[0]["id"] == "standards"
+    assert "clean" in results[0]["description"]
+    assert "first" in results[0]["content"]
+
+
+def test_knowledge_base_external_slot():
+    # Verify the external vector database search API slot signature runs without crashing
+    res = KnowledgeBase.external_vector_search("test query")
+    assert isinstance(res, list)
+    assert len(res) == 0

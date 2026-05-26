@@ -199,6 +199,55 @@ depends  : 3-01
 
 ---
 
+## 🎨 PHASE 4 — Declarative Workflow Designer / 聲明式工作流設計器
+
+### 4-01 Drag-and-Drop Workflow Canvas
+```
+priority : HIGH
+effort   : L
+depends  : 8-01, 8-02
+```
+- [ ] Implement interactive drag-and-drop node addition and edge links inside `viewer.html` / 在 `viewer.html` 中實作互動式拖拽節點與邊線連結
+- [ ] Support custom n8n-like step configuration options (skill selection, dynamic variables) / 支援自訂 n8n 式步驟配置（選擇工具、動態參數變數）
+- [ ] Real-time canvas validation of step paths and dependencies / 即時畫布步驟路徑與依賴關係檢驗
+
+---
+
+### 4-02 Exporter & Importer Specs
+```
+priority : MEDIUM
+effort   : M
+depends  : 1-01, 4-01
+```
+- [ ] Export canvas configuration dynamically as `.agent/workflows/<id>.md` PAP spec file / 動態將畫布配置匯出為 `.agent/workflows/<id>.md` PAP 規格檔案
+- [ ] Enable file uploading/importing of existing `.agent/workflows/*.md` files into visual canvas / 支援讀取並將現有的 `.agent/workflows/*.md` 檔案還原至視覺畫布
+
+---
+
+## 🧠 PHASE 5 — Advanced Semantic Retrieval / 進階語意檢索與備援
+
+### 5-01 Zero-Dependency Local Semantic Fallback
+```
+priority : HIGH
+effort   : M
+depends  : 1-02
+```
+- [x] Implement zero-dependency local TF-IDF & Cosine Similarity search in `core/knowledge.py` / 在 `core/knowledge.py` 中實作零依賴的 TF-IDF 與餘弦相似度檢索
+- [x] Integrate automatic fallback to semantic search when exact keyword matching fails / 當關鍵字精準匹配失敗時，自動降級啟用語意備援
+
+---
+
+### 5-02 Vector Database Slot & External Search
+```
+priority : MEDIUM
+effort   : S
+depends  : 5-01
+```
+- [x] Reserve vector embedding API slot in `core/knowledge.py` for cloud-based embeddings / 在 `core/knowledge.py` 中為雲端 Embedding API 預留插槽
+- [x] Write fallback and retrieval validation tests under `tests/test_knowledge_base.py` / 在 `tests/test_knowledge_base.py` 中撰寫備援與檢索單元測試
+
+---
+
 ## 📊 PHASE 6 — Multi-Account & Token Management / 帳號與額度管理
 
 ### 6-01 Account Management Core
@@ -326,6 +375,41 @@ depends  : 6-03, 8-02
 
 ---
 
+## 🏢 PHASE 11 — Multi-Agent Corporate Swarm & Multi-Dashboard Controller / 多智慧體公司化協同與多重儀表板控制器
+
+### 11-01 Multi-Dashboard Switcher & Role Views
+```
+priority : HIGH
+effort   : L
+depends  : 8-01, 8-02
+```
+- [ ] Create specialized views inside `viewer.html`: CEO Strategy, Developer Terminal, and Auditor Billing dashboards / 在 `viewer.html` 中實作 CEO 戰略、開發者終端與審計計費專屬儀表板視角
+- [ ] Live charts inside Auditor dashboard tracking total company token consumption and API costs / 在審計儀表板中實作即時圖表，追蹤整家公司的 Token 消耗與 API 費用成本
+
+---
+
+### 11-02 Simultaneous Concurrent Swarms
+```
+priority : HIGH
+effort   : L
+depends  : 7-01, 9-03
+```
+- [ ] Enable running multiple independent agent sessions concurrently across websocket adapter channels / 透過 Websocket 適配器通道支援多個獨立的智慧體對話併發並行執行
+- [ ] Implement a central Moderator/CEO routing orchestrator to dynamically dispatch subtasks to different developer or analyst agents / 實作中央 Moderator/CEO 路由協調器，動態派發子任務至開發者或分析師智慧體
+
+---
+
+### 11-03 Company Org Chart & State Monitoring
+```
+priority : MEDIUM
+effort   : M
+depends  : 8-03, 11-01
+```
+- [ ] Render interactive corporate organizational structure chart (CEO -> Strategy -> R&D -> QA) / 渲染互動式公司組織架構圖
+- [ ] Real-time status indicators showing current workload and operational state (Idle, Thinking, HITL Waiting, Running Tool) for all corporate agents / 即時狀態監控，顯示所有公司智慧體的工作狀態與負載情況
+
+---
+
 ## 📈 Queue Summary & Progress
 
 | Phase | Total Tasks | Completed Tasks | Status |
@@ -334,9 +418,12 @@ depends  : 6-03, 8-02
 | **Phase 1: Protocol** | 5 tasks | 5 tasks | 100% Done |
 | **Phase 2: Tooling** | 2 tasks | 2 tasks | 100% Done |
 | **Phase 3: Quality & Security** | 2 tasks | 2 tasks | 100% Done |
+| **Phase 4: Workflow Designer** | 2 tasks | 0 tasks | 0% Todo |
+| **Phase 5: Semantic Retrieval** | 2 tasks | 2 tasks | 100% Done |
 | **Phase 6: Multi-Account** | 3 tasks | 3 tasks | 100% Done |
 | **Phase 7: Consensus** | 2 tasks | 2 tasks | 100% Done |
 | **Phase 8: UI/UX & Visuals** | 3 tasks | 3 tasks | 100% Done |
 | **Phase 9: HITL & RBAC** | 4 tasks | 4 tasks | 100% Done |
+| **Phase 11: Agent Company** | 3 tasks | 0 tasks | 0% Todo |
 
 *This queue is managed dynamically by the active LAS Developer Agent. All task updates, outcome logs, and progress status updates are written directly to this file before turn conclusion.*
