@@ -375,6 +375,52 @@ depends  : 6-03, 8-02
 
 ---
 
+## 🔒 PHASE 10 — UI/UX Polish, Multi-Language & Executable Packaging / UI/UX 打磨、多國語言與可執行檔打包
+
+### 10-01 Localized Language Extensions
+```
+priority : MEDIUM
+effort   : M
+depends  : 8-02
+```
+- [ ] Expand translation dictionary `T` inside `viewer/src/constants.ts` with Japanese (`ja`) and French (`fr`) mappings / 在 `viewer/src/constants.ts` 中以日語與法語擴展翻譯字典 `T`
+- [ ] Ensure all onboarding guides, general settings, and planner prompt generators support active translation / 確保新手指南、一般設定和 Prompt 產生器支援所有對應語系
+
+---
+
+### 10-02 Relaunchable Onboarding Wizard
+```
+priority : HIGH
+effort   : S
+depends  : 8-02
+```
+- [ ] Add a "Relaunch Tutorial" button under General Settings or Sidebar in React Flow / 在設定或側邊欄新增「重新啟動新手教學」按鈕
+- [ ] Reset `has_onboarded` local state reactively to trigger full setup flow without clearing other workspaces / 重新啟動時暫時重設狀態，方便新手隨時學習完整的人機協作流程
+
+---
+
+### 10-03 Tauri Standalone Executable Packaging
+```
+priority : HIGH
+effort   : L
+depends  : 8-02, 10-02
+```
+- [ ] Optimize desktop app asset routes and dynamic binary bindings in `src-tauri/tauri.conf.json` / 優化 Tauri 資產路徑與二進位檔案繫結
+- [ ] Package the entire React Flow frontend into a single standalone `.exe` installer/executable via `npm run tauri build` / 一鍵編譯為單一可移植免安裝 `.exe` 案頭執行檔
+
+---
+
+### 10-04 Escaping AI-vibe Premium Styling Polishes
+```
+priority : HIGH
+effort   : M
+depends  : 8-02
+```
+- [ ] Upgrade glassmorphic backdrop filters, custom scrollbar styling, grid dot sizing, and active state transitions / 升級玻璃擬態邊框、網格粒子尺寸與運行態過渡動畫
+- [ ] Refine visual cost charts and real-time latency gauges to feel highly premium and bespoke / 精雕細琢累計費用圖表與即時延遲計量器，杜絕常見的 AI 生成罐頭感
+
+---
+
 ## 🏢 PHASE 11 — Multi-Agent Corporate Swarm & Multi-Dashboard Controller / 多智慧體公司化協同與多重儀表板控制器
 
 ### 11-01 Multi-Dashboard Switcher & Role Views
@@ -424,7 +470,9 @@ depends  : 8-03, 11-01
 | **Phase 7: Consensus** | 2 tasks | 2 tasks | 100% Done |
 | **Phase 8: UI/UX & Visuals** | 3 tasks | 3 tasks | 100% Done |
 | **Phase 9: HITL & RBAC** | 4 tasks | 4 tasks | 100% Done |
+| **Phase 10: UI/UX & Executable** | 4 tasks | 0 tasks | 0% Pending |
 | **Phase 11: Agent Company** | 3 tasks | 3 tasks | 100% Done |
 
 
 *This queue is managed dynamically by the active LAS Developer Agent. All task updates, outcome logs, and progress status updates are written directly to this file before turn conclusion.*
+```
