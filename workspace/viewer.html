@@ -143,6 +143,30 @@
       50% { content: '..'; }
       75% { content: '...'; }
     }
+
+    /* Designer additions */
+    .designer-node {
+      border: 2px dashed rgba(255, 255, 255, 0.15) !important;
+      background: rgba(15, 23, 42, 0.35);
+    }
+    .designer-node:hover {
+      border-color: rgba(59, 130, 246, 0.5) !important;
+    }
+    .designer-node-selected {
+      border: 2px solid hsl(217, 91%, 60%) !important;
+      box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
+      background: rgba(59, 130, 246, 0.08) !important;
+    }
+    .designer-node-error {
+      border: 2px solid hsl(0, 84%, 60%) !important;
+      box-shadow: 0 0 15px rgba(239, 68, 68, 0.3);
+      background: rgba(239, 68, 68, 0.08) !important;
+    }
+    .linking-active-node {
+      border: 2px solid hsl(45, 100%, 50%) !important;
+      box-shadow: 0 0 20px rgba(245, 158, 11, 0.5);
+      animation: goldPulse 1.5s ease-in-out infinite !important;
+    }
   </style>
 </head>
 <body class="flex h-screen overflow-hidden">
@@ -159,17 +183,17 @@
       </div>
       
       <nav class="w-full flex flex-col gap-2 px-2 sm:px-4">
-        <button class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20 transition-colors">
+        <button onclick="switchDashboardView('developer')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20 transition-colors">
           <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
           <span class="hidden sm:inline font-medium">Topology</span>
         </button>
-        <button class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 transition-colors">
+        <button onclick="switchDashboardView('ceo')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 transition-colors">
           <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-          <span class="hidden sm:inline font-medium">Agents</span>
+          <span class="hidden sm:inline font-medium">Swarm Room</span>
         </button>
-        <button class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 transition-colors">
-          <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
-          <span class="hidden sm:inline font-medium">Skills</span>
+        <button onclick="switchDashboardView('auditor')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 transition-colors">
+          <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+          <span class="hidden sm:inline font-medium">Billing</span>
         </button>
       </nav>
     </div>
@@ -196,20 +220,355 @@
     </div>
   </aside>
 
-  <!-- Main Canvas -->
+  <!-- Interactive Design Toolbox (Left Panel, hidden by default) -->
+  <aside id="design-toolbox" class="w-80 flex-shrink-0 glass-panel border-r border-slate-800/80 hidden flex-col py-6 z-30 overflow-y-auto">
+    <div class="px-6 mb-6">
+      <h3 class="text-sm font-bold tracking-wider uppercase text-slate-300">Workflow Designer</h3>
+      <p class="text-xs text-slate-500 mt-1">Configure workflow metadata and drag/click skills to add steps.</p>
+    </div>
+    
+    <!-- Workflow Metadata Form -->
+    <div class="px-6 pb-6 border-b border-slate-800/80 space-y-4">
+      <div>
+        <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500 block mb-1">Workflow ID</label>
+        <input type="text" id="wf-id" class="w-full bg-slate-900/80 border border-slate-800 rounded px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-blue-500/50" value="new-workflow" oninput="updateWorkflowMeta()">
+      </div>
+      <div>
+        <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500 block mb-1">Workflow Name</label>
+        <input type="text" id="wf-name" class="w-full bg-slate-900/80 border border-slate-800 rounded px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-blue-500/50" value="New Workflow" oninput="updateWorkflowMeta()">
+      </div>
+      <div>
+        <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500 block mb-1">Description</label>
+        <textarea id="wf-desc" rows="2" class="w-full bg-slate-900/80 border border-slate-800 rounded px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-blue-500/50 resize-none font-sans" oninput="updateWorkflowMeta()">Interactive visual workflow</textarea>
+      </div>
+      <div>
+        <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500 block mb-1">Version</label>
+        <input type="text" id="wf-version" class="w-full bg-slate-900/80 border border-slate-800 rounded px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-blue-500/50" value="1.0.0" oninput="updateWorkflowMeta()">
+      </div>
+    </div>
+
+    <!-- Toolbox Import/Export Actions -->
+    <div class="px-6 py-4 border-b border-slate-800/80 flex gap-2">
+      <button onclick="exportWorkflow()" class="flex-1 py-1.5 px-3 bg-blue-600/25 hover:bg-blue-600/40 text-blue-400 border border-blue-500/30 rounded text-xs font-semibold tracking-wide transition flex items-center justify-center gap-1.5">
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+        Export MD
+      </button>
+      <button onclick="triggerImport()" class="flex-1 py-1.5 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded text-xs font-semibold tracking-wide transition flex items-center justify-center gap-1.5">
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+        Import MD
+      </button>
+      <input type="file" id="wf-import-file" class="hidden" accept=".md" onchange="handleImportFile(event)">
+    </div>
+
+    <!-- Skills List -->
+    <div class="px-6 py-4 flex-1">
+      <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500 block mb-3">Available Skills</label>
+      <div id="skills-list" class="space-y-3">
+        <!-- Draggable skill cards will be dynamically injected here -->
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Canvas Container -->
   <main class="flex-1 flex flex-col relative z-10 overflow-hidden">
     <!-- Header -->
-    <header class="h-16 flex-shrink-0 border-b border-slate-800/80 flex items-center px-6 glass-panel z-20">
-      <div id="project-header">
-        <h2 id="project-title" class="text-lg font-bold text-slate-200">Loading Workspace...</h2>
-        <p id="project-desc" class="text-xs text-slate-400">Fetching workspace.json...</p>
+    <header class="h-16 flex-shrink-0 border-b border-slate-800/80 flex items-center justify-between px-6 glass-panel z-20">
+      <div id="project-header" class="flex-1 flex items-center justify-between pr-4">
+        <div>
+          <h2 id="project-title" class="text-lg font-bold text-slate-200">Loading Workspace...</h2>
+          <p id="project-desc" class="text-xs text-slate-400">Fetching workspace.json...</p>
+        </div>
+      </div>
+
+      <!-- Premium Multi-Dashboard View Switcher (Task 11-01) -->
+      <div id="dashboard-switcher" class="flex items-center bg-slate-900/80 p-0.5 rounded-lg border border-slate-800/80 shadow-inner mr-4">
+        <button id="view-btn-ceo" onclick="switchDashboardView('ceo')" class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 text-slate-400 hover:text-slate-200">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+          CEO
+        </button>
+        <button id="view-btn-developer" onclick="switchDashboardView('developer')" class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 bg-blue-500/15 text-blue-400 border border-blue-500/20 shadow-sm shadow-blue-500/5">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
+          Developer
+        </button>
+        <button id="view-btn-auditor" onclick="switchDashboardView('auditor')" class="px-3.5 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 text-slate-400 hover:text-slate-200">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+          Auditor
+        </button>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <!-- Visual hints or active mode indicators -->
+        <span id="designer-hint-banner" class="hidden text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-full animate-pulse font-medium"></span>
+        <button id="design-mode-toggle" onclick="toggleDesignMode()" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-lg text-xs font-bold tracking-wide transition flex items-center gap-1.5 shadow-lg">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+          Design Mode
+        </button>
       </div>
     </header>
 
-    <!-- Canvas -->
-    <div id="canvas-container" class="bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wNSkiLz48L3N2Zz4=')]">
-      <div id="nodes-layer" class="absolute top-0 left-0 w-full h-full z-20"></div>
-      <svg id="edges-layer" class="edges"></svg>
+    <!-- Developer View: Canvas & Terminal -->
+    <div id="developer-view-container" class="flex-1 flex flex-col min-h-0">
+      <!-- Canvas -->
+      <div id="canvas-container" class="flex-1 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wNSkiLz48L3N2Zz4=')]">
+        <div id="nodes-layer" class="absolute top-0 left-0 w-full h-full z-20"></div>
+        <svg id="edges-layer" class="edges"></svg>
+      </div>
+
+      <!-- Collapsible Streaming Terminal Console at bottom (Developer View extra feature!) -->
+      <div id="terminal-drawer" class="h-48 glass-panel border-t border-slate-800/80 bg-slate-950/80 flex flex-col z-20">
+        <div class="flex items-center justify-between px-4 py-2 border-b border-slate-800 bg-slate-900/40">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span class="text-xs font-bold text-slate-300 font-mono tracking-wider">LAS Streaming Execution Terminal</span>
+          </div>
+          <button onclick="clearTerminal()" class="text-[10px] text-slate-500 hover:text-slate-300 font-bold transition">Clear Logs</button>
+        </div>
+        <div id="terminal-log" class="flex-1 p-4 font-mono text-xs overflow-y-auto text-emerald-400 space-y-1.5 selection:bg-emerald-500/20">
+          <div class="text-slate-500 italic">[System] Terminal ready. Send message or trigger custom visual designed workflows to see real-time streaming tokens and agent execution.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CEO View: Organization & Employee Load Monitoring -->
+    <div id="ceo-view-container" class="hidden flex-1 flex-col p-6 overflow-y-auto gap-8 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wNSkiLz48L3N2Zz4=')]">
+      
+      <!-- Corporate Org Chart (Task 11-03) -->
+      <div class="glass-panel p-6 rounded-xl flex flex-col items-center justify-center border border-slate-800/80 shadow-2xl bg-slate-950/20 relative">
+        <h3 class="text-xs font-bold tracking-widest text-slate-500 uppercase mb-6">Corporate Swarm Organizational Chart</h3>
+        
+        <!-- Organization Tree Hierarchy Layout -->
+        <div class="flex flex-col items-center gap-6 w-full max-w-2xl">
+          <!-- Level 1: CEO -->
+          <div class="relative flex flex-col items-center">
+            <div class="px-5 py-3 rounded-lg border border-amber-500/30 bg-amber-500/10 shadow-lg shadow-amber-500/5 text-center flex flex-col items-center">
+              <span class="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400 font-bold mb-1 shadow-inner">CEO</span>
+              <span class="text-sm font-black text-white">CEO (Moderator)</span>
+              <span class="text-[10px] text-amber-500/80 font-bold uppercase tracking-wider font-mono">Orchestration & Strategy</span>
+            </div>
+            <!-- Vertical Line Down -->
+            <div class="w-0.5 h-6 bg-slate-800 mt-2"></div>
+          </div>
+
+          <!-- Level 2 Connector line -->
+          <div class="w-1/2 h-0.5 bg-slate-800 -mt-2"></div>
+
+          <!-- Level 3: Developer & Analyst -->
+          <div class="flex justify-between w-full">
+            
+            <!-- Left Side: Developer -->
+            <div class="flex flex-col items-center w-1/2">
+              <!-- Vertical Connector Line -->
+              <div class="w-0.5 h-6 bg-slate-800 -mt-2.5"></div>
+              <div class="px-5 py-3 rounded-lg border border-blue-500/30 bg-blue-500/10 shadow-lg shadow-blue-500/5 text-center flex flex-col items-center mt-2 w-48">
+                <span class="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 font-bold mb-1 shadow-inner">DEV</span>
+                <span class="text-sm font-black text-white">Developer</span>
+                <span class="text-[10px] text-blue-400/80 font-bold uppercase tracking-wider font-mono">Code R&D & QA</span>
+              </div>
+            </div>
+
+            <!-- Right Side: Analyst -->
+            <div class="flex flex-col items-center w-1/2">
+              <!-- Vertical Connector Line -->
+              <div class="w-0.5 h-6 bg-slate-800 -mt-2.5"></div>
+              <div class="px-5 py-3 rounded-lg border border-cyan-500/30 bg-cyan-500/10 shadow-lg shadow-cyan-500/5 text-center flex flex-col items-center mt-2 w-48">
+                <span class="w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center text-cyan-400 font-bold mb-1 shadow-inner">ANL</span>
+                <span class="text-sm font-black text-white">Analyst</span>
+                <span class="text-[10px] text-cyan-400/80 font-bold uppercase tracking-wider font-mono">Research & Data</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- Swarm Workload & State Monitoring Cards (Task 11-03) -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        <!-- CEO Agent Employee Card -->
+        <div id="employee-card-ceo" class="glass-panel p-5 rounded-xl border border-slate-800/80 shadow-lg bg-slate-950/20 flex flex-col gap-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <span class="w-10 h-10 rounded-full bg-amber-500 text-slate-900 font-black flex items-center justify-center shadow-lg shadow-amber-500/20 text-sm">CEO</span>
+              <div>
+                <h4 class="font-extrabold text-white text-sm">CEO</h4>
+                <p class="text-[10px] text-slate-500 font-mono leading-none mt-0.5">findai-ceo</p>
+              </div>
+            </div>
+            <span id="employee-status-badge-ceo" class="status-badge badge-todo">Idle</span>
+          </div>
+          <div class="text-xs text-slate-400 leading-normal">
+            Chief executive coordinative director. Orchestrates task distribution and debate final consensus loops.
+          </div>
+          <div class="bg-slate-950/40 border border-slate-900 rounded-lg p-3">
+            <label class="text-[9px] font-bold uppercase tracking-widest text-slate-500 block mb-1">Capabilities (Allowed Tools)</label>
+            <div class="flex flex-wrap gap-1">
+              <span class="text-[9px] font-mono px-2 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-300">delegate_task</span>
+              <span class="text-[9px] font-mono px-2 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-300">tool_log</span>
+            </div>
+          </div>
+          <div class="flex flex-col">
+            <label class="text-[9px] font-bold uppercase tracking-widest text-slate-500 block mb-1.5">Agent Thread Logs</label>
+            <div id="employee-logs-ceo" class="h-28 bg-slate-950/60 rounded border border-slate-900 p-2 font-mono text-[10px] text-amber-500 overflow-y-auto space-y-1">
+              <div class="text-slate-600 italic">Agent thread ready. Awaiting dispatcher call...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Developer Agent Employee Card -->
+        <div id="employee-card-developer" class="glass-panel p-5 rounded-xl border border-slate-800/80 shadow-lg bg-slate-950/20 flex flex-col gap-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <span class="w-10 h-10 rounded-full bg-blue-500 text-slate-900 font-black flex items-center justify-center shadow-lg shadow-blue-500/20 text-sm">DEV</span>
+              <div>
+                <h4 class="font-extrabold text-white text-sm">Developer</h4>
+                <p class="text-[10px] text-slate-500 font-mono leading-none mt-0.5">findai-developer</p>
+              </div>
+            </div>
+            <span id="employee-status-badge-developer" class="status-badge badge-todo">Idle</span>
+          </div>
+          <div class="text-xs text-slate-400 leading-normal">
+            Specialized engineering and implementation specialist. Edits code files, debugs tests, and manages workspace folders.
+          </div>
+          <div class="bg-slate-950/40 border border-slate-900 rounded-lg p-3">
+            <label class="text-[9px] font-bold uppercase tracking-widest text-slate-500 block mb-1">Capabilities (Allowed Tools)</label>
+            <div class="flex flex-wrap gap-1">
+              <span class="text-[9px] font-mono px-2 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-300">tool_workspace</span>
+              <span class="text-[9px] font-mono px-2 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-300">tool_log</span>
+            </div>
+          </div>
+          <div class="flex flex-col">
+            <label class="text-[9px] font-bold uppercase tracking-widest text-slate-500 block mb-1.5">Agent Thread Logs</label>
+            <div id="employee-logs-developer" class="h-28 bg-slate-950/60 rounded border border-slate-900 p-2 font-mono text-[10px] text-blue-400 overflow-y-auto space-y-1">
+              <div class="text-slate-600 italic">Agent thread ready. Awaiting delegation...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Analyst Agent Employee Card -->
+        <div id="employee-card-analyst" class="glass-panel p-5 rounded-xl border border-slate-800/80 shadow-lg bg-slate-950/20 flex flex-col gap-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <span class="w-10 h-10 rounded-full bg-cyan-500 text-slate-900 font-black flex items-center justify-center shadow-lg shadow-cyan-500/20 text-sm">ANL</span>
+              <div>
+                <h4 class="font-extrabold text-white text-sm">Analyst</h4>
+                <p class="text-[10px] text-slate-500 font-mono leading-none mt-0.5">findai-analyst</p>
+              </div>
+            </div>
+            <span id="employee-status-badge-analyst" class="status-badge badge-todo">Idle</span>
+          </div>
+          <div class="text-xs text-slate-400 leading-normal">
+            Research specialist and QA controller. Inspects codebase indexes, reads semantic vectors, and writes episodic memories.
+          </div>
+          <div class="bg-slate-950/40 border border-slate-900 rounded-lg p-3">
+            <label class="text-[9px] font-bold uppercase tracking-widest text-slate-500 block mb-1">Capabilities (Allowed Tools)</label>
+            <div class="flex flex-wrap gap-1">
+              <span class="text-[9px] font-mono px-2 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-300">tool_workspace</span>
+              <span class="text-[9px] font-mono px-2 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-300">tool_log</span>
+              <span class="text-[9px] font-mono px-2 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-300">tool_memory</span>
+            </div>
+          </div>
+          <div class="flex flex-col">
+            <label class="text-[9px] font-bold uppercase tracking-widest text-slate-500 block mb-1.5">Agent Thread Logs</label>
+            <div id="employee-logs-analyst" class="h-28 bg-slate-950/60 rounded border border-slate-900 p-2 font-mono text-[10px] text-cyan-400 overflow-y-auto space-y-1">
+              <div class="text-slate-600 italic">Agent thread ready. Awaiting delegation...</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Auditor View: Token & Cost Analytics (Task 11-01) -->
+    <div id="auditor-view-container" class="hidden flex-1 flex-col p-6 overflow-y-auto gap-8 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wNSkiLz48L3N2Zz4=')]">
+      
+      <!-- Big Billing Metric Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-4 gap-6">
+        
+        <div class="glass-panel p-5 rounded-xl border border-slate-800/80 shadow-md bg-slate-950/20 flex flex-col">
+          <span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Cumulative Cost</span>
+          <span id="audit-cum-cost" class="text-3xl font-black text-emerald-400 mt-2 font-mono">$0.0000</span>
+          <span class="text-[10px] text-slate-500 mt-1 leading-none font-mono">Model rate: $0.000015/tok</span>
+        </div>
+
+        <div class="glass-panel p-5 rounded-xl border border-slate-800/80 shadow-md bg-slate-950/20 flex flex-col">
+          <span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Total Tokens</span>
+          <span id="audit-total-tokens" class="text-3xl font-black text-white mt-2 font-mono">0</span>
+          <span class="text-[10px] text-slate-500 mt-1 leading-none font-mono">Combined prompt + completion</span>
+        </div>
+
+        <div class="glass-panel p-5 rounded-xl border border-slate-800/80 shadow-md bg-slate-950/20 flex flex-col">
+          <span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Prompt Tokens</span>
+          <span id="audit-prompt-tokens" class="text-3xl font-black text-blue-400 mt-2 font-mono">0</span>
+          <span id="audit-prompt-percent" class="text-[10px] text-slate-500 mt-1 leading-none font-mono">0% of total</span>
+        </div>
+
+        <div class="glass-panel p-5 rounded-xl border border-slate-800/80 shadow-md bg-slate-950/20 flex flex-col">
+          <span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Completion Tokens</span>
+          <span id="audit-completion-tokens" class="text-3xl font-black text-cyan-400 mt-2 font-mono">0</span>
+          <span id="audit-completion-percent" class="text-[10px] text-slate-500 mt-1 leading-none font-mono">0% of total</span>
+        </div>
+
+      </div>
+
+      <!-- Cost Breakdown Chart (CSS-based beautifully animated bar chart) -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        <div class="glass-panel p-6 rounded-xl border border-slate-800/80 shadow-lg bg-slate-950/20 flex flex-col">
+          <h3 class="text-sm font-extrabold text-white tracking-wide uppercase mb-6 flex items-center gap-1.5">
+            <svg class="w-4 h-4 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.003 9.003 0 1020.945 13H11V3.055z" /></svg>
+            Token Consumption by Swarm Agent
+          </h3>
+          <div class="space-y-5 flex-1 flex flex-col justify-center">
+            
+            <!-- CEO Token usage bar -->
+            <div class="space-y-1.5">
+              <div class="flex justify-between text-xs">
+                <span class="font-bold text-slate-300">CEO (findai-ceo)</span>
+                <span id="audit-bar-val-ceo" class="font-mono text-slate-400 font-bold">0 tokens (0%)</span>
+              </div>
+              <div class="w-full bg-slate-900 border border-slate-800/80 h-3 rounded-full overflow-hidden">
+                <div id="audit-bar-ceo" class="bg-amber-500 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+              </div>
+            </div>
+
+            <!-- Developer Token usage bar -->
+            <div class="space-y-1.5">
+              <div class="flex justify-between text-xs">
+                <span class="font-bold text-slate-300">Developer (findai-developer)</span>
+                <span id="audit-bar-val-developer" class="font-mono text-slate-400 font-bold">0 tokens (0%)</span>
+              </div>
+              <div class="w-full bg-slate-900 border border-slate-800/80 h-3 rounded-full overflow-hidden">
+                <div id="audit-bar-developer" class="bg-blue-500 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+              </div>
+            </div>
+
+            <!-- Analyst Token usage bar -->
+            <div class="space-y-1.5">
+              <div class="flex justify-between text-xs">
+                <span class="font-bold text-slate-300">Analyst (findai-analyst)</span>
+                <span id="audit-bar-val-analyst" class="font-mono text-slate-400 font-bold">0 tokens (0%)</span>
+              </div>
+              <div class="w-full bg-slate-900 border border-slate-800/80 h-3 rounded-full overflow-hidden">
+                <div id="audit-bar-analyst" class="bg-cyan-500 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Auditor Billing History Logs -->
+        <div class="glass-panel p-6 rounded-xl border border-slate-800/80 shadow-lg bg-slate-950/20 flex flex-col h-96">
+          <h3 class="text-sm font-extrabold text-white tracking-wide uppercase mb-4 flex items-center gap-1.5">
+            <svg class="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            Swarm Session Transaction Log
+          </h3>
+          <div id="auditor-history" class="flex-1 overflow-y-auto space-y-3 font-mono text-[11px] text-slate-400 leading-normal pr-1">
+            <div class="text-slate-500 italic">No transactions processed. Start streaming agent runs to track ledger entries.</div>
+          </div>
+        </div>
+
+      </div>
+
     </div>
   </main>
 
@@ -254,6 +613,95 @@
     let nodeSepVal = 60;
     let rankSepVal = 100;
 
+    // Multi-Dashboard States
+    let currentDashboardView = "developer";
+    let totalPromptTokens = 0;
+    let totalCompletionTokens = 0;
+    let agentTokens = { ceo: 0, developer: 0, analyst: 0 };
+    
+    // Fallback tools for offline zero-build standalone execution
+    const FALLBACK_TOOLS = [
+      {
+        name: "tool_log",
+        description: "Write structural activity logs for diagnostic tracing.",
+        sensitive: false,
+        input_schema: {
+          type: "object",
+          properties: {
+            message: { type: "string", description: "The log message content to write." },
+            level: { type: "string", enum: ["info", "warning", "error"], description: "Severity level." }
+          },
+          required: ["message"]
+        }
+      },
+      {
+        name: "tool_memory",
+        description: "Read or write to the episodic and semantic memory system.",
+        sensitive: false,
+        input_schema: {
+          type: "object",
+          properties: {
+            action: { type: "string", enum: ["read", "write"], description: "Whether to read or write." },
+            key: { type: "string", description: "Target memory key." },
+            value: { type: "string", description: "Value to write (if writing)." }
+          },
+          required: ["action", "key"]
+        }
+      },
+      {
+        name: "tool_workspace",
+        description: "List, read, write, or search files within the local workspace.",
+        sensitive: false,
+        input_schema: {
+          type: "object",
+          properties: {
+            action: { type: "string", enum: ["list", "read", "write", "search"], description: "Workspace operation." },
+            path: { type: "string", description: "Relative path inside workspace." },
+            content: { type: "string", description: "Content to write (optional)." }
+          },
+          required: ["action"]
+        }
+      },
+      {
+        name: "delegate_task",
+        description: "Delegate a sub-goal to another specialized agent in the swarm.",
+        sensitive: true,
+        input_schema: {
+          type: "object",
+          properties: {
+            worker_name: { type: "string", description: "Name of recipient worker agent." },
+            task_instructions: { type: "string", description: "Instructions for the worker." }
+          },
+          required: ["worker_name", "task_instructions"]
+        }
+      },
+      {
+        name: "transfer_agent",
+        description: "Handoff control and active session packet to another agent.",
+        sensitive: true,
+        input_schema: {
+          type: "object",
+          properties: {
+            target_agent: { type: "string", description: "Target agent identifier." }
+          },
+          required: ["target_agent"]
+        }
+      }
+    ];
+
+    // Designer state
+    let isDesignMode = false;
+    let allTools = [];
+    let designWorkflow = {
+      id: "sample-workflow",
+      name: "Sample Workflow",
+      description: "Declarative workflow designed visually.",
+      version: "1.0.0",
+      steps: []
+    };
+    let selectedStepId = null;
+    let linkingSourceStepId = null;
+
     function getStatusClass(status) {
       switch(status.toLowerCase()) {
         case 'todo': return 'status-todo';
@@ -276,18 +724,63 @@
       }
     }
 
+    async function fetchTools() {
+      try {
+        const response = await fetch('http://localhost:8000/v1/tools');
+        if (response.ok) {
+          const data = await response.json();
+          allTools = data.tools || FALLBACK_TOOLS;
+        } else {
+          allTools = FALLBACK_TOOLS;
+        }
+      } catch (err) {
+        allTools = FALLBACK_TOOLS;
+      }
+    }
+
     async function init() {
       // Dynamic controls event listeners
       document.getElementById('nodesep-slider').addEventListener('input', (e) => {
         nodeSepVal = parseInt(e.target.value);
         document.getElementById('nodesep-val').textContent = `${nodeSepVal}px`;
-        if (cachedWorkspaceData) renderTopology(cachedWorkspaceData.tasks);
+        if (isDesignMode) {
+          renderDesignWorkflow();
+        } else if (cachedWorkspaceData) {
+          renderTopology(cachedWorkspaceData.tasks);
+        }
       });
 
       document.getElementById('ranksep-slider').addEventListener('input', (e) => {
         rankSepVal = parseInt(e.target.value);
         document.getElementById('ranksep-val').textContent = `${rankSepVal}px`;
-        if (cachedWorkspaceData) renderTopology(cachedWorkspaceData.tasks);
+        if (isDesignMode) {
+          renderDesignWorkflow();
+        } else if (cachedWorkspaceData) {
+          renderTopology(cachedWorkspaceData.tasks);
+        }
+      });
+
+      // Canvas Drag & Drop Listeners
+      const canvasContainer = document.getElementById('canvas-container');
+      canvasContainer.addEventListener('dragover', (e) => {
+        if (isDesignMode) {
+          e.preventDefault();
+        }
+      });
+      canvasContainer.addEventListener('drop', (e) => {
+        if (!isDesignMode) return;
+        e.preventDefault();
+        const toolName = e.dataTransfer.getData('text/plain');
+        if (toolName) {
+          addStepFromTool(toolName);
+        }
+      });
+
+      // Canvas click listener to cancel linking
+      canvasContainer.addEventListener('click', (e) => {
+        if (isDesignMode && linkingSourceStepId && e.target === canvasContainer) {
+          handleCanvasOrNodeClick(null);
+        }
       });
 
       try {
@@ -305,9 +798,14 @@
         console.error(e);
         document.getElementById('error-modal').classList.remove('hidden');
       }
+
+      // Pre-fetch tools list in background
+      fetchTools();
+      updateAuditorDashboard();
     }
 
     function renderTopology(tasks) {
+      if (currentDashboardView !== "developer") return;
       const g = new dagre.graphlib.Graph();
       g.setGraph({ rankdir: 'LR', marginx: 40, marginy: 40, nodesep: nodeSepVal, ranksep: rankSepVal });
       g.setDefaultEdgeLabel(function() { return {}; });
@@ -354,7 +852,6 @@
         el.className = `absolute glass-panel task-node p-5 rounded-xl border shadow-lg text-slate-200 flex flex-col z-20 ${getStatusClass(task.status)}`;
         el.style.width = `${node.width}px`;
         el.style.height = `${node.height}px`;
-        // dagre gives center point. CSS needs top-left
         el.style.left = `${node.x - node.width / 2}px`;
         el.style.top = `${node.y - node.height / 2}px`;
         
@@ -605,15 +1102,247 @@
       }
     }
 
+    // ----------------------------------------------------
+    // MULTI-DASHBOARD SWITCHER (Task 11-01)
+    // ----------------------------------------------------
+    
+    function switchDashboardView(view) {
+      currentDashboardView = view;
+      
+      const ceoBtn = document.getElementById('view-btn-ceo');
+      const devBtn = document.getElementById('view-btn-developer');
+      const audBtn = document.getElementById('view-btn-auditor');
+      
+      const devContainer = document.getElementById('developer-view-container');
+      const ceoContainer = document.getElementById('ceo-view-container');
+      const audContainer = document.getElementById('auditor-view-container');
+      const toolbox = document.getElementById('design-toolbox');
+
+      // Clear button styles
+      [ceoBtn, devBtn, audBtn].forEach(b => {
+        b.className = "px-3.5 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 text-slate-400 hover:text-slate-200";
+      });
+      
+      // Hide all panels
+      devContainer.classList.add('hidden');
+      devContainer.classList.remove('flex');
+      ceoContainer.classList.add('hidden');
+      ceoContainer.classList.remove('flex');
+      audContainer.classList.add('hidden');
+      audContainer.classList.remove('flex');
+      toolbox.classList.add('hidden');
+      toolbox.classList.remove('flex');
+
+      // Show target panel
+      if (view === "ceo") {
+        ceoBtn.className = "px-3.5 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 bg-amber-500/15 text-amber-400 border border-amber-500/20 shadow-sm shadow-amber-500/5 animate-pulse";
+        ceoContainer.classList.remove('hidden');
+        ceoContainer.classList.add('flex');
+      } else if (view === "developer") {
+        devBtn.className = "px-3.5 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 bg-blue-500/15 text-blue-400 border border-blue-500/20 shadow-sm shadow-blue-500/5";
+        devContainer.classList.remove('hidden');
+        devContainer.classList.add('flex');
+        if (isDesignMode) {
+          toolbox.classList.remove('hidden');
+          toolbox.classList.add('flex');
+          renderDesignWorkflow();
+        } else if (cachedWorkspaceData) {
+          renderTopology(cachedWorkspaceData.tasks);
+        }
+      } else if (view === "auditor") {
+        audBtn.className = "px-3.5 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 shadow-sm shadow-emerald-500/5";
+        audContainer.classList.remove('hidden');
+        audContainer.classList.add('flex');
+        updateAuditorDashboard();
+      }
+      closePanel();
+    }
+
+    // ----------------------------------------------------
+    // AUDITOR DASHBOARD UPDATER & TRANSACTION LOGS
+    // ----------------------------------------------------
+    
+    function updateAuditorDashboard() {
+      const cumCost = (totalPromptTokens + totalCompletionTokens) * 0.000015;
+      
+      document.getElementById('audit-cum-cost').textContent = `$${cumCost.toFixed(4)}`;
+      document.getElementById('audit-total-tokens').textContent = (totalPromptTokens + totalCompletionTokens).toLocaleString();
+      document.getElementById('audit-prompt-tokens').textContent = totalPromptTokens.toLocaleString();
+      document.getElementById('audit-completion-tokens').textContent = totalCompletionTokens.toLocaleString();
+      
+      const total = totalPromptTokens + totalCompletionTokens;
+      const promptPct = total > 0 ? Math.round((totalPromptTokens / total) * 100) : 0;
+      const complPct = total > 0 ? Math.round((totalCompletionTokens / total) * 100) : 0;
+      
+      document.getElementById('audit-prompt-percent').textContent = `${promptPct}% of total`;
+      document.getElementById('audit-completion-percent').textContent = `${complPct}% of total`;
+      
+      // Update agent breakdown bars
+      const agentTotal = agentTokens.ceo + agentTokens.developer + agentTokens.analyst;
+      
+      ["ceo", "developer", "analyst"].forEach(agent => {
+        const tokens = agentTokens[agent];
+        const pct = agentTotal > 0 ? Math.round((tokens / agentTotal) * 100) : 0;
+        
+        document.getElementById(`audit-bar-val-${agent}`).textContent = `${tokens.toLocaleString()} tokens (${pct}%)`;
+        document.getElementById(`audit-bar-${agent}`).style.width = `${pct}%`;
+      });
+    }
+
+    function addBillingTransaction(session, agent, type, input, output, cost) {
+      const history = document.getElementById('auditor-history');
+      if (history.querySelector('div.italic')) {
+        history.innerHTML = '';
+      }
+      
+      const div = document.createElement('div');
+      div.className = 'p-3 bg-slate-900/40 rounded-lg border border-slate-800/80 flex flex-col gap-1';
+      div.innerHTML = `
+        <div class="flex justify-between font-bold text-[10px]">
+          <span class="text-slate-300">Session: ${session}</span>
+          <span class="text-emerald-400">$${cost.toFixed(5)}</span>
+        </div>
+        <div class="flex justify-between text-[9px] text-slate-500 mt-0.5">
+          <span>Agent: <strong class="text-cyan-400">${agent}</strong></span>
+          <span>Tokens: ${input + output} (${input} in / ${output} out)</span>
+        </div>
+      `;
+      history.insertBefore(div, history.firstChild);
+    }
+
+    // ----------------------------------------------------
+    // LIVE WEBSOCKET ROUTER STATE STREAMING (Task 11-03)
+    // ----------------------------------------------------
+    
     function connectRealTime() {
-      // Connect to the live stream endpoint (Task 8-03)
       const wsUrl = 'ws://localhost:8000/v1/stream';
       const ws = new WebSocket(wsUrl);
       
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          if (data && data.session) {
+          if (!data) return;
+
+          // Resolve active agent and session
+          const session = data.session || "default-session";
+          const rawAgent = data.agent_name || (data.session && data.session.includes(":") ? data.session.split(":")[1] : "ceo");
+          const agent = rawAgent.toLowerCase().includes("developer") ? "developer" : (rawAgent.toLowerCase().includes("analyst") ? "analyst" : "ceo");
+          const type = data.type || "text_chunk";
+          const content = data.content || "";
+
+          // 1. Update live terminal drawer logs in Developer View
+          const term = document.getElementById('terminal-log');
+          if (term.querySelector('div.italic')) {
+            term.innerHTML = '';
+          }
+          
+          let logLine = "";
+          if (type === "status") {
+            logLine = `<div class="text-slate-500 font-bold font-mono">[${agent.toUpperCase()}] ${content}...</div>`;
+          } else if (type === "tool_call") {
+            logLine = `<div class="text-amber-400 font-mono">[${agent.toUpperCase()} Tool Call] ${data.name || 'unknown'}(${JSON.stringify(data.arguments || {})})</div>`;
+          } else if (type === "tool_result") {
+            logLine = `<div class="text-cyan-400 font-mono">[${agent.toUpperCase()} Tool Result] ${strPreview(data.result)}</div>`;
+          } else if (type === "text_chunk") {
+            logLine = `<span class="text-emerald-400 font-mono">${escapeHtml(content)}</span>`;
+          } else if (type === "hitl_gate") {
+            logLine = `<div class="text-yellow-500 font-black font-mono animate-pulse">[${agent.toUpperCase()} HITL Gate] Awaiting approval for ${data.name || 'unknown'}</div>`;
+          } else if (type === "done") {
+            logLine = `<div class="text-emerald-500 font-black font-mono mt-2">[${agent.toUpperCase()} Execution Completed] ${strPreview(content)}</div>`;
+          } else if (type === "error") {
+            logLine = `<div class="text-red-500 font-black font-mono">[${agent.toUpperCase()} Error] ${content}</div>`;
+          }
+
+          if (type === "text_chunk") {
+            // Append as inline text spans
+            const last = term.lastElementChild;
+            if (last && last.tagName === "SPAN" && !last.className.includes("font-mono")) {
+              last.innerHTML += escapeHtml(content);
+            } else {
+              const span = document.createElement('span');
+              span.className = 'text-emerald-400';
+              span.innerHTML = escapeHtml(content);
+              term.appendChild(span);
+            }
+          } else {
+            const row = document.createElement('div');
+            row.innerHTML = logLine;
+            term.appendChild(row);
+          }
+          term.scrollTop = term.scrollHeight;
+
+          // 2. Route details dynamically to target employee log card & status in CEO View (Task 11-03)
+          const empLogs = document.getElementById(`employee-logs-${agent}`);
+          const statusBadge = document.getElementById(`employee-status-badge-${agent}`);
+          const empCard = document.getElementById(`employee-card-${agent}`);
+          
+          if (empLogs) {
+            if (empLogs.querySelector('div.italic')) {
+              empLogs.innerHTML = '';
+            }
+            let empLine = "";
+            if (type === "status") {
+              empLine = `[SOP] Thinking...`;
+              statusBadge.textContent = "Thinking";
+              statusBadge.className = "status-badge badge-inprogress animate-pulse";
+            } else if (type === "tool_call") {
+              empLine = `[Skill] Executing ${data.name}...`;
+              statusBadge.textContent = "Running Tool";
+              statusBadge.className = "status-badge badge-inprogress animate-pulse border-cyan-500 text-cyan-400";
+            } else if (type === "tool_result") {
+              empLine = `[Skill] Result preview: ${strPreview(data.result)}`;
+              statusBadge.textContent = "Thinking";
+              statusBadge.className = "status-badge badge-inprogress animate-pulse";
+            } else if (type === "hitl_gate") {
+              empLine = `[HITL] Approval Pending...`;
+              statusBadge.textContent = "HITL Waiting";
+              statusBadge.className = "status-badge badge-review";
+            } else if (type === "done") {
+              empLine = `[Done] Process completed.`;
+              statusBadge.textContent = "Idle";
+              statusBadge.className = "status-badge badge-todo";
+            } else if (type === "error") {
+              empLine = `[Error] ${content}`;
+              statusBadge.textContent = "Idle";
+              statusBadge.className = "status-badge badge-todo";
+            } else if (type === "text_chunk" && content.trim()) {
+              empLine = `[Out] ${strPreview(content)}`;
+            }
+
+            if (empLine) {
+              const div = document.createElement('div');
+              div.textContent = empLine;
+              empLogs.appendChild(div);
+              empLogs.scrollTop = empLogs.scrollHeight;
+            }
+          }
+
+          // 3. Dynamic real-time token billing analytics generator for Auditor View (Task 11-01)
+          let estPrompt = 0;
+          let estCompletion = 0;
+          
+          if (type === "text_chunk") {
+            // Standard generated completion token approximation
+            estCompletion = Math.ceil(content.length / 3);
+          } else if (type === "tool_call") {
+            estPrompt = 120; // prompt context tokens for tool input contracts
+          } else if (type === "tool_result") {
+            estPrompt = 150; // prompt tokens for return content contracts
+          } else if (type === "done") {
+            // Formulate session transaction and log ledger row
+            const finalCost = (agentTokens[agent] + 300) * 0.000015;
+            addBillingTransaction(session, agent, type, agentTokens[agent] + 200, 100, finalCost);
+          }
+
+          if (estPrompt > 0 || estCompletion > 0) {
+            totalPromptTokens += estPrompt;
+            totalCompletionTokens += estCompletion;
+            agentTokens[agent] += (estPrompt + estCompletion);
+            updateAuditorDashboard();
+          }
+
+          // Also highlight streaming nodes on canvas if matches
+          if (currentDashboardView === "developer") {
             const activeNodeId = data.node_id || (data.name ? `tool-${data.name}` : null);
             if (activeNodeId) {
               const nodeEl = document.getElementById(`node-${activeNodeId}`);
@@ -634,6 +1363,912 @@
       ws.onclose = () => {
         setTimeout(connectRealTime, 5000);
       };
+    }
+
+    function clearTerminal() {
+      document.getElementById('terminal-log').innerHTML = '<div class="text-slate-500 italic">[System] Terminal logs cleared.</div>';
+    }
+
+    function escapeHtml(text) {
+      return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function strPreview(val) {
+      if (!val) return "(None)";
+      const str = typeof val === 'object' ? JSON.stringify(val) : val.toString();
+      const clean = str.replace(/[\n\r]/g, ' ').trim();
+      return clean.length > 40 ? clean.substring(0, 40) + "..." : clean;
+    }
+
+    // ----------------------------------------------------
+    // DESIGNER FUNCTIONALITY (Phase 4 Tasks)
+    // ----------------------------------------------------
+    
+    function toggleDesignMode() {
+      isDesignMode = !isDesignMode;
+      
+      const toggleBtn = document.getElementById('design-mode-toggle');
+      const toolbox = document.getElementById('design-toolbox');
+      
+      if (isDesignMode) {
+        // Enable Design Mode UI
+        toggleBtn.innerHTML = `
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+          Monitor Mode
+        `;
+        toggleBtn.className = "px-4 py-1.5 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 text-slate-900 border-none rounded-lg text-xs font-black tracking-wide transition flex items-center gap-1.5 shadow-lg shadow-emerald-500/20";
+        toolbox.classList.remove('hidden');
+        toolbox.classList.add('flex');
+        
+        closePanel();
+        selectedStepId = null;
+        linkingSourceStepId = null;
+        updateDesignerHint();
+        
+        // Fetch live tools list
+        if (allTools.length === 0) {
+          fetchTools().then(() => {
+            renderSkillsList();
+            if (designWorkflow.steps.length === 0) {
+              initDefaultWorkflow();
+            }
+            renderDesignWorkflow();
+          });
+        } else {
+          if (designWorkflow.steps.length === 0) {
+            initDefaultWorkflow();
+          }
+          renderDesignWorkflow();
+        }
+      } else {
+        // Restore Monitor Mode UI
+        toggleBtn.innerHTML = `
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+          Design Mode
+        `;
+        toggleBtn.className = "px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-lg text-xs font-bold tracking-wide transition flex items-center gap-1.5 shadow-lg";
+        toolbox.classList.add('hidden');
+        toolbox.classList.remove('flex');
+        
+        closePanel();
+        selectedStepId = null;
+        linkingSourceStepId = null;
+        updateDesignerHint();
+        
+        if (cachedWorkspaceData) {
+          document.getElementById('project-title').textContent = cachedWorkspaceData.project_title || 'Workspace';
+          document.getElementById('project-desc').textContent = cachedWorkspaceData.project_desc || 'No description provided.';
+          renderTopology(cachedWorkspaceData.tasks);
+        }
+      }
+    }
+
+    function initDefaultWorkflow() {
+      designWorkflow = {
+        id: "sample-workflow",
+        name: "Sample Workflow",
+        description: "Declarative workflow designed visually.",
+        version: "1.0.0",
+        steps: [
+          {
+            step_id: "step_1",
+            skill_id: "tool_log",
+            params: { message: "Initializing agent workflow" },
+            next_step: "step_2",
+            on_failure: "fail"
+          },
+          {
+            step_id: "step_2",
+            skill_id: "tool_workspace",
+            params: { action: "list", path: "." },
+            next_step: null,
+            on_failure: "fail"
+          }
+        ]
+      };
+      updateDesignToolboxMeta();
+    }
+
+    function updateDesignToolboxMeta() {
+      document.getElementById('wf-id').value = designWorkflow.id;
+      document.getElementById('wf-name').value = designWorkflow.name;
+      document.getElementById('wf-desc').value = designWorkflow.description;
+      document.getElementById('wf-version').value = designWorkflow.version;
+    }
+
+    function updateWorkflowMeta() {
+      designWorkflow.id = document.getElementById('wf-id').value.trim() || 'new-workflow';
+      designWorkflow.name = document.getElementById('wf-name').value.trim() || 'New Workflow';
+      designWorkflow.description = document.getElementById('wf-desc').value.trim() || '';
+      designWorkflow.version = document.getElementById('wf-version').value.trim() || '1.0.0';
+      
+      if (isDesignMode) {
+        document.getElementById('project-title').textContent = `✏️ ${designWorkflow.name} (${designWorkflow.id})`;
+        document.getElementById('project-desc').textContent = designWorkflow.description || "Visual designed workflow steps.";
+      }
+    }
+
+    function renderSkillsList() {
+      const container = document.getElementById('skills-list');
+      container.innerHTML = allTools.map(t => `
+        <div draggable="true" 
+             ondragstart="onToolDragStart(event, '${t.name}')"
+             onclick="addStepFromTool('${t.name}')"
+             class="p-3 bg-slate-900/60 hover:bg-slate-800/80 border border-slate-800 hover:border-slate-700/80 rounded-lg cursor-grab active:cursor-grabbing transition text-slate-300 hover:text-white select-none">
+          <div class="flex justify-between items-start mb-1.5">
+            <span class="text-xs font-bold text-cyan-400 font-mono">${t.name}</span>
+            ${t.sensitive ? '<span class="status-badge badge-review scale-75 origin-top-right">HITL</span>' : ''}
+          </div>
+          <p class="text-[10px] text-slate-500 leading-normal line-clamp-2">${t.description}</p>
+        </div>
+      `).join('');
+    }
+
+    function onToolDragStart(e, toolName) {
+      e.dataTransfer.setData('text/plain', toolName);
+      e.dataTransfer.effectAllowed = 'copy';
+    }
+
+    function addStepFromTool(toolName) {
+      const tool = allTools.find(t => t.name === toolName);
+      if (!tool) return;
+      
+      // Generate a unique step ID
+      let baseId = `step_${toolName.replace('tool_', '')}`;
+      let stepId = baseId;
+      let counter = 1;
+      while (designWorkflow.steps.some(s => s.step_id === stepId)) {
+        stepId = `${baseId}_${counter}`;
+        counter++;
+      }
+
+      // Populate default parameters
+      const params = {};
+      if (tool.input_schema && tool.input_schema.properties) {
+        Object.keys(tool.input_schema.properties).forEach(k => {
+          params[k] = "";
+        });
+      }
+
+      const newStep = {
+        step_id: stepId,
+        skill_id: toolName,
+        params: params,
+        next_step: null,
+        on_failure: "fail"
+      };
+
+      designWorkflow.steps.push(newStep);
+      renderDesignWorkflow();
+      selectStep(stepId);
+    }
+
+    function deleteStep(stepId, event) {
+      if (event) event.stopPropagation();
+      designWorkflow.steps = designWorkflow.steps.filter(s => s.step_id !== stepId);
+      // Clean up transitions pointing to deleted node
+      designWorkflow.steps.forEach(s => {
+        if (s.next_step === stepId) s.next_step = null;
+      });
+      if (selectedStepId === stepId) {
+        selectedStepId = null;
+        closePanel();
+      }
+      if (linkingSourceStepId === stepId) {
+        linkingSourceStepId = null;
+        updateDesignerHint();
+      }
+      renderDesignWorkflow();
+    }
+
+    function renameStep(oldId, newId) {
+      newId = newId.trim();
+      if (!newId || oldId === newId) return;
+
+      // Uniqueness validation
+      if (designWorkflow.steps.some(s => s.step_id === newId)) {
+        alert(`Step ID must be unique! '${newId}' already exists.`);
+        const input = document.getElementById('edit-step-id');
+        if (input) input.value = oldId;
+        return;
+      }
+
+      // Rename
+      const step = designWorkflow.steps.find(s => s.step_id === oldId);
+      if (step) {
+        step.step_id = newId;
+      }
+
+      // Update transitions
+      designWorkflow.steps.forEach(s => {
+        if (s.next_step === oldId) {
+          s.next_step = newId;
+        }
+      });
+
+      if (selectedStepId === oldId) selectedStepId = newId;
+      if (linkingSourceStepId === oldId) linkingSourceStepId = newId;
+
+      renderDesignWorkflow();
+      showStepDetails(step);
+    }
+
+    function updateStepSkill(stepId, newSkillId) {
+      const step = designWorkflow.steps.find(s => s.step_id === stepId);
+      if (step) {
+        step.skill_id = newSkillId;
+        const tool = allTools.find(t => t.name === newSkillId);
+        step.params = {};
+        if (tool && tool.input_schema && tool.input_schema.properties) {
+          Object.keys(tool.input_schema.properties).forEach(k => {
+            step.params[k] = "";
+          });
+        }
+        renderDesignWorkflow();
+        showStepDetails(step);
+      }
+    }
+
+    function updateStepNextStep(stepId, targetId) {
+      const step = designWorkflow.steps.find(s => s.step_id === stepId);
+      if (step) {
+        const oldNext = step.next_step;
+        step.next_step = targetId || null;
+
+        if (hasCycle(designWorkflow.steps)) {
+          alert("⚠️ Cycle detected! This connection would form a recursive loop. Reverting connection.");
+          step.next_step = oldNext;
+        } else {
+          renderDesignWorkflow();
+          showStepDetails(step);
+        }
+      }
+    }
+
+    function togglePredecessor(preId, stepId, isChecked) {
+      const preStep = designWorkflow.steps.find(s => s.step_id === preId);
+      if (preStep) {
+        const oldNext = preStep.next_step;
+        if (isChecked) {
+          preStep.next_step = stepId;
+        } else {
+          if (preStep.next_step === stepId) {
+            preStep.next_step = null;
+          }
+        }
+
+        if (hasCycle(designWorkflow.steps)) {
+          alert("⚠️ Cycle detected! This connection would form a recursive loop. Reverting connection.");
+          preStep.next_step = oldNext;
+        } else {
+          renderDesignWorkflow();
+          const current = designWorkflow.steps.find(s => s.step_id === stepId);
+          if (current) showStepDetails(current);
+        }
+      }
+    }
+
+    function updateStepOnFailure(stepId, val) {
+      const step = designWorkflow.steps.find(s => s.step_id === stepId);
+      if (step) {
+        step.on_failure = val;
+        renderDesignWorkflow();
+      }
+    }
+
+    function updateStepParam(stepId, key, value) {
+      const step = designWorkflow.steps.find(s => s.step_id === stepId);
+      if (step) {
+        step.params[key] = value;
+        updateNodeWarningVisual(stepId);
+      }
+    }
+
+    function updateNodeWarningVisual(stepId) {
+      const step = designWorkflow.steps.find(s => s.step_id === stepId);
+      if (!step) return;
+
+      const tool = allTools.find(t => t.name === step.skill_id);
+      let hasEmptyRequired = false;
+      if (tool && tool.input_schema) {
+        const required = tool.input_schema.required || [];
+        hasEmptyRequired = required.some(k => step.params[k] === undefined || step.params[k] === null || step.params[k] === "");
+      }
+
+      const nodeEl = document.getElementById(`node-${stepId}`);
+      if (nodeEl) {
+        const badgeEl = nodeEl.querySelector('.validation-badge');
+        if (hasEmptyRequired) {
+          nodeEl.className = nodeEl.className.replace(/designer-node(-selected)?/g, 'designer-node-error');
+          if (!badgeEl) {
+            const container = nodeEl.querySelector('.header-container div');
+            if (container) {
+              const span = document.createElement('span');
+              span.className = 'validation-badge status-badge badge-error mr-1.5';
+              span.textContent = 'Missing Params';
+              container.insertBefore(span, container.firstChild);
+            }
+          }
+        } else {
+          const isSel = selectedStepId === stepId;
+          nodeEl.className = nodeEl.className.replace('designer-node-error', isSel ? 'designer-node-selected' : 'designer-node');
+          if (badgeEl) badgeEl.remove();
+        }
+      }
+    }
+
+    function toggleLinkMode(stepId, event) {
+      if (event) event.stopPropagation();
+      if (linkingSourceStepId === stepId) {
+        linkingSourceStepId = null;
+      } else {
+        linkingSourceStepId = stepId;
+      }
+      updateDesignerHint();
+      renderDesignWorkflow();
+      
+      const step = designWorkflow.steps.find(s => s.step_id === stepId);
+      if (step && selectedStepId === stepId) {
+        showStepDetails(step);
+      }
+    }
+
+    function updateDesignerHint() {
+      const banner = document.getElementById('designer-hint-banner');
+      if (linkingSourceStepId) {
+        banner.textContent = `🔗 Linking Next Step from ${linkingSourceStepId}... Click target node or click canvas to cancel.`;
+        banner.classList.remove('hidden');
+      } else {
+        banner.classList.add('hidden');
+      }
+    }
+
+    function handleCanvasOrNodeClick(clickedId) {
+      if (linkingSourceStepId) {
+        if (clickedId && clickedId !== linkingSourceStepId) {
+          const source = designWorkflow.steps.find(s => s.step_id === linkingSourceStepId);
+          if (source) {
+            const oldNextStep = source.next_step;
+            source.next_step = clickedId;
+
+            if (hasCycle(designWorkflow.steps)) {
+              alert("⚠️ Cycle detected! This connection would form a recursive loop. Reverting connection.");
+              source.next_step = oldNextStep;
+            } else {
+              renderDesignWorkflow();
+              if (selectedStepId === linkingSourceStepId) {
+                showStepDetails(source);
+              }
+            }
+          }
+        }
+        linkingSourceStepId = null;
+        updateDesignerHint();
+        renderDesignWorkflow();
+      }
+    }
+
+    function selectStep(stepId) {
+      selectedStepId = stepId;
+      const step = designWorkflow.steps.find(s => s.step_id === stepId);
+      if (step) {
+        showStepDetails(step);
+        renderDesignWorkflow();
+      }
+    }
+
+    function showStepDetails(step) {
+      const panel = document.getElementById('details-panel');
+      const content = document.getElementById('details-content');
+
+      const otherSteps = designWorkflow.steps.filter(s => s.step_id !== step.step_id);
+      const nextStepOptions = `
+        <option value="" ${!step.next_step ? 'selected' : ''}>-- End of Workflow --</option>
+        ${otherSteps.map(s => `<option value="${s.step_id}" ${step.next_step === s.step_id ? 'selected' : ''}>${s.step_id}</option>`).join('')}
+      `;
+
+      const otherPredecessors = designWorkflow.steps.filter(s => s.step_id !== step.step_id);
+      const predecessorsHtml = `
+        <div class="space-y-2">
+          <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Predecessors</label>
+          ${otherPredecessors.length === 0 ? '<p class="text-xs text-slate-500 italic">No other steps to link.</p>' : `
+            <div class="grid grid-cols-2 gap-2 bg-slate-900/40 p-3 rounded-lg border border-slate-800/80">
+              ${otherPredecessors.map(s => {
+                const isPre = s.next_step === step.step_id;
+                return `
+                  <label class="flex items-center gap-2 text-slate-300 text-xs cursor-pointer select-none">
+                    <input type="checkbox" onchange="togglePredecessor('${s.step_id}', '${step.step_id}', this.checked)" ${isPre ? 'checked' : ''} class="rounded border-slate-800 bg-slate-950 text-blue-500 focus:ring-0 focus:ring-offset-0">
+                    <span>${s.step_id}</span>
+                  </label>
+                `;
+              }).join('')}
+            </div>
+          `}
+        </div>
+      `;
+
+      content.innerHTML = `
+        <div class="space-y-5">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+            <span class="status-badge badge-inprogress">Edit Step</span>
+            <button onclick="deleteStep('${step.step_id}')" class="px-2.5 py-1 bg-red-900/30 hover:bg-red-900/60 text-red-400 border border-red-500/20 rounded text-xs font-semibold transition flex items-center gap-1">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+              Delete Step
+            </button>
+          </div>
+
+          <div>
+            <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500 block mb-1.5">Step ID</label>
+            <input type="text" id="edit-step-id" value="${step.step_id}" onblur="renameStep('${step.step_id}', this.value)" onkeydown="if(event.key==='Enter') this.blur();" class="w-full bg-slate-900 border border-slate-800 rounded px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-blue-500/50 font-mono font-bold">
+          </div>
+
+          <div>
+            <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500 block mb-1.5">Skill (Tool)</label>
+            <select onchange="updateStepSkill('${step.step_id}', this.value)" class="w-full bg-slate-900 border border-slate-800 rounded px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-blue-500/50">
+              ${allTools.map(t => `<option value="${t.name}" ${step.skill_id === t.name ? 'selected' : ''}>${t.name}</option>`).join('')}
+            </select>
+            <p class="text-[10px] text-slate-500 mt-1 leading-normal">${(allTools.find(t => t.name === step.skill_id) || {}).description || 'No description available.'}</p>
+          </div>
+
+          <div class="border-t border-slate-800/80 pt-4">
+            <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500 block mb-3">Parameters (Params)</label>
+            ${buildParamsFormHTML(step)}
+          </div>
+
+          <div class="border-t border-slate-800/80 pt-4 space-y-4">
+            <div>
+              <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500 block mb-1.5">Next Step</label>
+              <div class="flex gap-2">
+                <select onchange="updateStepNextStep('${step.step_id}', this.value)" class="flex-1 bg-slate-900 border border-slate-800 rounded px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-blue-500/50">
+                  ${nextStepOptions}
+                </select>
+                <button onclick="toggleLinkMode('${step.step_id}', event)" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded text-xs font-semibold flex items-center justify-center gap-1 transition ${linkingSourceStepId === step.step_id ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : ''}">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                  Link
+                </button>
+              </div>
+            </div>
+
+            ${predecessorsHtml}
+          </div>
+
+          <div class="border-t border-slate-800/80 pt-4">
+            <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500 block mb-1.5">On Failure Strategy</label>
+            <select onchange="updateStepOnFailure('${step.step_id}', this.value)" class="w-full bg-slate-900 border border-slate-800 rounded px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-blue-500/50">
+              <option value="fail" ${step.on_failure === 'fail' ? 'selected' : ''}>fail</option>
+              <option value="skip" ${step.on_failure === 'skip' ? 'selected' : ''}>skip</option>
+              <option value="retry" ${step.on_failure === 'retry' ? 'selected' : ''}>retry</option>
+              <option value="fallback" ${step.on_failure === 'fallback' ? 'selected' : ''}>fallback</option>
+            </select>
+          </div>
+        </div>
+      `;
+
+      panel.classList.remove('translate-x-full');
+    }
+
+    function buildParamsFormHTML(step) {
+      const tool = allTools.find(t => t.name === step.skill_id);
+      if (!tool) return '<p class="text-xs text-slate-500 italic">No schema details available for this skill.</p>';
+
+      const schema = tool.input_schema || {};
+      const props = schema.properties || {};
+      const required = schema.required || [];
+
+      let html = `<div class="space-y-4">`;
+
+      Object.entries(props).forEach(([key, prop]) => {
+        const isRequired = required.includes(key);
+        const value = step.params[key] !== undefined ? step.params[key] : "";
+        const isValEmpty = value === "" || value === null || value === undefined;
+        const isWarning = isRequired && isValEmpty;
+
+        html += `
+          <div class="space-y-1.5">
+            <div class="flex justify-between items-center">
+              <label class="text-xs font-bold text-slate-300 flex items-center gap-1">
+                ${key}
+                ${isRequired ? '<span class="text-red-400 font-bold">*</span>' : ''}
+              </label>
+              <span class="text-[10px] font-mono text-slate-500">${prop.type || 'string'}</span>
+            </div>
+            ${prop.description ? `<p class="text-[10px] text-slate-500 leading-normal mb-1">${prop.description}</p>` : ''}
+        `;
+
+        if (prop.enum) {
+          html += `
+            <select id="param-${key}" onchange="updateStepParam('${step.step_id}', '${key}', this.value)" class="w-full bg-slate-900 border ${isWarning ? 'border-amber-500/50' : 'border-slate-800'} rounded px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-blue-500/50">
+              <option value="" ${value === "" ? 'selected' : ''}>-- Select --</option>
+              ${prop.enum.map(opt => `<option value="${opt}" ${value === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+            </select>
+          `;
+        } else if (prop.type === 'boolean') {
+          html += `
+            <select id="param-${key}" onchange="updateStepParam('${step.step_id}', '${key}', this.value === 'true')" class="w-full bg-slate-900 border ${isWarning ? 'border-amber-500/50' : 'border-slate-800'} rounded px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-blue-500/50">
+              <option value="false" ${value === false ? 'selected' : ''}>false</option>
+              <option value="true" ${value === true ? 'selected' : ''}>true</option>
+            </select>
+          `;
+        } else {
+          const isLong = key === 'instructions' || key === 'message' || key === 'content' || key === 'task_instructions';
+          if (isLong) {
+            html += `
+              <textarea id="param-${key}" rows="3" oninput="updateStepParam('${step.step_id}', '${key}', this.value)" class="w-full bg-slate-900 border ${isWarning ? 'border-amber-500/50' : 'border-slate-800'} rounded px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-blue-500/50 resize-none font-mono">${value}</textarea>
+            `;
+          } else {
+            html += `
+              <input type="text" id="param-${key}" value="${value}" oninput="updateStepParam('${step.step_id}', '${key}', this.value)" class="w-full bg-slate-900 border ${isWarning ? 'border-amber-500/50' : 'border-slate-800'} rounded px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-blue-500/50 font-mono">
+            `;
+          }
+        }
+
+        if (isWarning) {
+          html += `<span class="text-[10px] text-amber-400 font-bold block mt-1 flex items-center gap-1">
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+            ⚠️ Required parameter is empty.
+          </span>`;
+        }
+
+        html += `</div>`;
+      });
+
+      html += `</div>`;
+      return html;
+    }
+
+    function renderDesignWorkflow() {
+      if (currentDashboardView !== "developer") return;
+      const steps = designWorkflow.steps;
+      
+      document.getElementById('project-title').textContent = `✏️ ${designWorkflow.name} (${designWorkflow.id})`;
+      document.getElementById('project-desc').textContent = designWorkflow.description || "Visual designed workflow steps.";
+
+      const g = new dagre.graphlib.Graph();
+      g.setGraph({ rankdir: 'LR', marginx: 40, marginy: 40, nodesep: nodeSepVal, ranksep: rankSepVal });
+      g.setDefaultEdgeLabel(function() { return {}; });
+
+      const stepsMap = {};
+      steps.forEach(s => {
+        stepsMap[s.step_id] = s;
+      });
+
+      steps.forEach(s => {
+        g.setNode(s.step_id, { label: s.step_id, width: 280, height: 130 });
+      });
+
+      steps.forEach(s => {
+        if (s.next_step && stepsMap[s.next_step]) {
+          g.setEdge(s.step_id, s.next_step);
+        }
+      });
+
+      dagre.layout(g);
+
+      const nodesLayer = document.getElementById('nodes-layer');
+      nodesLayer.innerHTML = '';
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+      g.nodes().forEach(v => {
+        const node = g.node(v);
+        const step = stepsMap[v];
+        if (!step) return;
+
+        minX = Math.min(minX, node.x - node.width/2);
+        minY = Math.min(minY, node.y - node.height/2);
+        maxX = Math.max(maxX, node.x + node.width/2);
+        maxY = Math.max(maxY, node.y + node.height/2);
+
+        const tool = allTools.find(t => t.name === step.skill_id);
+        let hasEmptyRequired = false;
+        if (tool && tool.input_schema) {
+          const required = tool.input_schema.required || [];
+          hasEmptyRequired = required.some(k => step.params[k] === undefined || step.params[k] === null || step.params[k] === "");
+        }
+
+        const isSelected = selectedStepId === step.step_id;
+        const isLinkingSource = linkingSourceStepId === step.step_id;
+
+        let borderClass = 'designer-node';
+        if (isSelected) borderClass = 'designer-node-selected';
+        if (isLinkingSource) borderClass = 'linking-active-node';
+        if (hasEmptyRequired) borderClass = 'designer-node-error';
+
+        const el = document.createElement('div');
+        el.id = `node-${step.step_id}`;
+        el.className = `absolute glass-panel task-node p-5 rounded-xl border shadow-lg text-slate-200 flex flex-col z-20 ${borderClass}`;
+        el.style.width = `${node.width}px`;
+        el.style.height = `${node.height}px`;
+        el.style.left = `${node.x - node.width / 2}px`;
+        el.style.top = `${node.y - node.height / 2}px`;
+
+        let paramsSummary = [];
+        Object.entries(step.params || {}).forEach(([k, val]) => {
+          if (val !== undefined && val !== "") {
+            paramsSummary.push(`${k}: ${val}`);
+          }
+        });
+        const paramsText = paramsSummary.join(', ') || '(No parameters)';
+
+        el.innerHTML = `
+          <div class="flex justify-between items-start mb-2 header-container">
+            <h4 class="font-bold text-sm tracking-wide text-white truncate pr-2 font-mono">${step.step_id}</h4>
+            <div class="flex gap-1.5 items-center">
+              ${hasEmptyRequired ? '<span class="validation-badge status-badge badge-error">Missing Params</span>' : ''}
+              <span class="status-badge badge-todo font-mono">${step.skill_id}</span>
+            </div>
+          </div>
+          <div class="font-semibold text-cyan-400 mb-1.5 truncate">on_failure: <span class="text-slate-400 font-mono">${step.on_failure}</span></div>
+          <p class="node-desc text-xs text-slate-500 line-clamp-2 leading-relaxed font-mono">${paramsText}</p>
+          
+          <div class="mt-auto pt-2 flex justify-between items-center border-t border-slate-800/40 text-[10px] font-bold">
+            <button onclick="deleteStep('${step.step_id}', event)" class="text-red-500 hover:text-red-400 flex items-center gap-0.5 transition">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+              Delete
+            </button>
+            <button onclick="toggleLinkMode('${step.step_id}', event)" class="text-amber-500 hover:text-amber-400 flex items-center gap-0.5 transition">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+              Link
+            </button>
+          </div>
+        `;
+
+        el.onclick = (e) => {
+          if (linkingSourceStepId) {
+            handleCanvasOrNodeClick(step.step_id);
+          } else {
+            selectStep(step.step_id);
+          }
+        };
+
+        nodesLayer.appendChild(el);
+      });
+
+      const svg = document.getElementById('edges-layer');
+      const padding = 100;
+      svg.setAttribute('width', Math.max(maxX + padding, 1000));
+      svg.setAttribute('height', Math.max(maxY + padding, 1000));
+      
+      svg.innerHTML = `
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" class="edge-arrow" />
+          </marker>
+        </defs>
+      `;
+
+      g.edges().forEach(e => {
+        const edge = g.edge(e);
+        const points = edge.points;
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        const glowPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        
+        let d = `M ${points[0].x} ${points[0].y} `;
+        for (let i = 1; i < points.length; i++) {
+            d += `L ${points[i].x} ${points[i].y} `;
+        }
+        
+        path.setAttribute('d', d);
+        path.setAttribute('class', 'edge-path');
+        path.setAttribute('style', 'stroke: #1e293b; stroke-width: 2.2px; opacity: 0.7;');
+        path.setAttribute('marker-end', 'url(#arrow)');
+        svg.appendChild(path);
+
+        glowPath.setAttribute('d', d);
+        glowPath.setAttribute('style', `fill: none; stroke: #3b82f6; stroke-width: 3px; stroke-dasharray: 8 16; pointer-events: none; opacity: ${selectedStepId === e.v ? '0.85' : '0'};`);
+        if (selectedStepId === e.v) {
+          glowPath.classList.add('edge-glow-active');
+        }
+        svg.appendChild(glowPath);
+      });
+    }
+
+    function hasCycle(steps) {
+      const adj = {};
+      steps.forEach(s => {
+        adj[s.step_id] = s.next_step;
+      });
+
+      const visited = {};
+      const recStack = {};
+
+      function dfs(node) {
+        if (!node) return false;
+        if (recStack[node]) return true;
+        if (visited[node]) return false;
+
+        visited[node] = true;
+        recStack[node] = true;
+
+        const next = adj[node];
+        if (next && dfs(next)) return true;
+
+        recStack[node] = false;
+        return false;
+      }
+
+      for (let s of steps) {
+        if (!visited[s.step_id]) {
+          if (dfs(s.step_id)) return true;
+        }
+      }
+      return false;
+    }
+
+    function jsyaml_lite_stringify(obj) {
+      let yaml = "";
+      yaml += `id: ${obj.id}\n`;
+      yaml += `name: "${obj.name.replace(/"/g, '\\"')}"\n`;
+      yaml += `description: "${obj.description.replace(/"/g, '\\"')}"\n`;
+      yaml += `version: ${obj.version}\n`;
+      yaml += `steps:\n`;
+      obj.steps.forEach(step => {
+        yaml += `  - step_id: ${step.step_id}\n`;
+        yaml += `    skill_id: ${step.skill_id}\n`;
+        yaml += `    params:\n`;
+        if (step.params && Object.keys(step.params).length > 0) {
+          Object.entries(step.params).forEach(([k, v]) => {
+            if (v === null || v === undefined) {
+              yaml += `      ${k}: null\n`;
+            } else if (typeof v === 'object') {
+              yaml += `      ${k}: ${JSON.stringify(v)}\n`;
+            } else if (typeof v === 'number' || typeof v === 'boolean') {
+              yaml += `      ${k}: ${v}\n`;
+            } else {
+              yaml += `      ${k}: "${v.toString().replace(/"/g, '\\"')}"\n`;
+            }
+          });
+        } else {
+          yaml += `      {}\n`;
+        }
+        yaml += `    next_step: ${step.next_step ? step.next_step : 'null'}\n`;
+        yaml += `    on_failure: ${step.on_failure || 'fail'}\n`;
+      });
+      return yaml;
+    }
+
+    function exportWorkflow() {
+      const yamlContent = jsyaml_lite_stringify({
+        id: designWorkflow.id,
+        name: designWorkflow.name,
+        description: designWorkflow.description,
+        version: designWorkflow.version,
+        steps: designWorkflow.steps
+      });
+      
+      const fileContent = `---\n${yamlContent}---\n\n# ${designWorkflow.name}\n\n${designWorkflow.description}\n`;
+      
+      const blob = new Blob([fileContent], { type: 'text/markdown;charset=utf-8;' });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.setAttribute("download", `${designWorkflow.id}.md`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    function triggerImport() {
+      document.getElementById('wf-import-file').click();
+    }
+
+    function handleImportFile(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        importWorkflow(evt.target.result);
+      };
+      reader.readAsText(file);
+    }
+
+    function importWorkflow(fileText) {
+      if (!fileText.startsWith('---')) {
+        alert("Invalid workflow file: missing frontmatter start '---'");
+        return;
+      }
+      const parts = fileText.split('---');
+      if (parts.length < 3) {
+        alert("Invalid workflow file: missing frontmatter end '---'");
+        return;
+      }
+      const yamlText = parts[1];
+      try {
+        const parsed = parseYamlLite(yamlText);
+        if (!parsed.id || !parsed.steps) {
+          alert("Invalid workflow: missing required 'id' or 'steps' properties.");
+          return;
+        }
+        
+        designWorkflow = {
+          id: parsed.id,
+          name: parsed.name || parsed.id,
+          description: parsed.description || "",
+          version: parsed.version || "1.0.0",
+          steps: parsed.steps || []
+        };
+        
+        selectedStepId = null;
+        linkingSourceStepId = null;
+        
+        renderDesignWorkflow();
+        updateDesignToolboxMeta();
+        closePanel();
+      } catch (e) {
+        console.error(e);
+        alert("Failed to parse YAML workflow: " + e.message);
+      }
+    }
+
+    function parseYamlLite(yamlText) {
+      const lines = yamlText.split('\n');
+      const result = { steps: [] };
+      let currentStep = null;
+      let inSteps = false;
+      let inParams = false;
+
+      lines.forEach(line => {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('#')) return;
+
+        if (trimmed.startsWith('-')) {
+          inParams = false;
+          const stepLine = trimmed.substring(1).trim();
+          currentStep = {};
+          result.steps.push(currentStep);
+          if (stepLine) {
+            parseKeyValue(stepLine, currentStep);
+          }
+          return;
+        }
+
+        const match = line.match(/^(\s*)([^:]+):(.*)$/);
+        if (match) {
+          const indent = match[1].length;
+          const key = match[2].trim();
+          let val = match[3].trim();
+          
+          val = cleanYamlValue(val);
+
+          if (key === 'steps') {
+            inSteps = true;
+            inParams = false;
+            return;
+          }
+
+          if (inSteps && currentStep) {
+            if (indent === 4) {
+              inParams = (key === 'params');
+              if (!inParams) {
+                currentStep[key] = val;
+              } else {
+                currentStep.params = {};
+              }
+            } else if (indent === 6 && inParams) {
+              currentStep.params[key] = val;
+            }
+          } else {
+            result[key] = val;
+          }
+        }
+      });
+
+      return result;
+    }
+
+    function cleanYamlValue(val) {
+      if (!val) return "";
+      val = val.trim();
+      if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+        val = val.substring(1, val.length - 1);
+      }
+      if (val === 'null') return null;
+      if (val === 'true') return true;
+      if (val === 'false') return false;
+      return val;
     }
 
     // Run

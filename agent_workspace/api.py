@@ -340,26 +340,46 @@ async def stream_ws(websocket: WebSocket):
 @app.websocket("/v1/stream")
 async def websocket_stream(websocket: WebSocket):
     await websocket.accept()
-    try:
-        while True:
-            data = await websocket.receive_json()
+    running_tasks = set()
+
+    async def run_single_session(request_data: dict):
+        try:
             try:
-                request = ChatRequest(**data)
+                request = ChatRequest(**request_data)
             except Exception as e:
                 await websocket.send_json({"error": "Invalid request format", "details": str(e)})
-                continue
+                return
             
             try:
                 ensure_llm_configured()
             except HTTPException as e:
                 await websocket.send_json({"error": e.detail})
-                continue
+                return
                 
             router = build_router(request.session)
-            async for event in router.stream_agent_loop(request.msg, allowed_tools=request.allowed_tools, account_id=request.account_id):
+            async for event in router.stream_agent_loop(
+                request.msg,
+                allowed_tools=request.allowed_tools,
+                account_id=request.account_id,
+            ):
                 await websocket.send_json({"session": request.session, **event})
+        except Exception as e:
+            logger.error(f"Error in async session stream: {e}")
+            try:
+                await websocket.send_json({"error": str(e)})
+            except Exception:
+                pass
+
+    try:
+        while True:
+            data = await websocket.receive_json()
+            task = asyncio.create_task(run_single_session(data))
+            running_tasks.add(task)
+            task.add_done_callback(running_tasks.discard)
     except WebSocketDisconnect:
         logger.info("WebSocket disconnected")
+        for task in list(running_tasks):
+            task.cancel()
 
 
 async def run_background_task(record: TaskRecord, allowed_tools: list[str] | None, account_id: str | None) -> None:

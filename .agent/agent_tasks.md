@@ -207,9 +207,9 @@ priority : HIGH
 effort   : L
 depends  : 8-01, 8-02
 ```
-- [ ] Implement interactive drag-and-drop node addition and edge links inside `viewer.html` / 在 `viewer.html` 中實作互動式拖拽節點與邊線連結
-- [ ] Support custom n8n-like step configuration options (skill selection, dynamic variables) / 支援自訂 n8n 式步驟配置（選擇工具、動態參數變數）
-- [ ] Real-time canvas validation of step paths and dependencies / 即時畫布步驟路徑與依賴關係檢驗
+- [x] Implement interactive drag-and-drop node addition and edge links inside `viewer.html` / 在 `viewer.html` 中實作互動式拖拽節點與邊線連結
+- [x] Support custom n8n-like step configuration options (skill selection, dynamic variables) / 支援自訂 n8n 式步驟配置（選擇工具、動態參數變數）
+- [x] Real-time canvas validation of step paths and dependencies / 即時畫布步驟路徑與依賴關係檢驗
 
 ---
 
@@ -219,8 +219,8 @@ priority : MEDIUM
 effort   : M
 depends  : 1-01, 4-01
 ```
-- [ ] Export canvas configuration dynamically as `.agent/workflows/<id>.md` PAP spec file / 動態將畫布配置匯出為 `.agent/workflows/<id>.md` PAP 規格檔案
-- [ ] Enable file uploading/importing of existing `.agent/workflows/*.md` files into visual canvas / 支援讀取並將現有的 `.agent/workflows/*.md` 檔案還原至視覺畫布
+- [x] Export canvas configuration dynamically as `.agent/workflows/<id>.md` PAP spec file / 動態將畫布配置匯出為 `.agent/workflows/<id>.md` PAP 規格檔案
+- [x] Enable file uploading/importing of existing `.agent/workflows/*.md` files into visual canvas / 支援讀取並將現有的 `.agent/workflows/*.md` 檔案還原至視覺畫布
 
 ---
 
@@ -383,8 +383,8 @@ priority : HIGH
 effort   : L
 depends  : 8-01, 8-02
 ```
-- [ ] Create specialized views inside `viewer.html`: CEO Strategy, Developer Terminal, and Auditor Billing dashboards / 在 `viewer.html` 中實作 CEO 戰略、開發者終端與審計計費專屬儀表板視角
-- [ ] Live charts inside Auditor dashboard tracking total company token consumption and API costs / 在審計儀表板中實作即時圖表，追蹤整家公司的 Token 消耗與 API 費用成本
+- [x] Create specialized views inside `viewer.html`: CEO Strategy, Developer Terminal, and Auditor Billing dashboards / 在 `viewer.html` 中實作 CEO 戰略、開發者終端與審計計費專屬儀表板視角
+- [x] Live charts inside Auditor dashboard tracking total company token consumption and API costs / 在審計儀表板中實作即時圖表，追蹤整家公司的 Token 消耗與 API 費用成本
 
 ---
 
@@ -394,8 +394,8 @@ priority : HIGH
 effort   : L
 depends  : 7-01, 9-03
 ```
-- [ ] Enable running multiple independent agent sessions concurrently across websocket adapter channels / 透過 Websocket 適配器通道支援多個獨立的智慧體對話併發並行執行
-- [ ] Implement a central Moderator/CEO routing orchestrator to dynamically dispatch subtasks to different developer or analyst agents / 實作中央 Moderator/CEO 路由協調器，動態派發子任務至開發者或分析師智慧體
+- [x] Enable running multiple independent agent sessions concurrently across websocket adapter channels / 透過 Websocket 適配器通道支援多個獨立的智慧體對話併發並行執行
+- [x] Implement a central Moderator/CEO routing orchestrator to dynamically dispatch subtasks to different developer or analyst agents / 實作中央 Moderator/CEO 路由協調器，動態派發子任務至開發者或分析師智慧體
 
 ---
 
@@ -405,8 +405,8 @@ priority : MEDIUM
 effort   : M
 depends  : 8-03, 11-01
 ```
-- [ ] Render interactive corporate organizational structure chart (CEO -> Strategy -> R&D -> QA) / 渲染互動式公司組織架構圖
-- [ ] Real-time status indicators showing current workload and operational state (Idle, Thinking, HITL Waiting, Running Tool) for all corporate agents / 即時狀態監控，顯示所有公司智慧體的工作狀態與負載情況
+- [x] Render interactive corporate organizational structure chart (CEO -> Strategy -> R&D -> QA) / 渲染互動式公司組織架構圖
+- [x] Real-time status indicators showing current workload and operational state (Idle, Thinking, HITL Waiting, Running Tool) for all corporate agents / 即時狀態監控，顯示所有公司智慧體的工作狀態與負載情況
 
 ---
 
@@ -418,12 +418,13 @@ depends  : 8-03, 11-01
 | **Phase 1: Protocol** | 5 tasks | 5 tasks | 100% Done |
 | **Phase 2: Tooling** | 2 tasks | 2 tasks | 100% Done |
 | **Phase 3: Quality & Security** | 2 tasks | 2 tasks | 100% Done |
-| **Phase 4: Workflow Designer** | 2 tasks | 0 tasks | 0% Todo |
+| **Phase 4: Workflow Designer** | 2 tasks | 2 tasks | 100% Done |
 | **Phase 5: Semantic Retrieval** | 2 tasks | 2 tasks | 100% Done |
 | **Phase 6: Multi-Account** | 3 tasks | 3 tasks | 100% Done |
 | **Phase 7: Consensus** | 2 tasks | 2 tasks | 100% Done |
 | **Phase 8: UI/UX & Visuals** | 3 tasks | 3 tasks | 100% Done |
 | **Phase 9: HITL & RBAC** | 4 tasks | 4 tasks | 100% Done |
-| **Phase 11: Agent Company** | 3 tasks | 0 tasks | 0% Todo |
+| **Phase 11: Agent Company** | 3 tasks | 3 tasks | 100% Done |
+
 
 *This queue is managed dynamically by the active LAS Developer Agent. All task updates, outcome logs, and progress status updates are written directly to this file before turn conclusion.*

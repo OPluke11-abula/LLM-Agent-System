@@ -812,6 +812,21 @@ class AgentRouter:
         account_id: str | None = None,
     ):
         """Run the streaming closed-loop agent path."""
+        async for event in self._stream_agent_loop_raw(
+            user_input, allowed_tools, output_schema, account_id
+        ):
+            if isinstance(event, dict):
+                event["agent_name"] = self.agent_name
+            yield event
+
+    async def _stream_agent_loop_raw(
+        self,
+        user_input: str,
+        allowed_tools: list[str] | None = None,
+        output_schema: Any = None,
+        account_id: str | None = None,
+    ):
+        """Run the raw streaming closed-loop agent path."""
         self._resolved_account = self._resolve_account(account_id)
         api_key = self.account_manager.resolve_api_key(self._resolved_account)
         self._provider = ProviderFactory.get_provider(
