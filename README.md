@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![GitHub License](https://img.shields.io/badge/license-Apache%202.0-blueviolet?style=for-the-badge)
+![GitHub License](https://img.shields.io/badge/license-Elastic%202.0-blueviolet?style=for-the-badge)
 ![Python Version](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.14-blue?style=for-the-badge)
 ![Framework Protocol](https://img.shields.io/badge/protocol-PAP%20v0.1.0-orange?style=for-the-badge)
 ![Build Status](https://img.shields.io/badge/tests-85%20passed%20%2F%20100%25%20green-success?style=for-the-badge)
@@ -241,4 +241,4 @@ python agent_workspace/cli.py --chat
 
 ### ⚖️ License
 
-LAS is distributed under the **Apache License 2.0**. See `LICENSE` for details.
+LAS is distributed under the **Elastic License 2.0 (ELv2)**. Free to use, modify, and distribute internally, but hosting the software as a managed service is prohibited. See `LICENSE` for details.
