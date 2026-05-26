@@ -241,6 +241,8 @@ workspace/*.tmp
 agent_workspace/tool_manifest.json
 /memory/
 !.agent/memory/
+.agent/workflows/runs/*.json
+.agent/memory/handoff/*.json
 
 
 # Test scripts (development-only)

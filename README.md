@@ -244,12 +244,12 @@ python -m pytest
 
 | Phase | Status | Scope |
 | --- | --- | --- |
-| P0 | ✅ Done | UTF-8 docs, bootstrap/verify, generated-data governance |
-| P1 | ✅ Done | FastAPI WebSocket streaming, native multi-provider (Claude / GPT-4o), Redis memory backend |
-| P2 | ✅ Done | Governed memory (episodic, semantic, retention, delete, citation), Topological Workspace schema & viewer |
-| P3 | ✅ Done | Delegation hardening: timeout protection, worker config, tool loops, cost measurement |
-| P4 | ✅ Done | Multi-Account support & real-time token tracking for seamless vibe coding |
-| P5 | 🔲 Next | Package LAS as local-first, auditable, AI-maintainable, protocol-compatible runtime infrastructure |
+| **Phase 0 & 3** | ✅ Done | Foundation, zero-dependency validation, CLI linter, path traversal prevention, & green pytest suite |
+| **Phase 1 & 2** | ✅ Done | Asynchronous workflow engine, handoff engine, version control, and operations CLI subcommands |
+| **Phase 4 & 5** | ✅ Done | Drag-and-drop Visual Workflow Designer (React Flow) & zero-dependency local TF-IDF semantic query fallback |
+| **Phase 6 & 7** | ✅ Done | Multi-Account token budget tracking, failover safety, and multi-agent consensus debate rooms |
+| **Phase 8 & 9** | ✅ Done | Zero-build visual dashboard Dagre polish, dynamic HSL status edges, HITL interactive approvals, and dynamic RBAC |
+| **Phase 11** | ✅ Done | Multi-Agent Corporate Swarm (CEO/Dev/Auditor views, organizational charts, & concurrent WS streaming) |
 
 ---
 
