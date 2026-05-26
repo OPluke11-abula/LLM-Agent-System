@@ -30,6 +30,8 @@ use_case_tags:
 tools:
   - delegate_task
   - calculate
+  - run_tests
+  - verify_workspace
   - log_append
   - log_archive_month
   - log_compress_done

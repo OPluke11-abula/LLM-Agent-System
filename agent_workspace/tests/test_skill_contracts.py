@@ -52,8 +52,8 @@ def test_skills_directory_not_empty():
     """Verify that skill contracts exist in the .agent/skills directory."""
     contracts = get_skill_contracts()
     assert len(contracts) > 0, "No skill contracts found in .agent/skills/"
-    # We expect 17 standardized skill contracts
-    assert len(contracts) == 17, f"Expected 17 skill contracts, found {len(contracts)}"
+    # We expect 19 standardized skill contracts
+    assert len(contracts) == 19, f"Expected 19 skill contracts, found {len(contracts)}"
 
 
 @pytest.mark.parametrize("contract_path", get_skill_contracts(), ids=lambda p: p.stem)

@@ -16,6 +16,8 @@ skill contracts.
 | --- | --- | --- | --- |
 | `delegate_task` | `agent_workspace/skills/delegate_task.py` | `delegate_task` | `.agent/skills/delegate_task.md` |
 | `calculate` | `agent_workspace/skills/example_skill_template.py` | `calculate` | `.agent/skills/calculate.md` |
+| `run_tests` | `agent_workspace/skills/system_verification.py` | `run_tests` | `.agent/skills/run_tests.md` |
+| `verify_workspace` | `agent_workspace/skills/system_verification.py` | `verify_workspace` | `.agent/skills/verify_workspace.md` |
 | `log_append` | `agent_workspace/skills/tool_log.py` | `log_append` | `.agent/skills/log_append.md` |
 | `log_archive_month` | `agent_workspace/skills/tool_log.py` | `log_archive_month` | `.agent/skills/log_archive_month.md` |
 | `log_compress_done` | `agent_workspace/skills/tool_log.py` | `log_compress_done` | `.agent/skills/log_compress_done.md` |
