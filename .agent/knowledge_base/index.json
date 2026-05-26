@@ -19,6 +19,15 @@
       "creator": "LAS Lead Developer",
       "version": "1.1.0",
       "tags": ["standards", "guidelines", "testing"]
+    },
+    {
+      "id": "developer_specifications",
+      "title": "LAS Developer Specifications",
+      "file_path": "agent_workspace/knowledge_base/developer_specifications.md",
+      "description": "Active API endpoints, CLI subcommands, memory configurations, and roadmap details for AI Agent reference.",
+      "creator": "FindAi Studio Core Team",
+      "version": "1.0.0",
+      "tags": ["api", "cli", "configurations", "roadmap", "specifications"]
     }
   ]
 }

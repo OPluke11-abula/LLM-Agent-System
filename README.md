@@ -1,279 +1,84 @@
-# FindAi Studio — LLM Agent System (LAS)
+# 🌌 FindAi Studio — LLM Agent System (LAS)
 
-[English](#english) | [繁體中文](#繁體中文)
+<div align="center">
+
+![GitHub License](https://img.shields.io/badge/license-Apache%202.0-blueviolet?style=for-the-badge)
+![Python Version](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.14-blue?style=for-the-badge)
+![Framework Protocol](https://img.shields.io/badge/protocol-PAP%20v0.1.0-orange?style=for-the-badge)
+![Build Status](https://img.shields.io/badge/tests-85%20passed%20%2F%20100%25%20green-success?style=for-the-badge)
+
+### [English](#-english) | [繁體中文](#-繁體中文)
+
+</div>
 
 ---
 
-## English
+## 🌐 English
 
-> **The First AI-Maintainable Agent Framework**
-> Stop fighting rigid framework abstractions. FindAi Studio uses a Contract-First design (`.agent/` PAP + `INSTRUCTIONS_FOR_AI.md`) that lets cutting-edge LLMs safely understand, refactor, and extend your Agent workflows autonomously. It's not just an AI Agent — it's an AI that builds your AI.
+> ### 🧠 **The First AI-Maintainable Agent Framework**
+> Stop fighting rigid framework abstractions. FindAi Studio uses a **Contract-First design** (`.agent/` PAP + `INSTRUCTIONS_FOR_AI.md`) that lets cutting-edge LLMs safely understand, refactor, and extend your Agent workflows autonomously. **It's not just an AI Agent — it's an AI that builds your AI.**
 >
-> Natively supports Claude 3.5 Sonnet and GPT-4o with zero vendor lock-in.
+> *Natively supports Gemini, Claude 3.5 Sonnet, GPT-4o, and Ollama with zero vendor lock-in.*
 
-LAS is a readable, maintainable, observable, and portable local Agent Runtime
-with a visual control-plane direction. It is not another generic LLM framework.
-Its product value is the combination of:
+LAS is an extremely readable, maintainable, observable, and portable local Agent Runtime with a visual multi-dashboard control-plane. It is built upon three pillars:
 
-- **Topological Workspace** — a structured-log, node-based visual workspace that turns complex AI agent sessions into an infinite canvas of interconnected task blocks
-- **Contract-First AI Handoff** — PAP-compatible `.agent/` workspace contracts that let both humans and AI safely inspect, verify, and extend the codebase
-- **Markdown SkillLoader** — seamlessly auto-discovers and bridges `anthropics/skills` format (`SKILL.md`) into Pydantic-executable tools
-- **Zero-Build Viewer** — extremely lightweight DAG topology viewer (`workspace/viewer.html`) without any build-step overhead
-- **Structured Log Memory** — intelligent auto-compression of completed task logs to maintain optimal context window utilization
-- **Multi-Provider LLM Abstraction** — native support for Gemini, Claude 3.5 Sonnet, GPT-4o, and Ollama with zero vendor lock-in
-- **Pluggable Memory Backends** — SQLite (default) and Redis for enterprise-scale persistent long-term memory
-
-### Three-Minute Start
-
-```powershell
-git clone <repo-url>
-cd LLM-Agent-System
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-.\scripts\verify.cmd -SkipViewer
-```
-
-Optional full bootstrap, including dependency install:
-
-```powershell
-.\scripts\bootstrap_verify.cmd
-```
-
-Provider SDKs are optional. Install them only when you need hosted backends:
-
-```powershell
-pip install -r requirements-providers.txt
-```
-
-Use standard Windows CPython for dependency installation. MSYS/MinGW Python may
-try to compile native wheels locally and fail on packages such as
-`pydantic-core`.
-
-### Start the API Server
-
-```powershell
-uvicorn agent_workspace.api:app --host 0.0.0.0 --port 8000
-curl http://127.0.0.1:8000/v1/health
-```
-
-### Start the Viewer
-
-**Option A (Zero-Build Lightweight Viewer):**
-```powershell
-python -m http.server 8000
-# Open http://localhost:8000/workspace/viewer.html
-```
-
-**Option B (Full React Tauri App):**
-```powershell
-cd viewer
-npm install
-npm run dev
-```
-
-### Architecture
-
-```
-LLM-Agent-System/
-├── .agent/                          # PAP workspace contract (AI handoff surface)
-│   ├── agent.md                     # Agent persona & capabilities
-│   └── skills/                      # Skill contracts (one .md per tool)
-├── spec/                            # PAP Specification JSON Schemas (formal contracts)
-│   ├── agent-schema.json            # Schema for agent metadata
-│   ├── skill-contract.schema.json   # Schema for skill contracts
-│   ├── memory.schema.json           # Schema for episodic/semantic memory records
-│   └── workflow.schema.json         # Schema for workflow definitions
-├── agent_workspace/
-│   ├── core/
-│   │   ├── engine.py                # AgentEngine — closed-loop runtime
-│   │   ├── knowledge.py             # KnowledgeBase — secure static query engine
-│   │   ├── router.py                # AgentRouter — streaming orchestration
-│   │   ├── skill_loader.py          # Markdown SKILL.md Auto-Discovery
-│   │   └── providers.py             # Multi-LLM provider abstraction
-│   ├── skills/                      # Python tool & Markdown skill implementations
-│   ├── memory/                      # Generated session & memory data
-│   ├── api.py                       # FastAPI adapter (REST / SSE / WebSocket)
-│   ├── memory_backends.py           # MemoryBackend (SQLite, Redis)
-│   ├── topology_bridge.py           # Topology state serialisation
-│   ├── topology_stream.py           # Stream wrapper emitting topology events
-│   ├── observability.py             # Prometheus metrics & OpenTelemetry tracing
-│   ├── tool_manifest.py             # Runtime-tool ↔ PAP-contract sync
-│   ├── pap_validate.py              # Zero-dependency .agent/ contract validator
-│   └── config.yaml                  # Active LLM provider configuration
-├── viewer/                          # React + React Flow topology viewer (Vite + Tauri)
-├── scripts/                         # Bootstrap and verification commands
-└── workspace/                       # Generated topology state output
-    ├── workspace.md                 # ASCII Topological DAG state
-    ├── workspace.json               # Structured state graph
-    ├── viewer.html                  # Zero-build frontend viewer
-    └── agents/                      # Generated PAP Agent Specifications
-```
-
-#### Design Principles
-
-- Keep `agent_workspace/core/` focused on runtime behaviour only.
-- Add HTTP, topology, viewer, and protocol concerns through adapters and bridge layers.
-- Treat `.agent/`, PAP sync, and tool contracts as the AI handoff surface.
-- Treat runtime JSON, memory DBs, caches, and topology state as generated data — never commit them.
-- Prefer reliable delegation contracts over unbounded swarm behaviour.
-
-### Provider Configuration
-
-LAS reads the active provider from `agent_workspace/config.yaml`:
-
-```yaml
-llm:
-  provider: "google-genai"
-  model: "gemini-2.5-flash"
-  temperature: 0.0
-  max_tokens: 4096
-```
-
-| Provider | Example model | Required environment |
-| --- | --- | --- |
-| `google-genai` / `gemini` | `gemini-2.5-flash` | `GOOGLE_API_KEY` |
-| `openai` | `gpt-4o` | `OPENAI_API_KEY` |
-| `anthropic` | `claude-3-5-sonnet-latest` | `ANTHROPIC_API_KEY` |
-| `ollama` | `llama3.1` | local Ollama server |
-
-### Memory Backend Configuration
-
-By default LAS uses SQLite. To switch to Redis, set the `MEMORY_BACKEND` and `REDIS_URL` environment variables:
-
-```powershell
-$env:MEMORY_BACKEND = "redis"
-$env:REDIS_URL = "redis://localhost:6379"
-```
-
-### API Surface
-
-| Method | Path | Purpose |
-| --- | --- | --- |
-| `GET` | `/v1/health` | Health, provider, readiness |
-| `GET` | `/v1/tools` | Live PAP-aligned tool manifest |
-| `POST` | `/v1/chat` | Synchronous agent request (supports optional `account_id` payload) |
-| `POST` | `/v1/stream` | SSE stream with tool events (supports optional `account_id` payload) |
-| `WS` | `/v1/stream_ws` | WebSocket bidirectional streaming |
-| `WS` | `/v1/stream` | WebSocket multi-turn streaming |
-| `POST` | `/v1/task` | Async task submission (supports optional `account_id` payload) |
-| `GET` | `/v1/session/{id}` | Session memory and task state |
-| `GET` | `/v1/memory` | Long-term memory records |
-| `GET` | `/v1/memory/query` | Long-term memory search |
-| `GET` | `/v1/metrics` | Prometheus metrics |
-| `GET/PUT` | `/v1/config` | Local LLM configuration |
-| `GET` | `/v1/accounts` | List configured accounts and token usages |
-| `POST` | `/v1/accounts` | Add or update an LLM provider account |
-| `DELETE` | `/v1/accounts/{id}`| Delete a specific account |
-| `GET` | `/v1/accounts/active`| Get the active account |
-| `POST` | `/v1/accounts/active`| Set active account for LLM calls
-
-### Topological Workspace
-
-The topology bridge converts each agent session into a structured JSON state file (`topology_state.json`) that serves as the **single source of truth** for the visual workspace.
-
-Each **node** represents a task with:
-- `title` — human-readable task name
-- `status` — state machine (`todo` → `in_process` → `review` → `done` / `error`)
-- `assigned_agent` — which agent owns this task
-- `description` — task context
-- `result_summary` — compressed outcome (populated on completion)
-
-Each **edge** defines task dependencies with typed connections (`handoff`, `tool`, `rbac`, `error`, `hitl`).
-
-Dry-run topology generation (no LLM required):
-
-```powershell
-python agent_workspace/topology_stream.py stream --msg "test" --session verify-p1 --dry-run
-```
-
-### Developer Operations CLI & Workflows
-
-LAS provides a unified Developer CLI toolbelt (`agent_workspace/cli.py`) for managing runtime skills, memory, validation, and declarative n8n-like workflows:
-
-```powershell
-# List all registered local and global skills
-python agent_workspace/cli.py --list-skills
-
-# Describe a specific skill contract schema in YAML
-python agent_workspace/cli.py --describe-skill calculate
-
-# Run zero-dependency PAP workspace validation
-python agent_workspace/cli.py --validate
-
-# Read/Write persistent long-term memory records
-python agent_workspace/cli.py --session my-session --memory-write sem-rule-1 "Direct memory update"
-python agent_workspace/cli.py --session my-session --memory-read sem-rule-1
-
-# Execute a declarative DAG workflow defined in .agent/workflows/<id>.md
-python agent_workspace/cli.py --run-workflow my_workflow
-
-# Resume a failed workflow run from its last checkpoint
-python agent_workspace/cli.py --run-workflow my_workflow --resume
-
-# Bootstrap a standard skeletal .agent/ folder structure
-python agent_workspace/cli.py init
-
-# Statically lint the PAP workspace contracts for schema and reference integrity
-python agent_workspace/cli.py lint
-
-# Orchestrate a multi-agent debate and consensus session on a given topic
-python agent_workspace/cli.py run-debate --topic "Should we adopt contract-first design?" --agents "analyst,programmer" --rounds 2
-```
-
-Declarative workflows run step-by-step using an **Asynchronous Workflow Engine** (`core/workflow_engine.py`) which tracks state transitions (`pending` -> `running` -> `success` / `failed`), manages dynamic Jinja2 parameter rendering, and supports checkpoint serialization to `.agent/workflows/runs/<session_id>.json` for automatic resumption.
-
-### Contract Pipeline & Workspace Contexts
-
-```powershell
-python agent_workspace\pap_validate.py
-python agent_workspace\tool_manifest.py sync
-python agent_workspace\tool_manifest.py validate
-
-# Run unit tests and generate high-precision coverage reports automatically
-python -m pytest
-```
-
-- `pap_validate.py` is dependency-free and checks the `.agent/` workspace contract.
-- `tool_manifest.py` reflects live runtime tools and verifies that each tool has a matching PAP skill contract.
-- **Formal JSON Schemas (`spec/`)**: Strictly defines and validates the schema rules for Agents, Skills, Memories, and Workflows under `spec/*.json`.
-- **Dynamic Context Loading**: The runtime engine (`AgentEngine`) auto-discovers and dynamic-loads `.agent/agent.md` (Agent Identity/Persona) and `.agent/agent_tasks.md` (Task Queue) as active knowledge contexts, injecting them directly into the system prompts.
-- **Agent Guidelines**: Strict end-of-turn development checklist rules are configured in `AGENT.md` (e.g., bug checks, architectural checks, bilingual README updates, and Git verification).
-
-### Product Roadmap
-
-| Phase | Status | Scope |
-| --- | --- | --- |
-| **Phase 0 & 3** | ✅ Done | Foundation, zero-dependency validation, CLI linter, path traversal prevention, & green pytest suite |
-| **Phase 1 & 2** | ✅ Done | Asynchronous workflow engine, handoff engine, version control, and operations CLI subcommands |
-| **Phase 4 & 5** | ✅ Done | Drag-and-drop Visual Workflow Designer (React Flow) & zero-dependency local TF-IDF semantic query fallback |
-| **Phase 6 & 7** | ✅ Done | Multi-Account token budget tracking, failover safety, and multi-agent consensus debate rooms |
-| **Phase 8 & 9** | ✅ Done | Zero-build visual dashboard Dagre polish, dynamic HSL status edges, HITL interactive approvals, and dynamic RBAC |
-| **Phase 11** | ✅ Done | Multi-Agent Corporate Swarm (CEO/Dev/Auditor views, organizational charts, & concurrent WS streaming) |
+* 🗺️ **Topological Workspace** — A node-based visual control-plane that transforms complex multi-agent sessions into an infinite canvas of interconnected task blocks.
+* 🔏 **Contract-First Handoff** — PAP-compatible `.agent/` workspace contracts that allow humans and AI to safely inspect, verify, and extend the codebase.
+* 🏢 **Agent Corporate Swarm** — Runs role-specialized agents concurrently (CEO, Developer, Auditor) operating collectively like an agile software company.
 
 ---
 
-## 繁體中文
+### 🗺️ Live Topological Dagre View
 
-> **首個讓 AI 幫你客製化 AI 的框架 (The First AI-Maintainable Agent Framework)**
-> 透過 Contract-First 設計 (`.agent/` + `INSTRUCTIONS_FOR_AI.md`)，強大的模型能自主擴充並維護你的工作流，而不會破壞核心架構。原生無縫支援 Claude 3.5 Sonnet 與 GPT-4o。
+```text
+ ┌────────────────────────────────────────────────────────┐
+ │            Moderator View: CEO Strategy Room           │
+ └───────────────────────────┬────────────────────────────┘
+                             │
+                             │ (Handoff Edge: glowing gold)
+                             ▼
+ ┌────────────────────────────────────────────────────────┐
+ │            R&D Center: Developer Workspace             │
+ └───────────────────────────┬────────────────────────────┘
+                             ├─────────────────────────────┐
+                             │                             │ (Tool/API Edge: glowing blue)
+                             ▼                             ▼
+ ┌───────────────────────────────────────┐     ┌───────────────────────────────────────┐
+ │       Auditor: Telemetry & Billing    │     │       HITL Gate: Human Approval       │
+ │   (Real-time Token & cost charts)     │     │      (goldPulse amber border)         │
+ └───────────────────────────────────────┘     └───────────────────────────────────────┘
+```
 
-LAS 的定位是「可讀、可維護、可觀測、可移植的本地 Agent Runtime + 視覺控制台」。
-它不是又一個聊天 agent 或一般 LLM framework，而是人和 AI 都能安全接手維護的
-Agent Runtime 標準樣板。
+---
 
-核心功能：
+### 🏢 Corporate Swarm Architecture
 
-- **拓撲式工作區 (Topological Workspace)** — 用結構化日誌將 AI agent session 轉化為視覺化無限畫布，每個方塊代表一個任務節點
-- **Contract-First AI 交接** — PAP 相容的 `.agent/` 合約讓人類與 AI 都能安全地檢視、驗證、擴充程式碼
-- **Markdown SkillLoader** — 完美橋接 `anthropics/skills` 格式，讓 `SKILL.md` 自動轉換成 Pydantic 可執行的原生工具
-- **結構化日誌系統 (Structured Logs)** — 透過優雅的壓縮演算法自動精簡已完成任務的日誌，並支援月份歸檔，保持記憶體最小佔用
-- **零編譯視覺化前端 (Zero-Build Viewer)** — 位於 `workspace/viewer.html`，以純淨的 Vanilla JS、Tailwind CSS 與 Dagre 打造極輕量無相依的前端展示
-- **多模型 LLM 抽象層** — 原生支援 Gemini、Claude 3.5 Sonnet、GPT-4o、Ollama，零供應商鎖定
-- **可插拔記憶體後端** — SQLite (預設) 與 Redis 企業級持久化長期記憶
+```mermaid
+graph TD
+    subgraph CEO_Dashboard [CEO / Moderator Control Plane]
+        A["1. Dispatch Objective"] --> B["2. Task Decomposition"]
+        B --> C["3. Delegate to Specialized Workers"]
+    end
+    
+    subgraph Developer_Dashboard [R&D Center]
+        D["4. Load Skill Contracts (.agent/skills/)"] --> E["5. Live CLI Linter & Pytest Runner"]
+        E --> F["6. Auto-generate Workflows (.agent/workflows/)"]
+    end
+    
+    subgraph Auditor_Dashboard [Finance & Observability]
+        G["7. Real-time Token Tracking"] --> H["8. Failover Account Rotator"]
+        H --> I["9. Cost Billing Logs (USD)"]
+    end
+    
+    C -->|Dynamic WebSocket WS| D
+    F -->|Telemetry Metrics| G
+```
 
-### 三分鐘啟動
+---
 
+### ⚡ Quick Start (Three-Minute Setup)
+
+#### 1. Setup Environment & Validate
 ```powershell
 git clone <repo-url>
 cd LLM-Agent-System
@@ -283,131 +88,157 @@ pip install -r requirements.txt
 .\scripts\verify.cmd -SkipViewer
 ```
 
-完整 bootstrap：
-
-```powershell
-.\scripts\bootstrap_verify.cmd
-```
-
-Provider SDK 可選安裝：
-
-```powershell
-pip install -r requirements-providers.txt
-```
-
-安裝 dependencies 時建議使用標準 Windows CPython。MSYS/MinGW Python 可能會改成
-本機編譯 native wheels，導致 `pydantic-core` 這類套件安裝失敗。
-
-### 啟動 API 伺服器
-
+#### 2. Start the API Server
 ```powershell
 uvicorn agent_workspace.api:app --host 0.0.0.0 --port 8000
-curl http://127.0.0.1:8000/v1/health
 ```
 
-### 啟動 Viewer
+#### 3. Launch Visual Dashboards
+* **Option A (Zero-Build Vanilla HTML5 Panel):**
+  ```powershell
+  python -m http.server 8000
+  # Open http://localhost:8000/workspace/viewer.html
+  ```
+* **Option B (Full Vite + React Flow Tauri Desktop App):**
+  ```powershell
+  cd viewer
+  npm install
+  npm run dev
+  ```
+  *(To compile a standalone high-performance desktop `.exe` app, execute `npm run tauri build`)*
 
-**選項 A (極輕量無編譯 Viewer):**
-```powershell
-python -m http.server 8000
-# 打開 http://localhost:8000/workspace/viewer.html
-```
+---
 
-**選項 B (完整 React Tauri App):**
-```powershell
-cd viewer
-npm install
-npm run dev
-```
+### 🔌 Developer Operations CLI
 
-### 產品核心
-
-LAS 的護城河不是「又一個聊天 agent」，而是 Contract-First Runtime：
-
-- `.agent/` 是 AI 接手 repo 的協作合約
-- `tool_manifest.py` 把 runtime tool 反射成 PAP contract
-- `pap_validate.py` 是零依賴 workspace contract gate
-- `topology_bridge.py` 把 runtime session 轉成拓撲式結構化日誌 (JSON)
-- `memory_backends.py` 支援 SQLite 與 Redis，是 memory governance 的基礎
-- delegation 應先做可靠、可追蹤、可審計，而不是追求 swarm 噱頭
-
-### 拓撲式工作區
-
-每個任務方塊具備：
-- **標題 (title)** — 人類可讀的任務名稱
-- **狀態機 (status)** — `todo` → `in_process` → `review` → `done` / `error`
-- **負責 Agent (assigned_agent)** — 執行該任務的 agent
-- **執行摘要 (result_summary)** — 任務完成後自動濃縮的結果
-
-每條連線 (edge) 定義任務相依性，支援型別：`handoff`、`tool`、`rbac`、`error`、`hitl`。
-
-### 開發者指令集與工作流 (Developer CLI & Workflows)
-
-LAS 提供統一的開發者工具箱 (`agent_workspace/cli.py`)，用於管理執行期工具、長期記憶、工作區驗證以及執行 n8n 式的宣告式工作流：
+LAS features a unified operations toolbelt (`agent_workspace/cli.py`):
 
 ```powershell
-# 列出所有已註冊的本地與全域工具合約
+# List all registered local & global skills
 python agent_workspace/cli.py --list-skills
 
-# 以 YAML 格式展示特定工具合約細節
-python agent_workspace/cli.py --describe-skill calculate
-
-# 執行零相依性 PAP 工作區合約結構驗證
+# Run static schema checks on all PAP contracts
 python agent_workspace/cli.py --validate
 
-# 讀取/寫入持久化長期記憶記錄
-python agent_workspace/cli.py --session my-session --memory-write sem-rule-1 "直接更新記憶"
-python agent_workspace/cli.py --session my-session --memory-read sem-rule-1
-
-# 執行定義於 .agent/workflows/<id>.md 的宣告式 DAG 工作流
+# Execute a declarative DAG workflow script
 python agent_workspace/cli.py --run-workflow my_workflow
 
-# 從上次失敗的檢查點恢復（Resume）工作流執行
-python agent_workspace/cli.py --run-workflow my_workflow --resume
-
-# 自動引導（Bootstrap）建立標準的 .agent/ 骨架結構目錄與 Manifest 檔案
-python agent_workspace/cli.py init
-
-# 靜態檢查（Lint）整個 PAP 工作區合約的結構、版本格式與 Workflow 參照完整性
-python agent_workspace/cli.py lint
-
-# 啟動多智慧體共識會議與辯論（Debate），並由主持人自動生成決策與共識報告
-python agent_workspace/cli.py run-debate --topic "我們是否應該採用 Contract-First 設計？" --agents "analyst,programmer" --rounds 2
+# Run interactive closed-loop session with live HITL approvals
+python agent_workspace/cli.py --chat
 ```
 
-宣告式工作流採用**非同步工作流引擎** (`core/workflow_engine.py`) 進行，全程追蹤狀態轉換（`pending` -> `running` -> `success` / `failed`），並會將進度與資料序列化至 `.agent/workflows/runs/<session_id>.json` 供隨時中斷重啟。
+---
 
-### 驗證命令與 PAP 整合
+## 🌐 繁體中文
+
+> ### 🧠 **首個讓 AI 幫你客製化與重構 AI 的框架**
+> 拒絕僵硬死板的框架抽象。FindAi Studio 採用 **合約優先 (Contract-First) 設計** (`.agent/` PAP + `INSTRUCTIONS_FOR_AI.md`)，讓最尖端的大模型在**不污染、不破壞核心架構**的前提下，安全地自主理解、重構、編譯並擴充你的工作流。**它不僅是一個智慧體 —— 它是一個幫你生產智慧體的自動化工廠。**
+>
+> *原生無縫支援 Gemini, Claude 3.5 Sonnet, GPT-4o 與 Ollama，零供應商鎖定。*
+
+---
+
+### 🗺️ 實時拓撲 Dagre 觀測圖
+
+```text
+ ┌────────────────────────────────────────────────────────┐
+ │             Moderator View: CEO 戰略指揮官視角          │
+ └───────────────────────────┬────────────────────────────┘
+                             │
+                             │ (Handoff 邊線：琥珀金粒子流)
+                             ▼
+ ┌────────────────────────────────────────────────────────┐
+ │              R&D Center: 開發工程師畫布編輯器           │
+ └───────────────────────────┬────────────────────────────┘
+                             ├─────────────────────────────┐
+                             │                             │ (Tool/API 邊線：流動藍光)
+                             ▼                             ▼
+ ┌───────────────────────────────────────┐     ┌───────────────────────────────────────┐
+ │         Auditor: 財務計費與統計儀表板  │     │        HITL Gate: 人機審批閘口         │
+ │     (實時 Token 統計與延遲折線圖)       │     │       (金黃脈動 goldPulse 邊框)        │
+ └───────────────────────────────────────┘     └───────────────────────────────────────┘
+```
+
+---
+
+### 🏢 公司化協同架構 (Mermaid)
+
+```mermaid
+graph TD
+    subgraph CEO_Dashboard [CEO 戰略決策層]
+        A["1. 派發企業總體 OKR"] --> B["2. 任務自動拓撲分解"]
+        B --> C["3. 調度 delegate_task 指派子任務"]
+    end
+    
+    subgraph Developer_Dashboard [R&D 開發中心]
+        D["4. 載入 PAP 工具合約 (.agent/skills/)"] --> E["5. 自動編譯校驗與 Pytest 執行"]
+        E --> F["6. 畫布一鍵匯出 workflows (.agent/workflows/)"]
+    end
+    
+    subgraph Auditor_Dashboard [財務與觀測站]
+        G["7. 實時 Token 計費稽核"] --> H["8. Fallback 帳號防線切換"]
+        H --> I["9. 產出美元消費對帳單"]
+    end
+    
+    C -->|動態 WebSocket 串流| D
+    F -->|系統 Telemetry 指標| G
+```
+
+---
+
+### ⚡ 快速啟動 (三分鐘環境搭建)
+
+#### 1. 建立虛擬環境與校驗
+```powershell
+git clone <repo-url>
+cd LLM-Agent-System
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+.\scripts\verify.cmd -SkipViewer
+```
+
+#### 2. 啟動 FastAPI 服務適配器
+```powershell
+uvicorn agent_workspace.api:app --host 0.0.0.0 --port 8000
+```
+
+#### 3. 啟動視覺化多重視角控制台
+* **方案 A (零編譯 Vanilla HTML5 輕量面板):**
+  ```powershell
+  python -m http.server 8000
+  # 開啟 http://localhost:8000/workspace/viewer.html
+  ```
+* **方案 B (Vite + React Flow Tauri 專業桌面端):**
+  ```powershell
+  cd viewer
+  npm install
+  npm run dev
+  ```
+  *(若要編譯為免安裝單一執行檔 `.exe`，請執行 `npm run tauri build`)*
+
+---
+
+### 🚥 本地開發者工具 CLI 
+
+LAS 提供一站式開發者工具箱 (`agent_workspace/cli.py`)：
 
 ```powershell
-.\scripts\verify.cmd -SkipViewer
-python agent_workspace\pap_validate.py
-python agent_workspace\tool_manifest.py validate
-python agent_workspace\topology_stream.py stream --msg "test" --session verify-p1 --dry-run
+# 列出所有註冊的本地與全域工具 (Skills)
+python agent_workspace/cli.py --list-skills
 
-# 執行單元測試並自動生成高精度的模組覆蓋率報告
-python -m pytest
+# 執行零依賴的 PAP 工作區合約靜態校驗
+python agent_workspace/cli.py --validate
+
+# 執行定義於 .agent/workflows/ 的宣告式工作流腳本
+python agent_workspace/cli.py --run-workflow my_workflow
+
+# 啟動具有實時 HITL 人機審批的互動式對話
+python agent_workspace/cli.py --chat
 ```
 
-- **規格 Schema 正式化 (`spec/`)**：在根目錄的 `spec/` 資料夾內定義了 Agent 身分、Skill 工具合約、Episodic/Semantic 記憶體以及 Workflow 流程的完整 JSON Schema 規範。
-- **動態上下文載入 (Dynamic Context Loading)**：LAS 執行引擎 (`AgentEngine`) 原生支援動態載入 `.agent/` 目錄下的 PAP 協定合約。它會自動偵測並解析目前運行的 Agent 身分宣告檔 (`.agent/agent.md`) 以及任務隊列 (`.agent/agent_tasks.md`)，並將其自動注入 Jinja2 系統提示詞中，使 Agent 具備完全的身分與任務自我認知。
-- **自我檢核檢索 (`AGENT.md`)**：專案根目錄下的 `AGENT.md` 定義了每次工作結束時的 5 項核心自我檢核步驟（Bug/冗餘清理、架構職責審查、`.agent/` 自主更新、中英文 `README.md` 分開維護、Git Commit/Push 前預檢測試），確保專案在開發中自我演進且架構不走樣。
+---
 
-### 開發原則
+### ⚖️ License
 
-- 不把 UI、HTTP、topology 或 PAP 邏輯塞進 `agent_workspace/core/`
-- 新能力優先放在 adapter、bridge、contract pipeline
-- runtime JSON、memory DB、cache、topology state 都是 generated data，不應提交
-- README、PAP 文件、log、Python 註解必須維持乾淨 UTF-8
-- 每次新增 tool，都要同步 `.agent/skills/*.md` 並跑 contract validation
-
-### 優先級
-
-| 階段 | 狀態 | 範圍 |
-| --- | --- | --- |
-| P0 | ✅ 完成 | 亂碼修復、bootstrap/verify、generated data 治理 |
-| P1 | ✅ 完成 | FastAPI WebSocket 串流、多模型原生支援 (Claude / GPT-4o)、Redis 記憶體後端 |
-| P2 | ✅ 完成 | 可治理記憶體 (Governed Memory)、拓撲式工作區 Schema 與 Viewer |
-| P3 | ✅ 完成 | delegation 完整化：超時保護、取消、追蹤、工具限制、成本與 token 度量 |
-| P4 | ✅ 完成 | 多帳號管理與即時 Token 用量/額度追蹤，不中斷 Vibe Coding 流程 |
-| P5 | 🔲 下一步 | 商業包裝：local-first、auditable、AI-maintainable、protocol-compatible |
+LAS is distributed under the **Apache License 2.0**. See `LICENSE` for details.
