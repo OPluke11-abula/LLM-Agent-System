@@ -88,6 +88,31 @@ class PromptComposer:
 
         return prompt_def
 
+    def _load_lessons_learned(self) -> str:
+        """Loads and formats lessons learned from lessons_learned.md as prompt directives."""
+        lessons_file = self.project_root / ".agent" / "knowledge_base" / "lessons_learned.md"
+        if not lessons_file.is_file():
+            return ""
+            
+        try:
+            content = lessons_file.read_text(encoding="utf-8")
+            policies = []
+            for line in content.splitlines():
+                stripped = line.strip()
+                if stripped.startswith("- **Best Practice Policy**:") or stripped.startswith("- **最佳實踐**:") or stripped.startswith("- **Best Practice**:"):
+                    policy = stripped.split(":", 1)[1].strip()
+                    policies.append(policy)
+            
+            if policies:
+                guidelines = "\n\n## 🎓 SYSTEM SELF-LEARNING DIRECTIVES (Auto-Learned Best Practices):\n"
+                for idx, policy in enumerate(policies, 1):
+                    guidelines += f"{idx}. {policy}\n"
+                return guidelines
+        except Exception as e:
+            logger.error(f"Failed to load lessons learned: {e}")
+            
+        return ""
+
     def build(self, prompt_id: str, variables: dict[str, Any]) -> str:
         """Load a prompt template, validate variables, escape values, and render it."""
         prompt_def = self.load_prompt(prompt_id)
@@ -112,4 +137,8 @@ class PromptComposer:
         # Render template
         template_str = prompt_def["template"]
         template = Template(template_str)
-        return template.render(**escaped_vars)
+        rendered = template.render(**escaped_vars)
+        
+        # Append dynamic lessons learned directives
+        lessons = self._load_lessons_learned()
+        return rendered + lessons

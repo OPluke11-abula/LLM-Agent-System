@@ -195,6 +195,102 @@ class WorkflowEngine:
             return [self._resolve_placeholder(v, context) for v in value]
         return value
 
+    async def _execute_step_async(self, step_id: str, step_def: dict[str, Any], state: WorkflowRunState, context: dict[str, Any], session_id: str, lock: Any) -> bool:
+        """Asynchronously executes a single step, wrapping blocking execute_tool in executor."""
+        async with lock:
+            step_state = state.steps[step_id]
+            step_state.status = "running"
+            step_state.started_at = datetime.now(timezone.utc).isoformat()
+            state.current_step_id = step_id
+            self.save_state(state)
+
+        skill_id = step_def["skill_id"]
+        raw_params = step_def.get("params", {})
+        on_failure = step_def.get("on_failure", "fail")
+        max_retries = 3 if on_failure == "retry" else 1
+
+        resolved_params = self._resolve_placeholder(raw_params, context)
+        logger.info("Executing step '%s' [Skill: %s] asynchronously", step_id, skill_id)
+        
+        output = None
+        error_msg = None
+        success = False
+
+        for attempt in range(1, max_retries + 1):
+            try:
+                if attempt > 1:
+                    logger.info("Retrying step '%s' (Attempt %d/%d)", step_id, attempt, max_retries)
+                    import asyncio
+                    await asyncio.sleep(0.5)
+
+                sys_context = {
+                    "session_id": session_id,
+                    "workspace_path": self.engine.workspace_path
+                }
+                
+                # Execute blocking engine tool in a non-blocking thread executor
+                import asyncio
+                loop = asyncio.get_running_loop()
+                raw_output = await loop.run_in_executor(
+                    None,
+                    self.engine.execute_tool,
+                    skill_id,
+                    resolved_params,
+                    None,
+                    sys_context
+                )
+                
+                if isinstance(raw_output, str) and raw_output.strip().startswith("Error:"):
+                    raise RuntimeError(raw_output.strip())
+
+                try:
+                    output = json.loads(raw_output)
+                except Exception:
+                    try:
+                        import ast
+                        output = ast.literal_eval(raw_output)
+                    except Exception:
+                        output = raw_output
+
+                success = True
+                break
+            except Exception as e:
+                error_msg = str(e)
+                logger.warning("Step '%s' execution failed on attempt %d: %s", step_id, attempt, error_msg)
+
+        async with lock:
+            if success:
+                step_state.status = "success"
+                step_state.output = output
+                step_state.error = None
+                step_state.completed_at = datetime.now(timezone.utc).isoformat()
+                context["steps"][step_id] = {
+                    "output": output
+                }
+                self.save_state(state)
+                return True
+            else:
+                step_state.status = "failed"
+                step_state.error = error_msg
+                step_state.completed_at = datetime.now(timezone.utc).isoformat()
+                
+                if on_failure == "skip":
+                    logger.info("Step '%s' failed but 'on_failure' is set to 'skip'.", step_id)
+                    step_state.status = "skipped"
+                    self.save_state(state)
+                    return True
+                elif on_failure == "fallback":
+                    fallback_step = step_def.get("fallback_step")
+                    if fallback_step:
+                        logger.info("Step '%s' failed. Routing to fallback step '%s'.", step_id, fallback_step)
+                        step_state.status = "failed"
+                        self.save_state(state)
+                        return False
+                
+                state.status = "failed"
+                self.save_state(state)
+                return False
+
     async def execute(self, workflow_id: str, session_id: str, payload: dict[str, Any] | None = None, resume: bool = False) -> dict[str, Any]:
         """Execute the workflow from start, or resume if requested and a saved checkpoint exists."""
         workflow_def = self.load_workflow(workflow_id)
@@ -208,6 +304,11 @@ class WorkflowEngine:
             logger.info("Resuming workflow '%s' for session '%s' from checkpoint", workflow_id, session_id)
             state.status = "running"
             state.payload.update(payload or {})
+            # Reset any failed steps to pending so they will execute again
+            for step_state in state.steps.values():
+                if step_state.status == "failed":
+                    step_state.status = "pending"
+                    step_state.error = None
         else:
             logger.info("Initializing new run for workflow '%s' (session: %s)", workflow_id, session_id)
             if state:
@@ -241,132 +342,156 @@ class WorkflowEngine:
                     "output": step_state.output
                 }
 
-        # Determine where to start/resume execution
-        current_step_id = None
-        if is_resume:
-            # Find the first step that is not successful
-            for step in workflow_def["steps"]:
-                step_id = step["step_id"]
-                if state.steps[step_id].status != "success":
-                    current_step_id = step_id
-                    break
-        
-        if not current_step_id:
-            # Start from the first step in the list
-            if workflow_def["steps"]:
-                current_step_id = workflow_def["steps"][0]["step_id"]
-
-        while current_step_id:
-            step_def = steps_map.get(current_step_id)
-            if not step_def:
-                raise ValueError(f"Step ID '{current_step_id}' referenced but not defined in steps list")
-
-            step_state = state.steps[current_step_id]
-            state.current_step_id = current_step_id
-            self.save_state(state)
-
-            if step_state.status == "success":
-                # Already succeeded step, skip it (useful in resume scenarios)
-                current_step_id = self._get_next_step_id(step_def, context)
-                continue
-
-            step_state.status = "running"
-            step_state.started_at = datetime.now(timezone.utc).isoformat()
-            self.save_state(state)
-
-            skill_id = step_def["skill_id"]
-            raw_params = step_def.get("params", {})
-            on_failure = step_def.get("on_failure", "fail")
-            max_retries = 3 if on_failure == "retry" else 1
-
-            # Resolve parameters using current context
-            resolved_params = self._resolve_placeholder(raw_params, context)
-
-            logger.info("Executing step '%s' [Skill: %s]", current_step_id, skill_id)
-            
-            output = None
-            error_msg = None
-            success = False
-
-            for attempt in range(1, max_retries + 1):
-                try:
-                    if attempt > 1:
-                        logger.info("Retrying step '%s' (Attempt %d/%d)", current_step_id, attempt, max_retries)
-                        # Sleep briefly between retries
-                        time.sleep(0.5)
-
-                    # Execute the tool via the engine
-                    # Construct system context for the skill execution
-                    sys_context = {
-                        "session_id": session_id,
-                        "workspace_path": self.engine.workspace_path
-                    }
-                    
-                    # Run the tool synchronously or asynchronously (engine.execute_tool is synchronous)
-                    raw_output = self.engine.execute_tool(
-                        skill_id,
-                        resolved_params,
-                        context=sys_context
-                    )
-                    
-                    # Handle tool errors returned as strings starting with Error:
-                    if isinstance(raw_output, str) and raw_output.strip().startswith("Error:"):
-                        raise RuntimeError(raw_output.strip())
-
-                    # Attempt to parse output string as json/python payload for convenience
-                    try:
-                        output = json.loads(raw_output)
-                    except Exception:
-                        try:
-                            import ast
-                            output = ast.literal_eval(raw_output)
-                        except Exception:
-                            output = raw_output
-
-                    success = True
-                    break
-                except Exception as e:
-                    error_msg = str(e)
-                    logger.warning("Step '%s' execution failed on attempt %d: %s", current_step_id, attempt, error_msg)
-
-            if success:
-                step_state.status = "success"
-                step_state.output = output
-                step_state.error = None
-                step_state.completed_at = datetime.now(timezone.utc).isoformat()
-                
-                # Add to context
-                context["steps"][current_step_id] = {
-                    "output": output
-                }
-                
-                current_step_id = self._get_next_step_id(step_def, context)
+        # Resolve dependencies for each step to support multi-dimensional mind-map edges
+        explicit_dependency_steps = set()
+        step_dependencies = {}
+        for idx, step in enumerate(workflow_def["steps"]):
+            step_id = step["step_id"]
+            deps = step.get("dependencies") or step.get("depends_on")
+            if deps is not None:
+                explicit_dependency_steps.add(step_id)
             else:
-                step_state.status = "failed"
-                step_state.error = error_msg
-                step_state.completed_at = datetime.now(timezone.utc).isoformat()
-                
-                if on_failure == "skip":
-                    logger.info("Step '%s' failed but 'on_failure' is set to 'skip'. Continuing.", current_step_id)
-                    step_state.status = "skipped"
-                    current_step_id = self._get_next_step_id(step_def, context)
-                elif on_failure == "fallback":
-                    fallback_step = step_def.get("fallback_step")
-                    if fallback_step:
-                        logger.info("Step '%s' failed. Routing to fallback step '%s'.", current_step_id, fallback_step)
-                        current_step_id = fallback_step
-                    else:
-                        logger.error("Step '%s' failed with fallback strategy but no 'fallback_step' defined.", current_step_id)
-                        state.status = "failed"
-                        self.save_state(state)
-                        raise RuntimeError(f"Workflow step failed: {error_msg}")
+                if idx == 0:
+                    deps = []
                 else:
-                    logger.error("Step '%s' failed with 'fail' policy. Stopping workflow.", current_step_id)
+                    deps = [workflow_def["steps"][idx - 1]["step_id"]]
+            
+            if isinstance(deps, str):
+                deps = [deps]
+            step_dependencies[step_id] = deps
+
+        import asyncio
+        lock = asyncio.Lock()
+        
+        # Main execution DAG evaluation loop
+        while True:
+            # 1. Collect all active steps starting from the first step and propagating dynamically
+            active_steps = set()
+            if workflow_def["steps"]:
+                active_steps.add(workflow_def["steps"][0]["step_id"])
+            
+            for sid, sstate in state.steps.items():
+                if sstate.status in ["success", "skipped", "failed"]:
+                    active_steps.add(sid)
+            
+            changed = True
+            while changed:
+                changed = False
+                for sid in list(active_steps):
+                    sstate = state.steps.get(sid)
+                    if not sstate:
+                        continue
+                    sdef = steps_map[sid]
+                    
+                    if sstate.status in ["success", "skipped"]:
+                        next_id = self._get_next_step_id(sdef, context)
+                        if next_id and next_id not in active_steps:
+                            active_steps.add(next_id)
+                            changed = True
+                        for cid, deps in step_dependencies.items():
+                            if cid in explicit_dependency_steps and sid in deps and cid not in active_steps:
+                                active_steps.add(cid)
+                                changed = True
+                    elif sstate.status == "failed":
+                        on_failure = sdef.get("on_failure", "fail")
+                        if on_failure == "skip":
+                            next_id = self._get_next_step_id(sdef, context)
+                            if next_id and next_id not in active_steps:
+                                active_steps.add(next_id)
+                                changed = True
+                        elif on_failure == "fallback":
+                            fb_id = sdef.get("fallback_step")
+                            if fb_id and fb_id not in active_steps:
+                                active_steps.add(fb_id)
+                                changed = True
+
+            all_steps_in_active = [state.steps[sid] for sid in active_steps]
+            all_done = all(s.status in ["success", "failed", "skipped"] for s in all_steps_in_active)
+            if all_done:
+                break
+                
+            any_fatal_failure = any(
+                s.status == "failed" and steps_map[s.step_id].get("on_failure", "fail") == "fail"
+                for s in all_steps_in_active
+            )
+            if any_fatal_failure:
+                state.status = "failed"
+                self.save_state(state)
+                failed_errors = [
+                    f"{s.step_id} failed: {s.error}"
+                    for s in all_steps_in_active
+                    if s.status == "failed" and s.error
+                ]
+                err_msg = "; ".join(failed_errors) or "Workflow halted due to step failure."
+                raise RuntimeError(f"Workflow step failed: {err_msg}")
+
+            # Find ready steps that can execute in parallel
+            ready_step_ids = []
+            for step_id in active_steps:
+                step_state = state.steps[step_id]
+                if step_state.status == "pending":
+                    deps = step_dependencies[step_id]
+                    all_deps_ok = True
+                    for dep in deps:
+                        dep_state = state.steps.get(dep)
+                        if not dep_state:
+                            all_deps_ok = False
+                            break
+                        if dep_state.status in ["success", "skipped"]:
+                            continue
+                        if dep_state.status == "failed":
+                            dep_def = steps_map.get(dep)
+                            if dep_def and dep_def.get("on_failure") == "fallback" and dep_def.get("fallback_step") == step_id:
+                                continue
+                        all_deps_ok = False
+                        break
+                        
+                    if all_deps_ok:
+                        ready_step_ids.append(step_id)
+
+            if not ready_step_ids:
+                running_steps = [s for s in all_steps_in_active if s.status == "running"]
+                if not running_steps:
+                    logger.warning("Deadlock or unreached steps detected in workflow DAG.")
+                    break
+                else:
+                    await asyncio.sleep(0.1)
+                    continue
+
+            # Concurrently execute ready steps
+            tasks = [
+                self._execute_step_async(
+                    step_id,
+                    steps_map[step_id],
+                    state,
+                    context,
+                    session_id,
+                    lock
+                )
+                for step_id in ready_step_ids
+            ]
+            
+            results = await asyncio.gather(*tasks)
+            if not all(results):
+                # Check if any failure has 'fail' policy
+                failed_any_fatal = False
+                for sid in ready_step_ids:
+                    sstate = state.steps[sid]
+                    if sstate.status == "failed":
+                        sdef = steps_map[sid]
+                        if sdef.get("on_failure", "fail") == "fail":
+                            failed_any_fatal = True
+                
+                if failed_any_fatal:
                     state.status = "failed"
                     self.save_state(state)
-                    raise RuntimeError(f"Workflow step failed: {error_msg}")
-
-            self.save_state(state)
+                    failed_errors = [
+                        f"{s.step_id} failed: {s.error}"
+                        for s in all_steps_in_active
+                        if s.status == "failed" and s.error
+                    ]
+                    err_msg = "; ".join(failed_errors) or "Workflow step execution failed."
+                    raise RuntimeError(f"Workflow step failed: {err_msg}")
 
         state.status = "success"
         state.current_step_id = None

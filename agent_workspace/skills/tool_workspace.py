@@ -60,12 +60,12 @@ class WorkspaceManager:
         # If base_dir is 'agent_workspace', project root is its dirname.
         # Otherwise, assume base_dir is the project root.
         if os.path.basename(self.base_dir) == "agent_workspace":
-            project_root = os.path.dirname(self.base_dir)
+            self.project_root = os.path.dirname(self.base_dir)
         else:
-            project_root = self.base_dir
+            self.project_root = self.base_dir
             
-        self.md_path = os.path.join(project_root, "workspace", "workspace.md")
-        self.json_path = os.path.join(project_root, "workspace", "workspace.json")
+        self.md_path = os.path.join(self.project_root, "workspace", "workspace.md")
+        self.json_path = os.path.join(self.project_root, "workspace", "workspace.json")
         self.tasks: Dict[str, TaskNode] = {}
         self.project_title = "FindAi Studio Workspace"
         self.project_desc = "Topological Workspace for Multi-Agent Systems"
@@ -117,6 +117,15 @@ class WorkspaceManager:
 
     def save(self):
         """Save state to both JSON and Markdown."""
+        # Automatic milestone compaction:
+        # Check if we have active tasks and all of them are completed/Done/Cancelled
+        if self.tasks:
+            all_done = all(t.status in ["completed", "Done", "Cancelled"] for t in self.tasks.values())
+            if all_done:
+                from agent_workspace.core.log_compactor import LogCompactor
+                milestone_id = f"PH-{len(self.tasks)}-{datetime.now().strftime('%m%d')}"
+                LogCompactor.compact_milestone(self.tasks, self.project_root, milestone_id)
+
         # Update json
         data = {
             "project_title": self.project_title,
@@ -210,9 +219,9 @@ class WorkspaceManager:
             lines.append("")
             
             lines.append("### 連結節點")
-            deps = ", ".join(f"[{d}]" for d in task.depends_on) if task.depends_on else "無"
+            deps = ", ".join(f"[{d.get('id') if isinstance(d, dict) else d}]" for d in task.depends_on) if task.depends_on else "無"
             lines.append(f"→ 依賴：{deps}  ")
-            depby = ", ".join(f"[{d}]" for d in task.depended_by) if task.depended_by else "無"
+            depby = ", ".join(f"[{d.get('id') if isinstance(d, dict) else d}]" for d in task.depended_by) if task.depended_by else "無"
             lines.append(f"→ 被依賴：{depby}")
 
         return "\n".join(lines)
@@ -236,8 +245,13 @@ class WorkspaceManager:
             while curr:
                 visited.add(curr.task_id)
                 path.append(f"[{curr.task_id}: {curr.title}] {curr.status}")
-                if curr.depended_by and curr.depended_by[0] in self.tasks:
-                    curr = self.tasks[curr.depended_by[0]]
+                if curr.depended_by:
+                    first_dep = curr.depended_by[0]
+                    first_dep_id = first_dep.get("id") if isinstance(first_dep, dict) else first_dep
+                    if first_dep_id in self.tasks:
+                        curr = self.tasks[first_dep_id]
+                    else:
+                        curr = None
                 else:
                     curr = None
             lines.append(" ──→ ".join(path))
@@ -259,7 +273,7 @@ class AddTaskArgs(BaseModel):
     title: str = Field(description="Task title.")
     agent: str = Field(default="Unassigned", description="Assigned Agent.")
     description: str = Field(default="", description="Task description.")
-    depends_on: List[str] = Field(default_factory=list, description="List of task IDs this task depends on.")
+    depends_on: List[Any] = Field(default_factory=list, description="List of task IDs or structured dependency objects.")
 
 def workspace_add_task(args: AddTaskArgs, context: Optional[Dict] = None) -> str:
     """Add a new task node to the topological workspace."""
@@ -275,10 +289,16 @@ def workspace_add_task(args: AddTaskArgs, context: Optional[Dict] = None) -> str
     
     manager.tasks[args.task_id] = task
     
-    for dep_id in args.depends_on:
+    for dep in args.depends_on:
+        dep_id = dep.get("id") if isinstance(dep, dict) else dep
+        category = dep.get("category", "dependency") if isinstance(dep, dict) else "dependency"
+        
         if dep_id in manager.tasks:
-            task.depends_on.append(dep_id)
-            manager.tasks[dep_id].depended_by.append(task.task_id)
+            link_obj = {"id": dep_id, "category": category}
+            task.depends_on.append(link_obj)
+            
+            dep_obj = {"id": task.task_id, "category": category}
+            manager.tasks[dep_id].depended_by.append(dep_obj)
             
     manager.save()
     return f"Successfully added {args.task_id}: {args.title}"
@@ -316,6 +336,7 @@ def workspace_update_status(args: UpdateStatusArgs, context: Optional[Dict] = No
 class LinkTasksArgs(BaseModel):
     from_task_id: str = Field(description="The task that needs to be done first (dependency).")
     to_task_id: str = Field(description="The task that waits for from_task_id (dependent).")
+    category: Optional[str] = Field(default="dependency", description="The link category: dependency, data_flow, feedback_loop, parallel_trigger.")
 
 def workspace_link_tasks(args: LinkTasksArgs, context: Optional[Dict] = None) -> str:
     """Link two tasks, establishing a dependency relationship in the DAG."""
@@ -328,14 +349,24 @@ def workspace_link_tasks(args: LinkTasksArgs, context: Optional[Dict] = None) ->
     parent = manager.tasks[args.from_task_id]
     child = manager.tasks[args.to_task_id]
     
-    if args.from_task_id not in child.depends_on:
-        child.depends_on.append(args.from_task_id)
+    def exists_in_deps(dep_id, deps_list):
+        for dep in deps_list:
+            if isinstance(dep, dict) and dep.get("id") == dep_id:
+                return True
+            if isinstance(dep, str) and dep == dep_id:
+                return True
+        return False
         
-    if args.to_task_id not in parent.depended_by:
-        parent.depended_by.append(args.to_task_id)
+    if not exists_in_deps(args.from_task_id, child.depends_on):
+        link_obj = {"id": args.from_task_id, "category": args.category or "dependency"}
+        child.depends_on.append(link_obj)
+        
+    if not exists_in_deps(args.to_task_id, parent.depended_by):
+        dep_obj = {"id": args.to_task_id, "category": args.category or "dependency"}
+        parent.depended_by.append(dep_obj)
         
     manager.save()
-    return f"Linked {args.from_task_id} ──→ {args.to_task_id}"
+    return f"Linked {args.from_task_id} ──({args.category or 'dependency'})──→ {args.to_task_id}"
 
 class RenderTopologyArgs(BaseModel):
     pass
@@ -374,7 +405,8 @@ def workspace_cancel_task(args: CancelTaskArgs, context: Optional[Dict] = None) 
                 task.logs.append(f"- `{today}` Task and descendants cancelled recursively.")
                 cancelled_ids.append(tid)
                 
-            for child_id in task.depended_by:
+            for child in task.depended_by:
+                child_id = child.get("id") if isinstance(child, dict) else child
                 cancel_recursive(child_id)
                 
     cancel_recursive(args.task_id)

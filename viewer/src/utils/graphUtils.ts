@@ -50,7 +50,10 @@ export function buildFlow(
   const idSet = new Set(flat.map((task) => task.id));
 
   const normalizedTasks = flat.map((task, index) => {
-    const validDependencies = (task.dependencies ?? []).filter((dependency) => idSet.has(dependency));
+    const validDependencies = (task.dependencies ?? []).filter((dep: any) => {
+      const depId = typeof dep === "string" ? dep : (dep.id || "");
+      return idSet.has(depId);
+    });
 
     return {
       ...task,
@@ -76,25 +79,37 @@ export function buildFlow(
   }));
 
   const edges: Edge[] = normalizedTasks.flatMap((task) =>
-    (task.dependencies ?? []).map((dependency) => ({
-      id: `${dependency}-${task.id}`,
-      source: dependency,
-      target: task.id,
-      animated: task.status === "in_progress",
-      style: {
-        strokeWidth: 2,
-        opacity:
-          visualStateById[dependency]?.isDimmed || visualStateById[task.id]?.isDimmed
-            ? 0.2
-            : 1,
-        stroke:
-          task.status === "completed"
-            ? "#22d3ee"
-            : task.status === "in_progress"
-              ? "#f59e0b"
-              : "#334155",
-      },
-    })),
+    (task.dependencies ?? []).map((dep: any) => {
+      const depId = typeof dep === "string" ? dep : (dep.id || "");
+      const category = typeof dep === "string" ? "dependency" : (dep.category || "dependency");
+      
+      let strokeColor = "#334155";
+      if (category === "dependency") {
+        strokeColor = task.status === "completed" ? "#22d3ee" : task.status === "in_progress" ? "#f59e0b" : "#334155";
+      } else if (category === "data_flow") {
+        strokeColor = "#10b981"; // dynamic green
+      } else if (category === "feedback_loop") {
+        strokeColor = "#f59e0b"; // amber pulsing
+      } else if (category === "parallel_trigger") {
+        strokeColor = "#eab308"; // gold stream
+      }
+
+      return {
+        id: `${depId}-${task.id}`,
+        source: depId,
+        target: task.id,
+        animated: task.status === "in_progress" || category === "data_flow" || category === "parallel_trigger",
+        style: {
+          strokeWidth: category === "feedback_loop" ? 2.5 : 2,
+          strokeDasharray: category === "data_flow" ? "5 5" : category === "feedback_loop" ? "4 4" : undefined,
+          opacity:
+            visualStateById[depId]?.isDimmed || visualStateById[task.id]?.isDimmed
+              ? 0.2
+              : 1,
+          stroke: strokeColor,
+        },
+      };
+    }),
   );
 
   return getLayouted(nodes, edges);

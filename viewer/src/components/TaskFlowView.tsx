@@ -776,15 +776,19 @@ export function TaskFlowView({
                   <label className="t3 text-[9px] font-bold uppercase tracking-widest">{t.deps}</label>
                   {selectedTask.dependencies.length > 0 ? (
                     <ul className="mt-2 space-y-1">
-                      {selectedTask.dependencies.map((dependency) => (
-                        <li
-                          key={dependency}
-                          className="rounded-lg border px-3 py-1.5 text-xs font-mono"
-                          style={{ background: "var(--bg-card)", color: "var(--accent)", borderColor: "var(--border-c)" }}
-                        >
-                          {dependency}
-                        </li>
-                      ))}
+                      {selectedTask.dependencies.map((dependency) => {
+                        const depId = typeof dependency === "string" ? dependency : dependency.id;
+                        const category = typeof dependency === "string" ? "" : ` (${dependency.category})`;
+                        return (
+                          <li
+                            key={depId}
+                            className="rounded-lg border px-3 py-1.5 text-xs font-mono"
+                            style={{ background: "var(--bg-card)", color: "var(--accent)", borderColor: "var(--border-c)" }}
+                          >
+                            {depId}{category}
+                          </li>
+                        );
+                      })}
                     </ul>
                   ) : (
                     <p className="mt-1 text-xs italic t3">{t.noDeps}</p>

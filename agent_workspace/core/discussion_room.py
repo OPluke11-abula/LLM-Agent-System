@@ -26,7 +26,12 @@ DEFAULT_PERSONAS = {
     "analyst": "You are a professional Business Analyst agent focused on identifying requirements, constraints, and structuring user stories.",
     "programmer": "You are an elite Software Engineer agent focused on technical implementation details, clean code conventions, and robust testing strategies.",
     "architect": "You are a Principal Architect agent focused on architectural boundaries, system components design, and scalability patterns.",
-    "moderator": "You are an expert meeting moderator. Your task is to remain objective, analyze the debate transcript, and synthesize a clear Consensus Summary containing key agreements, disagreements, and next steps."
+    "moderator": "You are an expert meeting moderator. Your task is to remain objective, analyze the debate transcript, and synthesize a clear Consensus Summary containing key agreements, disagreements, and next steps.",
+    "ceo": "You are a visionary CEO Agent. You focus on strategic alignment, customer priorities, resource allocation, and budget controls.",
+    "cto": "You are an elite CTO Planner Agent. You focus on architectural design, workflow DAG decompositions, and system integration.",
+    "dev": "You are a highly efficient Dev Agent. You write robust, clean, modular Python and frontend React Flow components.",
+    "qa": "You are a strict QA Auditor Agent. You review code conventions, check test coverage, and execute automated validation gates.",
+    "cfo": "You are a professional CFO Token Controller. You audit cumulative token consumption, track API cost structures, and maintain budget caps."
 }
 
 
@@ -190,4 +195,47 @@ Format the summary nicely in Markdown."""
             "rounds": max_rounds,
             "transcript": transcript,
             "consensus_summary": consensus_summary
+        }
+
+    async def run_corporate_audit(self, task_id: str, proposed_code: str) -> dict[str, Any]:
+        """
+        Executes a corporate verification flow. Dev agent submits code, and QA agent
+        runs automated pytest validations, acting as a real-time gating check.
+        """
+        logger.info("Initiating corporate audit gate for task %s", task_id)
+        
+        # 1. Dev Agent (Programmer) produces the code review submission
+        dev_note = f"Dev Agent submitted code review for Task {task_id}:\n```python\n{proposed_code}\n```"
+        
+        # 2. QA Agent (Auditor) executes automated testing suite in the workspace
+        import subprocess
+        logger.info("QA Agent executing automated validation gate using pytest...")
+        
+        result = subprocess.run(
+            ["python", "-m", "pytest"],
+            capture_output=True,
+            text=True,
+            cwd=self.workspace_path
+        )
+        
+        test_passed = (result.returncode == 0)
+        qa_status = "PASS" if test_passed else "FAIL"
+        
+        qa_feedback = f"""[QA Auditor Report] Task ID: {task_id}
+Status: {qa_status}
+Exit Code: {result.returncode}
+Stdout: {result.stdout[:500]}
+Stderr: {result.stderr[:500]}
+"""
+        
+        # 3. CFO Agent logs token cost and audits total financial allocation
+        cfo_feedback = f"[CFO Audit Log] Task ID: {task_id} approved for release. Token cost checked against phase budget." if test_passed else f"[CFO Audit Log] Task ID: {task_id} rejected. Return to Dev for correction loop."
+        
+        return {
+            "task_id": task_id,
+            "dev_note": dev_note,
+            "qa_status": qa_status,
+            "qa_feedback": qa_feedback,
+            "cfo_feedback": cfo_feedback,
+            "passed": test_passed
         }

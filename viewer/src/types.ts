@@ -22,7 +22,7 @@ export type AgentTask = {
   id: string;
   description: string;
   status: TaskStatus;
-  dependencies: string[];
+  dependencies: Array<string | { id: string; category?: string }>;
   ai_feedback?: string | null;
   tasks?: AgentTask[];
 };
@@ -52,7 +52,7 @@ export type TaskNodeData = {
   id: string;
   description: string;
   status: TaskStatus;
-  dependencies: string[];
+  dependencies: Array<string | { id: string; category?: string }>;
   ai_feedback?: string | null;
   labels: TaskNodeLabels;
   isHighlighted?: boolean;
