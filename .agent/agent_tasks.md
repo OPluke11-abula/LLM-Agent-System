@@ -456,6 +456,63 @@ depends  : 8-03, 11-01
 
 ---
 
+## 🧠 PHASE 12 — LAS Evolution: Multi-Dimensional Swarms, Self-Learning & Log Compaction / LAS 進化：多維拓撲、自我學習與日誌壓縮
+
+### 12-01 Multi-Dimensional Categorized Mind-Map Edges
+```
+priority : HIGH
+effort   : L
+depends  : 8-02, 8-03
+```
+- [ ] Extend the core directed graph structure (`agent_memory.json` / `workspace.json`) to support different dependency/edge categories: `dependency`, `data_flow`, `feedback_loop`, and `parallel_trigger` / 擴展核心有向圖結構，支援不同依賴與邊線類別：依賴、資料流、反饋環與平行觸發
+- [ ] Upgrade visual edges in React Flow (`viewer/src/components/edges/`) or Vanilla JS (`viewer.html`) to display unique colors, dash patterns, and dynamic streaming flow particles depending on their categories like a mind map / 升級 React Flow 或 Vanilla JS 視覺連線，依類別呈現不同顏色、虛線圖樣與動態流動粒子，像心智圖一樣向外分支
+
+---
+
+### 12-02 Structured Log Compaction & Milestone Integration
+```
+priority : HIGH
+effort   : M
+depends  : 0-02, 1-01
+```
+- [ ] Implement a compaction routine (`log_compactor.py` or within `core/engine.py`) triggered upon completing a major Phase/Milestone / 實作日誌壓縮機制，於大階段或里程碑完成後觸發
+- [ ] Automatically summarize transaction logs, archiving verbose details to `.agent/memory/archive/` and replacing active records with high-level semantic summaries (>=75% compaction ratio) to save prompt tokens / 自動摘要日誌，將冗長明細歸檔並以高階語意摘要替代活動記錄（壓縮率>=75%），以節省 Prompt Token
+
+---
+
+### 12-03 Self-Learning & Self-Correction Database
+```
+priority : HIGH
+effort   : M
+depends  : 1-02, 1-03
+```
+- [ ] Create and maintain the self-learning log `.agent/knowledge_base/lessons_learned.md` using the standard lesson entry format / 建立並維護自我學習日誌 `.agent/knowledge_base/lessons_learned.md`，使用標準經驗條目格式
+- [ ] Equip the Prompt Composer to dynamically scan lessons-learned and inject best-practice directives into the system prompt to prevent repeating mistakes / 讓 Prompt 產生器動態掃描學習日誌，將最佳實踐指令注入系統提示詞，防範重蹈覆轍
+
+---
+
+### 12-04 Parallel Multi-Agent Team Execution
+```
+priority : HIGH
+effort   : L
+depends  : 7-01, 11-02
+```
+- [ ] Extend the concurrency adapter in `core/workflow_engine.py` or `core/discussion_room.py` to support asynchronous multi-agent task dispatching / 擴展併發適配器，支援非阻塞的非同步多智慧體任務派發
+- [ ] Allow running multiple independent subagent processes or threads concurrently across different task nodes / 允許跨不同任務節點同時並行執行多個獨立的子智慧體進程或執行緒
+
+---
+
+### 12-05 Corporate Swarm - Company Org-Chart Roles
+```
+priority : MEDIUM
+effort   : M
+depends  : 11-01, 11-03
+```
+- [ ] Refine explicit professional profiles in `.agent/` mapping specialized corporate roles (CEO Orchestrator, CTO Planner, Dev Agent, QA Auditor, Finance Controller) / 在 `.agent/` 中精修明確的專業 Profile，對應專屬的公司角色（CEO 協調者、CTO 規劃者、開發代理、QA 審計、財務控制）
+- [ ] Implement sequential handoff checks and automated verification gateways between Dev (Programmer) and QA (Auditor/Tester) agents within the swarm / 在智慧體群落中，實作開發代理與 QA 審計代理之間的循序交接與自動驗證閘道
+
+---
+
 ## 📈 Queue Summary & Progress
 
 | Phase | Total Tasks | Completed Tasks | Status |
@@ -472,7 +529,8 @@ depends  : 8-03, 11-01
 | **Phase 9: HITL & RBAC** | 4 tasks | 4 tasks | 100% Done |
 | **Phase 10: UI/UX & Executable** | 4 tasks | 0 tasks | 0% Pending |
 | **Phase 11: Agent Company** | 3 tasks | 3 tasks | 100% Done |
-
+| **Phase 12: LAS Evolution** | 5 tasks | 0 tasks | 0% Pending |
 
 *This queue is managed dynamically by the active LAS Developer Agent. All task updates, outcome logs, and progress status updates are written directly to this file before turn conclusion.*
 ```
+

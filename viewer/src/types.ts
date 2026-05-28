@@ -1,5 +1,5 @@
 export type TaskStatus = "pending" | "in_progress" | "completed";
-export type Lang = "zh" | "en";
+export type Lang = "zh" | "en" | "ja" | "fr";
 export type ThemeId = "dark" | "tokyo" | "light" | "forest" | "beige";
 export type SkillCategory = "backend" | "mobile" | "testing" | "quality";
 export type SettingsTabId = "general" | "docs" | "guide";
@@ -166,6 +166,7 @@ export type TranslationMessages = {
   llmBaseUrlLabel: string;
   saveConfigBtn: string;
   configSavedToast: string;
+  relaunchTutorialBtn: string;
 };
 
 export type SkillDefinition = {
