@@ -27,7 +27,7 @@ export function TopologyNodeBase({ data, selected, tone, badge }: TopologyNodeBa
 
   // Dynamic color-coding based on active model (Task 8-02)
   const model = String(event.payload?.model || event.payload?.active_model || "").toLowerCase();
-  let modelBorderColor = color;
+  let modelBorderColor: string = color;
   if (model.includes("gemini")) {
     modelBorderColor = "#1a73e8"; // Gemini Blue
   } else if (model.includes("claude") || model.includes("anthropic")) {
@@ -37,7 +37,7 @@ export function TopologyNodeBase({ data, selected, tone, badge }: TopologyNodeBa
   }
 
   // Cumulative token cost history SVG sparkline chart (Task 8-02)
-  const tokenCount = event.payload?.token_used ?? event.payload?.tokens ?? 0;
+  const tokenCount = Number(event.payload?.token_used ?? event.payload?.tokens ?? 0);
   const costVal = tokenCount * 0.00002;
   const historyLength = 6;
   const hash = (event.node_id || event.id || "").charCodeAt(0) || 1;

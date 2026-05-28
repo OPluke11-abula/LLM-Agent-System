@@ -383,8 +383,8 @@ priority : MEDIUM
 effort   : M
 depends  : 8-02
 ```
-- [ ] Expand translation dictionary `T` inside `viewer/src/constants.ts` with Japanese (`ja`) and French (`fr`) mappings / 在 `viewer/src/constants.ts` 中以日語與法語擴展翻譯字典 `T`
-- [ ] Ensure all onboarding guides, general settings, and planner prompt generators support active translation / 確保新手指南、一般設定和 Prompt 產生器支援所有對應語系
+- [x] Expand translation dictionary `T` inside `viewer/src/constants.ts` with Japanese (`ja`) and French (`fr`) mappings / 在 `viewer/src/constants.ts` 中以日語與法語擴展翻譯字典 `T`
+- [x] Ensure all onboarding guides, general settings, and planner prompt generators support active translation / 確保新手指南、一般設定和 Prompt 產生器支援所有對應語系
 
 ---
 
@@ -394,8 +394,8 @@ priority : HIGH
 effort   : S
 depends  : 8-02
 ```
-- [ ] Add a "Relaunch Tutorial" button under General Settings or Sidebar in React Flow / 在設定或側邊欄新增「重新啟動新手教學」按鈕
-- [ ] Reset `has_onboarded` local state reactively to trigger full setup flow without clearing other workspaces / 重新啟動時暫時重設狀態，方便新手隨時學習完整的人機協作流程
+- [x] Add a "Relaunch Tutorial" button under General Settings or Sidebar in React Flow / 在設定或側邊欄新增「重新啟動新手教學」按鈕
+- [x] Reset `has_onboarded` local state reactively to trigger full setup flow without clearing other workspaces / 重新啟動時暫時重設狀態，方便新手隨時學習完整的人機協作流程
 
 ---
 
@@ -405,8 +405,8 @@ priority : HIGH
 effort   : L
 depends  : 8-02, 10-02
 ```
-- [ ] Optimize desktop app asset routes and dynamic binary bindings in `src-tauri/tauri.conf.json` / 優化 Tauri 資產路徑與二進位檔案繫結
-- [ ] Package the entire React Flow frontend into a single standalone `.exe` installer/executable via `npm run tauri build` / 一鍵編譯為單一可移植免安裝 `.exe` 案頭執行檔
+- [x] Optimize desktop app asset routes and dynamic binary bindings in `src-tauri/tauri.conf.json` / 優化 Tauri 資產路徑與二進位檔案繫結
+- [x] Package the entire React Flow frontend into a single standalone `.exe` installer/executable via `npm run tauri build` / 一鍵編譯為單一可移植免安裝 `.exe` 案頭執行檔
 
 ---
 
@@ -416,8 +416,8 @@ priority : HIGH
 effort   : M
 depends  : 8-02
 ```
-- [ ] Upgrade glassmorphic backdrop filters, custom scrollbar styling, grid dot sizing, and active state transitions / 升級玻璃擬態邊框、網格粒子尺寸與運行態過渡動畫
-- [ ] Refine visual cost charts and real-time latency gauges to feel highly premium and bespoke / 精雕細琢累計費用圖表與即時延遲計量器，杜絕常見的 AI 生成罐頭感
+- [x] Upgrade glassmorphic backdrop filters, custom scrollbar styling, grid dot sizing, and active state transitions / 升級玻璃擬態邊框、網格粒子尺寸與運行態過渡動畫
+- [x] Refine visual cost charts and real-time latency gauges to feel highly premium and bespoke / 精雕細琢累計費用圖表與即時延遲計量器，杜絕常見的 AI 生成罐頭感
 
 ---
 
@@ -527,7 +527,7 @@ depends  : 11-01, 11-03
 | **Phase 7: Consensus** | 2 tasks | 2 tasks | 100% Done |
 | **Phase 8: UI/UX & Visuals** | 3 tasks | 3 tasks | 100% Done |
 | **Phase 9: HITL & RBAC** | 4 tasks | 4 tasks | 100% Done |
-| **Phase 10: UI/UX & Executable** | 4 tasks | 0 tasks | 0% Pending |
+| **Phase 10: UI/UX & Executable** | 4 tasks | 4 tasks | 100% Done |
 | **Phase 11: Agent Company** | 3 tasks | 3 tasks | 100% Done |
 | **Phase 12: LAS Evolution** | 5 tasks | 0 tasks | 0% Pending |
 

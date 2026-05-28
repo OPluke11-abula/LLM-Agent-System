@@ -10,6 +10,7 @@ type SettingsViewProps = {
   workspaces: Workspace[];
   setWorkspaces: Dispatch<SetStateAction<Workspace[]>>;
   t: TranslationMessages;
+  relaunchOnboarding: () => void;
 };
 
 export function SettingsView({
@@ -20,6 +21,7 @@ export function SettingsView({
   workspaces,
   setWorkspaces,
   t,
+  relaunchOnboarding,
 }: SettingsViewProps) {
   const [openTip, setOpenTip] = useState<number | null>(null);
   const [draftPaths, setDraftPaths] = useState<Record<string, string>>({});
@@ -124,22 +126,44 @@ export function SettingsView({
         <>
           <section className="card-bg mb-7 rounded-xl border p-5">
             <label className="mb-3 block text-[10px] font-bold uppercase tracking-widest t3">{t.langLabel}</label>
-            <div className="flex gap-3">
-              {(["zh", "en"] as Lang[]).map((item) => (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={() => setLang(item)}
-                  className="rounded-lg border px-5 py-2 text-sm font-bold transition-all"
-                  style={
-                    lang === item
-                      ? { background: "var(--accent-bg)", borderColor: "var(--accent)", color: "var(--accent)" }
-                      : inputStyle
-                  }
-                >
-                  {item === "zh" ? "中文" : "English"}
-                </button>
-              ))}
+            <div className="flex flex-wrap gap-3">
+              {(["zh", "en", "ja", "fr"] as Lang[]).map((item) => {
+                const langNames: Record<Lang, string> = {
+                  zh: "中文",
+                  en: "English",
+                  ja: "日本語",
+                  fr: "Français",
+                };
+                return (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => setLang(item)}
+                    className="rounded-lg border px-5 py-2 text-sm font-bold transition-all"
+                    style={
+                      lang === item
+                        ? { background: "var(--accent-bg)", borderColor: "var(--accent)", color: "var(--accent)" }
+                        : inputStyle
+                    }
+                  >
+                    {langNames[item]}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="card-bg mb-7 rounded-xl border p-5">
+            <label className="mb-3 block text-[10px] font-bold uppercase tracking-widest t3">{t.relaunchTutorialBtn}</label>
+            <div>
+              <button
+                type="button"
+                onClick={relaunchOnboarding}
+                className="rounded-lg border px-5 py-2.5 text-sm font-bold transition-all hover:brightness-110 active:scale-95"
+                style={{ background: "var(--accent)", borderColor: "var(--accent)", color: "#fff" }}
+              >
+                🚀 {t.relaunchTutorialBtn}
+              </button>
             </div>
           </section>
 

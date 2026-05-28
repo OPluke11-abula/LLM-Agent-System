@@ -102,9 +102,18 @@ export default function App() {
             path,
           };
 
-          setWorkspaces([workspace]);
+          setWorkspaces((prev) => {
+            const filtered = prev.filter((w) => w.path !== "");
+            if (filtered.some((w) => w.path === path && w.name === name)) {
+              return prev;
+            }
+            if (filtered.length === 0) {
+              return [workspace];
+            }
+            return [...filtered, workspace];
+          });
           setActiveWorkspaceId(workspaceId);
-          setMemoryMap({ [workspaceId]: EMPTY_MEMORY });
+          setMemoryMap((prev) => ({ ...prev, [workspaceId]: EMPTY_MEMORY }));
           setHasOnboarded(true);
         }}
       />
@@ -124,7 +133,7 @@ export default function App() {
         />
       </div>
       <div className="relative z-10 flex h-full">
-        <Sidebar t={t} />
+        <Sidebar t={t} relaunchOnboarding={() => setHasOnboarded(false)} />
         <main className="ml-56 h-screen min-w-0 flex-1 overflow-hidden p-5">
           <Routes>
             <Route
@@ -181,6 +190,7 @@ export default function App() {
                   workspaces={workspaces}
                   setWorkspaces={setWorkspaces}
                   t={t}
+                  relaunchOnboarding={() => setHasOnboarded(false)}
                 />
               }
             />

@@ -30,6 +30,7 @@ fn topology_state_path() -> PathBuf {
 fn read_agent_memory(path: &Path) -> Result<Value, String> {
     let raw = fs::read_to_string(path).map_err(|error| error.to_string())?;
     serde_json::from_str(&raw).map_err(|error| error.to_string())
+}
 
 fn read_topology_state(path: &Path) -> Result<Value, String> {
     let raw = fs::read_to_string(path).map_err(|error| error.to_string())?;

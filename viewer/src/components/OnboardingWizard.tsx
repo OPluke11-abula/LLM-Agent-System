@@ -190,6 +190,60 @@ function buildPlannerPrompt(workspaceName: string, workspacePath: string, lang: 
     ].join("\n");
   }
 
+  if (lang === "ja") {
+    return [
+      "あなたは AI 開発プランナーです。",
+      `「${name}」のために実行可能なタスク計画を分解し、結果を次のパスに書き込んでください：`,
+      target,
+      "",
+      "タスクは厳格に以下の JSON 形式で出力し、各タスクノードには以下のフィールドのみを含める必要があります：",
+      "{",
+      '  "id": "task-001",',
+      '  "description": "タスクの説明",',
+      '  "status": "pending",',
+      '  "dependencies": [],',
+      '  "ai_feedback": "",',
+      '  "tasks": []',
+      "}",
+      "",
+      "ルール：",
+      "1. status は pending / in_progress / completed のいずれかである必要があります",
+      "2. dependencies は前提条件タスクIDの配列である必要があります",
+      "3. description は必須で、具体的かつ実行可能である必要があります",
+      "4. 必要に応じて tasks を使用してネストされたサブタスクを作成できます",
+      "5. title、notes、findings などのカスタムフィールドは追加しないでください",
+      "",
+      "最初に1つのメインフローを計画し、それから必要なサブタスクと依存関係を追加してください。",
+    ].join("\n");
+  }
+
+  if (lang === "fr") {
+    return [
+      "Vous êtes un planificateur de développement IA.",
+      `Décomposez « ${name} » en un plan de tâches exécutables et mettez à jour le résultat à :`,
+      target,
+      "",
+      "Écrivez les tâches strictement dans cette structure JSON. Chaque nœud de tâche ne peut contenir que ces champs :",
+      "{",
+      '  "id": "task-001",',
+      '  "description": "Description de la tâche",',
+      '  "status": "pending",',
+      '  "dependencies": [],',
+      '  "ai_feedback": "",',
+      '  "tasks": []',
+      "}",
+      "",
+      "Règles :",
+      "1. status doit être pending / in_progress / completed",
+      "2. dependencies doit être un tableau d'identifiants de tâches prérequises",
+      "3. description est obligatoire et doit être exploitable",
+      "4. Utilisez tasks pour les sous-tâches imbriquées si nécessaire",
+      "5. N'ajoutez pas de champs personnalisés comme title, notes ou findings",
+      "",
+      "Commencez par un flux principal, puis ajoutez les sous-tâches et les dépendances nécessaires.",
+    ].join("\n");
+  }
+
   return [
     "You are an AI development planner.",
     `Break down "${name}" into an actionable task plan and update the result at:`,

@@ -3,9 +3,10 @@ import type { TranslationMessages } from "../types";
 
 type SidebarProps = {
   t: TranslationMessages;
+  relaunchOnboarding?: () => void;
 };
 
-export function Sidebar({ t }: SidebarProps) {
+export function Sidebar({ t, relaunchOnboarding }: SidebarProps) {
   const location = useLocation();
   const items = [
     { label: t.taskFlow, to: "/" },
@@ -58,7 +59,17 @@ export function Sidebar({ t }: SidebarProps) {
           );
         })}
       </nav>
-      <div className="border-t pt-4" style={{ borderColor: "var(--border-c)" }}>
+      <div className="border-t pt-4 space-y-3" style={{ borderColor: "var(--border-c)" }}>
+        {relaunchOnboarding && (
+          <button
+            type="button"
+            onClick={relaunchOnboarding}
+            className="w-full rounded-lg border border-dashed py-2 text-center text-xs font-bold transition-all hover:bg-white/5 active:scale-95 text-slate-300 hover:text-white"
+            style={{ borderColor: "var(--border-c)" }}
+          >
+            🚀 {t.relaunchTutorialBtn}
+          </button>
+        )}
         <p className="text-[9px] font-semibold uppercase tracking-wider leading-relaxed t3">
           AI Agent Topology Viewer
           <br />

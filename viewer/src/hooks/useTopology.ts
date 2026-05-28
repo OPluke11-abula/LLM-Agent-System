@@ -42,6 +42,7 @@ export function useTopology() {
     })
       .then((dispose) => {
         disposeListener = dispose;
+      })
       .catch(() => undefined);
 
     return () => {

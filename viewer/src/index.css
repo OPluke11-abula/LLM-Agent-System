@@ -91,37 +91,76 @@ body { margin: 0; background: var(--bg-base); }
 .t2  { color: var(--t2); }
 .t3  { color: var(--t3); }
 .accent-text { color: var(--accent); }
-.panel-bg { background: var(--bg-panel); border-color: var(--border-c); }
-.card-bg  { background: var(--bg-card);  border-color: var(--border-c); }
 
-/* Grid dot background */
+/* Double-bordered Glassmorphism with Backdrop Saturation Filter */
+.panel-bg {
+  background: var(--bg-panel);
+  border-color: var(--border-c);
+  backdrop-filter: blur(28px) saturate(190%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 10px 40px 0 rgba(0, 0, 0, 0.42);
+}
+
+.card-bg {
+  background: var(--bg-card);
+  border-color: var(--border-c);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 6px 20px 0 rgba(0, 0, 0, 0.22);
+  transition: all 0.35s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.card-bg:hover {
+  border-color: var(--accent);
+  box-shadow: 0 12px 30px 0 rgba(0, 0, 0, 0.48), 0 0 15px rgba(34, 211, 238, 0.16);
+  transform: translateY(-2px);
+}
+
+/* Highly balanced High-Res Grid dot background */
 .bg-grid {
   background-color: var(--bg-base);
-  background-image:
-    linear-gradient(var(--grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
-  background-size: 40px 40px;
+  background-image: radial-gradient(var(--grid) 1.5px, transparent 1.5px);
+  background-size: 26px 26px;
 }
 
-/* Status glow animations */
+/* Status glow animations using custom bezier transitions */
 @keyframes cyanPulse {
-  0%,100% { box-shadow: 0 0 8px rgba(34,211,238,0.3), 0 0 20px rgba(34,211,238,0.1); }
-  50%      { box-shadow: 0 0 18px rgba(34,211,238,0.65), 0 0 40px rgba(34,211,238,0.2); }
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(34, 211, 238, 0.25), inset 0 0 4px rgba(34, 211, 238, 0.1);
+    border-color: rgba(34, 211, 238, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 22px rgba(34, 211, 238, 0.65), inset 0 0 12px rgba(34, 211, 238, 0.28);
+    border-color: rgba(34, 211, 238, 0.85);
+  }
 }
-.glow-cyan { animation: cyanPulse 2.5s ease-in-out infinite; }
+.glow-cyan { animation: cyanPulse 2.2s cubic-bezier(0.4, 0, 0.2, 1) infinite; }
 
 @keyframes amberPulse {
-  0%,100% { box-shadow: 0 0 8px rgba(251,191,36,0.3), 0 0 20px rgba(251,191,36,0.1); }
-  50%      { box-shadow: 0 0 18px rgba(251,191,36,0.7), 0 0 40px rgba(251,191,36,0.2); }
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(251, 191, 36, 0.25), inset 0 0 4px rgba(251, 191, 36, 0.1);
+    border-color: rgba(251, 191, 36, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 22px rgba(251, 191, 36, 0.72), inset 0 0 12px rgba(251, 191, 36, 0.28);
+    border-color: rgba(251, 191, 36, 0.85);
+  }
 }
-.glow-amber { animation: amberPulse 2s ease-in-out infinite; }
+.glow-amber { animation: amberPulse 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite; }
 
 @keyframes topologyHitlPulse {
-  0%,100% { box-shadow: 0 0 10px rgba(216,90,48,0.32), 0 0 0 0 rgba(216,90,48,0.24); }
-  50% { box-shadow: 0 0 24px rgba(216,90,48,0.72), 0 0 0 8px rgba(216,90,48,0.08); }
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(216, 90, 48, 0.28), 0 0 0 0 rgba(216, 90, 48, 0.2);
+    border-color: rgba(216, 90, 48, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 26px rgba(216, 90, 48, 0.76), 0 0 0 10px rgba(216, 90, 48, 0.06);
+    border-color: rgba(216, 90, 48, 0.9);
+  }
 }
-
-.topology-hitl-pulse { animation: topologyHitlPulse 1.35s ease-in-out infinite; }
+.topology-hitl-pulse { animation: topologyHitlPulse 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite; }
 
 @keyframes onboardingFloat {
   0%, 100% { transform: translateY(0px); }
@@ -144,37 +183,48 @@ body { margin: 0; background: var(--bg-base); }
 .onboarding-trace { animation: onboardingTrace 4.6s ease-in-out infinite; }
 .onboarding-trace-delay { animation-delay: 1.35s; }
 
-/* Custom scrollbar */
-::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border-c); border-radius: 9999px; }
+/* Custom scrollbars that respond visually to interaction */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.08);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-c);
+  border-radius: 9999px;
+  border: 1px solid transparent;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
 
-/* Real-time flowing particles for dynamic handoffs and streams (Task 8-02 & Task 8-03) */
+/* Real-time flowing particles for dynamic handoffs and streams */
 @keyframes dash {
-  from {
-    stroke-dashoffset: 24;
-  }
-  to {
-    stroke-dashoffset: 0;
-  }
+  from { stroke-dashoffset: 24; }
+  to { stroke-dashoffset: 0; }
 }
 
 .animate-flow-particles {
-  animation: dash 1.35s linear infinite !important;
+  animation: dash 1.25s linear infinite !important;
 }
 
-/* Pulsing border animation for active streaming nodes (Task 8-03) */
+/* Pulsing border animation for active streaming nodes with dynamic transitions */
 @keyframes activeNodePulse {
   0%, 100% {
-    box-shadow: 0 0 10px rgba(59, 130, 246, 0.2), inset 0 0 8px rgba(59, 130, 246, 0.1);
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.22), inset 0 0 8px rgba(59, 130, 246, 0.1);
+    transform: scale(1);
   }
   50% {
-    box-shadow: 0 0 20px rgba(59, 130, 246, 0.5), inset 0 0 16px rgba(59, 130, 246, 0.25);
+    box-shadow: 0 0 24px rgba(59, 130, 246, 0.58), inset 0 0 16px rgba(59, 130, 246, 0.32);
+    transform: scale(1.01);
   }
 }
 
 .active-streaming-node {
-  animation: activeNodePulse 1.8s ease-in-out infinite !important;
+  animation: activeNodePulse 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite !important;
+  transition: transform 0.25s ease-out;
 }
 
 /* Dynamic typing text animation */

@@ -64,6 +64,52 @@ const COPY: Record<Lang, ActivityLogCopy> = {
       completed: "Completed",
     },
   },
+  ja: {
+    title: "リアルタイムアクティビティログ",
+    subtitle: "最近の同期とタスク操作",
+    clear: "クリア",
+    empty: "まだアクティビティはありません",
+    tasks: "個のタスク",
+    parent: "親タスク",
+    events: {
+      "workspace-loaded": "ワークスペース読み込み完了",
+      "workspace-synced": "メモリ同期完了",
+      "topology-updated": "トポロジー更新完了",
+      "task-status": "ステータス更新",
+      "task-description": "説明更新",
+      "task-created": "サブタスク作成",
+      "task-deleted": "タスク削除",
+      "save-error": "保存失敗",
+    },
+    status: {
+      pending: "保留中",
+      in_progress: "進行中",
+      completed: "完了",
+    },
+  },
+  fr: {
+    title: "Journal d'Activité en Direct",
+    subtitle: "Synchronisations et opérations récentes",
+    clear: "Effacer",
+    empty: "Aucune activité pour le moment",
+    tasks: "tâches",
+    parent: "parent",
+    events: {
+      "workspace-loaded": "Espace de travail chargé",
+      "workspace-synced": "Fichier mémoire synchronisé",
+      "topology-updated": "Topologie mise à jour",
+      "task-status": "Statut de tâche modifié",
+      "task-description": "Description de tâche modifiée",
+      "task-created": "Sous-tâche créée",
+      "task-deleted": "Tâche supprimée",
+      "save-error": "Échec de l'enregistrement",
+    },
+    status: {
+      pending: "En attente",
+      in_progress: "En Cours",
+      completed: "Terminé",
+    },
+  },
 };
 
 const TYPE_STYLES: Record<ActivityLogEntry["type"], { dot: string; border: string }> = {
