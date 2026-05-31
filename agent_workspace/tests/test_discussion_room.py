@@ -172,3 +172,115 @@ async def test_run_corporate_audit_async(mock_debate_env):
         assert "mock output line 1" in result["qa_feedback"]
         assert "mock output line 2" in result["qa_feedback"]
 
+
+@pytest.mark.anyio
+async def test_dynamic_role_guide_injection(mock_debate_env):
+    """Verify that when dev and qa participate in a debate, their respective
+
+    learning guides are correctly resolved, read, and injected.
+    """
+    temp_path = Path(mock_debate_env)
+    
+    # 1. Create directory structures
+    roles_dir = temp_path / ".agent" / "prompts" / "roles"
+    roles_dir.mkdir(parents=True, exist_ok=True)
+    
+    prog_dir = temp_path / ".agent" / "programmer"
+    prog_dir.mkdir(parents=True, exist_ok=True)
+    
+    qa_dir = temp_path / ".agent" / "qa"
+    qa_dir.mkdir(parents=True, exist_ok=True)
+    
+    # 2. Write role configuration files
+    (roles_dir / "dev.md").write_text(
+        "---\nid: dev\nrole: dev\npersona: \"Dynamic Dev Persona\"\nversion: \"1.0.0\"\n---\nSome body\n",
+        encoding="utf-8"
+    )
+    (roles_dir / "qa.md").write_text(
+        "---\nid: qa\nrole: qa\npersona: \"Dynamic QA Persona\"\nversion: \"1.0.0\"\n---\nSome body\n",
+        encoding="utf-8"
+    )
+    
+    # 3. Write learning guides
+    (prog_dir / "programmer_learning_guide.md").write_text("Elite Programmer Guide Rules", encoding="utf-8")
+    (qa_dir / "qa_learning_guide.md").write_text("Strict QA Guide Rules", encoding="utf-8")
+    
+    # 4. Instantiate DiscussionRoom
+    room = DiscussionRoom(workspace_path=mock_debate_env)
+    
+    # 5. Setup captured prompts list
+    captured_prompts = []
+    
+    class CaptureSystemPromptLLMProvider:
+        async def complete(self, system_prompt, messages, tool_schemas, config):
+            captured_prompts.append(system_prompt)
+            return ProviderResponse("text", "Mock Response")
+            
+    mock_provider = CaptureSystemPromptLLMProvider()
+    
+    agents = [
+        {"role": "dev", "name": "Alice"},
+        {"role": "qa", "name": "Bob"}
+    ]
+    
+    with patch("core.discussion_room.ProviderFactory.get_provider", return_value=mock_provider):
+        await room.run(
+            topic="Testing Dynamic Role Injection",
+            agents=agents,
+            max_rounds=1
+        )
+        
+        # Verify both agents had their system prompts captured
+        assert len(captured_prompts) >= 1
+        
+        # Alice (dev) should have Dynamic Dev Persona and Elite Programmer Guide Rules
+        dev_prompt = captured_prompts[0]
+        assert "Dynamic Dev Persona" in dev_prompt
+        assert "SYSTEM SELF-LEARNING DIRECTIVES" in dev_prompt
+        assert "Elite Programmer Guide Rules" in dev_prompt
+        
+        # Bob (qa) should have Dynamic QA Persona and Strict QA Guide Rules
+        qa_prompt = captured_prompts[1]
+        assert "Dynamic QA Persona" in qa_prompt
+        assert "SYSTEM SELF-LEARNING DIRECTIVES" in qa_prompt
+        assert "Strict QA Guide Rules" in qa_prompt
+
+
+@pytest.mark.anyio
+async def test_dynamic_role_fallback_and_scaffolding(mock_debate_env):
+    """Verify fallback to DEFAULT_PERSONAS and automatic scaffolding of QA learning guide."""
+    # Instantiate DiscussionRoom
+    room = DiscussionRoom(workspace_path=mock_debate_env)
+    
+    captured_prompts = []
+    
+    class CaptureSystemPromptLLMProvider:
+        async def complete(self, system_prompt, messages, tool_schemas, config):
+            captured_prompts.append(system_prompt)
+            return ProviderResponse("text", "Mock Response")
+            
+    mock_provider = CaptureSystemPromptLLMProvider()
+    
+    agents = [
+        {"role": "qa", "name": "Bob"}
+    ]
+    
+    with patch("core.discussion_room.ProviderFactory.get_provider", return_value=mock_provider):
+        await room.run(
+            topic="Testing Fallback and Scaffolding",
+            agents=agents,
+            max_rounds=1
+        )
+        
+        assert len(captured_prompts) >= 1
+        qa_prompt = captured_prompts[0]
+        
+        # Should fallback to default QA persona
+        assert "You are a strict QA Auditor Agent" in qa_prompt
+        
+        # Should automatically scaffold and append QA guide
+        assert "SYSTEM SELF-LEARNING DIRECTIVES" in qa_prompt
+        assert "Strict QA Auditor Learning Guide" in qa_prompt
+        assert "automated validation gates" in qa_prompt
+
+

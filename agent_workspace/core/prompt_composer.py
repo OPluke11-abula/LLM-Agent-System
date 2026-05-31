@@ -50,9 +50,42 @@ class PromptComposer:
 
     def __init__(self, workspace_path: str = "."):
         self.workspace_path = os.path.abspath(workspace_path)
-        self.project_root = Path(self.workspace_path).parent
+        path_check = Path(self.workspace_path)
+        if (path_check / ".agent").is_dir():
+            self.project_root = path_check
+        elif (path_check.parent / ".agent").is_dir():
+            self.project_root = path_check.parent
+        else:
+            self.project_root = path_check.parent
         self.prompts_dir = self.project_root / ".agent" / "prompts"
         self.prompts_dir.mkdir(parents=True, exist_ok=True)
+
+    def load_role_persona(self, role: str) -> str | None:
+        """Loads a role configuration markdown file from .agent/prompts/roles/{role}.md
+
+        and returns the 'persona' property parsed from its YAML frontmatter.
+        """
+        role_file = self.prompts_dir / "roles" / f"{role}.md"
+        if not role_file.is_file():
+            return None
+
+        try:
+            content = role_file.read_text(encoding="utf-8")
+            if not content.startswith("---"):
+                return None
+
+            parts = content.split("---", 2)
+            if len(parts) < 3:
+                return None
+
+            role_def = yaml.safe_load(parts[1])
+            if not isinstance(role_def, dict):
+                return None
+
+            return role_def.get("persona")
+        except Exception as e:
+            logger.error(f"Failed to load or parse role '{role}': {e}")
+            return None
 
     def _get_prompt_file(self, prompt_id: str) -> Path:
         """Get the absolute path to a prompt markdown definition."""

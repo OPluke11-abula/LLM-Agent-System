@@ -23,6 +23,8 @@ workspace identity, enabled tools, and declared protocol paths.
 - `.agent/skills/`: per-tool contracts for existing LAS tools.
 - `.agent/core/`: runtime boundary notes.
 - `.agent/prompts/`, `.agent/memory/`, `.agent/workflows/`, `.agent/knowledge_base/`: reserved for deeper PAP-aligned guidance.
+- `.agent/analyst/`: Product Manager & Architect Analyst memory, self-reflections, and operational guides.
+- `.agent/programmer/`: AI Programmer Agent developer learning guides and protocols.
 
 ## Runtime Boundary
 

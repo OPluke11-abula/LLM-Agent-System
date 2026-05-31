@@ -43,3 +43,20 @@ This database catalogs engineering resolutions, compile-time errors, and dynamic
   });
   ```
 - **Best Practice Policy**: Throttle or debounce all dynamic viewport resizing logic using standard requestAnimationFrame techniques to decouple layout changes from observer loops.
+
+---
+
+### Lesson ID: L-20260531-001 (Dynamic Swarm Workspace Path Resolution)
+- **Mistake Encountered**: Incorrect project root path resolution when `PromptComposer` or `DiscussionRoom` tries to locate role configuration files or learning guides in a temporary directory or directly in the workspace root.
+- **Root Cause**: The composer was resolving the project root by blindly taking `Path(workspace_path).parent`, which is invalid if `workspace_path` itself is the root directory or if a temporary test directory is utilized.
+- **Resolution Code**:
+  ```python
+  path_check = Path(self.workspace_path)
+  if (path_check / ".agent").is_dir():
+      self.project_root = path_check
+  elif (path_check.parent / ".agent").is_dir():
+      self.project_root = path_check.parent
+  else:
+      self.project_root = path_check.parent
+  ```
+- **Best Practice Policy**: Dynamically inspect parent and current working directories for the presence of the contract-first `.agent` folder before falling back to fixed path traversal logic.

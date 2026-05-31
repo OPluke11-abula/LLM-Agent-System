@@ -86,3 +86,5 @@ All planned core development phases are fully implemented, verified green, and c
 * **Phase 6 & 7 (Enterprise & Multi-Agent)**: Multi-account credentials storage, real-time token tracking, and consensus debate rooms.
 * **Phase 8 & 9 (Observability & Safety)**: Visual Dagre polish, dynamic HSL edges, interactive HITL gate endpoints, and dynamic RBAC.
 * **Phase 11 (Swarm Company)**: Multi-dashboard views (CEO, Dev, Auditor), org charts, & concurrent WS streaming.
+* **Phase 14 (Production & Federated Sync)**: Multi-stage production Dockerization, Nginx reverse-proxy, federated lessons learned syncer with mistake signature checks, Tauri multi-window dashboards, and sliding-window rate limiting.
+* **Phase 15 (Declarative Swarm & Self-Healing)**: Declarative swarm role config files with YAML frontmatter, dynamic loading of role personas, and role-specific self-learning guide injections in `DiscussionRoom`.

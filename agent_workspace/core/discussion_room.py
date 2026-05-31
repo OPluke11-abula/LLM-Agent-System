@@ -15,9 +15,11 @@ from typing import Any
 try:
     from core.account_manager import AccountManager
     from core.providers import ProviderFactory, BaseLLMProvider
+    from core.prompt_composer import PromptComposer
 except ImportError:
     from agent_workspace.core.account_manager import AccountManager
     from agent_workspace.core.providers import ProviderFactory, BaseLLMProvider
+    from agent_workspace.core.prompt_composer import PromptComposer
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +43,52 @@ class DiscussionRoom:
     def __init__(self, workspace_path: str = "."):
         self.workspace_path = os.path.abspath(workspace_path)
         self.account_manager = AccountManager(self.workspace_path)
+        self.prompt_composer = PromptComposer(self.workspace_path)
+
+    def _append_role_learning_guide(self, role: str, system_prompt: str) -> str:
+        """Appends role-specific learning guide as SYSTEM SELF-LEARNING DIRECTIVES to system_prompt."""
+        role_lower = role.lower()
+        guide_path = None
+        
+        if role_lower in ("dev", "programmer"):
+            guide_path = self.prompt_composer.project_root / ".agent" / "programmer" / "programmer_learning_guide.md"
+        elif role_lower == "qa":
+            guide_path = self.prompt_composer.project_root / ".agent" / "qa" / "qa_learning_guide.md"
+            if not guide_path.is_file():
+                try:
+                    guide_path.parent.mkdir(parents=True, exist_ok=True)
+                    scaffold = (
+                        "# 🧠 Strict QA Auditor Learning Guide\n\n"
+                        "> **Target Audience**: Strict QA Auditor Agents operating within FindAi Studio LLM Agent System (LAS).\n"
+                        "> **Purpose**: Establish standard operating protocols for robust unit/integration testing with pytest, linting rules, static analysis validation, and quality verification gates.\n\n"
+                        "---\n\n"
+                        "## 1. 📂 Core QA Principles / 核心測試原則\n\n"
+                        "1. **Strict Test Coverage / 嚴格測試覆蓋率**:\n"
+                        "   - Ensure all new features, subsystems, and routes have corresponding automated test coverage in `tests/` or `agent_workspace/tests/`.\n"
+                        "   - Never skip tests unless explicitly requested and documented. Keep existing coverage high.\n\n"
+                        "2. **Automated Verification / 自動化驗證機制**:\n"
+                        "   - Run tests using `pytest` inside the workspace environment (`.venv`).\n"
+                        "   - Validate API endpoints, rate limiting, and debate room operations via pytest assertions.\n\n"
+                        "3. **Lint & Static Analysis Standards / 程式碼風格與靜態分析標準**:\n"
+                        "   - Follow strict linting guidelines using `ruff` or `flake8` as required by the repository.\n"
+                        "   - Code must be formatted neatly, type annotations should be added where appropriate, and all dead imports must be removed.\n"
+                        "   - Assert standard compliance prior to delivering feature verification.\n"
+                    )
+                    guide_path.write_text(scaffold, encoding="utf-8")
+                except Exception as e:
+                    logger.error(f"Failed to scaffold QA learning guide: {e}")
+        elif role_lower == "analyst":
+            guide_path = self.prompt_composer.project_root / ".agent" / "analyst" / "analyst_learning_guide.md"
+            
+        if guide_path and guide_path.is_file():
+            try:
+                content = guide_path.read_text(encoding="utf-8").strip()
+                if content:
+                    system_prompt += f"\n\n## SYSTEM SELF-LEARNING DIRECTIVES:\n{content}"
+            except Exception as e:
+                logger.error(f"Failed to read learning guide at {guide_path}: {e}")
+                
+        return system_prompt
 
     def _resolve_agent_provider(self, account_id: str | None = None) -> tuple[BaseLLMProvider, dict[str, Any], str]:
         """Resolve LLM provider, configuration, and account ID."""
@@ -84,7 +132,13 @@ class DiscussionRoom:
         for a in agents:
             role = a.get("role", "agent").lower()
             name = a.get("name", role.capitalize())
-            persona = a.get("persona", DEFAULT_PERSONAS.get(role, f"You are a helpful {role} agent."))
+            
+            # Check dynamic role config first
+            persona = self.prompt_composer.load_role_persona(role)
+            if not persona:
+                # Fallback cleanly
+                persona = a.get("persona", DEFAULT_PERSONAS.get(role, f"You are a helpful {role} agent."))
+                
             account_id = a.get("account_id")
             participants.append({
                 "name": name,
@@ -107,6 +161,7 @@ class DiscussionRoom:
                     formatted_transcript = "(The discussion has just started. No contributions yet.)"
 
                 system_prompt = f"{p['persona']}\n\nYou are participating in a multi-agent debate/discussion room. Help the team achieve a consensus."
+                system_prompt = self._append_role_learning_guide(p["role"], system_prompt)
                 user_content = f"""Topic for discussion: {topic}
 
 Here is the dialogue transcript so far:
@@ -149,7 +204,7 @@ It is now your turn, {p['name']}. Please respond to the topic or build on top of
 
         # 3. Moderator Synthesis Round
         logger.info("Synthesizing meeting consensus summary...")
-        mod_persona = moderator_persona or DEFAULT_PERSONAS["moderator"]
+        mod_persona = moderator_persona or self.prompt_composer.load_role_persona("moderator") or DEFAULT_PERSONAS["moderator"]
         formatted_final_transcript = "\n".join(
             f"[{msg['agent']} ({msg['role']})]: {msg['content']}"
             for msg in transcript
