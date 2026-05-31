@@ -91,6 +91,36 @@ class DiscussionRoom:
                 
         return system_prompt
 
+    def _resolve_agent_persona(self, role: str) -> str:
+        """Resolve the agent persona dynamically from contract files or default fallback."""
+        role_lower = role.lower()
+        
+        # Apply dynamic .agent detection logic (from L-20260531-001) using Path to locate active configuration directory
+        path_check = Path(self.workspace_path)
+        if (path_check / ".agent").is_dir():
+            project_root = path_check
+        elif (path_check.parent / ".agent").is_dir():
+            project_root = path_check.parent
+        else:
+            project_root = path_check.parent
+            
+        role_file = project_root / ".agent" / "prompts" / "roles" / f"{role_lower}.md"
+        if role_file.is_file():
+            try:
+                content = role_file.read_text(encoding="utf-8")
+                if content.startswith("---"):
+                    parts = content.split("---", 2)
+                    if len(parts) >= 3:
+                        import yaml
+                        role_def = yaml.safe_load(parts[1])
+                        if isinstance(role_def, dict) and "persona" in role_def:
+                            return role_def["persona"]
+            except Exception as e:
+                logger.error(f"Failed to dynamically load persona for role {role_lower}: {e}")
+                
+        # Fallback cleanly to DEFAULT_PERSONAS
+        return DEFAULT_PERSONAS.get(role_lower, f"You are a helpful {role_lower} agent.")
+
     def _resolve_agent_provider(self, account_id: str | None = None) -> tuple[BaseLLMProvider, dict[str, Any], str]:
         """Resolve LLM provider, configuration, and account ID."""
         # Apply dynamic .agent detection logic (from L-20260531-001) to locate the contract folder
@@ -142,13 +172,7 @@ class DiscussionRoom:
         for a in agents:
             role = a.get("role", "agent").lower()
             name = a.get("name", role.capitalize())
-            
-            # Check dynamic role config first
-            persona = self.prompt_composer.load_role_persona(role)
-            if not persona:
-                # Fallback cleanly
-                persona = a.get("persona", DEFAULT_PERSONAS.get(role, f"You are a helpful {role} agent."))
-                
+            persona = self._resolve_agent_persona(role)
             account_id = a.get("account_id")
             participants.append({
                 "name": name,
@@ -214,7 +238,7 @@ It is now your turn, {p['name']}. Please respond to the topic or build on top of
 
         # 3. Moderator Synthesis Round
         logger.info("Synthesizing meeting consensus summary...")
-        mod_persona = moderator_persona or self.prompt_composer.load_role_persona("moderator") or DEFAULT_PERSONAS["moderator"]
+        mod_persona = moderator_persona or self._resolve_agent_persona("moderator")
         formatted_final_transcript = "\n".join(
             f"[{msg['agent']} ({msg['role']})]: {msg['content']}"
             for msg in transcript
