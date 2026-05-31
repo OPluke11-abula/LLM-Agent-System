@@ -6,7 +6,7 @@
 
 ---
 
-## 🛠️ COMPLETED PHASES (Phases 0 - 15 Summarized Archive)
+## 🛠️ COMPLETED PHASES (Phases 0 - 16 Summarized Archive)
 
 - [x] **PHASE 0 — Foundation & Local Tooling**: Schemas, memory backend, skill contracts, dynamic routing & DX CLI.
 - [x] **PHASE 1 — Protocol Completeness**: n8n-like Asynchronous Workflow Engine and dynamic knowledge base indexing.
@@ -24,22 +24,23 @@
 - [x] **PHASE 13 — High-Throughput Concurrency & Log Compactor**: Class-level SQLite lock isolation and logging.
 - [x] **PHASE 14 — Rate Limiting & Federated Lessons Learned Sync**: Sliding window limiters and decentralized lesson sync.
 - [x] **PHASE 15 — Advanced Multi-Agent Self-Evolutions & Self-Healing Swarms**: Auto-diagnosis and error self-healing loop in WorkflowEngine and DiscussionRoom, CFO account failover swapping middleware in AccountManager/api.py, and real-time telemetry latency & cost alerting WS broadcasts.
+- [x] **PHASE 16 — Advanced Federated Swarm Optimization & Elastic Resource Dispatching**: Multi-swarm hierarchical consensus debate routing, dynamic model tier downscaling/upscaling, and real-time token billing telemetry invoice JSON persistence.
 
 ---
 
-## 🏢 PHASE 16 — Advanced Federated Swarm Optimization & Elastic Resource Dispatching / 進階聯邦群落優化與彈性資源調配
+## 🏢 PHASE 17 — Advanced Swarm Context Auto-Minimizer & Dynamic Dejunking Engine / 進階群落上下文自動最小化與動態去雜質引擎
 
-### 16-01 Multi-Swarm Consensus Debate Routing
-- [x] Implement multi-swarm hierarchical consensus router / 實作多群落階層式共識路由引擎
-- [x] Delegate complex subproblems to parallel sub-swarms and synthesize parent consensus summaries / 將複雜子問題委派給並行子群落並合成父級共識摘要
-- [x] Write integration test coverage validating multi-swarm delegation channels / 撰寫單元測試驗證多群落委派通道
+### 17-01 Auto-Pruning Dejunking Engine
+- [ ] Implement `ContextMinimizer` inside `LogCompactor` or as a core utility / 在 `LogCompactor` 或核心工具集中實作 `ContextMinimizer` 引擎
+- [ ] Automatically detect and delete obsolete manual scripts, transient `.tmp` files, and unused transition files (`handoff.md`, etc.) inside active workspace boundaries / 自動偵測並清除執行路徑中的手動殘留腳本、暫存檔與轉接手冊
+- [ ] Enforce safety boundaries to ensure zero deletion of core engine, tests, schemas, or config assets / 確保核心代碼、測試套件、合約架構與系統配置之絕對安全
 
 ---
 
-### 16-02 Elastic Dynamic Token Allocation & Billing Telemetry
-- [x] Implement dynamic LLM provider cost optimization matching token requirements of specific tasks / 實作動態 LLM 供應商成本優化，媒合特定任務的 Token 需求
-- [x] Elastic throttle and scale-down model tiers (e.g. swap from gemini-2.5-pro to flash) dynamically depending on context load / 根據上下文負載動態彈性限流與降級模型等級
-- [x] Generate real-time invoice telemetry and save persistent audit trails to `memory/semantic/billing/` / 生成即時計費遙測並儲存持久化審計軌跡
+### 17-02 Self-Evolving Task Queue Compact Sweeps
+- [ ] Implement automated regex-based compaction for `agent_tasks.md` / 實作自動化正則表達式壓縮 `agent_tasks.md` 歷史任務
+- [ ] Automatically collapse completed tasks and phases into high-level summarized markdown headers when completed tasks count exceeds threshold / 當完成任務數量超標時自動將舊階段合併歸檔
+- [ ] Write integration test coverage validating successful automatic compaction runs / 撰寫單元測試驗證自動壓縮機制
 
 ---
 
@@ -47,7 +48,7 @@
 
 | Phase | Total Tasks | Completed Tasks | Status |
 |---|---|---|---|
-| **Phase 0 - 15** | 50 tasks | 50 tasks | 100% Done |
-| **Phase 16** | 2 tasks | 2 tasks | 100% Done |
+| **Phase 0 - 16** | 52 tasks | 52 tasks | 100% Done |
+| **Phase 17** | 2 tasks | 0 tasks | 0% Pending |
 
 *This queue is managed dynamically by the active LAS Developer Agent. All task updates, outcome logs, and progress status updates are written directly to this file before turn conclusion.*
