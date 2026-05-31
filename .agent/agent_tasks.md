@@ -6,7 +6,7 @@
 
 ---
 
-## 🛠️ COMPLETED PHASES (Phases 0 - 16 Summarized Archive)
+## 🛠️ COMPLETED PHASES (Phases 0 - 17 Summarized Archive)
 
 - [x] **PHASE 0 — Foundation & Local Tooling**: Schemas, memory backend, skill contracts, dynamic routing & DX CLI.
 - [x] **PHASE 1 — Protocol Completeness**: n8n-like Asynchronous Workflow Engine and dynamic knowledge base indexing.
@@ -25,22 +25,23 @@
 - [x] **PHASE 14 — Rate Limiting & Federated Lessons Learned Sync**: Sliding window limiters and decentralized lesson sync.
 - [x] **PHASE 15 — Advanced Multi-Agent Self-Evolutions & Self-Healing Swarms**: Auto-diagnosis and error self-healing loop in WorkflowEngine and DiscussionRoom, CFO account failover swapping middleware in AccountManager/api.py, and real-time telemetry latency & cost alerting WS broadcasts.
 - [x] **PHASE 16 — Advanced Federated Swarm Optimization & Elastic Resource Dispatching**: Multi-swarm hierarchical consensus debate routing, dynamic model tier downscaling/upscaling, and real-time token billing telemetry invoice JSON persistence.
+- [x] **PHASE 17 — Advanced Swarm Context Auto-Minimizer & Dynamic Dejunking Engine**: Auto-pruning context minimizer and regex task queue compaction sweeps in LogCompactor.
 
 ---
 
-## 🏢 PHASE 17 — Advanced Swarm Context Auto-Minimizer & Dynamic Dejunking Engine / 進階群落上下文自動最小化與動態去雜質引擎
+## 🏢 PHASE 18 — High-Fidelity Local Episodic Summarization & Automated Lesson Synchronization / 本地情境日誌彙整與自動化學習同步
 
-### 17-01 Auto-Pruning Dejunking Engine
-- [x] Implement `ContextMinimizer` inside `LogCompactor` or as a core utility / 在 `LogCompactor` 或核心工具集中實作 `ContextMinimizer` 引擎
-- [x] Automatically detect and delete obsolete manual scripts, transient `.tmp` files, and unused transition files (`handoff.md`, etc.) inside active workspace boundaries / 自動偵測並清除執行路徑中的手動殘留腳本、暫存檔與轉接手冊
-- [x] Enforce safety boundaries to ensure zero deletion of core engine, tests, schemas, or config assets / 確保核心代碼、測試套件、合約架構與系統配置之絕對安全
+### 18-01 SQLite-based Episodic Memory Summarization
+- [ ] Implement `EpisodicSummarizer` inside `long_term_memory.py` / 在 `long_term_memory.py` 中實作情境日誌摘要引擎
+- [ ] Extract raw task error tracebacks and compile them dynamically into standardized lesson records / 提取任務失敗之 Traceback 並編譯為標準化 Lessons 記錄
+- [ ] Automatically merge new lessons into `.agent/knowledge_base/lessons_learned.md` while preventing duplicates / 自動合併至 Lessons Learned Registry 並防止重複登錄
 
 ---
 
-### 17-02 Self-Evolving Task Queue Compact Sweeps
-- [x] Implement automated regex-based compaction for `agent_tasks.md` / 實作自動化正則表達式壓縮 `agent_tasks.md` 歷史任務
-- [x] Automatically collapse completed tasks and phases into high-level summarized markdown headers when completed tasks count exceeds threshold / 當完成任務數量超標時自動將舊階段合併歸檔
-- [x] Write integration test coverage validating successful automatic compaction runs / 撰寫單元測試驗證自動壓縮機制
+### 18-02 Swarm Concurrency Security Auditor
+- [ ] Implement a static and dynamic concurrency auditor for database transactions / 實作針對資料庫交易的靜態與動態併發安全審計器
+- [ ] Detect potential SQLite database locks or FastAPI/Tauri channel deadlocks before executions / 在執行前自動分析並偵測 SQLite 鎖定或頻道死鎖風險
+- [ ] Broadcast concurrency warnings dynamically to active CEO/Auditor dashboards / 向 CEO 與 Auditor 儀表板廣播即時併發風險警告
 
 ---
 
@@ -48,7 +49,7 @@
 
 | Phase | Total Tasks | Completed Tasks | Status |
 |---|---|---|---|
-| **Phase 0 - 16** | 52 tasks | 52 tasks | 100% Done |
-| **Phase 17** | 2 tasks | 2 tasks | 100% Done |
+| **Phase 0 - 17** | 54 tasks | 54 tasks | 100% Done |
+| **Phase 18** | 2 tasks | 0 tasks | 0% Pending |
 
 *This queue is managed dynamically by the active LAS Developer Agent. All task updates, outcome logs, and progress status updates are written directly to this file before turn conclusion.*
