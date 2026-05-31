@@ -11,6 +11,7 @@ import logging
 import os
 import time
 import json
+import asyncio
 from datetime import datetime, timezone
 from dataclasses import dataclass
 from pathlib import Path
@@ -131,8 +132,13 @@ class DiscussionRoom:
         # Fallback cleanly to DEFAULT_PERSONAS
         return DEFAULT_PERSONAS.get(role_lower, f"You are a helpful {role_lower} agent.")
 
-    def _resolve_agent_provider(self, account_id: str | None = None) -> tuple[BaseLLMProvider, dict[str, Any], str]:
-        """Resolve LLM provider, configuration, and account ID."""
+    def _resolve_agent_provider(
+        self,
+        account_id: str | None = None,
+        prompt_len: int = 0,
+        topic: str = ""
+    ) -> tuple[BaseLLMProvider, dict[str, Any], str]:
+        """Resolve LLM provider, configuration, and account ID, with dynamic upscaling/downscaling."""
         # Apply dynamic .agent detection logic (from L-20260531-001) to locate the contract folder
         path_check = Path(self.workspace_path)
         if (path_check / ".agent").is_dir():
@@ -168,8 +174,24 @@ class DiscussionRoom:
             api_key=api_key,
             base_url=account.get("base_url")
         )
+
+        model = account.get("model", "gemini-2.5-flash")
+
+        # Dynamic Model Tier Downscaling for low complexity or summary tasks
+        is_simple_summary = any(k in topic.lower() for k in ["summary", "simple", "consensus_synthesis"])
+        if is_simple_summary and "pro" in model.lower():
+            original_model = model
+            model = model.replace("pro", "flash")
+            logger.info("Complexity Downscaling: Swapped premium model %s to %s for simple/summary task.", original_model, model)
+
+        # Dynamic Model Tier Upscaling for large-context tasks (prompt_len > 8000)
+        elif prompt_len > 8000 and "flash" in model.lower():
+            original_model = model
+            model = model.replace("flash", "pro")
+            logger.info("Context Upscaling: Swapped base model %s to %s for large context task (prompt_len=%d > 8000).", original_model, model, prompt_len)
+
         config = {
-            "model": account["model"],
+            "model": model,
             "temperature": 0.7,
             "max_tokens": 1024
         }
@@ -244,13 +266,60 @@ class DiscussionRoom:
         agents: list[dict[str, Any]],
         max_rounds: int = 2,
         moderator_persona: str | None = None,
-        session_id: str = "debate-session"
+        session_id: str = "debate-session",
+        sub_problems: list[dict[str, Any]] | None = None
     ) -> dict[str, Any]:
         """Orchestrate a round-robin sequential debate among agents on a topic.
 
-        Concludes with a synthesized Consensus Summary.
+        Concludes with a synthesized Consensus Summary, with parallel hierarchical sub-swarm delegation.
         """
         transcript: list[dict[str, str]] = []
+        total_prompt_tokens = 0
+        total_completion_tokens = 0
+        total_estimated_cost = 0.0
+        models_used = set()
+
+        def estimate_cost(model_name: str, prompt_t: int, completion_t: int) -> float:
+            m_lower = model_name.lower()
+            if "pro" in m_lower:
+                input_rate = 1.25 / 1_000_000
+                output_rate = 5.00 / 1_000_000
+            else:
+                input_rate = 0.075 / 1_000_000
+                output_rate = 0.30 / 1_000_000
+            return (prompt_t * input_rate) + (completion_t * output_rate)
+
+        # 0. Handle parallel sub-swarm delegation
+        sub_swarm_results = []
+        sub_swarm_context = ""
+        if sub_problems:
+            logger.info("Encountered highly complex problem. Spawning parallel sub-swarms...")
+            tasks = []
+            for i, sp in enumerate(sub_problems):
+                sp_topic = sp["topic"]
+                sp_agents = sp["agents"]
+                sp_max_rounds = sp.get("max_rounds", max_rounds)
+                sp_moderator_persona = sp.get("moderator_persona", moderator_persona)
+                sp_session_id = sp.get("session_id", f"{session_id}-sub-{i}")
+                tasks.append(
+                    self.run(
+                        topic=sp_topic,
+                        agents=sp_agents,
+                        max_rounds=sp_max_rounds,
+                        moderator_persona=sp_moderator_persona,
+                        session_id=sp_session_id,
+                        sub_problems=None
+                    )
+                )
+            sub_swarm_results = await asyncio.gather(*tasks)
+            
+            sub_swarm_context = "### Sub-Swarm Consensus Summaries:\n"
+            for i, res in enumerate(sub_swarm_results):
+                sub_topic = res["topic"]
+                sub_summary = res["consensus_summary"]
+                sub_swarm_context += f"#### Sub-Swarm {i+1} Topic: {sub_topic}\n"
+                sub_swarm_context += f"*Consensus Summary*:\n{sub_summary}\n\n"
+            sub_swarm_context += "---\n\n"
 
         # 1. Resolve participants and their personas
         participants = []
@@ -283,7 +352,7 @@ class DiscussionRoom:
                 system_prompt = self._append_role_learning_guide(p["role"], system_prompt)
                 user_content = f"""Topic for discussion: {topic}
 
-Here is the dialogue transcript so far:
+{sub_swarm_context}Here is the dialogue transcript so far:
 ---
 {formatted_transcript}
 ---
@@ -298,7 +367,12 @@ It is now your turn, {p['name']}. Please respond to the topic or build on top of
                 max_attempts = 3
                 for attempt in range(1, max_attempts + 2):
                     try:
-                        provider, config, resolved_acc_id = self._resolve_agent_provider(p["account_id"])
+                        prompt_len = len(system_prompt + user_content) // 4
+                        provider, config, resolved_acc_id = self._resolve_agent_provider(
+                            account_id=p["account_id"],
+                            prompt_len=prompt_len,
+                            topic=topic
+                        )
                         messages = [{"role": "user", "content": user_content}]
 
                         response_type, response_data = await provider.complete(
@@ -328,6 +402,13 @@ It is now your turn, {p['name']}. Please respond to the topic or build on top of
                         prompt_tokens = len(system_prompt + user_content) // 4
                         completion_tokens = len(contribution) // 4
                         self.account_manager.record_usage(resolved_acc_id, prompt_tokens, completion_tokens)
+                        
+                        model_used = config.get("model", "gemini-2.5-flash")
+                        models_used.add(model_used)
+                        call_cost = estimate_cost(model_used, prompt_tokens, completion_tokens)
+                        total_prompt_tokens += prompt_tokens
+                        total_completion_tokens += completion_tokens
+                        total_estimated_cost += call_cost
                         break
                     except Exception as e:
                         error_msg = str(e)
@@ -389,7 +470,7 @@ It is now your turn, {p['name']}. Please respond to the topic or build on top of
         mod_system_prompt = mod_persona
         mod_user_content = f"""Topic discussed: {topic}
 
-Here is the complete dialogue transcript:
+{sub_swarm_context}Here is the complete dialogue transcript:
 ---
 {formatted_final_transcript}
 ---
@@ -407,7 +488,12 @@ Format the summary nicely in Markdown."""
         max_attempts = 3
         for attempt in range(1, max_attempts + 2):
             try:
-                provider, config, resolved_acc_id = self._resolve_agent_provider(None)
+                mod_prompt_len = len(mod_system_prompt + mod_user_content) // 4
+                provider, config, resolved_acc_id = self._resolve_agent_provider(
+                    account_id=None,
+                    prompt_len=mod_prompt_len,
+                    topic="consensus_synthesis"
+                )
                 messages = [{"role": "user", "content": mod_user_content}]
 
                 response_type, response_data = await provider.complete(
@@ -437,6 +523,13 @@ Format the summary nicely in Markdown."""
                 prompt_tokens = len(mod_system_prompt + mod_user_content) // 4
                 completion_tokens = len(consensus_summary) // 4
                 self.account_manager.record_usage(resolved_acc_id, prompt_tokens, completion_tokens)
+                
+                model_used = config.get("model", "gemini-2.5-flash")
+                models_used.add(model_used)
+                call_cost = estimate_cost(model_used, prompt_tokens, completion_tokens)
+                total_prompt_tokens += prompt_tokens
+                total_completion_tokens += completion_tokens
+                total_estimated_cost += call_cost
                 break
             except Exception as e:
                 error_msg = str(e)
@@ -477,6 +570,51 @@ Format the summary nicely in Markdown."""
         for cb in self.telemetry_callbacks:
             try:
                 cb(session_id, mod_event)
+            except Exception:
+                pass
+
+        # Explicitly append sub-swarm summaries to guarantee 100% synthesis integration
+        if sub_swarm_results:
+            consensus_summary += "\n\n### Integrated Sub-Swarm Consensus Reports\n"
+            for i, res in enumerate(sub_swarm_results):
+                consensus_summary += f"\n#### Sub-Swarm {i+1} [{res['topic']}]:\n{res['consensus_summary']}\n"
+
+        # Compile structured real-time invoice telemetry audit record
+        import uuid
+        invoice_id = f"inv-{uuid.uuid4().hex[:12]}"
+        model_used_str = ", ".join(sorted(list(models_used))) if models_used else "gemini-2.5-flash"
+        
+        invoice_record = {
+            "invoice_id": invoice_id,
+            "session_id": session_id,
+            "topic": topic,
+            "model_used": model_used_str,
+            "prompt_tokens": total_prompt_tokens,
+            "completion_tokens": total_completion_tokens,
+            "estimated_cost_usd": round(total_estimated_cost, 6),
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
+        # Persist this invoice JSON file to disk under memory/semantic/billing/
+        billing_dir = Path(self.workspace_path) / "memory" / "semantic" / "billing"
+        try:
+            billing_dir.mkdir(parents=True, exist_ok=True)
+            invoice_file = billing_dir / f"{invoice_id}.json"
+            invoice_file.write_text(json.dumps(invoice_record, indent=2, ensure_ascii=False), encoding="utf-8")
+            logger.info("Persisted billing audit trail to %s", invoice_file)
+        except Exception as e:
+            logger.error("Failed to persist billing audit trail: %s", e)
+
+        # Broadcast invoice telemetry event
+        invoice_event = {
+            "session": session_id,
+            "type": "invoice_telemetry",
+            "invoice": invoice_record,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+        for cb in self.telemetry_callbacks:
+            try:
+                cb(session_id, invoice_event)
             except Exception:
                 pass
 

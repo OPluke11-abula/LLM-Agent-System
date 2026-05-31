@@ -30,16 +30,16 @@
 ## 🏢 PHASE 16 — Advanced Federated Swarm Optimization & Elastic Resource Dispatching / 進階聯邦群落優化與彈性資源調配
 
 ### 16-01 Multi-Swarm Consensus Debate Routing
-- [ ] Implement multi-swarm hierarchical consensus router / 實作多群落階層式共識路由引擎
-- [ ] Delegate complex subproblems to parallel sub-swarms and synthesize parent consensus summaries / 將複雜子問題委派給並行子群落並合成父級共識摘要
-- [ ] Write integration test coverage validating multi-swarm delegation channels / 撰寫單元測試驗證多群落委派通道
+- [x] Implement multi-swarm hierarchical consensus router / 實作多群落階層式共識路由引擎
+- [x] Delegate complex subproblems to parallel sub-swarms and synthesize parent consensus summaries / 將複雜子問題委派給並行子群落並合成父級共識摘要
+- [x] Write integration test coverage validating multi-swarm delegation channels / 撰寫單元測試驗證多群落委派通道
 
 ---
 
 ### 16-02 Elastic Dynamic Token Allocation & Billing Telemetry
-- [ ] Implement dynamic LLM provider cost optimization matching token requirements of specific tasks / 實作動態 LLM 供應商成本優化，媒合特定任務的 Token 需求
-- [ ] Elastic throttle and scale-down model tiers (e.g. swap from gemini-2.5-pro to flash) dynamically depending on context load / 根據上下文負載動態彈性限流與降級模型等級
-- [ ] Generate real-time invoice telemetry and save persistent audit trails to `memory/semantic/billing/` / 生成即時計費遙測並儲存持久化審計軌跡
+- [x] Implement dynamic LLM provider cost optimization matching token requirements of specific tasks / 實作動態 LLM 供應商成本優化，媒合特定任務的 Token 需求
+- [x] Elastic throttle and scale-down model tiers (e.g. swap from gemini-2.5-pro to flash) dynamically depending on context load / 根據上下文負載動態彈性限流與降級模型等級
+- [x] Generate real-time invoice telemetry and save persistent audit trails to `memory/semantic/billing/` / 生成即時計費遙測並儲存持久化審計軌跡
 
 ---
 
@@ -48,6 +48,6 @@
 | Phase | Total Tasks | Completed Tasks | Status |
 |---|---|---|---|
 | **Phase 0 - 15** | 50 tasks | 50 tasks | 100% Done |
-| **Phase 16** | 2 tasks | 0 tasks | 0% Pending |
+| **Phase 16** | 2 tasks | 2 tasks | 100% Done |
 
 *This queue is managed dynamically by the active LAS Developer Agent. All task updates, outcome logs, and progress status updates are written directly to this file before turn conclusion.*
