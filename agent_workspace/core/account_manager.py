@@ -151,6 +151,24 @@ class AccountManager:
             self._save_accounts(data)
         return found
 
+    def swap_to_fallback(self) -> bool:
+        """Finds a fallback account and sets it active. Returns True if swapped, False otherwise."""
+        data = self._load_data()
+        active_id = data.get("active_account_id", "")
+        accounts = data.get("accounts", [])
+        
+        for acc in accounts:
+            if acc["id"] != active_id:
+                budget = acc.get("token_budget", -1)
+                used = acc.get("tokens_used", 0)
+                if budget == -1 or used < budget:
+                    data["active_account_id"] = acc["id"]
+                    for a in accounts:
+                        a["is_active"] = (a["id"] == acc["id"])
+                    self._save_accounts(data)
+                    return True
+        return False
+
     def record_usage(self, account_id: str, prompt_tokens: int, completion_tokens: int) -> bool:
         data = self._load_data()
         accounts = data.get("accounts", [])

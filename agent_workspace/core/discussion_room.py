@@ -9,6 +9,9 @@ from __future__ import annotations
 
 import logging
 import os
+import time
+import json
+from datetime import datetime, timezone
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -40,6 +43,13 @@ DEFAULT_PERSONAS = {
 
 class DiscussionRoom:
     """Orchestrates multi-agent consensus debate loops using different LLM models and personas."""
+
+    telemetry_callbacks = []
+
+    @classmethod
+    def register_callback(cls, callback):
+        if callback not in cls.telemetry_callbacks:
+            cls.telemetry_callbacks.append(callback)
 
     def __init__(self, workspace_path: str = "."):
         self.workspace_path = os.path.abspath(workspace_path)
@@ -141,6 +151,17 @@ class DiscussionRoom:
         if not account:
             raise RuntimeError("No LLM accounts configured in accounts.json.")
 
+        # Budget exhaustion check
+        budget = account.get("token_budget", -1)
+        used = account.get("tokens_used", 0)
+        if budget > 0 and used >= budget:
+            logger.info("Active account '%s' budget exhausted (%d/%d). Swapping to fallback...", account["id"], used, budget)
+            if self.account_manager.swap_to_fallback():
+                account = self.account_manager.get_active_account()
+                logger.info("Swapped to fallback account '%s'", account["id"])
+            else:
+                logger.warning("Budget exhausted and no fallback accounts available!")
+
         api_key = self.account_manager.resolve_api_key(account)
         provider = ProviderFactory.get_provider(
             account["provider"],
@@ -154,12 +175,76 @@ class DiscussionRoom:
         }
         return provider, config, account["id"]
 
+    async def _invoke_llm_healing(self, skill_id: str, params: dict[str, Any], error_msg: str) -> dict[str, Any]:
+        """Invoke LLM correction call to auto-diagnose and patch prompts or parameters."""
+        lessons_learned_content = ""
+        path_check = Path(self.workspace_path)
+        if (path_check / ".agent").is_dir():
+            project_root = path_check
+        elif (path_check.parent / ".agent").is_dir():
+            project_root = path_check.parent
+        else:
+            project_root = path_check.parent
+            
+        lessons_file = project_root / ".agent" / "knowledge_base" / "lessons_learned.md"
+        if lessons_file.is_file():
+            try:
+                lessons_learned_content = lessons_file.read_text(encoding="utf-8")
+            except Exception:
+                pass
+                
+        system_prompt = (
+            "You are an expert self-healing engine for the LLM Agent System (LAS).\n"
+            "An execution component failed.\n"
+            "Your task is to analyze the traceback/error and original context, "
+            "cross-reference them with the lessons learned registry, and generate patched fields (JSON format).\n"
+            f"Lessons Learned Database:\n{lessons_learned_content}\n\n"
+            "Respond ONLY with a valid JSON object representing the corrected/patched context fields. "
+            "Do not include any explanation or markdown formatting (like ```json ... ```) - just return raw JSON."
+        )
+        
+        user_content = (
+            f"Component/Skill Failed: {skill_id}\n"
+            f"Original Context: {json.dumps(params, ensure_ascii=False)}\n"
+            f"Traceback/Error: {error_msg}\n\n"
+            "Please analyze this failure. If a matching lesson is found, apply its best practice. "
+            "Otherwise, correct the parameters/context to fix the error. Return the corrected fields as a JSON object."
+        )
+        
+        try:
+            provider, config, resolved_acc_id = self._resolve_agent_provider(None)
+            response_type, response_data = await provider.complete(
+                system_prompt=system_prompt,
+                messages=[{"role": "user", "content": user_content}],
+                tool_schemas=[],
+                config=config
+            )
+            if response_type == "error":
+                return params
+                
+            raw_text = str(response_data).strip()
+            if raw_text.startswith("```"):
+                lines = raw_text.splitlines()
+                if lines[0].startswith("```"):
+                    lines = lines[1:]
+                if lines and lines[-1].strip() == "```":
+                    lines = lines[:-1]
+                raw_text = "\n".join(lines).strip()
+                
+            patched = json.loads(raw_text)
+            if isinstance(patched, dict):
+                return patched
+        except Exception:
+            pass
+        return params
+
     async def run(
         self,
         topic: str,
         agents: list[dict[str, Any]],
         max_rounds: int = 2,
-        moderator_persona: str | None = None
+        moderator_persona: str | None = None,
+        session_id: str = "debate-session"
     ) -> dict[str, Any]:
         """Orchestrate a round-robin sequential debate among agents on a topic.
 
@@ -205,36 +290,93 @@ Here is the dialogue transcript so far:
 
 It is now your turn, {p['name']}. Please respond to the topic or build on top of previous points in a constructive manner. Keep your response brief, precise, and focused on driving consensus."""
 
-                try:
-                    provider, config, resolved_acc_id = self._resolve_agent_provider(p["account_id"])
-                    messages = [{"role": "user", "content": user_content}]
+                start_time = time.perf_counter()
+                contribution = f"[Silent / Connection Error]"
+                resolved_acc_id = "default-account"
+                
+                # Dynamic Account Swapping & Error Self-Healing Retry Loop
+                max_attempts = 3
+                for attempt in range(1, max_attempts + 2):
+                    try:
+                        provider, config, resolved_acc_id = self._resolve_agent_provider(p["account_id"])
+                        messages = [{"role": "user", "content": user_content}]
 
-                    response_type, response_data = await provider.complete(
-                        system_prompt=system_prompt,
-                        messages=messages,
-                        tool_schemas=[],
-                        config=config
-                    )
+                        response_type, response_data = await provider.complete(
+                            system_prompt=system_prompt,
+                            messages=messages,
+                            tool_schemas=[],
+                            config=config
+                        )
 
-                    if response_type == "error":
-                        raise RuntimeError(f"LLM call returned error: {response_data}")
+                        is_rate_limit = False
+                        if response_type == "error":
+                            err_str = str(response_data).lower()
+                            if "429" in err_str or "rate limit" in err_str or "quota" in err_str:
+                                is_rate_limit = True
 
-                    contribution = str(response_data).strip()
-                    logger.info("%s (%s) contribution: %s...", p["name"], p["role"], contribution[:50])
+                        if is_rate_limit:
+                            logger.info("Rate limit (HTTP 429) detected on account '%s'. Swapping to fallback...", resolved_acc_id)
+                            if self.account_manager.swap_to_fallback():
+                                continue
+                            else:
+                                raise RuntimeError(f"Rate limited and no fallback accounts available: {response_data}")
 
-                    transcript.append({
-                        "agent": p["name"],
-                        "role": p["role"],
-                        "content": contribution
-                    })
+                        if response_type == "error":
+                            raise RuntimeError(f"LLM call returned error: {response_data}")
 
-                except Exception as e:
-                    logger.error("Failed to generate contribution for agent %s: %s", p["name"], e)
-                    transcript.append({
-                        "agent": p["name"],
-                        "role": p["role"],
-                        "content": f"[Silent / Connection Error: {e}]"
-                    })
+                        contribution = str(response_data).strip()
+                        prompt_tokens = len(system_prompt + user_content) // 4
+                        completion_tokens = len(contribution) // 4
+                        self.account_manager.record_usage(resolved_acc_id, prompt_tokens, completion_tokens)
+                        break
+                    except Exception as e:
+                        error_msg = str(e)
+                        logger.error("Failed to generate contribution for agent %s on attempt %d: %s", p["name"], attempt, error_msg)
+                        if attempt <= max_attempts:
+                            logger.info("Attempting self-healing correction for debate participant...")
+                            healed_data = await self._invoke_llm_healing("discussion_room_llm", {"system_prompt": system_prompt, "user_content": user_content}, error_msg)
+                            system_prompt = healed_data.get("system_prompt", system_prompt)
+                            user_content = healed_data.get("user_content", user_content)
+                            
+                            if "429" in error_msg.lower() or "rate limit" in error_msg.lower():
+                                self.account_manager.swap_to_fallback()
+                        else:
+                            contribution = f"[Silent / Connection Error: {e}]"
+
+                duration_ms = int((time.perf_counter() - start_time) * 1000)
+                
+                # Cost Alert Calculation
+                cost_alert = False
+                active_acc = self.account_manager.get_active_account()
+                if active_acc:
+                    budget = active_acc.get("token_budget", -1)
+                    used = active_acc.get("tokens_used", 0)
+                    if budget > 0 and (used / budget) >= 0.8:
+                        cost_alert = True
+                
+                # Broadcast debate contribution event
+                debate_event = {
+                    "session": session_id,
+                    "type": "debate_contribution",
+                    "agent": p["name"],
+                    "role": p["role"],
+                    "duration_ms": duration_ms,
+                    "active_latency_alert": duration_ms > 5000,
+                    "cost_alert": cost_alert,
+                    "timestamp": datetime.now(timezone.utc).isoformat()
+                }
+                for cb in self.telemetry_callbacks:
+                    try:
+                        cb(session_id, debate_event)
+                    except Exception:
+                        pass
+
+                logger.info("%s (%s) contribution: %s...", p["name"], p["role"], contribution[:50])
+                transcript.append({
+                    "agent": p["name"],
+                    "role": p["role"],
+                    "content": contribution
+                })
 
         # 3. Moderator Synthesis Round
         logger.info("Synthesizing meeting consensus summary...")
@@ -259,25 +401,84 @@ Please synthesize a professional Consensus Summary. Standardize the response to 
 
 Format the summary nicely in Markdown."""
 
-        try:
-            provider, config, resolved_acc_id = self._resolve_agent_provider(None)
-            messages = [{"role": "user", "content": mod_user_content}]
+        consensus_summary = f"[Error synthesizing consensus]"
+        start_time = time.perf_counter()
+        
+        max_attempts = 3
+        for attempt in range(1, max_attempts + 2):
+            try:
+                provider, config, resolved_acc_id = self._resolve_agent_provider(None)
+                messages = [{"role": "user", "content": mod_user_content}]
 
-            response_type, response_data = await provider.complete(
-                system_prompt=mod_system_prompt,
-                messages=messages,
-                tool_schemas=[],
-                config=config
-            )
+                response_type, response_data = await provider.complete(
+                    system_prompt=mod_system_prompt,
+                    messages=messages,
+                    tool_schemas=[],
+                    config=config
+                )
 
-            if response_type == "error":
-                raise RuntimeError(f"LLM call returned error: {response_data}")
+                is_rate_limit = False
+                if response_type == "error":
+                    err_str = str(response_data).lower()
+                    if "429" in err_str or "rate limit" in err_str or "quota" in err_str:
+                        is_rate_limit = True
 
-            consensus_summary = str(response_data).strip()
+                if is_rate_limit:
+                    logger.info("Rate limit (HTTP 429) detected on Moderator account '%s'. Swapping to fallback...", resolved_acc_id)
+                    if self.account_manager.swap_to_fallback():
+                        continue
+                    else:
+                        raise RuntimeError(f"Rate limited and no fallback accounts available: {response_data}")
 
-        except Exception as e:
-            logger.error("Moderator synthesis failed: %s", e)
-            consensus_summary = f"Error synthesizing consensus: {e}\n\nMeeting adjourned."
+                if response_type == "error":
+                    raise RuntimeError(f"LLM call returned error: {response_data}")
+
+                consensus_summary = str(response_data).strip()
+                prompt_tokens = len(mod_system_prompt + mod_user_content) // 4
+                completion_tokens = len(consensus_summary) // 4
+                self.account_manager.record_usage(resolved_acc_id, prompt_tokens, completion_tokens)
+                break
+            except Exception as e:
+                error_msg = str(e)
+                logger.error("Moderator synthesis failed on attempt %d: %s", attempt, error_msg)
+                if attempt <= max_attempts:
+                    logger.info("Attempting self-healing correction for Moderator synthesis...")
+                    healed_data = await self._invoke_llm_healing("discussion_room_moderator", {"system_prompt": mod_system_prompt, "user_content": mod_user_content}, error_msg)
+                    mod_system_prompt = healed_data.get("system_prompt", mod_system_prompt)
+                    mod_user_content = healed_data.get("user_content", mod_user_content)
+                    
+                    if "429" in error_msg.lower() or "rate limit" in error_msg.lower():
+                        self.account_manager.swap_to_fallback()
+                else:
+                    consensus_summary = f"Error synthesizing consensus: {e}\n\nMeeting adjourned."
+
+        duration_ms = int((time.perf_counter() - start_time) * 1000)
+        
+        # Cost Alert Calculation
+        cost_alert = False
+        active_acc = self.account_manager.get_active_account()
+        if active_acc:
+            budget = active_acc.get("token_budget", -1)
+            used = active_acc.get("tokens_used", 0)
+            if budget > 0 and (used / budget) >= 0.8:
+                cost_alert = True
+                
+        # Broadcast moderator synthesized event
+        mod_event = {
+            "session": session_id,
+            "type": "consensus_synthesis",
+            "agent": "Moderator",
+            "role": "moderator",
+            "duration_ms": duration_ms,
+            "active_latency_alert": duration_ms > 5000,
+            "cost_alert": cost_alert,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+        for cb in self.telemetry_callbacks:
+            try:
+                cb(session_id, mod_event)
+            except Exception:
+                pass
 
         return {
             "topic": topic,

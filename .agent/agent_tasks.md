@@ -596,24 +596,24 @@ depends  : 11-01, 11-03
 ---
 
 ### 15-02 Auto-Diagnosis & Error Self-Healing Loop
-- [ ] Implement self-healing logic inside `WorkflowEngine` and `DiscussionRoom` to intercept task/QA failures / 在工作流與辯論引擎中實作錯誤攔截自我修復機制
-- [ ] Trace stderr traceback messages and match best practice policies from `lessons_learned.md` / 解析錯誤訊息並媒合 `lessons_learned.md` 中最佳實踐政策
-- [ ] Generate and re-apply correction patch files automatically up to 3 retry attempts / 自動生成並套用修正程式碼，支援最多 3 次嘗試
-- [ ] Write pytest verification suite asserting a successful self-healing cycle / 撰寫 pytest 單元測試驗證自動修復環路
+- [x] Implement self-healing logic inside `WorkflowEngine` and `DiscussionRoom` to intercept task/QA failures / 在工作流與辯論引擎中實作錯誤攔截自我修復機制
+- [x] Trace stderr traceback messages and match best practice policies from `lessons_learned.md` / 解析錯誤訊息並媒合 `lessons_learned.md` 中最佳實踐政策
+- [x] Generate and re-apply correction patch files automatically up to 3 retry attempts / 自動生成並套用修正程式碼，支援最多 3 次嘗試
+- [x] Write pytest verification suite asserting a successful self-healing cycle / 撰寫 pytest 單元測試驗證自動修復環路
 
 ---
 
 ### 15-03 CFO Account Failover Swapping Middleware
-- [ ] Refactor `AccountManager` and `api.py` connection stream adapters to support dynamic client swapping / 重構 API 連線適配器以支援動態備用帳戶切換
-- [ ] Intercept token budget exhaustion blocks and API rate limits (HTTP 429) inside swarm debate loops / 在 Swarm 併發執行中攔截限流與 Token 超限錯誤
-- [ ] Swap active LLM account to backup accounts and retry request without dropping WebSocket connections / 自動無縫切換至備援帳戶重試請求而不中斷 WebSocket 串流連線
+- [x] Refactor `AccountManager` and `api.py` connection stream adapters to support dynamic client swapping / 重構 API 連線適配器以支援動態備用帳戶切換
+- [x] Intercept token budget exhaustion blocks and API rate limits (HTTP 429) inside swarm debate loops / 在 Swarm 併發執行中攔截限流與 Token 超限錯誤
+- [x] Swap active LLM account to backup accounts and retry request without dropping WebSocket connections / 自動無縫切換至備援帳戶重試請求而不中斷 WebSocket 串流連線
 
 ---
 
 ### 15-04 Telemetry Latency & Cost Alerting
-- [ ] Calculate real-time duration and token accumulation chunk-by-chunk for active node executions / 實作節點執行時間與 Token 累計之即時計量
-- [ ] Inject dynamic warning telemetry flags `active_latency_alert=true` or `cost_alert=true` when exceeding thresholds / 當效能或成本超標時動態注入效能警報標記
-- [ ] Broadcast performance telemetry alerts over `/v1/dashboard/` WS adapters in real-time / 透過 `/v1/dashboard/` WS 廣播即時效能 telemetry 警報
+- [x] Calculate real-time duration and token accumulation chunk-by-chunk for active node executions / 實作節點執行時間與 Token 累計之即時計量
+- [x] Inject dynamic warning telemetry flags `active_latency_alert=true` or `cost_alert=true` when exceeding thresholds / 當效能或成本超標時動態注入效能警報標記
+- [x] Broadcast performance telemetry alerts over `/v1/dashboard/` WS adapters in real-time / 透過 `/v1/dashboard/` WS 廣播即時效能 telemetry 警報
 
 ---
 
@@ -636,7 +636,7 @@ depends  : 11-01, 11-03
 | **Phase 12: LAS Evolution** | 5 tasks | 5 tasks | 100% Done |
 | **Phase 13: Concurrency & Observability** | 5 tasks | 5 tasks | 100% Done |
 | **Phase 14: Production & Federated Sync** | 4 tasks | 4 tasks | 100% Done |
-| **Phase 15: Self-Healing Swarms** | 4 tasks | 1 task | 25% In Progress |
+| **Phase 15: Self-Healing Swarms** | 4 tasks | 4 tasks | 100% Done |
 
 *This queue is managed dynamically by the active LAS Developer Agent. All task updates, outcome logs, and progress status updates are written directly to this file before turn conclusion.*
 ```

@@ -20,8 +20,12 @@ from jinja2 import Environment, Template
 
 try:
     from core.engine import AgentEngine
+    from core.account_manager import AccountManager
+    from core.providers import ProviderFactory
 except ImportError:
     from agent_workspace.core.engine import AgentEngine
+    from agent_workspace.core.account_manager import AccountManager
+    from agent_workspace.core.providers import ProviderFactory
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +54,13 @@ class WorkflowRunState:
 
 class WorkflowEngine:
     """Core Workflow Engine executing n8n-like step workflows."""
+
+    telemetry_callbacks = []
+
+    @classmethod
+    def register_callback(cls, callback):
+        if callback not in cls.telemetry_callbacks:
+            cls.telemetry_callbacks.append(callback)
 
     def __init__(self, engine: AgentEngine):
         self.engine = engine
@@ -195,6 +206,82 @@ class WorkflowEngine:
             return [self._resolve_placeholder(v, context) for v in value]
         return value
 
+    async def _invoke_llm_healing(self, skill_id: str, params: dict[str, Any], error_msg: str) -> dict[str, Any]:
+        """Invoke LLM correction call to auto-diagnose and patch step parameters."""
+        lessons_learned_content = ""
+        path_check = Path(self.project_root)
+        lessons_file = path_check / ".agent" / "knowledge_base" / "lessons_learned.md"
+        if lessons_file.is_file():
+            try:
+                lessons_learned_content = lessons_file.read_text(encoding="utf-8")
+            except Exception:
+                pass
+        
+        system_prompt = (
+            "You are an expert self-healing engine for the LLM Agent System (LAS).\n"
+            "A workflow step failed executing a skill.\n"
+            "Your task is to analyze the traceback/error and the original parameters, "
+            "cross-reference them with the lessons learned registry, and generate a parameters patch (JSON format).\n"
+            f"Lessons Learned Database:\n{lessons_learned_content}\n\n"
+            "Respond ONLY with a valid JSON object representing the fully corrected/patched parameters for the skill execution. "
+            "Do not include any explanation or markdown formatting (like ```json ... ```) - just return raw JSON."
+        )
+        
+        user_content = (
+            f"Skill Failed: {skill_id}\n"
+            f"Original Parameters: {json.dumps(params, ensure_ascii=False)}\n"
+            f"Traceback/Error: {error_msg}\n\n"
+            "Please analyze this failure. If a matching lesson is found, apply its best practice. "
+            "Otherwise, correct the parameters to fix the error. Return the corrected parameters as a JSON object."
+        )
+        
+        am = AccountManager(self.engine.workspace_path)
+        account = am.get_active_account()
+        if not account:
+            logger.warning("No active account for self-healing correction.")
+            return params
+            
+        api_key = am.resolve_api_key(account)
+        provider = ProviderFactory.get_provider(
+            account["provider"],
+            api_key=api_key,
+            base_url=account.get("base_url")
+        )
+        config = {
+            "model": account["model"],
+            "temperature": 0.1,
+            "max_tokens": 1024
+        }
+        
+        try:
+            response_type, response_data = await provider.complete(
+                system_prompt=system_prompt,
+                messages=[{"role": "user", "content": user_content}],
+                tool_schemas=[],
+                config=config
+            )
+            if response_type == "error":
+                logger.error("Self-healing LLM call failed: %s", response_data)
+                return params
+            
+            raw_text = str(response_data).strip()
+            if raw_text.startswith("```"):
+                lines = raw_text.splitlines()
+                if lines[0].startswith("```"):
+                    lines = lines[1:]
+                if lines and lines[-1].strip() == "```":
+                    lines = lines[:-1]
+                raw_text = "\n".join(lines).strip()
+            
+            patched_params = json.loads(raw_text)
+            if isinstance(patched_params, dict):
+                logger.info("Successfully generated self-healing parameter patch: %s", patched_params)
+                return patched_params
+        except Exception as e:
+            logger.error("Failed to parse self-healing parameters patch: %s", e)
+            
+        return params
+
     async def _execute_step_async(self, step_id: str, step_def: dict[str, Any], state: WorkflowRunState, context: dict[str, Any], session_id: str, lock: Any) -> bool:
         """Asynchronously executes a single step, wrapping blocking execute_tool in executor."""
         async with lock:
@@ -207,7 +294,20 @@ class WorkflowEngine:
         skill_id = step_def["skill_id"]
         raw_params = step_def.get("params", {})
         on_failure = step_def.get("on_failure", "fail")
-        max_retries = 3 if on_failure == "retry" else 1
+        
+        # We broadcast the step_started event
+        start_event = {
+            "session": session_id,
+            "type": "step_started",
+            "step_id": step_id,
+            "skill_id": skill_id,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+        for cb in self.telemetry_callbacks:
+            try:
+                cb(session_id, start_event)
+            except Exception:
+                pass
 
         resolved_params = self._resolve_placeholder(raw_params, context)
         logger.info("Executing step '%s' [Skill: %s] asynchronously", step_id, skill_id)
@@ -215,11 +315,14 @@ class WorkflowEngine:
         output = None
         error_msg = None
         success = False
-
-        for attempt in range(1, max_retries + 1):
+        step_start_time = time.perf_counter()
+        
+        # Self-healing retry loop: original + 3 healing attempts = 4 total attempts
+        healing_attempts = 3
+        for attempt in range(1, healing_attempts + 2):
             try:
                 if attempt > 1:
-                    logger.info("Retrying step '%s' (Attempt %d/%d)", step_id, attempt, max_retries)
+                    logger.info("Self-healing: Retrying step '%s' (Attempt %d/%d) with patched parameters", step_id, attempt - 1, healing_attempts)
                     import asyncio
                     await asyncio.sleep(0.5)
 
@@ -257,6 +360,40 @@ class WorkflowEngine:
             except Exception as e:
                 error_msg = str(e)
                 logger.warning("Step '%s' execution failed on attempt %d: %s", step_id, attempt, error_msg)
+                
+                if attempt <= healing_attempts:
+                    logger.info("Attempting self-healing diagnostic for step '%s'...", step_id)
+                    resolved_params = await self._invoke_llm_healing(skill_id, resolved_params, error_msg)
+
+        duration_ms = int((time.perf_counter() - step_start_time) * 1000)
+        
+        # Calculate cost warning telemetry
+        cost_alert = False
+        am = AccountManager(self.engine.workspace_path)
+        active_acc = am.get_active_account()
+        if active_acc:
+            budget = active_acc.get("token_budget", -1)
+            used = active_acc.get("tokens_used", 0)
+            if budget > 0 and (used / budget) >= 0.8:
+                cost_alert = True
+
+        # Broadcast the step_completed event
+        end_event = {
+            "session": session_id,
+            "type": "step_completed",
+            "step_id": step_id,
+            "skill_id": skill_id,
+            "status": "success" if success else "failed",
+            "duration_ms": duration_ms,
+            "active_latency_alert": duration_ms > 5000,
+            "cost_alert": cost_alert,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+        for cb in self.telemetry_callbacks:
+            try:
+                cb(session_id, end_event)
+            except Exception:
+                pass
 
         async with lock:
             if success:

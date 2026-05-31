@@ -194,10 +194,14 @@ async def rate_limiting_middleware(request: Request, call_next):
                 budget = active_acc.get("token_budget", -1)
                 used = active_acc.get("tokens_used", 0)
                 if budget != -1 and used >= budget:
-                    return JSONResponse(
-                        status_code=429,
-                        content={"detail": f"Token budget exceeded for account '{active_acc['id']}' and no fallback accounts are under budget."}
-                    )
+                    # Attempt instant dynamic failover swapping
+                    if am.swap_to_fallback() is True:
+                        active_acc = am.get_active_account()
+                    else:
+                        return JSONResponse(
+                            status_code=429,
+                            content={"detail": f"Token budget exceeded for account '{active_acc['id']}' and no fallback accounts are under budget."}
+                        )
         except Exception:
             pass
             
@@ -274,10 +278,14 @@ def ensure_llm_configured() -> None:
             budget = active_acc.get("token_budget", -1)
             used = active_acc.get("tokens_used", 0)
             if budget != -1 and used >= budget:
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Token budget exceeded for account '{active_acc['id']}' and no fallback accounts are under budget."
-                )
+                # Attempt instant dynamic failover swapping
+                if am.swap_to_fallback() is True:
+                    active_acc = am.get_active_account()
+                else:
+                    raise HTTPException(
+                        status_code=429,
+                        detail=f"Token budget exceeded for account '{active_acc['id']}' and no fallback accounts are under budget."
+                    )
             api_key = am.resolve_api_key(active_acc)
             if api_key:
                 return
@@ -388,11 +396,34 @@ class DashboardConnectionManager:
             
             # Apply Auditor Billing filters and token metrics
             elif role == "auditor":
+                # Preserve pre-injected event telemetry alerts
+                existing_telemetry = event.get("telemetry") or {}
+                if not isinstance(existing_telemetry, dict):
+                    existing_telemetry = {}
+                
+                # Check for active warning telemetry flags in either root or nested dict
+                duration = event.get("duration_ms") or existing_telemetry.get("duration_ms", 250)
+                
+                latency_alert = (
+                    event.get("active_latency_alert")
+                    or existing_telemetry.get("active_latency_alert")
+                    or (duration > 2000)
+                )
+                cost_alert = (
+                    event.get("cost_alert")
+                    or existing_telemetry.get("cost_alert")
+                    or False
+                )
+                
+                # Coalesce into final structure
                 filtered_event["telemetry"] = {
-                    "token_used": event.get("token_used", 150),
-                    "duration_ms": event.get("duration_ms", 250),
-                    "active_latency_alert": event.get("duration_ms", 0) > 2000
+                    "token_used": event.get("token_used") or existing_telemetry.get("token_used", 150),
+                    "duration_ms": duration,
+                    "active_latency_alert": latency_alert,
+                    **existing_telemetry
                 }
+                if cost_alert:
+                    filtered_event["telemetry"]["cost_alert"] = cost_alert
             
             try:
                 await websocket.send_json(filtered_event)
@@ -782,3 +813,20 @@ async def get_active_account() -> dict[str, Any]:
     if not acc:
         raise HTTPException(status_code=404, detail="No active account configured")
     return acc
+
+
+# Decoupled Global Observer/Broadcaster Pattern
+def handle_telemetry_broadcast(session_id: str, event: dict[str, Any]):
+    try:
+        loop = asyncio.get_running_loop()
+        loop.create_task(dashboard_manager.broadcast(session_id, event))
+    except RuntimeError:
+        pass
+
+try:
+    from core.discussion_room import DiscussionRoom
+    from core.workflow_engine import WorkflowEngine
+    DiscussionRoom.register_callback(handle_telemetry_broadcast)
+    WorkflowEngine.register_callback(handle_telemetry_broadcast)
+except ImportError:
+    pass
