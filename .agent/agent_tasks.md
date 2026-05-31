@@ -31,16 +31,16 @@
 ## 🏢 PHASE 17 — Advanced Swarm Context Auto-Minimizer & Dynamic Dejunking Engine / 進階群落上下文自動最小化與動態去雜質引擎
 
 ### 17-01 Auto-Pruning Dejunking Engine
-- [ ] Implement `ContextMinimizer` inside `LogCompactor` or as a core utility / 在 `LogCompactor` 或核心工具集中實作 `ContextMinimizer` 引擎
-- [ ] Automatically detect and delete obsolete manual scripts, transient `.tmp` files, and unused transition files (`handoff.md`, etc.) inside active workspace boundaries / 自動偵測並清除執行路徑中的手動殘留腳本、暫存檔與轉接手冊
-- [ ] Enforce safety boundaries to ensure zero deletion of core engine, tests, schemas, or config assets / 確保核心代碼、測試套件、合約架構與系統配置之絕對安全
+- [x] Implement `ContextMinimizer` inside `LogCompactor` or as a core utility / 在 `LogCompactor` 或核心工具集中實作 `ContextMinimizer` 引擎
+- [x] Automatically detect and delete obsolete manual scripts, transient `.tmp` files, and unused transition files (`handoff.md`, etc.) inside active workspace boundaries / 自動偵測並清除執行路徑中的手動殘留腳本、暫存檔與轉接手冊
+- [x] Enforce safety boundaries to ensure zero deletion of core engine, tests, schemas, or config assets / 確保核心代碼、測試套件、合約架構與系統配置之絕對安全
 
 ---
 
 ### 17-02 Self-Evolving Task Queue Compact Sweeps
-- [ ] Implement automated regex-based compaction for `agent_tasks.md` / 實作自動化正則表達式壓縮 `agent_tasks.md` 歷史任務
-- [ ] Automatically collapse completed tasks and phases into high-level summarized markdown headers when completed tasks count exceeds threshold / 當完成任務數量超標時自動將舊階段合併歸檔
-- [ ] Write integration test coverage validating successful automatic compaction runs / 撰寫單元測試驗證自動壓縮機制
+- [x] Implement automated regex-based compaction for `agent_tasks.md` / 實作自動化正則表達式壓縮 `agent_tasks.md` 歷史任務
+- [x] Automatically collapse completed tasks and phases into high-level summarized markdown headers when completed tasks count exceeds threshold / 當完成任務數量超標時自動將舊階段合併歸檔
+- [x] Write integration test coverage validating successful automatic compaction runs / 撰寫單元測試驗證自動壓縮機制
 
 ---
 
@@ -49,6 +49,6 @@
 | Phase | Total Tasks | Completed Tasks | Status |
 |---|---|---|---|
 | **Phase 0 - 16** | 52 tasks | 52 tasks | 100% Done |
-| **Phase 17** | 2 tasks | 0 tasks | 0% Pending |
+| **Phase 17** | 2 tasks | 2 tasks | 100% Done |
 
 *This queue is managed dynamically by the active LAS Developer Agent. All task updates, outcome logs, and progress status updates are written directly to this file before turn conclusion.*

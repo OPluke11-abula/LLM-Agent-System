@@ -635,6 +635,19 @@ class WorkflowEngine:
         self.save_state(state)
         logger.info("Workflow '%s' completed successfully (session: %s)", workflow_id, session_id)
         
+        # Trigger automated task queue compaction sweep dynamically upon success
+        try:
+            from core.log_compactor import LogCompactor
+            LogCompactor.compact_task_queue(self.workspace_path)
+        except ImportError:
+            try:
+                from agent_workspace.core.log_compactor import LogCompactor
+                LogCompactor.compact_task_queue(self.workspace_path)
+            except Exception as e:
+                logger.error("Failed to run task queue compaction: %s", e)
+        except Exception as e:
+            logger.error("Failed to run task queue compaction: %s", e)
+        
         # Return summary of final step outputs
         return {
             step_id: step.output for step_id, step in state.steps.items() if step.status == "success"
