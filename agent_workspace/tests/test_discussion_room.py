@@ -236,13 +236,13 @@ async def test_dynamic_role_guide_injection(mock_debate_env):
         # Alice (dev) should have Dynamic Dev Persona and Elite Programmer Guide Rules
         dev_prompt = captured_prompts[0]
         assert "Dynamic Dev Persona" in dev_prompt
-        assert "SYSTEM SELF-LEARNING DIRECTIVES" in dev_prompt
+        assert "## 🎓 SYSTEM SELF-LEARNING DIRECTIVES (Auto-Learned Best Practices):" in dev_prompt
         assert "Elite Programmer Guide Rules" in dev_prompt
         
         # Bob (qa) should have Dynamic QA Persona and Strict QA Guide Rules
         qa_prompt = captured_prompts[1]
         assert "Dynamic QA Persona" in qa_prompt
-        assert "SYSTEM SELF-LEARNING DIRECTIVES" in qa_prompt
+        assert "## 🎓 SYSTEM SELF-LEARNING DIRECTIVES (Auto-Learned Best Practices):" in qa_prompt
         assert "Strict QA Guide Rules" in qa_prompt
 
 
@@ -279,7 +279,7 @@ async def test_dynamic_role_fallback_and_scaffolding(mock_debate_env):
         assert "You are a strict QA Auditor Agent" in qa_prompt
         
         # Should automatically scaffold and append QA guide
-        assert "SYSTEM SELF-LEARNING DIRECTIVES" in qa_prompt
+        assert "## 🎓 SYSTEM SELF-LEARNING DIRECTIVES (Auto-Learned Best Practices):" in qa_prompt
         assert "Strict QA Auditor Learning Guide" in qa_prompt
         assert "automated validation gates" in qa_prompt
 

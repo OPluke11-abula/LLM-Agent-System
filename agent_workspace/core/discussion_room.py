@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 try:
@@ -84,7 +85,7 @@ class DiscussionRoom:
             try:
                 content = guide_path.read_text(encoding="utf-8").strip()
                 if content:
-                    system_prompt += f"\n\n## SYSTEM SELF-LEARNING DIRECTIVES:\n{content}"
+                    system_prompt += f"\n\n## 🎓 SYSTEM SELF-LEARNING DIRECTIVES (Auto-Learned Best Practices):\n{content}"
             except Exception as e:
                 logger.error(f"Failed to read learning guide at {guide_path}: {e}")
                 
@@ -92,6 +93,15 @@ class DiscussionRoom:
 
     def _resolve_agent_provider(self, account_id: str | None = None) -> tuple[BaseLLMProvider, dict[str, Any], str]:
         """Resolve LLM provider, configuration, and account ID."""
+        # Apply dynamic .agent detection logic (from L-20260531-001) to locate the contract folder
+        path_check = Path(self.workspace_path)
+        if (path_check / ".agent").is_dir():
+            project_root = path_check
+        elif (path_check.parent / ".agent").is_dir():
+            project_root = path_check.parent
+        else:
+            project_root = path_check.parent
+
         account = None
         if account_id:
             account = self.account_manager.get_account(account_id)
