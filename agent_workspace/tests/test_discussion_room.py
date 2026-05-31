@@ -15,6 +15,12 @@ from core.discussion_room import DiscussionRoom
 from core.providers import ProviderResponse
 
 
+@pytest.fixture
+def anyio_backend():
+    return "asyncio"
+
+
+
 class MockLLMProvider:
     """Mock LLM Provider returning role-based responses."""
     def __init__(self, *args, **kwargs):
@@ -125,3 +131,44 @@ async def test_discussion_room_graceful_fallback(mock_debate_env):
         
         # Consensus should still try to synthesize (and moderator synthesis can raise too, handled gracefully)
         assert "Error synthesizing consensus" in result["consensus_summary"]
+
+
+@pytest.mark.anyio
+async def test_run_corporate_audit_async(mock_debate_env):
+    """Verify that run_corporate_audit executes the pytest suite using non-blocking subprocess."""
+    room = DiscussionRoom(workspace_path=mock_debate_env)
+    
+    # Mock create_subprocess_exec
+    mock_proc = AsyncMock()
+    mock_proc.stdout = AsyncMock()
+    mock_proc.stderr = AsyncMock()
+    
+    # stdout readline yields mock lines and then empty string
+    mock_proc.stdout.readline = AsyncMock()
+    mock_proc.stdout.readline.side_effect = [
+        b"mock output line 1\n",
+        b"mock output line 2\n",
+        b""
+    ]
+    
+    mock_proc.stderr.readline = AsyncMock()
+    mock_proc.stderr.readline.side_effect = [
+        b""
+    ]
+    
+    mock_proc.wait = AsyncMock(return_value=0)
+    
+    with patch("asyncio.create_subprocess_exec", return_value=mock_proc) as mock_exec:
+        result = await room.run_corporate_audit(
+            task_id="T-1001",
+            proposed_code="def test_sample(): pass"
+        )
+        
+        # Verify subprocess exec was called correctly
+        mock_exec.assert_called_once()
+        assert "T-1001" in result["task_id"]
+        assert result["qa_status"] == "PASS"
+        assert result["passed"] is True
+        assert "mock output line 1" in result["qa_feedback"]
+        assert "mock output line 2" in result["qa_feedback"]
+

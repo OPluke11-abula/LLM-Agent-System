@@ -46,3 +46,27 @@ class LogCompactor:
             "compacted_count": compacted_count,
             "reduction_ratio": 0.80 if total_original_lines > 0 else 0.0
         }
+
+    @staticmethod
+    def estimate_tokens(text: str) -> int:
+        """Fast character-based token estimation algorithm (1 token ≈ 4 characters)."""
+        if not text:
+            return 0
+        return len(text) // 4
+
+    @staticmethod
+    def compact_if_large(tasks_dict: Dict[str, Any], project_root: str, session_id: str, threshold: int = 8000) -> Dict[str, Any] | None:
+        """
+        Dynamically sweeps and compacts task logs if the total estimated token count 
+        of active logs in tasks_dict exceeds the threshold (e.g., 8,000 tokens).
+        """
+        total_tokens = 0
+        for task in tasks_dict.values():
+            for log_line in task.logs:
+                total_tokens += LogCompactor.estimate_tokens(log_line)
+                
+        if total_tokens > threshold:
+            # Trigger compaction sweep
+            return LogCompactor.compact_milestone(tasks_dict, project_root, f"dynamic_{session_id}")
+        return None
+

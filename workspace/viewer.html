@@ -793,6 +793,16 @@
         document.getElementById('project-desc').textContent = data.project_desc || 'No description provided.';
         
         renderTopology(data.tasks);
+
+        // Parse session_id and role from URL path and apply (Task 14-03)
+        const pathParts = window.location.pathname.split('/');
+        if (pathParts.length >= 5 && pathParts[2] === 'dashboard') {
+          const pathRole = pathParts[4];
+          if (pathRole) {
+            switchDashboardView(pathRole);
+          }
+        }
+
         connectRealTime();
       } catch (e) {
         console.error(e);
@@ -802,6 +812,11 @@
       // Pre-fetch tools list in background
       fetchTools();
       updateAuditorDashboard();
+
+      // Handle locale settings from query parameter (Task 14-03)
+      const urlParams = new URLSearchParams(window.location.search);
+      const lang = urlParams.get('lang') || 'en';
+      document.documentElement.setAttribute('lang', lang);
     }
 
     function renderTopology(tasks) {
@@ -1215,7 +1230,19 @@
     // ----------------------------------------------------
     
     function connectRealTime() {
-      const wsUrl = 'ws://localhost:8000/v1/stream';
+      const pathParts = window.location.pathname.split('/');
+      let pathSessionId = null;
+      let pathRole = null;
+      if (pathParts.length >= 5 && pathParts[2] === 'dashboard') {
+        pathSessionId = pathParts[3];
+        pathRole = pathParts[4];
+      }
+
+      let wsUrl = 'ws://localhost:8000/v1/stream';
+      if (pathSessionId && pathRole) {
+        wsUrl = `ws://localhost:8000/v1/dashboard/${pathSessionId}/${pathRole}`;
+      }
+      
       const ws = new WebSocket(wsUrl);
       
       ws.onmessage = (event) => {

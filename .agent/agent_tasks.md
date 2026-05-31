@@ -513,6 +513,76 @@ depends  : 11-01, 11-03
 
 ---
 
+---
+
+## 🏢 PHASE 13 — Enterprise scale, Concurrency Tuning, and Observability / 企業級併發微調與串流觀測
+
+### 13-01 Asynchronous Non-Blocking Subprocess Audit Gate
+- [x] Refactor `DiscussionRoom.run_corporate_audit` to run automated testing suites using `asyncio.create_subprocess_exec` / 重構 `run_corporate_audit` 使用非阻塞的非同步子程序執行測試套件
+- [x] Implement live chunk-by-chunk log streaming of pytest outputs through WebSocket adapters / 實作 WebSocket 適配器即時串流 pytest 測試進度日誌
+- [x] Write asynchronous integration tests in `tests/test_discussion_room.py` verifying non-blocking execution under simultaneous swarm debates / 在 `test_discussion_room.py` 中撰寫非同步整合測試，驗證併發辯論下的非阻塞執行
+
+---
+
+### 13-02 SQLite Database Transaction Queue & isolation level
+- [x] Implement an asynchronous write transaction queue in `MemoryBackend` inside `agent_workspace/memory_backends.py` / 在 `memory_backends.py` 中實作非同步寫入事務佇列
+- [x] Configure database connections with strict `isolation_level="IMMEDIATE"` and concurrency write locks / 設定資料庫連接使用 `isolation_level="IMMEDIATE"` 與寫入鎖定保護
+- [x] Write high-concurrency simulation test suite spawning 20+ parallel write threads to verify zero lock failures / 撰寫高併發模擬測試套件同時啟動 20 個以上寫入執行緒，驗證資料庫鎖定零錯誤
+
+---
+
+### 13-03 API Endpoints & Streaming Test Coverage
+- [x] Create `agent_workspace/tests/test_api.py` and `test_topology_stream.py` / 建立 REST API 與串流引擎單元測試套件
+- [x] Implement full mock clients for FastAPI HTTP endpoints and WebSocket streaming connections / 實作 FastAPI 端點與 WebSocket 串流的 Mock 測試客戶端
+- [x] Drive total system statement coverage past the 75% benchmark / 推動全系統程式碼涵蓋率超越 75% 門檻
+
+---
+
+### 13-04 Multi-Dashboard Room Switcher & Token Billing Stream
+- [x] Implement room-based multi-client message broadcasting inside `api.py` stream adapters / 在 `api.py` 串流適配器中實作基於房間的多客戶端廣播機制
+- [x] Support dynamic streaming filters depending on active role perspective (CEO Strategy, Developer Terminal, Auditor Billing) / 支援依據所選視角（CEO 戰略、開發者終端、審計計費）進行動態即時資料過濾
+- [x] Broadcast cumulative token cost charts and active latency alerts in real-time / 即時廣播累計 token 成本圖表與運行延遲警報
+
+---
+
+### 13-05 Token-Aware Dynamic Compaction & Locale Validation
+- [x] Implement local token counting inside `log_compactor.py` using a fast estimation algorithm / 在 `log_compactor.py` 中實作基於快速估算演算法的 local token 計數器
+- [x] Trigger log compaction sweeps dynamically when task log history exceeds 8,000 tokens / 當任務執行日誌超出 8,000 tokens 時，動態觸發日誌里程碑壓縮機制
+- [x] Validate correct multi-language system prompt assembly under French, Japanese, and Traditional Chinese locales / 驗證法文、日文與繁體中文語系下系統提示詞合成 of 正確性
+
+---
+
+## 🌐 PHASE 14 — Production Deployment, Federated Sync, and Edge Executables / 生產環境部署、聯邦同步與邊緣可執行檔
+
+### 14-01 Multi-Agent Production Dockerization
+- [x] Create multi-stage production Dockerfile in root / 在根目錄建立多階段生產 Dockerfile
+- [x] Create docker-compose.yml defining FastAPI backend, Nginx frontend, and persistent volumes / 建立 docker-compose.yml 定義後端、前端 Nginx 與持久化磁碟卷
+- [x] Configure robust container health check against /v1/health / 設定容器健康檢查
+
+---
+
+### 14-02 Federated Lessons Learned Sync
+- [x] Create agent_workspace/core/federated_sync.py implementing FederatedSyncEngine / 實作 FederatedSyncEngine 聯邦經驗同步引擎
+- [x] Scan decentralized JSON files and aggregate episodic failure records / 掃描去中心化 JSON 並聚合錯誤記錄
+- [x] Extract and merge signatures to lessons_learned.md, preventing duplicate signature conflict / 合併至學習日誌並防止重複衝突
+- [x] Write test_federated_sync.py and run pytest asserting zero conflicts / 撰寫單元測試驗證零衝突
+
+---
+
+### 14-03 Electron/Tauri Multi-Window Dashboard Controller
+- [x] Update tauri.conf.json to declare ceo-window, dev-window, and auditor-window / 聲明三個專屬的邊緣視窗配置
+- [x] Expose Rust Tauri commands in lib.rs for dynamic dashboard routing / 在 lib.rs 中暴露 Rust 視窗跳轉命令
+- [x] Update viewer.html and router to parse role/session and support locales / 更新 viewer.html 以解析參數並支援多國語言
+
+---
+
+### 14-04 Advanced API Rate Limiting & Token Budget Middleware
+- [x] Implement sliding-window rate-limiting in api.py / 實作滑動窗口限流中介軟體
+- [x] Intercept active account token budget and block with HTTP 429 once exceeded / 超過 active 帳戶額度時阻斷後續請求並回傳 429
+- [x] Write test coverage validating rate-limiting and budget exhaustion failovers in test_api.py / 撰寫 API 額度超限與限流單元測試
+
+---
+
 ## 📈 Queue Summary & Progress
 
 | Phase | Total Tasks | Completed Tasks | Status |
@@ -530,7 +600,10 @@ depends  : 11-01, 11-03
 | **Phase 10: UI/UX & Executable** | 4 tasks | 4 tasks | 100% Done |
 | **Phase 11: Agent Company** | 3 tasks | 3 tasks | 100% Done |
 | **Phase 12: LAS Evolution** | 5 tasks | 5 tasks | 100% Done |
+| **Phase 13: Concurrency & Observability** | 5 tasks | 5 tasks | 100% Done |
+| **Phase 14: Production & Federated Sync** | 4 tasks | 4 tasks | 100% Done |
 
 *This queue is managed dynamically by the active LAS Developer Agent. All task updates, outcome logs, and progress status updates are written directly to this file before turn conclusion.*
+
 ```
 

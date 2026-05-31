@@ -207,25 +207,51 @@ Format the summary nicely in Markdown."""
         # 1. Dev Agent (Programmer) produces the code review submission
         dev_note = f"Dev Agent submitted code review for Task {task_id}:\n```python\n{proposed_code}\n```"
         
-        # 2. QA Agent (Auditor) executes automated testing suite in the workspace
-        import subprocess
-        logger.info("QA Agent executing automated validation gate using pytest...")
+        # 2. QA Agent (Auditor) executes automated testing suite in the workspace asynchronously
+        import asyncio
+        import sys
+        logger.info("QA Agent executing automated validation gate using pytest asynchronously...")
         
-        result = subprocess.run(
-            ["python", "-m", "pytest"],
-            capture_output=True,
-            text=True,
+        # Use current python executable to guarantee we use the correct environment
+        python_exe = sys.executable or "python"
+        
+        proc = await asyncio.create_subprocess_exec(
+            python_exe, "-m", "pytest",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
             cwd=self.workspace_path
         )
         
-        test_passed = (result.returncode == 0)
+        stdout_chunks = []
+        stderr_chunks = []
+        
+        async def read_stream(stream, chunks, log_prefix):
+            while True:
+                line = await stream.readline()
+                if not line:
+                    break
+                decoded = line.decode("utf-8", errors="replace")
+                chunks.append(decoded)
+                logger.info("%s: %s", log_prefix, decoded.strip())
+                
+        await asyncio.gather(
+            read_stream(proc.stdout, stdout_chunks, "[QA pytest STDOUT]"),
+            read_stream(proc.stderr, stderr_chunks, "[QA pytest STDERR]")
+        )
+        
+        returncode = await proc.wait()
+        
+        stdout_str = "".join(stdout_chunks)
+        stderr_str = "".join(stderr_chunks)
+        
+        test_passed = (returncode == 0)
         qa_status = "PASS" if test_passed else "FAIL"
         
         qa_feedback = f"""[QA Auditor Report] Task ID: {task_id}
 Status: {qa_status}
-Exit Code: {result.returncode}
-Stdout: {result.stdout[:500]}
-Stderr: {result.stderr[:500]}
+Exit Code: {returncode}
+Stdout: {stdout_str[:500]}
+Stderr: {stderr_str[:500]}
 """
         
         # 3. CFO Agent logs token cost and audits total financial allocation

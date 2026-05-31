@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: las-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    volumes:
+      # Persistent volume bindings for database, workflows, memory, and workspace logs
+      - agent_data:/app/.agent
+      - memory_data:/app/agent_workspace/memory
+      - workspace_data:/app/workspace
+    restart: always
+
+  frontend:
+    image: nginx:alpine
+    container_name: las-frontend
+    ports:
+      - "8080:8080"
+    volumes:
+      # Mount nginx configuration and compiled frontend directory
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./viewer/dist:/usr/share/nginx/html:ro
+      # Fallback mount workspace folder to serve viewer.html directly
+      - ./workspace/viewer.html:/usr/share/nginx/html/viewer.html:ro
+    depends_on:
+      - backend
+    restart: always
+
+volumes:
+  agent_data:
+  memory_data:
+  workspace_data:

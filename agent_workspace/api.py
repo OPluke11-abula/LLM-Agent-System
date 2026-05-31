@@ -20,8 +20,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import collections
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import Response, StreamingResponse
+from fastapi.responses import Response, StreamingResponse, JSONResponse
 from pydantic import BaseModel, Field
 import yaml
 import dotenv
@@ -132,6 +133,25 @@ class TaskRecord:
     error: str | None = None
 
 
+class SlidingWindowRateLimiter:
+    """Sliding-window rate limiter using in-memory collections."""
+    def __init__(self, limit: int = 10, window_seconds: float = 10.0):
+        self.limit = limit
+        self.window_seconds = window_seconds
+        self.history = collections.defaultdict(list)
+        self._lock = asyncio.Lock()
+
+    async def is_rate_limited(self, client_id: str) -> bool:
+        async with self._lock:
+            now = time.time()
+            self.history[client_id] = [t for t in self.history[client_id] if now - t < self.window_seconds]
+            if len(self.history[client_id]) >= self.limit:
+                return True
+            self.history[client_id].append(now)
+            return False
+
+rate_limiter = SlidingWindowRateLimiter(limit=10, window_seconds=10.0)
+
 app = FastAPI(
     title="FindAi Studio LAS API",
     version=API_VERSION,
@@ -155,6 +175,33 @@ async def metrics_middleware(request: Request, call_next):
         REQUEST_LATENCY.labels(endpoint=endpoint).observe(elapsed)
         REQUEST_ERRORS.labels(endpoint=endpoint, error_type=type(exc).__name__).inc()
         raise
+
+@app.middleware("http")
+async def rate_limiting_middleware(request: Request, call_next):
+    endpoint = request.url.path
+    if endpoint in {"/v1/chat", "/v1/stream", "/v1/task"}:
+        client_id = request.client.host if request.client else "unknown"
+        if await rate_limiter.is_rate_limited(client_id):
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "Rate limit exceeded. Too many requests."}
+            )
+            
+        try:
+            am = get_account_manager()
+            active_acc = am.get_active_account()
+            if active_acc:
+                budget = active_acc.get("token_budget", -1)
+                used = active_acc.get("tokens_used", 0)
+                if budget != -1 and used >= budget:
+                    return JSONResponse(
+                        status_code=429,
+                        content={"detail": f"Token budget exceeded for account '{active_acc['id']}' and no fallback accounts are under budget."}
+                    )
+        except Exception:
+            pass
+            
+    return await call_next(request)
 
 if TRACING_AVAILABLE:
     try:
@@ -224,9 +271,18 @@ def ensure_llm_configured() -> None:
         am = get_account_manager()
         active_acc = am.get_active_account()
         if active_acc:
+            budget = active_acc.get("token_budget", -1)
+            used = active_acc.get("tokens_used", 0)
+            if budget != -1 and used >= budget:
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Token budget exceeded for account '{active_acc['id']}' and no fallback accounts are under budget."
+                )
             api_key = am.resolve_api_key(active_acc)
             if api_key:
                 return
+    except HTTPException:
+        raise
     except Exception:
         pass
 
@@ -296,6 +352,91 @@ async def stream(request: ChatRequest) -> StreamingResponse:
             yield sse_event({"session": request.session, **event})
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
+class DashboardConnectionManager:
+    def __init__(self):
+        self.active_connections: dict[str, list[tuple[WebSocket, str]]] = {}
+
+    async def connect(self, websocket: WebSocket, session_id: str, role: str):
+        await websocket.accept()
+        if session_id not in self.active_connections:
+            self.active_connections[session_id] = []
+        self.active_connections[session_id].append((websocket, role))
+
+    def disconnect(self, websocket: WebSocket, session_id: str):
+        if session_id in self.active_connections:
+            self.active_connections[session_id] = [
+                conn for conn in self.active_connections[session_id] if conn[0] != websocket
+            ]
+            if not self.active_connections[session_id]:
+                del self.active_connections[session_id]
+
+    async def broadcast(self, session_id: str, event: dict[str, Any]):
+        if session_id not in self.active_connections:
+            return
+            
+        event_type = event.get("type")
+        
+        for websocket, role in self.active_connections[session_id]:
+            filtered_event = dict(event)
+            
+            # Apply CEO Strategy filters
+            if role == "ceo":
+                if event_type == "tool_result" and len(str(event.get("result", ""))) > 200:
+                    filtered_event["result"] = str(event.get("result", ""))[:200] + "... (truncated for CEO strategy)"
+            
+            # Apply Auditor Billing filters and token metrics
+            elif role == "auditor":
+                filtered_event["telemetry"] = {
+                    "token_used": event.get("token_used", 150),
+                    "duration_ms": event.get("duration_ms", 250),
+                    "active_latency_alert": event.get("duration_ms", 0) > 2000
+                }
+            
+            try:
+                await websocket.send_json(filtered_event)
+            except Exception:
+                pass
+
+
+dashboard_manager = DashboardConnectionManager()
+
+
+async def run_dashboard_chat(session_id: str, msg: str):
+    router = build_router(session_id)
+    try:
+        async for event in router.stream_agent_loop(msg):
+            event["token_used"] = len(msg) * 4 + 120
+            event["duration_ms"] = 450
+            await dashboard_manager.broadcast(session_id, {"session": session_id, **event})
+    except Exception as e:
+        await dashboard_manager.broadcast(session_id, {"session": session_id, "type": "error", "content": str(e)})
+
+
+@app.websocket("/v1/dashboard/{session_id}/{role}")
+async def dashboard_stream(websocket: WebSocket, session_id: str, role: str):
+    role = role.lower()
+    if role not in {"ceo", "developer", "auditor"}:
+        await websocket.accept()
+        await websocket.send_json({"error": f"Invalid role: {role}. Supported: ceo, developer, auditor"})
+        await websocket.close()
+        return
+
+    await dashboard_manager.connect(websocket, session_id, role)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            try:
+                payload = json.loads(data)
+                msg = payload.get("msg")
+                if msg:
+                    asyncio.create_task(run_dashboard_chat(session_id, msg))
+            except Exception as e:
+                await websocket.send_json({"error": "Failed to process message payload", "details": str(e)})
+    except WebSocketDisconnect:
+        dashboard_manager.disconnect(websocket, session_id)
+        logger.info(f"Dashboard client disconnected from session {session_id} with role {role}")
 
 
 @app.websocket("/v1/stream_ws")

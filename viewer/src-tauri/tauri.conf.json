@@ -12,9 +12,31 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "AI Agent Topology Viewer",
         "width": 1400,
         "height": 900
+      },
+      {
+        "label": "ceo-window",
+        "title": "CEO Strategy Dashboard",
+        "width": 1000,
+        "height": 700,
+        "visible": false
+      },
+      {
+        "label": "dev-window",
+        "title": "Developer Terminal Dashboard",
+        "width": 1000,
+        "height": 700,
+        "visible": false
+      },
+      {
+        "label": "auditor-window",
+        "title": "Auditor Billing Dashboard",
+        "width": 1000,
+        "height": 700,
+        "visible": false
       }
     ],
     "security": {

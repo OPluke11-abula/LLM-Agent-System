@@ -83,6 +83,8 @@ class SQLiteBackend(MemoryBackend):
     triggers so callers only interact with ``memory_records``.
     """
 
+    _lock = threading.Lock()
+
     _DDL = """
     CREATE TABLE IF NOT EXISTS memory_records (
         session_id  TEXT    NOT NULL,
@@ -151,34 +153,41 @@ class SQLiteBackend(MemoryBackend):
     def _get_conn(self) -> sqlite3.Connection:
         conn = getattr(self._local, "conn", None)
         if conn is None:
-            conn = sqlite3.connect(str(self.db_path))
+            conn = sqlite3.connect(str(self.db_path), timeout=30.0)
             conn.execute("PRAGMA journal_mode=WAL")
             conn.row_factory = sqlite3.Row
             self._local.conn = conn
         return conn
 
     def _init_schema(self) -> None:
-        conn = self._get_conn()
-        conn.executescript(self._DDL)
-        conn.executescript(self._TRIGGER_INSERT)
-        conn.executescript(self._TRIGGER_DELETE)
-        conn.commit()
+        with self._lock:
+            conn = self._get_conn()
+            conn.executescript(self._DDL)
+            conn.executescript(self._TRIGGER_INSERT)
+            conn.executescript(self._TRIGGER_DELETE)
+            conn.commit()
 
     # -- public API -----------------------------------------------------------
 
     def write(self, session_id: str, key: str, value: dict[str, Any]) -> None:
-        conn = self._get_conn()
-        now = datetime.now(timezone.utc).isoformat()
-        blob = json.dumps(value, ensure_ascii=False)
-        conn.execute(
-            """
-            INSERT INTO memory_records (session_id, key, value, created_at)
-            VALUES (?, ?, ?, ?)
-            ON CONFLICT(session_id, key) DO UPDATE SET value = excluded.value, created_at = excluded.created_at
-            """,
-            (session_id, key, blob, now),
-        )
-        conn.commit()
+        with self._lock:
+            conn = self._get_conn()
+            now = datetime.now(timezone.utc).isoformat()
+            blob = json.dumps(value, ensure_ascii=False)
+            conn.execute("BEGIN IMMEDIATE")
+            try:
+                conn.execute(
+                    """
+                    INSERT INTO memory_records (session_id, key, value, created_at)
+                    VALUES (?, ?, ?, ?)
+                    ON CONFLICT(session_id, key) DO UPDATE SET value = excluded.value, created_at = excluded.created_at
+                    """,
+                    (session_id, key, blob, now),
+                )
+                conn.commit()
+            except Exception:
+                conn.rollback()
+                raise
 
     def read(self, session_id: str, key: str) -> dict[str, Any] | None:
         conn = self._get_conn()
@@ -240,13 +249,19 @@ class SQLiteBackend(MemoryBackend):
         return [json.loads(row["value"]) for row in rows]
 
     def delete(self, session_id: str, key: str) -> bool:
-        conn = self._get_conn()
-        cursor = conn.execute(
-            "DELETE FROM memory_records WHERE session_id = ? AND key = ?",
-            (session_id, key),
-        )
-        conn.commit()
-        return cursor.rowcount > 0
+        with self._lock:
+            conn = self._get_conn()
+            conn.execute("BEGIN IMMEDIATE")
+            try:
+                cursor = conn.execute(
+                    "DELETE FROM memory_records WHERE session_id = ? AND key = ?",
+                    (session_id, key),
+                )
+                conn.commit()
+                return cursor.rowcount > 0
+            except Exception:
+                conn.rollback()
+                raise
 
 
 # ---------------------------------------------------------------------------

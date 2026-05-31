@@ -190,6 +190,27 @@ fn save_workspace_file(path: String, filename: String, content: String) -> Resul
     fs::write(dir.join(filename), content).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn open_dashboard_window(app_handle: AppHandle, session_id: String, role: String) -> Result<(), String> {
+    use tauri::Manager;
+    let label = format!("{}-window", role.to_lowercase());
+    let url_str = format!("http://localhost:8000/v1/dashboard/{}/{}", session_id, role.to_lowercase());
+    let url = tauri::Url::parse(&url_str).map_err(|e| e.to_string())?;
+
+    if let Some(window) = app_handle.get_webview_window(&label) {
+        window.navigate(url).map_err(|e| e.to_string())?;
+        window.show().map_err(|e| e.to_string())?;
+        window.set_focus().map_err(|e| e.to_string())?;
+    } else {
+        tauri::WebviewWindowBuilder::new(&app_handle, &label, tauri::WebviewUrl::External(url))
+            .title(&format!("{} Dashboard", role))
+            .inner_size(1000.0, 700.0)
+            .build()
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -207,6 +228,7 @@ pub fn run() {
             save_agent_memory,
             save_agent_memory_to,
             save_workspace_file,
+            open_dashboard_window,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

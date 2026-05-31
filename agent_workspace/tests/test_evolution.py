@@ -1,10 +1,22 @@
 import os
+import sys
 import json
 import shutil
 import pytest
 import asyncio
 from unittest.mock import MagicMock
 from pathlib import Path
+
+# Add project root parent to sys.path to support agent_workspace.* imports
+test_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(test_dir))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+# Also add agent_workspace directory for direct core.* imports
+workspace_dir = os.path.dirname(test_dir)
+if workspace_dir not in sys.path:
+    sys.path.insert(0, workspace_dir)
+
 from agent_workspace.core.log_compactor import LogCompactor
 from agent_workspace.core.prompt_composer import PromptComposer
 from agent_workspace.skills.tool_workspace import TaskNode, WorkspaceManager
@@ -138,3 +150,63 @@ steps:
     assert res["step_1"]["status"] == "ok"
     assert res["step_2"]["status"] == "ok"
     assert res["step_3"]["status"] == "ok"
+
+
+def test_dynamic_log_compaction_threshold(temp_project_dir):
+    # Create a task node with logs below threshold
+    task_small = TaskNode("TASK-small", "Small task")
+    task_small.status = "completed"
+    task_small.logs = ["Short log line"]
+    
+    tasks_dict = {"TASK-small": task_small}
+    
+    # Assert compaction is skipped (threshold = 100 estimated tokens)
+    res_skipped = LogCompactor.compact_if_large(tasks_dict, str(temp_project_dir), "session_small", threshold=100)
+    assert res_skipped is None
+    
+    # Create task node with large logs exceeding threshold
+    task_large = TaskNode("TASK-large", "Large task")
+    task_large.status = "completed"
+    task_large.logs = ["a" * 250, "b" * 250] # 500 chars / 4 = 125 estimated tokens
+    
+    tasks_dict_large = {"TASK-large": task_large}
+    
+    # Assert compaction triggers
+    res_triggered = LogCompactor.compact_if_large(tasks_dict_large, str(temp_project_dir), "session_large", threshold=100)
+    assert res_triggered is not None
+    assert res_triggered["compacted_count"] == 1
+
+
+def test_multilanguage_prompt_composer(temp_project_dir):
+    # Write lessons learned with French, Japanese and Traditional Chinese policies
+    lessons_file = temp_project_dir / ".agent" / "knowledge_base" / "lessons_learned.md"
+    lessons_content = """# Lessons Learned Registry
+    - **Best Practice Policy**: Policy in English.
+    - **最佳實踐**: Policy in Traditional Chinese.
+    - **Best Practice**: Policy in Japanese or French.
+    """
+    lessons_file.write_text(lessons_content, encoding="utf-8")
+    
+    prompt_file = temp_project_dir / ".agent" / "prompts" / "translate_test.md"
+    prompt_content = """---
+id: translate_test
+template: "Language Test"
+variables: []
+version: "1.0.0"
+---
+Body
+"""
+    prompt_file.write_text(prompt_content, encoding="utf-8")
+    
+    # Initialize PromptComposer
+    composer = PromptComposer(workspace_path=str(temp_project_dir / "workspace"))
+    composer.project_root = temp_project_dir
+    composer.prompts_dir = temp_project_dir / ".agent" / "prompts"
+    
+    res = composer.build("translate_test", {})
+    
+    # Assert all policy languages are correctly scanned and injected into prompt
+    assert "Policy in English." in res
+    assert "Policy in Traditional Chinese." in res
+    assert "Policy in Japanese or French." in res
+
