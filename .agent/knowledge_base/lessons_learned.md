@@ -60,3 +60,14 @@ This database catalogs engineering resolutions, compile-time errors, and dynamic
       self.project_root = path_check.parent
   ```
 - **Best Practice Policy**: Dynamically inspect parent and current working directories for the presence of the contract-first `.agent` folder before falling back to fixed path traversal logic.
+
+---
+
+### Lesson ID: L-20260531-002 (Context Bloat & File-Based Hallucination Prevention)
+- **Mistake Encountered**: AI agents experiencing hallucinations, thread confusion, or excessive token usage due to an over-bloated workspace context containing obsolete handoff logs, redundant manual scripts, and verbose task master-lists.
+- **Root Cause**: Failure to actively prune completed execution paths and historical tasks from the prompt context, leaving obsolete files (e.g. `handoff.md`, manual `test_*.py` files) inside the active workspace boundaries.
+- **Resolution Actions**:
+  - Automatically prune completed tasks in `agent_tasks.md` by consolidating finished phases into dense, high-level summary logs (reducing token weight by up to 88%).
+  - Ensure immediate removal of obsolete handoff guides and manual scripts that are 100% redundant, keeping only clean automated test suites.
+- **Best Practice Policy**: Maintain a highly optimized, lean context footprint by dynamically compressing past execution logs and purging redundant files to enforce strict state consistency and eliminate AI context noise.
+
