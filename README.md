@@ -5,7 +5,7 @@
 ![GitHub License](https://img.shields.io/badge/license-Elastic%202.0-blueviolet?style=for-the-badge)
 ![Python Version](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.14-blue?style=for-the-badge)
 ![Framework Protocol](https://img.shields.io/badge/protocol-PAP%20v0.1.0-orange?style=for-the-badge)
-![Build Status](https://img.shields.io/badge/tests-110%20passed%20%2F%20100%25%20green-success?style=for-the-badge)
+![Build Status](https://img.shields.io/badge/tests-142%20passed%20%2F%20100%25%20green-success?style=for-the-badge)
 
 ### [English](#-english) | [繁體中文](#-繁體中文)
 
@@ -20,11 +20,13 @@
 >
 > *Natively supports Gemini, Claude 3.5 Sonnet, GPT-4o, and Ollama with zero vendor lock-in.*
 
-LAS is an extremely readable, maintainable, observable, and portable local Agent Runtime with a visual multi-dashboard control-plane. It is built upon three pillars:
+LAS is an extremely readable, maintainable, observable, and portable local Agent Runtime with a visual multi-dashboard control-plane. It is built upon four pillars:
 
 * 🗺️ **Topological Workspace** — A node-based visual control-plane that transforms complex multi-agent sessions into an infinite canvas of interconnected task blocks.
 * 🔏 **Contract-First Handoff** — PAP-compatible `.agent/` workspace contracts that allow humans and AI to safely inspect, verify, and extend the codebase.
 * 🏢 **Agent Corporate Swarm** — Runs role-specialized agents concurrently (CEO, Developer, Auditor) operating collectively like an agile software company.
+* 🧠 **Self-Healing & Self-Evolving Swarm** — Features automated runtime error self-healing, dynamic multi-account failover swapping, dynamic LLM upscaling/downscaling, SQLite FTS5 semantic indexing, runtime dynamic skill discovery & verification, and dynamic event-loop bottleneck self-tuning.
+
 
 ---
 
