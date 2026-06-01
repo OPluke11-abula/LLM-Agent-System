@@ -335,6 +335,7 @@ except ImportError:  # pragma: no cover
 # =========================================================================
 
 import asyncio
+import threading
 from concurrent.futures import ThreadPoolExecutor
 
 _ACTIVE_PROFILER: EventLoopBottleneckProfiler | None = None
@@ -471,4 +472,80 @@ class EventLoopBottleneckProfiler:
                 self.executor._max_workers = new_workers
             for engine in self._engines:
                 engine.max_concurrent_tasks = min(12, engine.max_concurrent_tasks + 1)
+
+
+# =========================================================================
+# 5.  Multi-Agent Dynamic Thread Load Balancer
+# =========================================================================
+
+class ConcurrencyBalancer:
+    """Robust concurrency balancer to schedule and balance thread pool tasks across swarms.
+    
+    Offloads heavy operations to a dedicated worker pool to ensure telemetry and 
+    dashboard websocket updates are never blocked by slow sync operations.
+    """
+
+    def __init__(self, max_heavy_workers: int = 8, max_telemetry_workers: int = 4) -> None:
+        self.heavy_pool = ThreadPoolExecutor(max_workers=max_heavy_workers, thread_name_prefix="balancer-heavy")
+        self.telemetry_pool = ThreadPoolExecutor(max_workers=max_telemetry_workers, thread_name_prefix="balancer-telemetry")
+        self.max_heavy = max_heavy_workers
+        self.max_telemetry = max_telemetry_workers
+        self.active_tasks: dict[str, int] = {"heavy": 0, "telemetry": 0}
+        self._lock = threading.Lock()
+
+    def offload(self, fn: Any, category: str = "heavy", *args: Any, **kwargs: Any) -> Any:
+        """Offload a task to a dedicated thread pool category."""
+        pool = self.heavy_pool if category == "heavy" else self.telemetry_pool
+        
+        with self._lock:
+            self.active_tasks[category] += 1
+        self.balance_loads()
+        
+        def wrapped(*a: Any, **kw: Any) -> Any:
+            try:
+                return fn(*a, **kw)
+            finally:
+                with self._lock:
+                    self.active_tasks[category] = max(0, self.active_tasks[category] - 1)
+                self.balance_loads()
+
+        return pool.submit(wrapped, *args, **kwargs)
+
+    def balance_loads(self) -> None:
+        """Dynamically balance worker allocations based on active task load."""
+        with self._lock:
+            heavy_load = self.active_tasks["heavy"]
+            telemetry_load = self.active_tasks["telemetry"]
+            
+            # If heavy tasks are piling up but telemetry is idle, expand heavy capacity
+            if heavy_load > self.max_heavy and telemetry_load == 0:
+                adjusted_heavy = min(16, self.max_heavy + 4)
+                adjusted_telemetry = max(2, self.max_telemetry - 2)
+                self.heavy_pool._max_workers = adjusted_heavy
+                self.telemetry_pool._max_workers = adjusted_telemetry
+            # If telemetry is loaded but heavy tasks are idle, expand telemetry capacity
+            elif telemetry_load > self.max_telemetry and heavy_load == 0:
+                adjusted_telemetry = min(8, self.max_telemetry + 2)
+                adjusted_heavy = max(4, self.max_heavy - 2)
+                self.heavy_pool._max_workers = adjusted_heavy
+                self.telemetry_pool._max_workers = adjusted_telemetry
+            # Restore defaults
+            else:
+                self.heavy_pool._max_workers = self.max_heavy
+                self.telemetry_pool._max_workers = self.max_telemetry
+
+    def shutdown(self, wait: bool = True) -> None:
+        self.heavy_pool.shutdown(wait=wait)
+        self.telemetry_pool.shutdown(wait=wait)
+
+
+_GLOBAL_BALANCER: ConcurrencyBalancer | None = None
+
+def get_global_balancer() -> ConcurrencyBalancer:
+    """Retrieve the global concurrency balancer instance."""
+    global _GLOBAL_BALANCER
+    if _GLOBAL_BALANCER is None:
+        _GLOBAL_BALANCER = ConcurrencyBalancer()
+    return _GLOBAL_BALANCER
+
 

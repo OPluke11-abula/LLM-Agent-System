@@ -187,6 +187,60 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
   const [visibleSessionIds, setVisibleSessionIds] = useState<string[]>([]);
   const [selectedNode, setSelectedNode] = useState<TopologyEvent | null>(null);
   const [resolving, setResolving] = useState<string | null>(null);
+  const [turnsInfo, setTurnsInfo] = useState<{ turns: number; threshold: number; should_glow: boolean } | null>(null);
+  const [exporting, setExporting] = useState(false);
+
+  const activeSessionId = visibleSessionIds[0] || (sessions[0]?.session_id);
+
+  useEffect(() => {
+    if (!activeSessionId) return;
+    let cancelled = false;
+
+    const fetchTurns = async () => {
+      try {
+        const response = await fetch(`http://localhost:8000/v1/sessions/${activeSessionId}/turns`);
+        if (!response.ok) return;
+        const data = await response.json();
+        if (!cancelled) {
+          setTurnsInfo({
+            turns: data.turns,
+            threshold: data.threshold,
+            should_glow: data.should_glow,
+          });
+        }
+      } catch (e) {
+        console.error("Failed to fetch turns:", e);
+      }
+    };
+
+    fetchTurns();
+    const interval = setInterval(fetchTurns, 4000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [activeSessionId, sessions]);
+
+  const handleHandoff = async () => {
+    if (!activeSessionId) return;
+    setExporting(true);
+    try {
+      const response = await fetch(`http://localhost:8000/v1/sessions/${activeSessionId}/handoff`, {
+        method: "POST",
+      });
+      if (!response.ok) throw new Error("Handoff export failed");
+      const data = await response.json();
+      
+      await navigator.clipboard.writeText(data.prompt);
+      alert(`Successfully exported session state!\nHandoff ID: ${data.handoff_id}\n\nThe English handoff prompt has been copied to your clipboard.`);
+    } catch (e) {
+      console.error(e);
+      alert(`Failed to export handoff: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const handleResolveApproval = async (sessionId: string, approved: boolean) => {
     setResolving(approved ? "approving" : "rejecting");
@@ -255,6 +309,39 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
             </div>
           ))}
         </div>
+        
+        {activeSessionId && (
+          <div className="px-3 pb-3 relative group">
+            <button
+              type="button"
+              disabled={exporting}
+              onClick={handleHandoff}
+              className={`w-full py-2 px-3 rounded-lg border text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+                turnsInfo?.should_glow
+                  ? "glow-gold border-amber-500 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
+                  : "border-slate-700 bg-slate-800/40 text-slate-300 hover:bg-slate-800/80"
+              }`}
+              title={
+                lang === "zh"
+                  ? "對話狀態交接：點選將匯出狀態並複製英文交接提示詞至剪貼簿，以遷移至全新 Thread"
+                  : "Context Handoff & Compaction: Click to export state and copy warm-thread handoff prompt to clipboard"
+              }
+            >
+              {turnsInfo?.should_glow && (
+                <svg className="h-4 w-4 animate-bounce text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              )}
+              {exporting ? "Compacting..." : `Compaction Handoff (${turnsInfo?.turns ?? 0}/${turnsInfo?.threshold ?? 5})`}
+            </button>
+            <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 w-64 -translate-x-1/2 rounded bg-slate-950 px-3 py-2 text-center text-[10px] leading-normal text-slate-300 opacity-0 transition-opacity border border-slate-800 shadow-2xl group-hover:opacity-100">
+              {lang === "zh"
+                ? "點選以執行對話狀態匯出與壓縮。系統將產出包含 handoff_id 的交接提示詞並複製至剪貼簿，以加載全新 thread。"
+                : "Instructs the agent to compact active context and migrate threads. Copies pre-formatted English handoff prompt containing handoff_id to clipboard."}
+            </div>
+          </div>
+        )}
+
         <div className="min-h-0 flex-1 overflow-y-auto p-3">
           <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] t3">{copy.sessions}</p>
           <div className="space-y-2">

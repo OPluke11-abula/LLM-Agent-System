@@ -944,3 +944,56 @@ try:
     WorkflowEngine.register_callback(handle_telemetry_broadcast)
 except ImportError:
     pass
+
+
+@app.get("/v1/sessions/{session_id}/turns")
+@app.get("/v1/session/{session_id}/turns")
+async def get_session_turns(session_id: str) -> dict[str, Any]:
+    engine = get_engine()
+    turns = engine.session_turns.get(session_id, 0)
+    threshold = engine.handoff_threshold
+    return {
+        "session_id": session_id,
+        "turns": turns,
+        "threshold": threshold,
+        "should_glow": turns >= threshold,
+    }
+
+
+@app.post("/v1/sessions/{session_id}/handoff")
+@app.post("/v1/session/{session_id}/handoff")
+async def manual_handoff_export(session_id: str) -> dict[str, Any]:
+    engine = get_engine()
+    memory_dir = os.path.join(engine.workspace_path, "memory")
+    try:
+        from core.router import MemoryManager
+    except ImportError:
+        from agent_workspace.core.router import MemoryManager
+        
+    memory_mgr = MemoryManager(memory_dir, session_id=session_id)
+    recent = memory_mgr.get_recent_context(3)
+    if recent:
+        context_summary = "Recent conversation summary:\n" + "\n".join(
+            f"- User: {c.get('user', '')}\n- Assistant: {c.get('assistant', '')}"
+            for c in recent
+        )
+    else:
+        context_summary = "Manual session state handoff."
+        
+    try:
+        handoff_id = engine.export_handoff(session_id, context_summary)
+        
+        project_root = Path(engine.workspace_path).parent
+        prompt_file = project_root / ".agent" / "memory" / "handoff" / f"{handoff_id}_prompt.md"
+        prompt_content = ""
+        if prompt_file.is_file():
+            prompt_content = prompt_file.read_text(encoding="utf-8")
+            
+        return {
+            "status": "success",
+            "handoff_id": handoff_id,
+            "prompt": prompt_content,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to export handoff: {e}")
+

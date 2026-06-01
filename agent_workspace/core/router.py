@@ -308,13 +308,21 @@ class AgentRouter:
             if not approved:
                 raise ApprovalDeniedError(f"Human approval denied for tool '{tool_name}'")
 
-        return await asyncio.to_thread(
+        try:
+            from observability import get_global_balancer
+        except ImportError:
+            from agent_workspace.observability import get_global_balancer
+
+        balancer = get_global_balancer()
+        future = balancer.offload(
             self.engine.execute_tool,
+            "heavy",
             tool_name,
             tool_args,
             allowed_tools,
             system_context,
         )
+        return await asyncio.wrap_future(future)
 
 
     def _get_pap_dir(self) -> str:
@@ -728,6 +736,9 @@ class AgentRouter:
                 if limit_reached:
                     self._on_memory_limit_reached(self.session_id, self.memory.get_recent_context(20))
 
+                # Increment conversational turn (Task 23-01)
+                self.engine.increment_turns(self.session_id, f"Session turn completed. Input: {user_input[:100]}")
+
                 logger.info(
                     "Agent Loop finished",
                     extra={"session_id": self.session_id, "iterations": iteration},
@@ -1028,6 +1039,9 @@ class AgentRouter:
                 if limit_reached:
                     self._on_memory_limit_reached(self.session_id, self.memory.get_recent_context(20))
                 ACTIVE_SESSIONS.dec()
+
+                # Increment conversational turn (Task 23-01)
+                self.engine.increment_turns(self.session_id, f"Session stream turn completed. Input: {user_input[:100]}")
 
             yield {"type": "done", "content": final_response}
 

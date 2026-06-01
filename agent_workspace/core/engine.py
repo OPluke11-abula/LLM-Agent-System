@@ -69,6 +69,18 @@ class AgentEngine:
         self._discover_tools()
         self._discover_markdown_skills()
 
+        # Session turns and handoff threshold tracking (Task 23-01)
+        self.session_turns: dict[str, int] = {}
+        self.handoff_threshold = 5
+        config_path = os.path.join(self.workspace_path, "config.yaml")
+        if os.path.isfile(config_path):
+            try:
+                with open(config_path, "r", encoding="utf-8") as f:
+                    cfg = yaml.safe_load(f) or {}
+                    self.handoff_threshold = cfg.get("agent", {}).get("handoff_threshold", 5)
+            except Exception:
+                pass
+
     def render_prompt(self, runtime_context: dict, agent_name: str = "default") -> str:
         """Render the default or named-agent Jinja2 prompt."""
         if self.jinja_env is None:
@@ -511,10 +523,40 @@ class AgentEngine:
         handoff_dir = project_root / ".agent" / "memory" / "handoff"
         handoff_dir.mkdir(parents=True, exist_ok=True)
         handoff_file = handoff_dir / f"{handoff_id}.json"
+        prompt_file = handoff_dir / f"{handoff_id}_prompt.md"
         
         try:
             handoff_file.write_text(json.dumps(packet, ensure_ascii=False, indent=2), encoding="utf-8")
-            logger.info("Successfully exported handoff packet %s", handoff_id)
+            
+            # Compile dense English handoff prompt markdown (Task 23-01)
+            prompt_content = f"""# FindAi Studio LLM Agent System (LAS) - Warm Thread Handoff Prompt
+
+You are resuming a conversational thread in a fresh environment. The state of the previous session has been compacted and exported.
+
+## Handoff Metadata
+- **Handoff ID**: {handoff_id}
+- **Created At**: {packet["created_at"]}
+- **Session ID**: {session_id}
+
+## Context Summary
+{context_summary}
+
+## Structural State Inventory
+- **Tasks File**: `.agent/agent_tasks.md`
+- **Memory Snapshot**: `memory/{session_id}.json`
+- **Integrity Checksum**: {checksum}
+
+## Instructions to Resume State
+To restore the task queue, memory snapshot, and structural state of the agent, please run the following command or use the import feature in your active environment:
+
+```bash
+import_handoff {handoff_id}
+```
+
+This handoff is part of the Federated Swarm Autonomous Handoff protocol. It enables seamless multi-thread transfer by carrying the complete session state across thread boundaries.
+"""
+            prompt_file.write_text(prompt_content, encoding="utf-8")
+            logger.info("Successfully exported handoff packet %s and prompt markdown", handoff_id)
         except Exception as e:
             logger.error("Failed to write handoff packet to %s: %s", handoff_file, e)
             raise RuntimeError(f"Failed to save handoff packet: {e}") from e
@@ -584,6 +626,24 @@ class AgentEngine:
                 raise RuntimeError(f"Failed to restore working memory: {e}") from e
 
         return packet
+
+    def increment_turns(self, session_id: str, context_summary: str | None = None) -> tuple[int, bool, str | None]:
+        """Increment session turn count and trigger export_handoff if threshold is reached (Task 23-01).
+        
+        Returns a tuple of (current_turns, triggered_handoff, handoff_id).
+        """
+        turns = self.session_turns.get(session_id, 0) + 1
+        self.session_turns[session_id] = turns
+        triggered = False
+        handoff_id = None
+        if turns >= self.handoff_threshold:
+            summary = context_summary or f"Automated handoff triggered at turn {turns}."
+            try:
+                handoff_id = self.export_handoff(session_id, summary)
+                triggered = True
+            except Exception as e:
+                logger.error("Failed to automatically export handoff for session %s: %s", session_id, e)
+        return turns, triggered, handoff_id
 
 
 class DynamicCodeGenerator:

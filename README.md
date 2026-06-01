@@ -25,7 +25,8 @@ LAS is an extremely readable, maintainable, observable, and portable local Agent
 * 🗺️ **Topological Workspace** — A node-based visual control-plane that transforms complex multi-agent sessions into an infinite canvas of interconnected task blocks.
 * 🔏 **Contract-First Handoff** — PAP-compatible `.agent/` workspace contracts that allow humans and AI to safely inspect, verify, and extend the codebase.
 * 🏢 **Agent Corporate Swarm** — Runs role-specialized agents concurrently (CEO, Developer, Auditor) operating collectively like an agile software company.
-* 🧠 **Self-Healing & Self-Evolving Swarm** — Features automated runtime error self-healing, dynamic multi-account failover swapping, dynamic LLM upscaling/downscaling, SQLite FTS5 semantic indexing, runtime dynamic skill discovery & verification, and dynamic event-loop bottleneck self-tuning.
+* 🧠 **Self-Healing Swarm** — Features automated runtime error self-healing, dynamic multi-account swapping, and dynamic runtime skill discovery.
+
 
 
 ---

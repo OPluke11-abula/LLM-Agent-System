@@ -71,3 +71,26 @@ This database catalogs engineering resolutions, compile-time errors, and dynamic
   - Ensure immediate removal of obsolete handoff guides and manual scripts that are 100% redundant, keeping only clean automated test suites.
 - **Best Practice Policy**: Maintain a highly optimized, lean context footprint by dynamically compressing past execution logs and purging redundant files to enforce strict state consistency and eliminate AI context noise.
 
+---
+
+### Lesson ID: L-20260601-001 (Dynamic Concurrency Balancer Queue Race)
+- **Mistake Encountered**: Thread balancer failing to dynamically scale up worker allocations under high task submission rates.
+- **Root Cause**: active_tasks counters were incremented *inside* the worker threads' wrapper functions. Under low thread pool worker allocations (e.g. max_workers = 2), new tasks were queued but not running, so they could not execute the first line of the wrapper function to increment the active counter. The active count never exceeded the threshold, preventing dynamic scaling.
+- **Resolution Code**:
+  ```python
+  def offload(self, fn: Any, category: str = "heavy", *args: Any, **kwargs: Any) -> Any:
+      with self._lock:
+          self.active_tasks[category] += 1
+      self.balance_loads()
+      
+      def wrapped(*a: Any, **kw: Any) -> Any:
+          try:
+              return fn(*a, **kw)
+          finally:
+              with self._lock:
+                  self.active_tasks[category] = max(0, self.active_tasks[category] - 1)
+              self.balance_loads()
+  ```
+- **Best Practice Policy**: Always increment thread pool queue and active task counters synchronously on the main calling thread at the time of submission, rather than deferring the counter update to when the worker thread starts executing.
+
+

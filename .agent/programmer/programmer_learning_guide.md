@@ -66,6 +66,7 @@ Sub-agents are organized as a cohesive company, where each agent acts in a speci
 Every time you conclude a programmer task, you MUST execute these steps:
 1. **Clean Code & Decoupling**: Wrap async loops in try-except statements, delete unused imports, and avoid code bloat.
 2. **Self-Learning Update**: If you solved any tricky bugs, append the lesson to `.agent/knowledge_base/lessons_learned.md`.
-3. **Task Spec Update**: Mark items as completed (`[x]`) in `.agent/agent_tasks.md` and update progress tables.
+3. **Task Spec Update**: Mark items as completed (`[x]`) in `.agent/agent_tasks.md`, update progress tables, and **proactively compact/merge older completed phases into high-level summarized headers** (once every 5 to 15 completed tasks) to significantly reduce active task file size and save prompt tokens.
+
 4. **Bilingual Dev Specs**: Update the root `README.md` and `developer_specifications.md` keeping English/Traditional Chinese sections clean.
 5. **Verify & Stage**: Run `pytest` to ensure 100% green tests. Stage all modified assets with `git add .` and make a clean commit.
