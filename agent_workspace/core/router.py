@@ -591,7 +591,8 @@ class AgentRouter:
                     self.account_manager.record_usage(
                         self._resolved_account["id"],
                         p_tokens,
-                        c_tokens
+                        c_tokens,
+                        self.session_id
                     )
 
             resp_type, resp_data = resp
@@ -678,7 +679,8 @@ class AgentRouter:
                             self.account_manager.record_usage(
                                 self._resolved_account["id"],
                                 p_tokens,
-                                c_tokens
+                                c_tokens,
+                                self.session_id
                             )
 
                     response_type, response_data = response
@@ -908,7 +910,8 @@ class AgentRouter:
                                 self.account_manager.record_usage(
                                     self._resolved_account["id"],
                                     p_tokens,
-                                    c_tokens
+                                    c_tokens,
+                                    self.session_id
                                 )
 
                         resp_type, resp_data = event

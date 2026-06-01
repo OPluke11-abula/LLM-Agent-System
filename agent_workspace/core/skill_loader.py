@@ -182,6 +182,7 @@ class DynamicSkillSynthesizer:
         import ast
         import sys
         import logging
+        import hashlib
         from pathlib import Path
         
         # 1. AST Security Audit
@@ -200,6 +201,16 @@ class DynamicSkillSynthesizer:
 
                 if func_name in {"eval", "exec", "compile", "system", "popen", "subprocess", "run"}:
                     raise PermissionError(f"Security violation: unsafe execution call '{func_name}' detected")
+
+        # Swarm Proof-of-Consensus Signature Verification
+        payload_hash = hashlib.sha256(code_content.encode("utf-8")).hexdigest()
+        try:
+            from core.discussion_room import ProofOfConsensus
+        except ImportError:
+            from agent_workspace.core.discussion_room import ProofOfConsensus
+
+        if not ProofOfConsensus.is_consensus_approved(self.workspace_path, payload_hash):
+            raise PermissionError("Security violation: dynamic script execution rejected. Swarm signature verification failed.")
 
         # 2. Verify Tool Contract Structure
         has_model = False

@@ -192,6 +192,7 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
   const [defragMetrics, setDefragMetrics] = useState<{ fragmentation_rate: number; reconciliation_efficiency: number } | null>(null);
   const [defragHistory, setDefragHistory] = useState<number[]>([0.48, 0.42, 0.35, 0.28, 0.22]);
   const [defragmenting, setDefragmenting] = useState(false);
+  const [ledgerData, setLedgerData] = useState<{ total_cost: number; cost_threshold: number; active_model: string; transactions: any[] } | null>(null);
 
   const activeSessionId = visibleSessionIds[0] || (sessions[0]?.session_id);
 
@@ -261,6 +262,37 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
 
     fetchDefragMetrics();
     const interval = setInterval(fetchDefragMetrics, 6000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [activeSessionId, sessions]);
+
+  useEffect(() => {
+    if (!activeSessionId) return;
+    let cancelled = false;
+
+    const fetchLedger = async () => {
+      try {
+        const response = await fetch(`http://localhost:8000/v1/sessions/${activeSessionId}/ledger`);
+        if (!response.ok) return;
+        const data = await response.json();
+        if (!cancelled) {
+          setLedgerData({
+            total_cost: data.total_cost,
+            cost_threshold: data.cost_threshold,
+            active_model: data.active_model,
+            transactions: data.transactions
+          });
+        }
+      } catch (e) {
+        console.error("Failed to fetch ledger:", e);
+      }
+    };
+
+    fetchLedger();
+    const interval = setInterval(fetchLedger, 5000);
 
     return () => {
       cancelled = true;
@@ -491,6 +523,66 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
                 {lang === "zh"
                   ? "記憶重整：掃描 handoff json，清理冗餘，壓縮狀態並生成聯邦知識圖譜"
                   : "Memory Defrag: Sweeps handoffs, resolves duplicates, reconciles tasks, and merges into knowledge graph"}
+              </div>
+            </div>
+
+            <div className="mx-3 mb-3 p-3 rounded-lg border flex flex-col gap-2 relative group/cost" style={{ background: "var(--bg-card)", borderColor: "var(--border-c)" }}>
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: "var(--accent)" }}>
+                  {lang === "zh" ? "財務帳本與額度控管" : "Swarm Cost Balance & Ledger"}
+                </p>
+                <span className="text-[10px] font-mono font-bold text-slate-500">
+                  USD
+                </span>
+              </div>
+              
+              <div className="flex flex-col gap-1 my-1">
+                <div className="flex items-baseline justify-between">
+                  <span className="text-xl font-black text-emerald-400 font-mono">
+                    ${ledgerData ? ledgerData.total_cost.toFixed(5) : "0.00000"}
+                  </span>
+                  <span className="text-[9px] font-bold text-slate-500 font-mono">
+                    / ${ledgerData ? ledgerData.cost_threshold.toFixed(2) : "0.05"} Limit
+                  </span>
+                </div>
+                
+                {/* Limit Progress Bar Gauge */}
+                <div className="w-full h-1.5 rounded-full bg-slate-850 overflow-hidden relative border border-slate-700">
+                  <div
+                    className="h-full rounded-full transition-all duration-500 bg-gradient-to-r from-emerald-500 to-amber-500"
+                    style={{
+                      width: `${Math.min(100, ((ledgerData?.total_cost ?? 0) / (ledgerData?.cost_threshold ?? 0.05)) * 100)}%`
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Real-time scrolling Ledger Transactions List */}
+              <div className="rounded border flex flex-col p-1.5 gap-1.5 overflow-hidden" style={{ background: "var(--bg-panel)", borderColor: "var(--border-c)" }}>
+                <span className="text-[8px] font-bold uppercase tracking-[0.1em] t3 border-b pb-1" style={{ borderColor: "var(--border-c)" }}>
+                  {lang === "zh" ? "實時消費明細" : "Ledger Transactions"}
+                </span>
+                <div className="max-h-20 overflow-y-auto space-y-1 pr-1 font-mono text-[9px]">
+                  {ledgerData && ledgerData.transactions.length > 0 ? (
+                    ledgerData.transactions.slice().reverse().map((tx: any, idx: number) => (
+                      <div key={idx} className="flex justify-between items-center text-slate-400 hover:text-slate-200 transition-colors">
+                        <span className="truncate max-w-[80px]" title={tx.model}>{tx.model.replace("gemini-2.5-", "")}</span>
+                        <span className="text-[8px] text-slate-500">{new Date(tx.timestamp).toLocaleTimeString()}</span>
+                        <span className="text-emerald-400 font-bold">${tx.cost.toFixed(5)}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center text-slate-600 text-[8px] py-2">
+                      {lang === "zh" ? "尚無交易記錄" : "No transactions logged"}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 w-64 -translate-x-1/2 rounded bg-slate-950 px-3 py-2 text-center text-[10px] leading-normal text-slate-300 opacity-0 transition-opacity border border-slate-800 shadow-2xl group-hover/cost:opacity-100">
+                {lang === "zh"
+                  ? "財務審計：基於 SQLite 記錄的實時 API 消耗與 Token 計費帳本，額度超限將自動降級"
+                  : "Financial Audit: SQLite-backed real-time API expense tracker. Auto-downscale triggers when limit is exceeded"}
               </div>
             </div>
           </>

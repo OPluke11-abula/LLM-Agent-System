@@ -846,3 +846,147 @@ Stderr: {stderr_str[:500]}
             "Enforce a highly professional, factual, and actionable tone."
         )
 
+
+class ProofOfConsensus:
+    """Implements decentralized Proof of Consensus (PoC) for the swarm."""
+
+    SECRET_KEYS = {
+        "ceo": "poc-secret-ceo-key-92834",
+        "cto": "poc-secret-cto-key-83749",
+        "dev": "poc-secret-dev-key-10293",
+        "qa": "poc-secret-qa-key-58291",
+        "cfo": "poc-secret-cfo-key-47284"
+    }
+
+    CONSENSUS_KEY = "poc-master-consensus-key-84729"
+
+    @classmethod
+    def get_swarm_members(cls) -> list[str]:
+        return list(cls.SECRET_KEYS.keys())
+
+    @classmethod
+    def generate_member_signature(cls, role: str, payload_hash: str) -> str:
+        """Generates a SHA256 signature for a specific role and payload hash."""
+        import hashlib
+        secret = cls.SECRET_KEYS.get(role.lower(), "poc-secret-fallback")
+        return hashlib.sha256(f"{role.lower()}:{payload_hash}:{secret}".encode("utf-8")).hexdigest()
+
+    @classmethod
+    def create_consensus_certificate(cls, payload_hash: str, approved_roles: list[str]) -> dict[str, Any]:
+        """Creates a signed consensus certificate if a majority approves."""
+        import hashlib
+        swarm_members = cls.get_swarm_members()
+        approvals = [r.lower() for r in approved_roles if r.lower() in swarm_members]
+
+        # Majority is > 50% of the swarm
+        majority_needed = (len(swarm_members) // 2) + 1  # 3 out of 5
+
+        if len(approvals) < majority_needed:
+            raise ValueError(f"Consensus failed: only got {len(approvals)}/{majority_needed} approvals.")
+
+        signatures = {}
+        for role in approvals:
+            signatures[role] = cls.generate_member_signature(role, payload_hash)
+
+        sorted_roles = sorted(approvals)
+        roles_str = ",".join(sorted_roles)
+
+        # Master signature
+        master_sig = hashlib.sha256(f"consensus:{payload_hash}:{roles_str}:{cls.CONSENSUS_KEY}".encode("utf-8")).hexdigest()
+
+        return {
+            "payload_hash": payload_hash,
+            "approvals": approvals,
+            "signatures": signatures,
+            "consensus_signature": master_sig,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
+    @classmethod
+    def verify_consensus_certificate(cls, certificate: dict[str, Any]) -> bool:
+        """Verifies if the consensus certificate is cryptographically valid and has a majority."""
+        import hashlib
+        try:
+            payload_hash = certificate["payload_hash"]
+            approvals = certificate["approvals"]
+            signatures = certificate["signatures"]
+            consensus_signature = certificate["consensus_signature"]
+
+            swarm_members = cls.get_swarm_members()
+            valid_approvals = []
+
+            # Verify each signature
+            for role in approvals:
+                if role not in swarm_members:
+                    continue
+                expected_sig = cls.generate_member_signature(role, payload_hash)
+                if signatures.get(role) == expected_sig:
+                    valid_approvals.append(role)
+
+            majority_needed = (len(swarm_members) // 2) + 1
+            if len(valid_approvals) < majority_needed:
+                logger.warning("Verification failed: Not enough valid member signatures (%d/%d)", len(valid_approvals), majority_needed)
+                return False
+
+            # Verify master consensus signature
+            sorted_roles = sorted(valid_approvals)
+            roles_str = ",".join(sorted_roles)
+            expected_master_sig = hashlib.sha256(f"consensus:{payload_hash}:{roles_str}:{cls.CONSENSUS_KEY}".encode("utf-8")).hexdigest()
+
+            if consensus_signature != expected_master_sig:
+                logger.warning("Verification failed: Master consensus signature mismatch")
+                return False
+
+            return True
+        except Exception as e:
+            logger.error("Failed to verify consensus certificate: %s", e)
+            return False
+
+    @classmethod
+    def register_consensus(cls, workspace_path: str, payload_hash: str, certificate: dict[str, Any]) -> None:
+        """Persists the verified consensus certificate to a local swarm registry."""
+        if not cls.verify_consensus_certificate(certificate):
+            raise ValueError("Cannot register invalid consensus certificate.")
+
+        project_root = Path(workspace_path)
+        if not (project_root / ".agent").is_dir() and (project_root.parent / ".agent").is_dir():
+            project_root = project_root.parent
+
+        registry_dir = project_root / ".agent" / "memory"
+        registry_dir.mkdir(parents=True, exist_ok=True)
+        registry_file = registry_dir / "consensus_registry.json"
+
+        registry = {}
+        if registry_file.is_file():
+            try:
+                registry = json.loads(registry_file.read_text(encoding="utf-8"))
+            except Exception:
+                registry = {}
+
+        registry[payload_hash] = certificate
+
+        try:
+            registry_file.write_text(json.dumps(registry, indent=2, ensure_ascii=False), encoding="utf-8")
+            logger.info("Successfully registered consensus certificate for hash: %s", payload_hash)
+        except Exception as e:
+            logger.error("Failed to write to consensus_registry.json: %s", e)
+
+    @classmethod
+    def is_consensus_approved(cls, workspace_path: str, payload_hash: str) -> bool:
+        """Checks if a payload hash is registered and cryptographically valid in the local consensus registry."""
+        project_root = Path(workspace_path)
+        if not (project_root / ".agent").is_dir() and (project_root.parent / ".agent").is_dir():
+            project_root = project_root.parent
+
+        registry_file = project_root / ".agent" / "memory" / "consensus_registry.json"
+        if not registry_file.is_file():
+            return False
+
+        try:
+            registry = json.loads(registry_file.read_text(encoding="utf-8"))
+            if payload_hash in registry:
+                return cls.verify_consensus_certificate(registry[payload_hash])
+        except Exception:
+            pass
+        return False
+

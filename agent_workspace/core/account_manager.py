@@ -169,17 +169,106 @@ class AccountManager:
                     return True
         return False
 
-    def record_usage(self, account_id: str, prompt_tokens: int, completion_tokens: int) -> bool:
+    def check_and_rotate_budget(self, account_id: str, session_id: str = "default-session") -> None:
+        """Checks if accumulated ledger expenses exceed the cost threshold and rotates credentials/models."""
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        try:
+            from core.ledger import FinancialLedger
+        except ImportError:
+            from agent_workspace.core.ledger import FinancialLedger
+            
+        ledger = FinancialLedger(self.workspace_path)
+        total_cost = ledger.get_total_cost()
+        
+        # Read cost threshold from config.yaml, default to 0.05 USD
+        cost_threshold = 0.05
+        if os.path.exists(self.config_path):
+            try:
+                import yaml
+                with open(self.config_path, "r", encoding="utf-8") as f:
+                    config = yaml.safe_load(f) or {}
+                    cost_threshold = config.get("billing", {}).get("cost_threshold", 0.05)
+            except Exception:
+                pass
+                
+        if total_cost >= cost_threshold:
+            logger.warning(
+                "[CFO Cost Alert] Total swarm expenses of $%0.6f exceed threshold of $%0.6f. Triggering dynamic billing quota failover rotator...",
+                total_cost, cost_threshold
+            )
+            
+            data = self._load_data()
+            accounts = data.get("accounts", [])
+            active_id = data.get("active_account_id", "")
+            
+            rotated = False
+            for acc in accounts:
+                if acc["id"] == active_id:
+                    model = acc.get("model", "")
+                    if "pro" in model.lower():
+                        cheaper = model.replace("pro", "flash")
+                        logger.info("[CFO Rotator] Graceful Downscaling: downgrading model from %s to %s", model, cheaper)
+                        acc["model"] = cheaper
+                        rotated = True
+                        break
+            
+            if not rotated:
+                # Quota failover credential rotation:
+                # Find the next available account in accounts.json that is under budget
+                for acc in accounts:
+                    if acc["id"] != active_id:
+                        acc_budget = acc.get("token_budget", -1)
+                        acc_used = acc.get("tokens_used", 0)
+                        if acc_budget == -1 or acc_used < acc_budget:
+                            logger.info("[CFO Rotator] Credential Rotation: rotating active account to fallback '%s'", acc["id"])
+                            data["active_account_id"] = acc["id"]
+                            for a in accounts:
+                                a["is_active"] = (a["id"] == acc["id"])
+                            rotated = True
+                            break
+                            
+            if rotated:
+                self._save_accounts(data)
+
+    def record_usage(self, account_id: str, prompt_tokens: int, completion_tokens: int, session_id: str = "default-session") -> bool:
         data = self._load_data()
         accounts = data.get("accounts", [])
         updated = False
+        provider = "google-genai"
+        model = "gemini-2.5-flash"
+        
         for acc in accounts:
             if acc["id"] == account_id:
                 acc["tokens_used"] = acc.get("tokens_used", 0) + prompt_tokens + completion_tokens
+                provider = acc.get("provider", provider)
+                model = acc.get("model", model)
                 updated = True
                 break
+                
         if updated:
             self._save_accounts(data)
+            
+            # Record in SQLite financial ledger
+            try:
+                from core.ledger import FinancialLedger
+            except ImportError:
+                from agent_workspace.core.ledger import FinancialLedger
+                
+            ledger = FinancialLedger(self.workspace_path)
+            ledger.record_transaction(
+                session_id=session_id,
+                account_id=account_id,
+                provider=provider,
+                model=model,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens
+            )
+            
+            # Check budget and rotate/downscale if threshold exceeded
+            self.check_and_rotate_budget(account_id, session_id)
+            
         return updated
 
     def resolve_api_key(self, account: dict[str, Any]) -> str:

@@ -1058,3 +1058,52 @@ async def get_defragment_metrics(session_id: str) -> dict[str, Any]:
         }
 
 
+@app.get("/v1/sessions/{session_id}/ledger")
+@app.get("/v1/session/{session_id}/ledger")
+async def get_session_ledger(session_id: str) -> dict[str, Any]:
+    try:
+        from core.ledger import FinancialLedger
+    except ImportError:
+        from agent_workspace.core.ledger import FinancialLedger
+        
+    ledger = FinancialLedger(workspace)
+    transactions = ledger.get_all_records()
+    total_cost = ledger.get_total_cost()
+    
+    # Read active model and cost threshold
+    am = get_account_manager()
+    active_acc = am.get_active_account()
+    active_model = active_acc.get("model", "unknown") if active_acc else "unknown"
+    
+    config_path = Path(workspace) / "config.yaml"
+    cost_threshold = 0.05
+    if config_path.is_file():
+        try:
+            config = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+            cost_threshold = config.get("billing", {}).get("cost_threshold", 0.05)
+        except Exception:
+            pass
+            
+    return {
+        "session_id": session_id,
+        "total_cost": total_cost,
+        "cost_threshold": cost_threshold,
+        "active_model": active_model,
+        "transactions": transactions
+    }
+
+
+@app.post("/v1/sessions/{session_id}/ledger/reset")
+@app.post("/v1/session/{session_id}/ledger/reset")
+async def reset_session_ledger(session_id: str) -> dict[str, Any]:
+    try:
+        from core.ledger import FinancialLedger
+    except ImportError:
+        from agent_workspace.core.ledger import FinancialLedger
+        
+    ledger = FinancialLedger(workspace)
+    ledger.reset_ledger()
+    return {"status": "success", "session_id": session_id}
+
+
+

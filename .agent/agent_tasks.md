@@ -32,22 +32,23 @@
 - [x] **PHASE 21 — Advanced Multi-Agent Self-Optimizing Compaction & Federated Swarm Organization**: Multi-agent milestone reflection report consensus loops and elastic semantic indexing SQLite FTS5 search engine optimization.
 - [x] **PHASE 22 — Advanced Multi-Swarm Evolutionary Diagnostics & Self-Tuning Channels**: Observability async event-loop bottleneck profiling, dynamic thread pool capacity adjustments, and Dynamic PromptComposer pruning sweeps.
 - [x] **PHASE 23 — Federated Swarm Autonomous Handoff & Dynamic Thread Balancing**: Automated session turn counter & auto-export trigger, glowing amber handoff button with exclamation warning tooltips, pre-formatted English handoff clipboard exporter, and elastic dynamic thread pool load balancer in observability.
+- [x] **PHASE 24 — Swarm Autonomous Memory Defragmentation & Multi-Tenant Knowledge Fusion**: Context defragmentation engine, historical handoffs reconciliation, POST /defragment route, dynamic cross-tenant sandboxed skill synthesizer, and dynamic visual memory defragmentation rate charts.
 
 ---
 
-## 🏢 PHASE 24 — Swarm Autonomous Memory Defragmentation & Multi-Tenant Knowledge Fusion / 群落自主記憶重組與多租戶知識融合
+## 🏢 PHASE 25 — Federated Swarm Decentralized Autonomous Consensus & Dynamic Cost Auditing Gateway / 聯邦群落去中心化自主共識與動態成本審計網關
 
-### 24-01 Memory Defragmentation & Context Recalibration
-- [x] Implement a context defragmentation engine in `memory.py` / 在 `memory.py` 中實作上下文碎片整理與重組引擎
-- [x] Analyze older `handoff` records, remove redundant or conflicting episodic memory blocks, and reconcile them into a single Federated Knowledge graph / 分析舊的 `handoff` 記錄，消除冗餘或衝突的片段插曲記憶，並重組成單一聯邦知識圖譜
-- [x] Expose an API endpoint `/v1/sessions/{session_id}/defragment` to manually or automatically trigger context defragmentation sweeps / 提供 `/v1/sessions/{session_id}/defragment` 路由以手動或自動觸發記憶碎片重整
+### 25-01 Decentralized Proof-of-Consensus (PoC) & Multi-Party Verification Loop
+- [x] Implement a decentralized Proof of Consensus algorithm in `discussion_room.py` / 在 `discussion_room.py` 中實作去中心化共識證明（PoC）演算法
+- [x] Sign crucial code executions and dynamic workflow updates using SHA256 cryptographic signatures, requiring verification from a majority of Swarm members / 對關鍵代碼生成與動態工作流更新使用 SHA256 加密簽章，且需通過多數 Swarm 成員節點校驗
+- [x] Create verification hooks to automatically reject dynamic script executions that fail swarm signature verification / 建立校驗鉤子以自動拒絕未能通過群落簽章驗證的動態腳本執行
 
 ---
 
-### 24-02 Multi-Tenant Skill Synthesis & Observability Dashboard
-- [x] Develop a cross-tenant skill dynamic synthesizer to discover, merge, and register sandboxed runtime custom skills / 開發跨租戶動態技能合成器，實現沙箱自定義運行時技能的探索、融合與註冊
-- [x] Implement a "Memory Defragmentation & Fragmentation Rate" chart in the frontend console dashboard / 在前端儀表板中實作「記憶碎片重組與碎化率」觀測圖表
-- [x] Add integration test coverage asserting successful memory defragmentation and skill synthesis without security sandboxing violations / 撰寫單元測試驗證記憶重組與技能合成功能，且無任何沙箱安全違規
+### 25-02 Elastic Dynamic Cost Allocation & Real-Time Swarm Financial Ledger
+- [x] Implement a persistent, SQLite-based dynamic token financial ledger to track real-time Swarm and tenant API expenses / 實作基於 SQLite 的持久化動態 Token 財務帳本以追蹤實時 Swarm 與租戶 API 消費
+- [x] Establish a billing quota failover rotator that automatically triggers graceful downscaling or credential rotation once tenant cost threshold is exceeded / 建立計費額度容災輪轉器，當租戶消費額度超限時自動觸發優雅降級或憑據輪轉
+- [x] Design and integrate a real-time visual "Swarm Cost Balance & Ledger" tracking chart in the UI dashboard / 在前端控制台畫布中設計並整合實時視覺化的「群落財務餘額與帳本」追蹤圖表
 
 ---
 
@@ -55,7 +56,7 @@
 
 | Phase | Total Tasks | Completed Tasks | Status |
 |---|---|---|---|
-| **Phase 0 - 23** | 64 tasks | 64 tasks | 100% Done |
-| **Phase 24** | 2 tasks | 2 tasks | 100% Done |
+| **Phase 0 - 24** | 66 tasks | 66 tasks | 100% Done |
+| **Phase 25** | 2 tasks | 2 tasks | 100% Done |
 
 *This queue is managed dynamically by the active LAS Developer Agent. All task updates, outcome logs, and progress status updates are written directly to this file before turn conclusion.*

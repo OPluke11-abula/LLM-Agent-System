@@ -62,8 +62,14 @@ class InvalidArgs:
 def execute_skill(args: InvalidArgs) -> str:
     return "done"
 """
-    with pytest.raises(ValueError, match="Synthesized skill must define a Pydantic BaseModel argument class"):
-        synthesizer.synthesize_and_register_skill(MagicMock(), "invalid_skill_no_model", bad_code_no_model)
+    try:
+        from core.discussion_room import ProofOfConsensus
+    except ImportError:
+        from agent_workspace.core.discussion_room import ProofOfConsensus
+
+    with patch.object(ProofOfConsensus, "is_consensus_approved", return_value=True):
+        with pytest.raises(ValueError, match="Synthesized skill must define a Pydantic BaseModel argument class"):
+            synthesizer.synthesize_and_register_skill(MagicMock(), "invalid_skill_no_model", bad_code_no_model)
 
 
 def test_validation_blocks_missing_annotated_function(temp_workspace):
@@ -79,8 +85,14 @@ class CustomArgs(BaseModel):
 def execute_skill(args) -> str:
     return "done"
 """
-    with pytest.raises(ValueError, match="Synthesized skill must define a public function whose first parameter is annotated with the Pydantic BaseModel"):
-        synthesizer.synthesize_and_register_skill(MagicMock(), "invalid_skill_no_arg_type", bad_code_no_arg_type)
+    try:
+        from core.discussion_room import ProofOfConsensus
+    except ImportError:
+        from agent_workspace.core.discussion_room import ProofOfConsensus
+
+    with patch.object(ProofOfConsensus, "is_consensus_approved", return_value=True):
+        with pytest.raises(ValueError, match="Synthesized skill must define a public function whose first parameter is annotated with the Pydantic BaseModel"):
+            synthesizer.synthesize_and_register_skill(MagicMock(), "invalid_skill_no_arg_type", bad_code_no_arg_type)
 
 
 def test_synthesis_and_dynamic_registration_success(temp_workspace):
@@ -96,6 +108,10 @@ class ValidArgs(BaseModel):
 def my_synthesized_tool(args: ValidArgs) -> str:
     return f"Synthesized task: {args.task}"
 """
+    try:
+        from core.discussion_room import ProofOfConsensus
+    except ImportError:
+        from agent_workspace.core.discussion_room import ProofOfConsensus
     
     # Mock sys.modules path for the temporary skills directory
     with patch("sys.path", [temp_workspace] + sys.path):
@@ -105,7 +121,8 @@ def my_synthesized_tool(args: ValidArgs) -> str:
         mock_module.my_synthesized_tool = lambda args: f"Synthesized task: {args.task}"
         
         # Patch import_module so it returns our mocked module upon compilation
-        with patch("importlib.import_module") as mock_import_module:
+        with patch("importlib.import_module") as mock_import_module, \
+             patch.object(ProofOfConsensus, "is_consensus_approved", return_value=True):
             mock_import_module.return_value = mock_module
             
             success = synthesizer.synthesize_and_register_skill(mock_engine, "test_valid_skill", valid_code)
@@ -119,3 +136,4 @@ def my_synthesized_tool(args: ValidArgs) -> str:
             # Verify registered call
             assert mock_engine._register_functions_from_module.called
             mock_engine._register_functions_from_module.assert_called_with(mock_module)
+
