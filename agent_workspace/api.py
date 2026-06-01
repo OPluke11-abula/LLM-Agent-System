@@ -554,6 +554,120 @@ async def websocket_stream(websocket: WebSocket):
             task.cancel()
 
 
+TRUSTED_TENANTS_KEYS: dict[str, str] = {}
+
+
+def parse_all_lessons_from_md(filepath: Path) -> list[dict]:
+    """Helper to parse lessons_learned.md into structured dicts."""
+    import re
+    if not filepath.is_file():
+        return []
+    content = filepath.read_text(encoding="utf-8")
+    blocks = content.split("---")
+    lessons = []
+    for block in blocks:
+        if "Lesson ID:" not in block:
+            continue
+        lines = block.splitlines()
+        lesson = {}
+        for line in lines:
+            line = line.strip()
+            if line.startswith("### Lesson ID:"):
+                # Handle ID with optional title
+                raw_id = line.replace("### Lesson ID:", "").strip()
+                if "(" in raw_id:
+                    raw_id = raw_id.split("(")[0].strip()
+                lesson["lesson_id"] = raw_id
+                lesson["id"] = raw_id
+            elif line.startswith("- **Mistake Encountered**:"):
+                lesson["mistake"] = line.split(":", 1)[1].strip()
+            elif line.startswith("- **Root Cause**:"):
+                lesson["root_cause"] = line.split(":", 1)[1].strip()
+            elif line.startswith("- **Best Practice Policy**:"):
+                lesson["best_practice"] = line.split(":", 1)[1].strip()
+
+        code_match = re.search(r"```python\n(.*?)```", block, re.DOTALL)
+        if code_match:
+            lesson["resolution_code"] = code_match.group(1).strip()
+            lesson["resolution"] = lesson["resolution_code"]
+
+        if "lesson_id" in lesson:
+            lessons.append(lesson)
+    return lessons
+
+
+@app.websocket("/v1/federated/sync")
+async def federated_sync_ws(websocket: WebSocket):
+    """Secure WebSocket endpoint allowing cross-tenant pushed/pulled signed lessons."""
+    await websocket.accept()
+    try:
+        from core.federated_sync import FederatedKnowledgeExchange
+        exchange = FederatedKnowledgeExchange(workspace)
+        priv_key, pub_key = exchange.load_local_keys()
+        if not priv_key or not pub_key:
+            priv_key, pub_key = exchange.generate_key_pair()
+            exchange.save_local_keys(priv_key, pub_key)
+
+        while True:
+            data = await websocket.receive_json()
+            msg_type = data.get("type")
+
+            if msg_type == "push_lesson":
+                payload = data.get("payload")
+                if not payload:
+                    await websocket.send_json({"status": "error", "message": "Missing payload"})
+                    continue
+                try:
+                    verified_lesson = exchange.decrypt_and_verify_lesson(
+                        payload, priv_key, TRUSTED_TENANTS_KEYS
+                    )
+                    if verified_lesson:
+                        merged = exchange.merge_lesson(verified_lesson)
+                        await websocket.send_json({
+                            "status": "success",
+                            "message": "Lesson successfully merged",
+                            "merged": merged
+                        })
+                    else:
+                        await websocket.send_json({"status": "error", "message": "Verification failed"})
+                except Exception as e:
+                    await websocket.send_json({"status": "error", "message": str(e)})
+
+            elif msg_type == "pull_lessons":
+                receiver_pub_key = data.get("receiver_public_key")
+                if not receiver_pub_key:
+                    await websocket.send_json({"status": "error", "message": "Missing receiver_public_key"})
+                    continue
+                try:
+                    lessons = parse_all_lessons_from_md(exchange.lessons_file)
+                    encrypted_lessons = []
+                    sender_id = "server-tenant"
+                    for lesson in lessons:
+                        enc = exchange.sign_and_encrypt_lesson(
+                            lesson, receiver_pub_key, priv_key, sender_id
+                        )
+                        encrypted_lessons.append(enc)
+                    await websocket.send_json({
+                        "status": "success",
+                        "type": "pull_response",
+                        "lessons": encrypted_lessons
+                    })
+                except Exception as e:
+                    await websocket.send_json({"status": "error", "message": str(e)})
+            else:
+                await websocket.send_json({"status": "error", "message": f"Unsupported message type: {msg_type}"})
+
+    except WebSocketDisconnect:
+        logger.info("Federated sync WebSocket disconnected")
+    except Exception as e:
+        logger.error(f"Federated WebSocket error: {e}")
+        try:
+            await websocket.close()
+        except Exception:
+            pass
+
+
+
 async def run_background_task(record: TaskRecord, allowed_tools: list[str] | None, account_id: str | None) -> None:
     record.status = "running"
     record.started_at = utc_now()

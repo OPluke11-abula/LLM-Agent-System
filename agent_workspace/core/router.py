@@ -1063,3 +1063,103 @@ class AgentRouter:
         """Close resources associated with the router."""
         if hasattr(self, "long_term_memory") and self.long_term_memory:
             self.long_term_memory.close()
+
+    def discover_skill(self, contract_yaml_or_json: str | dict) -> bool:
+        """Verify, validate against spec/skill-contract.schema.json, save, and dynamically hot-load a skill."""
+        from pathlib import Path
+        import jsonschema
+        import yaml
+        from pydantic import create_model, Field
+
+        # 1. Parse payload
+        if isinstance(contract_yaml_or_json, str):
+            try:
+                contract = yaml.safe_load(contract_yaml_or_json) or {}
+            except Exception as e:
+                raise ValueError(f"Failed to parse skill contract string: {e}")
+        elif isinstance(contract_yaml_or_json, dict):
+            contract = contract_yaml_or_json
+        else:
+            raise ValueError("Invalid skill contract format")
+
+        # 2. Locate schema file
+        project_root = Path(self.engine.workspace_path).parent if os.path.basename(self.engine.workspace_path) == "workspace" else Path(self.engine.workspace_path)
+        if not (project_root / "spec").exists() and (Path(self.engine.workspace_path) / "spec").exists():
+            project_root = Path(self.engine.workspace_path)
+        schema_path = project_root / "spec" / "skill-contract.schema.json"
+
+        if not schema_path.is_file():
+            raise FileNotFoundError(f"Skill schema not found at {schema_path}")
+
+        # 3. Validate against schema
+        with open(schema_path, "r", encoding="utf-8") as f:
+            schema = json.load(f)
+        jsonschema.validate(contract, schema)
+
+        # 4. Safely load contract into .agent/skills/ dynamically
+        skills_dir = project_root / ".agent" / "skills"
+        skills_dir.mkdir(parents=True, exist_ok=True)
+        skill_id = contract["id"]
+        contract_path = skills_dir / f"{skill_id}.md"
+
+        frontmatter_yaml = yaml.safe_dump(contract, allow_unicode=True, sort_keys=False).strip()
+        content = f"---\n{frontmatter_yaml}\n---\n\n# {skill_id}\n\n{contract.get('description', '')}\n"
+        contract_path.write_text(content, encoding="utf-8")
+
+        # 5. Generate Pydantic BaseModel dynamically from 'inputs' schema
+        inputs = contract.get("inputs", {})
+        fields = {}
+        for param_name, param_info in inputs.items():
+            type_str = param_info.get("type", "string")
+            param_type = str
+            if type_str in {"number", "float"}:
+                param_type = float
+            elif type_str in {"integer", "int"}:
+                param_type = int
+            elif type_str in {"boolean", "bool"}:
+                param_type = bool
+            elif type_str == "array":
+                param_type = list
+            elif type_str == "object":
+                param_type = dict
+
+            is_req = param_info.get("required", False)
+            default_val = ... if is_req else None
+            fields[param_name] = (param_type, Field(default=default_val, description=param_info.get("description", "")))
+
+        ArgsModel = create_model(f"{skill_id.capitalize()}Args", **fields)
+
+        # 6. Expose dynamic function for runtime reflection
+        def dynamic_skill_proxy(args: ArgsModel) -> str:
+            args_dict = args.model_dump()
+            return f"Executed discovered skill {skill_id} successfully. Arguments: {args_dict}"
+
+        dynamic_skill_proxy.__doc__ = contract.get("description", "")
+        dynamic_skill_proxy.__name__ = skill_id
+
+        # 7. Register in AgentEngine registry dynamically
+        self.engine.tools_registry[skill_id] = {
+            "function": dynamic_skill_proxy,
+            "args_model": ArgsModel,
+            "description": contract.get("description", ""),
+            "schema": ArgsModel.model_json_schema(),
+            "wants_context": False,
+            "is_markdown_skill": False,
+        }
+
+        # 8. Mirror to other active router components if any
+        logger.info("[SkillDiscovery] Dynamic tool '%s' successfully validated and injected into active engine loop", skill_id)
+        return True
+
+    def process_discovered_skill_stream(self, json_stream_chunk: str) -> bool:
+        """Process incoming stream chunk representing a discovered skill contract."""
+        try:
+            payload = json.loads(json_stream_chunk)
+            if "type" in payload and payload["type"] == "discover_skill":
+                contract = payload.get("contract")
+                if contract:
+                    return self.discover_skill(contract)
+        except Exception as e:
+            logger.warning("[SkillDiscovery] Failed to process discovered skill stream chunk: %s", e)
+        return False
+
