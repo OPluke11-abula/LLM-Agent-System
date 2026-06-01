@@ -36,16 +36,16 @@
 ## 🏢 PHASE 22 — Advanced Multi-Swarm Evolutionary Diagnostics & Self-Tuning Channels / 多群落自我演化診斷與自適應調節通道
 
 ### 22-01 Dynamic Event-Loop Bottleneck Profiling & Self-Tuning
-- [ ] Implement a non-intrusive event-loop bottleneck profiler in `observability.py` / 在 `observability.py` 中實作非侵入式事件循環瓶頸診斷分析器
-- [ ] Automatically detect task scheduling stutters or blocking sync calls exceeding 50ms in swarm execution paths / 自動偵測群落執行路徑中超過 50 毫秒的阻塞同步調用
-- [ ] Dynamically scale thread pool executors or adjust worker limits dynamically to optimize concurrency throughput / 彈性調節執行緒池容量或背景執行緒上限，自主優化高併發效能
+- [x] Implement a non-intrusive event-loop bottleneck profiler in `observability.py` / 在 `observability.py` 中實作非侵入式事件循環瓶頸診斷分析器
+- [x] Automatically detect task scheduling stutters or blocking sync calls exceeding 50ms in swarm execution paths / 自動偵測群落執行路徑中超過 50 毫秒的阻塞同步調用
+- [x] Dynamically scale thread pool executors or adjust worker limits dynamically to optimize concurrency throughput / 彈性調節執行緒池容量或背景執行緒上限，自主優化高併發效能
 
 ---
 
 ### 22-02 Self-Learning Prompts Context Minimizer
-- [ ] Implement an automated dynamic pruning mechanism inside `PromptComposer` to minimize prompt length / 在 `PromptComposer` 中實作基於已完成任務與歷史日誌的動態提示詞修剪機制
-- [ ] Automatically summarize older system learning directives and collapse them when prompt size exceeds 6,000 tokens / 當提示詞大小超過 6,000 tokens 時自動將舊的系統學習指南進行壓縮摘要
-- [ ] Write integration test coverage asserting prompt state compaction behaves correctly under large active logs / 撰寫單元測試驗證極大提示詞長度下的動態精簡機制與正確性
+- [x] Implement an automated dynamic pruning mechanism inside `PromptComposer` to minimize prompt length / 在 `PromptComposer` 中實作基於已完成任務與歷史日誌的動態提示詞修剪機制
+- [x] Automatically summarize older system learning directives and collapse them when prompt size exceeds 6,000 tokens / 當提示詞大小超過 6,000 tokens 時自動將舊的系統學習指南進行壓縮摘要
+- [x] Write integration test coverage asserting prompt state compaction behaves correctly under large active logs / 撰寫單元測試驗證極大提示詞長度下的動態精簡機制與正確性
 
 ---
 
@@ -54,6 +54,6 @@
 | Phase | Total Tasks | Completed Tasks | Status |
 |---|---|---|---|
 | **Phase 0 - 21** | 60 tasks | 60 tasks | 100% Done |
-| **Phase 22** | 2 tasks | 0 tasks | 0% Pending |
+| **Phase 22** | 2 tasks | 2 tasks | 100% Done |
 
 *This queue is managed dynamically by the active LAS Developer Agent. All task updates, outcome logs, and progress status updates are written directly to this file before turn conclusion.*

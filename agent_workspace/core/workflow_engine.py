@@ -72,6 +72,18 @@ class WorkflowEngine:
         self.workflows_dir.mkdir(parents=True, exist_ok=True)
         self.runs_dir.mkdir(parents=True, exist_ok=True)
 
+        self.max_concurrent_tasks = 10
+        try:
+            try:
+                from observability import get_active_profiler
+            except ImportError:
+                from agent_workspace.observability import get_active_profiler
+            profiler = get_active_profiler()
+            if profiler:
+                profiler.register_engine(self)
+        except Exception:
+            pass
+
     def _get_workflow_file(self, workflow_id: str) -> Path:
         """Get the absolute path to a workflow markdown definition."""
         resolved = (self.workflows_dir / f"{workflow_id}.md").resolve()
@@ -333,9 +345,17 @@ class WorkflowEngine:
                 
                 # Execute blocking engine tool in a non-blocking thread executor
                 import asyncio
+                try:
+                    from observability import get_active_profiler
+                except ImportError:
+                    from agent_workspace.observability import get_active_profiler
+                profiler = get_active_profiler()
+                executor = profiler.executor if (profiler and profiler.executor) else None
+                if profiler:
+                    profiler.register_engine(self)
                 loop = asyncio.get_running_loop()
                 raw_output = await loop.run_in_executor(
-                    None,
+                    executor,
                     self.engine.execute_tool,
                     skill_id,
                     resolved_params,
@@ -596,6 +616,7 @@ class WorkflowEngine:
                     continue
 
             # Concurrently execute ready steps
+            sliced_ready_step_ids = ready_step_ids[:self.max_concurrent_tasks]
             tasks = [
                 self._execute_step_async(
                     step_id,
@@ -605,14 +626,14 @@ class WorkflowEngine:
                     session_id,
                     lock
                 )
-                for step_id in ready_step_ids
+                for step_id in sliced_ready_step_ids
             ]
             
             results = await asyncio.gather(*tasks)
             if not all(results):
                 # Check if any failure has 'fail' policy
                 failed_any_fatal = False
-                for sid in ready_step_ids:
+                for sid in sliced_ready_step_ids:
                     sstate = state.steps[sid]
                     if sstate.status == "failed":
                         sdef = steps_map[sid]

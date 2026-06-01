@@ -174,7 +174,146 @@ class PromptComposer:
         
         # Append dynamic lessons learned directives
         lessons = self._load_lessons_learned()
-        return rendered + lessons
+        compiled = rendered + lessons
+        return self.prune_compiled_prompt(compiled)
+
+    def prune_compiled_prompt(self, compiled_prompt: str) -> str:
+        """Evaluates the token footprint of dynamic learning directives inside compiled_prompt.
+
+        If cumulative token count exceeds 6,000, older guidelines are cleanly compacted.
+        """
+        lines = compiled_prompt.splitlines()
+        
+        # Parse the prompt into sections
+        sections = [] # List of tuples: (is_directive, header_line, [content_lines])
+        current_is_directive = False
+        current_header = ""
+        current_lines = []
+        
+        for line in lines:
+            stripped = line.strip()
+            if (stripped.startswith("## 🎓 SYSTEM SELF-LEARNING DIRECTIVES") or 
+                stripped.startswith("## ⚡ Auto-Learned Swarm Constraints")):
+                # Save previous section
+                sections.append((current_is_directive, current_header, current_lines))
+                current_is_directive = True
+                current_header = line
+                current_lines = []
+            else:
+                current_lines.append(line)
+                
+        # Append final section
+        sections.append((current_is_directive, current_header, current_lines))
+        
+        # Extract and measure size of all directive blocks
+        total_directive_chars = 0
+        directive_blocks = []
+        
+        for is_dir, header, content_lines in sections:
+            if is_dir:
+                block_text = "\n".join(content_lines)
+                total_directive_chars += len(header) + 1 + len(block_text)
+                directive_blocks.append((header, content_lines))
+                
+        # 1 token ≈ 4 characters
+        token_count = total_directive_chars // 4
+        if token_count <= 6000:
+            return compiled_prompt
+            
+        # We need to prune and compress the directive blocks!
+        import re
+        all_items = []
+        for header, content_lines in directive_blocks:
+            current_item = []
+            for line in content_lines:
+                stripped = line.strip()
+                if not stripped:
+                    continue
+                # Match numbered lists or bullet points
+                if (stripped.startswith("-") or 
+                    stripped.startswith("*") or 
+                    re.match(r"^\d+\.", stripped) or 
+                    stripped.startswith("#")):
+                    if current_item:
+                        all_items.append(" ".join(current_item))
+                        current_item = []
+                    current_item.append(stripped)
+                else:
+                    current_item.append(stripped)
+            if current_item:
+                all_items.append(" ".join(current_item))
+                
+        if not all_items:
+            return compiled_prompt
+            
+        # Retain last keep_count items in their full detail, summarize the rest
+        keep_count = max(5, len(all_items) // 4)
+        if keep_count >= len(all_items):
+            keep_count = len(all_items) // 2
+            
+        older_items = all_items[:-keep_count]
+        newer_items = all_items[-keep_count:]
+        
+        # Generate dense semantic summaries from older items
+        summaries = []
+        for item in older_items:
+            item_lower = item.lower()
+            if "lock" in item_lower or "sqlite" in item_lower:
+                summaries.append("Enforce async lock guards on SQLite/disk concurrent write transactions.")
+            elif "deadlock" in item_lower or "mock" in item_lower or "approval" in item_lower:
+                summaries.append("Mock approval checks and bypass interactive gateways in automated/CI tests.")
+            elif "resize" in item_lower or "observer" in item_lower:
+                summaries.append("Throttle and debounce dynamic viewport resizing and ResizeObservers using requestAnimationFrame.")
+            elif "path" in item_lower or "workspace" in item_lower:
+                summaries.append("Dynamically inspect parent/current directories for `.agent` folder to resolve workspace paths.")
+            elif "token" in item_lower or "budget" in item_lower or "context" in item_lower:
+                summaries.append("Actively prune completed task logs and delete obsolete/redundant files to minimize context weight.")
+            else:
+                # Extract first few descriptive words to make a neat semantic summary
+                words = [w for w in item.split() if len(w) > 4][:6]
+                if words:
+                    clean_words = [re.sub(r"[^\w]", "", w) for w in words]
+                    summaries.append(f"Optimized directive regarding: {' '.join(clean_words)}.")
+                    
+        # Deduplicate summaries
+        unique_summaries = []
+        for s in summaries:
+            if s not in unique_summaries:
+                unique_summaries.append(s)
+                
+        if not unique_summaries:
+            unique_summaries.append("Adhere to general robust coding standards, transaction safety, and non-interactive testing protocols.")
+            
+        # Reconstruct the compacted directive block
+        compacted_lines = []
+        compacted_lines.append("### ⚡ COMPACTED SEMANTIC HISTORICAL DIRECTIVES (Unified Best Practices):")
+        for idx, s in enumerate(unique_summaries, 1):
+            compacted_lines.append(f"- **Summary Principle {idx}**: {s}")
+            
+        compacted_lines.append("\n### 🎓 ACTIVE HIGH-PRIORITY SYSTEM DIRECTIVES:")
+        for idx, item in enumerate(newer_items, 1):
+            # Strip leading numbers/bullets if any to avoid double numbering in reconstruction
+            clean_item = re.sub(r"^[-*\s]+", "", item)
+            clean_item = re.sub(r"^\d+\.\s*", "", clean_item)
+            compacted_lines.append(f"{idx}. {clean_item}")
+            
+        compacted_block = "\n".join(compacted_lines)
+        
+        # Reconstruct the final system prompt by replacing the first directive block and omitting the rest
+        reconstructed = []
+        replaced = False
+        for is_dir, header, content_lines in sections:
+            if is_dir:
+                if not replaced:
+                    reconstructed.append(header)
+                    reconstructed.append(compacted_block)
+                    replaced = True
+            else:
+                if header:
+                    reconstructed.append(header)
+                reconstructed.extend(content_lines)
+                
+        return "\n".join(reconstructed)
 
     def optimize_role_prompt(self, role: str, execution_efficiency: float, token_usage: int, outcome: str) -> bool:
         """Dynamically refine and auto-optimize standard role prompts based on execution performance feedback."""

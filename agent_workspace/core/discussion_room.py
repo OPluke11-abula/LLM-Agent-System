@@ -350,6 +350,7 @@ class DiscussionRoom:
 
                 system_prompt = f"{p['persona']}\n\nYou are participating in a multi-agent debate/discussion room. Help the team achieve a consensus."
                 system_prompt = self._append_role_learning_guide(p["role"], system_prompt)
+                system_prompt = self.prompt_composer.prune_compiled_prompt(system_prompt)
                 user_content = f"""Topic for discussion: {topic}
 
 {sub_swarm_context}Here is the dialogue transcript so far:
