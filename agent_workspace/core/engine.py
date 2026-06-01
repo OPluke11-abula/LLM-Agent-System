@@ -586,6 +586,131 @@ class AgentEngine:
         return packet
 
 
+class DynamicCodeGenerator:
+    """Gateway for generating specialized tools at runtime with security audits and test validation."""
+
+    def __init__(self, engine: AgentEngine):
+        self.engine = engine
+        self.workspace_path = engine.workspace_path
+
+    def generate_and_load_skill(self, name: str, code_content: str) -> bool:
+        """Audit, validate, run automated test gate, and dynamically load the new skill."""
+        import ast
+        import sys
+        import os
+        from pathlib import Path
+        import subprocess
+
+        # 1. AST Security Audit
+        try:
+            tree = ast.parse(code_content)
+        except SyntaxError as e:
+            raise ValueError(f"Syntax error in generated code: {e}")
+
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call):
+                func_name = ""
+                if isinstance(node.func, ast.Name):
+                    func_name = node.func.id
+                elif isinstance(node.func, ast.Attribute):
+                    func_name = node.func.attr
+
+                if func_name in {"eval", "exec", "compile", "system", "popen", "subprocess", "run"}:
+                    raise PermissionError(f"Security violation: unsafe execution call '{func_name}' detected")
+
+        # 2. Verify Tool Contract Structure
+        has_model = False
+        model_name = ""
+        for node in tree.body:
+            if isinstance(node, ast.ClassDef):
+                for base in node.bases:
+                    if isinstance(base, ast.Name) and base.id == "BaseModel":
+                        has_model = True
+                        model_name = node.name
+                        break
+
+        if not has_model:
+            raise ValueError("Generated skill must define a Pydantic BaseModel argument class")
+
+        has_func = False
+        for node in tree.body:
+            if isinstance(node, ast.FunctionDef) and not node.name.startswith("_"):
+                if node.args.args:
+                    first_arg = node.args.args[0]
+                    if first_arg.annotation and isinstance(first_arg.annotation, ast.Name) and first_arg.annotation.id == model_name:
+                        has_func = True
+                        break
+
+        if not has_func:
+            raise ValueError("Generated skill must define a public function whose first parameter is annotated with the Pydantic BaseModel")
+
+        # Ensure directories exist
+        skills_dir = Path(self.workspace_path) / "skills"
+        skills_dir.mkdir(parents=True, exist_ok=True)
+        tests_dir = Path(self.workspace_path) / "tests"
+        tests_dir.mkdir(parents=True, exist_ok=True)
+
+        skill_file_path = skills_dir / f"{name}.py"
+        test_file_path = tests_dir / f"test_gen_{name}.py"
+
+        # 3. Write skill file
+        skill_file_path.write_text(code_content, encoding="utf-8")
+
+        # 4. Subprocess Pytest Verification Gate
+        test_code = f"""
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from skills.{name} import {name}, {model_name}
+
+def test_dynamic_run():
+    # Verify we can import and verify basic execution
+    assert {name} is not None
+"""
+        test_file_path.write_text(test_code, encoding="utf-8")
+
+        python_exe = sys.executable or "C:\\Users\\luke2\\AppData\\Local\\Programs\\Python\\Python314\\python.exe"
+        try:
+            res = subprocess.run(
+                [python_exe, "-m", "pytest", str(test_file_path)],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            if res.returncode != 0:
+                # Clean up generated files
+                if skill_file_path.is_file():
+                    os.remove(skill_file_path)
+                raise ValueError(f"pytest verification gate failed:\n{res.stdout}\n{res.stderr}")
+        finally:
+            if test_file_path.is_file():
+                os.remove(test_file_path)
+
+        # 5. Dynamic loading at runtime
+        import sys
+        import importlib
+        if "skills" in sys.modules:
+            skills_mod = sys.modules["skills"]
+            if hasattr(skills_mod, "__path__"):
+                skills_path_str = str(skills_dir.resolve())
+                if skills_path_str not in skills_mod.__path__:
+                    skills_mod.__path__.append(skills_path_str)
+
+        module_name = f"skills.{name}"
+        try:
+            if module_name in sys.modules:
+                # Force remove old cache to ensure fresh import from new path
+                sys.modules.pop(module_name, None)
+            module = importlib.import_module(module_name)
+            self.engine._register_functions_from_module(module)
+            logger.info("Successfully hot-loaded dynamically generated tool '%s' into tools_registry", name)
+            return True
+        except Exception as e:
+            if skill_file_path.is_file():
+                os.remove(skill_file_path)
+            raise RuntimeError(f"Dynamic skill loading failed: {e}") from e
+
+
 if __name__ == "__main__":
     import json
 

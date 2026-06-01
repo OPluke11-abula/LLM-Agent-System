@@ -175,3 +175,62 @@ class PromptComposer:
         # Append dynamic lessons learned directives
         lessons = self._load_lessons_learned()
         return rendered + lessons
+
+    def optimize_role_prompt(self, role: str, execution_efficiency: float, token_usage: int, outcome: str) -> bool:
+        """Dynamically refine and auto-optimize standard role prompts based on execution performance feedback."""
+        role_file = self.prompts_dir / "roles" / f"{role}.md"
+        if not role_file.is_file():
+            return False
+
+        try:
+            content = role_file.read_text(encoding="utf-8")
+            if not content.startswith("---"):
+                return False
+
+            parts = content.split("---", 2)
+            if len(parts) < 3:
+                return False
+
+            role_def = yaml.safe_load(parts[1]) or {}
+            if not isinstance(role_def, dict):
+                return False
+
+            # 1. Automated semantic version increment loop
+            version = str(role_def.get("version", "1.0.0"))
+            try:
+                version_parts = list(map(int, version.split(".")))
+                version_parts[-1] += 1
+                new_version = ".".join(map(str, version_parts))
+            except Exception:
+                new_version = version + ".1"
+            role_def["version"] = new_version
+
+            # 2. Append auto-learned optimized prompt instructions to markdown body
+            body = parts[2].strip()
+            constraints = []
+
+            if outcome == "failure":
+                constraints.append("- FailSafe constraint: Avoid repeating structural connection locking violations. Wrap database transaction loops with synchronized connection locks.")
+            if token_usage > 50000:
+                constraints.append("- TokenBudget constraint: Maintain highly dense system prompt responses and actively dejunk workspace file footprints to optimize context weight.")
+            if execution_efficiency > 120:
+                constraints.append("- Latency constraint: Direct prompt routing to specific subtasks and bypass repetitive intent classifications to streamline loops.")
+
+            if constraints:
+                if "## ⚡ Auto-Learned Swarm Constraints" not in body:
+                    body += "\n\n## ⚡ Auto-Learned Swarm Constraints\n"
+                for c in constraints:
+                    if c not in body:
+                        body += f"{c}\n"
+
+            # 3. Serialize frontmatter and body back to disk
+            new_frontmatter = yaml.safe_dump(role_def, allow_unicode=True, sort_keys=False).strip()
+            new_content = f"---\n{new_frontmatter}\n---\n\n{body}\n"
+            role_file.write_text(new_content, encoding="utf-8")
+            logger.info("Successfully optimized and versioned standard prompt for role '%s' to version %s", role, new_version)
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to optimize prompt for role '{role}': {e}")
+            return False
+
