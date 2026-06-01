@@ -6,7 +6,7 @@
 
 ---
 
-## 🛠️ COMPLETED PHASES (Phases 0 - 20 Summarized Archive)
+## 🛠️ COMPLETED PHASES (Phases 0 - 21 Summarized Archive)
 
 - [x] **PHASE 0 — Foundation & Local Tooling**: Schemas, memory backend, skill contracts, dynamic routing & DX CLI.
 - [x] **PHASE 1 — Protocol Completeness**: n8n-like Asynchronous Workflow Engine and dynamic knowledge base indexing.
@@ -29,22 +29,23 @@
 - [x] **PHASE 18 — High-Fidelity Local Episodic Summarization & Automated Lesson Synchronization**: SQLite-based episodic memory summarization, lessons database dynamic formatting and auto-merging, and real-time swarm concurrency transaction locks auditing.
 - [x] **PHASE 19 — Federated Swarm Consensus Protocols & Cross-Tenant Skill Exchange**: Multi-tenant federated synchronization and dynamic runtime skill discovery/verification.
 - [x] **PHASE 20 — Advanced Dynamic Swarm Self-Evolution & Dynamic Code Generation Gateway**: Swarm autonomous code generation AST validation and dynamic prompt optimization sweeps.
+- [x] **PHASE 21 — Advanced Multi-Agent Self-Optimizing Compaction & Federated Swarm Organization**: Multi-agent milestone reflection report consensus loops and elastic semantic indexing SQLite FTS5 search engine optimization.
 
 ---
 
-## 🏢 PHASE 21 — Advanced Multi-Agent Self-Optimizing Compaction & Federated Swarm Organization / 進階智慧體自我優化與聯邦群落架構
+## 🏢 PHASE 22 — Advanced Multi-Swarm Evolutionary Diagnostics & Self-Tuning Channels / 多群落自我演化診斷與自適應調節通道
 
-### 21-01 Multi-Agent Role Consensus Refinement Loop
-- [x] Implement autonomous team performance reflection debate in `discussion_room.py` / 在核心模組中實作群落效能自我反思機制
-- [x] Automatically trigger role consensus loops analyzing logs of completed milestones and outputting `milestone_learning_report.md` / 自動於里程碑結束時觸發共識分析並產出自我學習總結報告
-- [x] Dynamically inject learning summaries into `.agent/knowledge_base/index.json` / 將反思報告動態寫入聯邦知識庫索引中
+### 22-01 Dynamic Event-Loop Bottleneck Profiling & Self-Tuning
+- [ ] Implement a non-intrusive event-loop bottleneck profiler in `observability.py` / 在 `observability.py` 中實作非侵入式事件循環瓶頸診斷分析器
+- [ ] Automatically detect task scheduling stutters or blocking sync calls exceeding 50ms in swarm execution paths / 自動偵測群落執行路徑中超過 50 毫秒的阻塞同步調用
+- [ ] Dynamically scale thread pool executors or adjust worker limits dynamically to optimize concurrency throughput / 彈性調節執行緒池容量或背景執行緒上限，自主優化高併發效能
 
 ---
 
-### 21-02 Self-Optimizing SQLite Episodic Query Engine
-- [x] Implement an elastic semantic indexing search algorithm inside `long_term_memory.py` using SQLite FTS5 / 在 `long_term_memory.py` 中利用 SQLite FTS5 實作高效的語意索引檢索機制
-- [x] Optimize the prompt query speed to keep the episodic matching delay under 15ms / 優化記憶媒合搜尋速度，確保情境回溯延遲低於 15 毫秒
-- [x] Write integration test coverage validating search performance under concurrent multi-agent queries / 撰寫單元測試驗證高併發情況下的語意檢索正確性與效能
+### 22-02 Self-Learning Prompts Context Minimizer
+- [ ] Implement an automated dynamic pruning mechanism inside `PromptComposer` to minimize prompt length / 在 `PromptComposer` 中實作基於已完成任務與歷史日誌的動態提示詞修剪機制
+- [ ] Automatically summarize older system learning directives and collapse them when prompt size exceeds 6,000 tokens / 當提示詞大小超過 6,000 tokens 時自動將舊的系統學習指南進行壓縮摘要
+- [ ] Write integration test coverage asserting prompt state compaction behaves correctly under large active logs / 撰寫單元測試驗證極大提示詞長度下的動態精簡機制與正確性
 
 ---
 
@@ -52,7 +53,7 @@
 
 | Phase | Total Tasks | Completed Tasks | Status |
 |---|---|---|---|
-| **Phase 0 - 20** | 58 tasks | 58 tasks | 100% Done |
-| **Phase 21** | 2 tasks | 2 tasks | 100% Done |
+| **Phase 0 - 21** | 60 tasks | 60 tasks | 100% Done |
+| **Phase 22** | 2 tasks | 0 tasks | 0% Pending |
 
 *This queue is managed dynamically by the active LAS Developer Agent. All task updates, outcome logs, and progress status updates are written directly to this file before turn conclusion.*
