@@ -693,3 +693,155 @@ Stderr: {stderr_str[:500]}
             "cfo_feedback": cfo_feedback,
             "passed": test_passed
         }
+
+    async def run_milestone_reflection(
+        self,
+        milestone_id: str,
+        tasks_dict: dict[str, Any] | None = None,
+        transaction_logs: list[str] | None = None
+    ) -> str:
+        """Triggers a round-robin debate among roles analyzing completed tasks.
+        
+        Refines consensus to produce a unified milestone_learning_report.md and registers it.
+        """
+        logger.info("Initiating autonomous milestone reflection consensus loop for milestone %s", milestone_id)
+
+        # 1. Format transaction logs summary
+        logs_summary_parts = []
+        if tasks_dict:
+            for task_id, task in tasks_dict.items():
+                # Extract fields handling both objects and dicts
+                if hasattr(task, "to_dict"):
+                    task_dict = task.to_dict()
+                elif isinstance(task, dict):
+                    task_dict = task
+                else:
+                    task_dict = {}
+                
+                title = getattr(task, "title", "") or task_dict.get("title", "")
+                desc = getattr(task, "description", "") or task_dict.get("description", "")
+                logs = getattr(task, "logs", []) or task_dict.get("logs", [])
+                
+                logs_str = "\n".join(logs) if isinstance(logs, list) else str(logs)
+                logs_summary_parts.append(
+                    f"### Task: {task_id} - {title}\n"
+                    f"**Description**: {desc}\n"
+                    f"**Logs**:\n{logs_str}"
+                )
+        if transaction_logs:
+            for log_entry in transaction_logs:
+                logs_summary_parts.append(str(log_entry))
+
+        logs_summary = "\n\n".join(logs_summary_parts) if logs_summary_parts else "(No task logs provided.)"
+
+        topic = (
+            f"Review and reflect on the concluded milestone: {milestone_id}.\n"
+            f"Here are the transaction logs of completed tasks in this milestone:\n"
+            f"---\n"
+            f"{logs_summary}\n"
+            f"---\n"
+            f"Please conduct a multi-role debate to analyze this milestone's execution. Focus on identifying:\n"
+            f"1. Performance Gaps: Where did the system or agents struggle or hit limits?\n"
+            f"2. Budget Consumption Audits: How did we use tokens/API quota? Any alerts or overspending?\n"
+            f"3. Prompt Refactoring Suggestions: How should we improve declarative system prompts or guidelines for each role to prevent future mistakes?"
+        )
+
+        agents = [
+            {"role": "ceo", "name": "CEO Strategy"},
+            {"role": "cto", "name": "CTO Architecture"},
+            {"role": "dev", "name": "Dev Engineering"},
+            {"role": "qa", "name": "QA Auditing"},
+            {"role": "cfo", "name": "CFO Billing"}
+        ]
+
+        # 2. Run the round-robin debate (1 round for efficiency)
+        debate_result = await self.run(
+            topic=topic,
+            agents=agents,
+            max_rounds=1,
+            moderator_persona=self._get_reflection_moderator_persona(),
+            session_id=f"reflection-{milestone_id}"
+        )
+        consensus_summary = debate_result.get("consensus_summary", "")
+
+        # 3. Resolve project root and knowledge base directory path
+        path_check = Path(self.workspace_path)
+        if (path_check / ".agent").is_dir():
+            project_root = path_check
+        elif (path_check.parent / ".agent").is_dir():
+            project_root = path_check.parent
+        else:
+            project_root = path_check.parent
+
+        kb_dir = project_root / ".agent" / "knowledge_base"
+        kb_dir.mkdir(parents=True, exist_ok=True)
+        
+        # 4. Write milestone learning report
+        report_file = kb_dir / "milestone_learning_report.md"
+        try:
+            report_file.write_text(consensus_summary, encoding="utf-8")
+            logger.info("Successfully persisted milestone learning report to %s", report_file)
+        except Exception as e:
+            logger.error("Failed to persist milestone learning report: %s", e)
+
+        # 5. Dynamically register in index.json
+        index_file = kb_dir / "index.json"
+        index_data = {}
+        if index_file.is_file():
+            try:
+                index_data = json.loads(index_file.read_text(encoding="utf-8"))
+            except Exception as e:
+                logger.error("Failed to parse index.json: %s", e)
+
+        if not isinstance(index_data, dict):
+            index_data = {}
+        
+        index_data.setdefault("schema_version", "1.0.0")
+        index_data.setdefault("generated_at", datetime.now(timezone.utc).isoformat())
+        
+        documents = index_data.setdefault("documents", [])
+        
+        doc_id = f"milestone_learning_report"
+        new_doc = {
+            "id": doc_id,
+            "title": "Milestone Learning Report",
+            "file_path": ".agent/knowledge_base/milestone_learning_report.md",
+            "description": f"Autonomous multi-agent role consensus learning report for milestone {milestone_id}.",
+            "creator": "LAS Orchestrator Swarm",
+            "version": "1.0.0",
+            "tags": ["reflection", "consensus", "compaction", "milestone"]
+        }
+
+        # Deduplicated upsert
+        exists = False
+        for idx, doc in enumerate(documents):
+            if doc.get("id") == doc_id:
+                documents[idx] = new_doc
+                exists = True
+                break
+        if not exists:
+            documents.append(new_doc)
+
+        try:
+            index_file.write_text(json.dumps(index_data, indent=2, ensure_ascii=False), encoding="utf-8")
+            logger.info("Successfully registered report in index.json")
+        except Exception as e:
+            logger.error("Failed to write to index.json: %s", e)
+
+        return consensus_summary
+
+    def _get_reflection_moderator_persona(self) -> str:
+        return (
+            "You are a professional meeting moderator and systems strategist.\n"
+            "Your task is to analyze the debate transcript and synthesize a unified, highly detailed Milestone Learning Report.\n"
+            "You MUST structure the report with the following exact Markdown headers and sections:\n\n"
+            "# Milestone Learning Report\n\n"
+            "## 1. Performance Gaps / 效能差距分析\n"
+            "Identify and detail any performance gaps, latency alerts, tool failures, or architectural bottlenecks encountered.\n\n"
+            "## 2. Budget Consumption Audits / 預算消費審計\n"
+            "Analyze token footprints, estimated API costs, account failover swaps, and financial efficiency.\n\n"
+            "## 3. Prompt Refactoring Suggestions / 提示詞重構建議\n"
+            "Provide specific suggestions for optimizing role system prompts (CEO, CTO, Dev, QA, CFO) with target version adjustments.\n\n"
+            "Enforce a highly professional, factual, and actionable tone."
+        )
+

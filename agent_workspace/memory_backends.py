@@ -208,11 +208,13 @@ class SQLiteBackend(MemoryBackend):
         conn = self._get_conn()
 
         # Build FTS5 match expression — quote each token to avoid syntax errors
-        tokens = query.strip().split()
-        if not tokens:
-            return self.all_records()[:top_k]
-
-        fts_query = " OR ".join(f'"{t}"' for t in tokens)
+        if ":" in query or '"' in query:
+            fts_query = query
+        else:
+            tokens = query.strip().split()
+            if not tokens:
+                return self.all_records()[:top_k]
+            fts_query = " OR ".join(f'"{t}"' for t in tokens)
 
         if session_id:
             rows = conn.execute(

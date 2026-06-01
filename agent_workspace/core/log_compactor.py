@@ -47,6 +47,26 @@ class LogCompactor:
             with open(archive_file, "w", encoding="utf-8") as f:
                 json.dump(detailed_archive, f, ensure_ascii=False, indent=2)
                 
+        # Trigger milestone reflection automatically (Task 21-01)
+        try:
+            import asyncio
+            try:
+                from core.discussion_room import DiscussionRoom
+            except ImportError:
+                from agent_workspace.core.discussion_room import DiscussionRoom
+            
+            discussion_room = DiscussionRoom(workspace_path=project_root)
+            
+            try:
+                loop = asyncio.get_running_loop()
+                # Run reflection in a background task if inside async context
+                loop.create_task(discussion_room.run_milestone_reflection(milestone_id, tasks_dict=tasks_dict))
+            except RuntimeError:
+                # Synchronous fallback if no running event loop
+                asyncio.run(discussion_room.run_milestone_reflection(milestone_id, tasks_dict=tasks_dict))
+        except Exception as e:
+            logger.error(f"Failed to automatically trigger milestone reflection debate: {e}")
+                
         return {
             "archive_path": archive_file,
             "compacted_count": compacted_count,

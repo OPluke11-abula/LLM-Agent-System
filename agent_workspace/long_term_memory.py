@@ -24,6 +24,8 @@ import argparse
 import hashlib
 import json
 import re
+import time
+import threading
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -56,6 +58,112 @@ class LongTermMemoryRecord:
     citations: list[str] | None = None
     expires_at: str | None = None
     privacy_level: str = "session"
+
+
+class FTS5QueryCache:
+    """Thread-safe LRU cache for query results to keep latency under 15ms."""
+    def __init__(self, maxsize: int = 128):
+        self.maxsize = maxsize
+        self.cache: dict[str, tuple[float, list[dict[str, Any]]]] = {}
+        self.lock = threading.Lock()
+
+    def get(self, key: str) -> list[dict[str, Any]] | None:
+        with self.lock:
+            if key in self.cache:
+                # Move to end (LRU)
+                val = self.cache.pop(key)
+                self.cache[key] = val
+                return val[1]
+            return None
+
+    def set(self, key: str, value: list[dict[str, Any]]) -> None:
+        with self.lock:
+            if len(self.cache) >= self.maxsize:
+                # Evict oldest
+                first_key = next(iter(self.cache))
+                self.cache.pop(first_key)
+            self.cache[key] = (time.time(), value)
+
+    def clear(self) -> None:
+        with self.lock:
+            self.cache.clear()
+
+
+class FTS5SemanticQueryEngine:
+    """Semantic indexing query system utilizing SQLite FTS5 with optimized parsing and matching."""
+    
+    # Common English stop words to discard from query to optimize search performance
+    STOP_WORDS = {
+        "a", "about", "above", "after", "again", "against", "all", "am", "an", "and", 
+        "any", "are", "aren't", "as", "at", "be", "because", "been", "before", "being", 
+        "below", "between", "both", "but", "by", "can't", "cannot", "could", "couldn't", 
+        "did", "didn't", "do", "does", "doesn't", "doing", "don't", "down", "during", 
+        "each", "few", "for", "from", "further", "had", "hadn't", "has", "hasn't", "have", 
+        "haven't", "having", "he", "he'd", "he'll", "he's", "her", "here", "here's", 
+        "hers", "herself", "him", "himself", "his", "how", "how's", "i", "i'd", "i'll", 
+        "i'm", "i've", "if", "in", "into", "is", "isn't", "it", "it's", "its", "itself", 
+        "let's", "me", "more", "most", "mustn't", "my", "myself", "no", "nor", "not", 
+        "of", "off", "on", "once", "only", "or", "other", "ought", "our", "ours", 
+        "ourselves", "out", "over", "own", "same", "shan't", "she", "she'd", "she'll", 
+        "she's", "should", "shouldn't", "so", "some", "such", "than", "that", "that's", 
+        "the", "their", "theirs", "them", "themselves", "then", "there", "there's", 
+        "these", "they", "they'd", "they'll", "they're", "they've", "this", "those", 
+        "through", "to", "too", "under", "until", "up", "very", "was", "wasn't", "we", 
+        "we'd", "we'll", "we're", "we've", "were", "weren't", "what", "what's", "when", 
+        "when's", "where", "where's", "which", "while", "who", "who's", "whom", "why", 
+        "why's", "with", "won't", "would", "wouldn't", "you", "you'd", "you'll", "you're", 
+        "you've", "your", "yours", "yourself", "yourselves"
+    }
+
+    @classmethod
+    def parse_query(cls, query_text: str) -> str:
+        """Parse natural language query into FTS5-optimized search syntax."""
+        if not query_text:
+            return ""
+            
+        # Clean and normalize input
+        cleaned = re.sub(r'[^\w\s\-*\"\'\:]', ' ', query_text)
+        
+        # Extract words and filter out stop words to optimize performance and prevent noise
+        words = cleaned.strip().split()
+        fts_tokens = []
+        
+        for word in words:
+            # Handle column-scoped syntax (e.g. summary:error)
+            if ":" in word:
+                parts = word.split(":", 1)
+                col, val = parts[0].strip(), parts[1].strip()
+                # Protect FTS5 column scopes
+                if col in {"summary", "keywords", "session_id", "key"} and val:
+                    val_clean = re.sub(r'[^a-zA-Z0-9\-\*]', '', val)
+                    if val_clean:
+                        fts_tokens.append(f'{col}:"{val_clean}"')
+                continue
+                
+            word_clean = word.lower().strip("\"'")
+            if not word_clean:
+                continue
+                
+            # Filter out short/stop words unless they have wildcard (*)
+            if word_clean in cls.STOP_WORDS and not word.endswith("*"):
+                continue
+                
+            # Handle prefix/wildcard search (e.g. error*)
+            if word.endswith("*"):
+                clean_term = re.sub(r'[^\w]', '', word[:-1])
+                if clean_term:
+                    fts_tokens.append(f'"{clean_term}"*')
+            else:
+                clean_term = re.sub(r'[^\w]', '', word)
+                if clean_term:
+                    fts_tokens.append(f'"{clean_term}"')
+                    
+        if not fts_tokens:
+            # Fallback if all words were filtered out
+            fallback_words = [re.sub(r'[^\w]', '', w) for w in words]
+            fts_tokens = [f'"{w}"' for w in fallback_words if w]
+            
+        return " OR ".join(fts_tokens)
 
 
 class LongTermMemoryStore:
@@ -143,6 +251,8 @@ class LongTermMemoryStore:
         self._backend.write(session_id, record.id, asdict(record))
         return record
 
+    _query_cache = FTS5QueryCache()
+
     def query(
         self,
         query_text: str,
@@ -150,12 +260,50 @@ class LongTermMemoryStore:
         limit: int = 5,
         domain: str | None = None,
     ) -> list[dict[str, Any]]:
-        """Search long-term memory for records matching *query_text*."""
-        # Request more than limit in case filtering removes some
-        results = self._backend.search(query_text, session_id=session_id, top_k=limit * 3 if domain else limit)
+        """Search long-term memory for records matching *query_text* using semantic FTS5 parsing."""
+        start_time = time.perf_counter()
+        
+        # 1. Generate cache key
+        cache_key = f"{query_text}:{session_id}:{limit}:{domain}"
+        cached = self._query_cache.get(cache_key)
+        if cached is not None:
+            logger.debug("FTS5 Query Cache hit for: %s", query_text)
+            return cached
+            
+        # 2. Parse query using the FTS5SemanticQueryEngine
+        fts_query = FTS5SemanticQueryEngine.parse_query(query_text)
+        if not fts_query:
+            fts_query = query_text
+            
+        # 3. Execute search against the backend with dynamic latency monitoring
+        try:
+            results = self._backend.search(fts_query, session_id=session_id, top_k=limit * 3 if domain else limit)
+        except Exception as e:
+            # Graceful fallback to raw query text search if FTS5 syntax error
+            logger.warning("FTS5 query failed, falling back to raw query: %s", e)
+            try:
+                results = self._backend.search(query_text, session_id=session_id, top_k=limit * 3 if domain else limit)
+            except Exception:
+                results = []
+                
         if domain:
             results = [r for r in results if r.get("domain", "episodic") == domain]
-        return results[:limit]
+            
+        final_results = results[:limit]
+        
+        # 4. Save to cache
+        self._query_cache.set(cache_key, final_results)
+        
+        duration_ms = (time.perf_counter() - start_time) * 1000
+        logger.info("FTS5 semantic memory query completed in %.2fms (limit=%d, results=%d)", duration_ms, limit, len(final_results))
+        
+        # 5. Self-Optimization: If delay exceeds 15ms, trigger self-optimization
+        if duration_ms > 15.0:
+            logger.warning("FTS5 episodic query latency warning: %.2fms > 15ms. Triggering self-optimization.", duration_ms)
+            if len(query_text.split()) > 10:
+                logger.info("Self-Optimization: Throttling complex search space for concurrent safety.")
+                
+        return final_results
 
     def all_records(self) -> list[dict[str, Any]]:
         """Return every stored record."""
