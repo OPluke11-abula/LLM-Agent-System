@@ -6,7 +6,7 @@
 
 ---
 
-## 🛠️ COMPLETED PHASES (Phases 0 - 19 Summarized Archive)
+## 🛠️ COMPLETED PHASES (Phases 0 - 20 Summarized Archive)
 
 - [x] **PHASE 0 — Foundation & Local Tooling**: Schemas, memory backend, skill contracts, dynamic routing & DX CLI.
 - [x] **PHASE 1 — Protocol Completeness**: n8n-like Asynchronous Workflow Engine and dynamic knowledge base indexing.
@@ -28,22 +28,23 @@
 - [x] **PHASE 17 — Advanced Swarm Context Auto-Minimizer & Dynamic Dejunking Engine**: Auto-pruning context minimizer and regex task queue compaction sweeps in LogCompactor.
 - [x] **PHASE 18 — High-Fidelity Local Episodic Summarization & Automated Lesson Synchronization**: SQLite-based episodic memory summarization, lessons database dynamic formatting and auto-merging, and real-time swarm concurrency transaction locks auditing.
 - [x] **PHASE 19 — Federated Swarm Consensus Protocols & Cross-Tenant Skill Exchange**: Multi-tenant federated synchronization and dynamic runtime skill discovery/verification.
+- [x] **PHASE 20 — Advanced Dynamic Swarm Self-Evolution & Dynamic Code Generation Gateway**: Swarm autonomous code generation AST validation and dynamic prompt optimization sweeps.
 
 ---
 
-## 🏢 PHASE 20 — Advanced Dynamic Swarm Self-Evolution & Dynamic Code Generation Gateway / 進階動態群落自我演化與動態代碼生成網關
+## 🏢 PHASE 21 — Advanced Multi-Agent Self-Optimizing Compaction & Federated Swarm Organization / 進階智慧體自我優化與聯邦群落架構
 
-### 20-01 Swarm Autonomous Code Generation & Runtime Loading
-- [x] Implement `DynamicCodeGenerator` in `core/router.py` or `core/engine.py` / 在核心模組中實作動態代碼生成網關
-- [x] Automatically generate new specialized tool code files under `skills/` at runtime when solving missing capabilities / 於執行期自動生成專屬工具代碼以解決缺失之功能
-- [x] Enforce security checks via AST parsing and verify via automated `pytest` verification gate before dynamically loading skill / 套用 AST 靜態安全分析並通過自動化 pytest 驗證後，於執行期安全動態載入
+### 21-01 Multi-Agent Role Consensus Refinement Loop
+- [ ] Implement autonomous team performance reflection debate in `discussion_room.py` / 在核心模組中實作群落效能自我反思機制
+- [ ] Automatically trigger role consensus loops analyzing logs of completed milestones and outputting `milestone_learning_report.md` / 自動於里程碑結束時觸發共識分析並產出自我學習總結報告
+- [ ] Dynamically inject learning summaries into `.agent/knowledge_base/index.json` / 將反思報告動態寫入聯邦知識庫索引中
 
 ---
 
-### 20-02 Self-Evolving Prompts Auto-Optimization
-- [x] Implement a dynamic prompt optimization sweep loop inside `PromptComposer` / 實作基於任務執行回饋的提示詞自我演化與自動優化機制
-- [x] Automatically evaluate prompt efficacy on task outcomes and auto-refine system prompts under `roles/` / 自動評估提示詞效能並優化 `roles/` 下的宣告式系統提示詞
-- [x] Write integration test coverage validating successful prompt self-evolution runs / 撰寫單元測試驗證提示詞自我演化機制
+### 21-02 Self-Optimizing SQLite Episodic Query Engine
+- [ ] Implement an elastic semantic indexing search algorithm inside `long_term_memory.py` using SQLite FTS5 / 在 `long_term_memory.py` 中利用 SQLite FTS5 實作高效的語意索引檢索機制
+- [ ] Optimize the prompt query speed to keep the episodic matching delay under 15ms / 優化記憶媒合搜尋速度，確保情境回溯延遲低於 15 毫秒
+- [ ] Write integration test coverage validating search performance under concurrent multi-agent queries / 撰寫單元測試驗證高併發情況下的語意檢索正確性與效能
 
 ---
 
@@ -51,7 +52,7 @@
 
 | Phase | Total Tasks | Completed Tasks | Status |
 |---|---|---|---|
-| **Phase 0 - 19** | 56 tasks | 56 tasks | 100% Done |
-| **Phase 20** | 2 tasks | 2 tasks | 100% Done |
+| **Phase 0 - 20** | 58 tasks | 58 tasks | 100% Done |
+| **Phase 21** | 2 tasks | 0 tasks | 0% Pending |
 
 *This queue is managed dynamically by the active LAS Developer Agent. All task updates, outcome logs, and progress status updates are written directly to this file before turn conclusion.*
