@@ -169,3 +169,103 @@ class SkillLoader:
             else:
                 parsed[current_key] = []
         return parsed
+
+
+class DynamicSkillSynthesizer:
+    """Synthesizes dynamic custom skills with AST security audits and loads them into LAS runtime."""
+
+    def __init__(self, workspace_path: str):
+        self.workspace_path = os.path.abspath(workspace_path)
+
+    def synthesize_and_register_skill(self, engine: Any, name: str, code_content: str) -> bool:
+        """Audits, validates, saves, and hot-loads a new custom skill (Task 24-02)."""
+        import ast
+        import sys
+        import logging
+        from pathlib import Path
+        
+        # 1. AST Security Audit
+        try:
+            tree = ast.parse(code_content)
+        except SyntaxError as e:
+            raise ValueError(f"Syntax error in generated code: {e}")
+
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call):
+                func_name = ""
+                if isinstance(node.func, ast.Name):
+                    func_name = node.func.id
+                elif isinstance(node.func, ast.Attribute):
+                    func_name = node.func.attr
+
+                if func_name in {"eval", "exec", "compile", "system", "popen", "subprocess", "run"}:
+                    raise PermissionError(f"Security violation: unsafe execution call '{func_name}' detected")
+
+        # 2. Verify Tool Contract Structure
+        has_model = False
+        model_name = ""
+        for node in tree.body:
+            if isinstance(node, ast.ClassDef):
+                for base in node.bases:
+                    if isinstance(base, ast.Name) and base.id == "BaseModel":
+                        has_model = True
+                        model_name = node.name
+                        break
+
+        if not has_model:
+            raise ValueError("Synthesized skill must define a Pydantic BaseModel argument class")
+
+        has_func = False
+        for node in tree.body:
+            if isinstance(node, ast.FunctionDef) and not node.name.startswith("_"):
+                if node.args.args:
+                    first_arg = node.args.args[0]
+                    if first_arg.annotation and isinstance(first_arg.annotation, ast.Name) and first_arg.annotation.id == model_name:
+                        has_func = True
+                        break
+
+        if not has_func:
+            raise ValueError("Synthesized skill must define a public function whose first parameter is annotated with the Pydantic BaseModel")
+
+        # 3. Save validated custom skill
+        skills_dir = Path(self.workspace_path) / "skills"
+        skills_dir.mkdir(parents=True, exist_ok=True)
+        skill_file_path = skills_dir / f"{name}.py"
+        skill_file_path.write_text(code_content, encoding="utf-8")
+
+        # 4. Dynamically load the skill into AgentEngine tools_registry
+        import importlib
+        if "skills" in sys.modules:
+            skills_mod = sys.modules["skills"]
+            if hasattr(skills_mod, "__path__"):
+                skills_path_str = str(skills_dir.resolve())
+                if skills_path_str not in skills_mod.__path__:
+                    skills_mod.__path__.append(skills_path_str)
+
+        module_name = f"skills.{name}"
+        try:
+            if module_name in sys.modules:
+                sys.modules.pop(module_name, None)
+            module = importlib.import_module(module_name)
+            engine._register_functions_from_module(module)
+            
+            # 5. Sync the Tool Manifest and PAP contracts
+            try:
+                from tool_manifest import ToolManifest, sync_pap_contracts, sync_skills_md
+                project_root = Path(self.workspace_path).parent
+                manifest = ToolManifest.from_engine(engine)
+                manifest.save()
+                sync_pap_contracts(manifest, project_root)
+                sync_skills_md(manifest, project_root)
+            except Exception as sync_err:
+                logger = logging.getLogger(__name__)
+                logger.warning("Failed to auto-sync tool manifest for synthesized skill: %s", sync_err)
+                
+            return True
+        except Exception as e:
+            if skill_file_path.is_file():
+                try:
+                    os.remove(skill_file_path)
+                except Exception:
+                    pass
+            raise RuntimeError(f"Dynamic skill loading failed: {e}") from e
