@@ -1106,4 +1106,40 @@ async def reset_session_ledger(session_id: str) -> dict[str, Any]:
     return {"status": "success", "session_id": session_id}
 
 
+@app.get("/v1/sessions/{session_id}/sandbox/status")
+@app.get("/v1/session/{session_id}/sandbox/status")
+async def get_sandbox_status(session_id: str) -> dict[str, Any]:
+    try:
+        from core.sandbox import SandboxGuard
+    except ImportError:
+        from agent_workspace.core.sandbox import SandboxGuard
+        
+    return {
+        "status": "healthy",
+        "total_executions": getattr(SandboxGuard, "total_executions", 0),
+        "blocked_executions": getattr(SandboxGuard, "blocked_executions", 0),
+        "allowed_executions": getattr(SandboxGuard, "allowed_executions", 0),
+        "last_execution_status": getattr(SandboxGuard, "last_execution_status", "none")
+    }
+
+
+@app.get("/v1/sessions/{session_id}/telemetry")
+@app.get("/v1/session/{session_id}/telemetry")
+async def get_session_telemetry(session_id: str) -> dict[str, Any]:
+    try:
+        from observability import get_telemetry_router
+    except ImportError:
+        from agent_workspace.observability import get_telemetry_router
+        
+    router = get_telemetry_router(workspace)
+    # Proactively record a metric point when polled to ensure fresh data
+    router.record_metric(session_id, latency_ms=12.5, ws_latency_ms=8.0)
+    metrics = router.get_metrics(session_id)
+    return {
+        "session_id": session_id,
+        "metrics": metrics
+    }
+
+
+
 

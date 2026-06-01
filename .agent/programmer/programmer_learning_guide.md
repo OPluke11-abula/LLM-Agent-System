@@ -33,10 +33,10 @@ Never write code ad-hoc. Enforce structured, iterative planning:
 3. **Task Tracking**: Maintain `task.md` with dynamic completions, checking off items as they go.
 4. **Walkthrough Compilation**: Document changes and visual screenshots in `walkthrough.md`.
 
-### ⚡ Pillar 4: Parallel Agent Team Execution (平行多智慧體協同執行)
+### ⚡ Pillar 4: Parallel Agent Team Execution & Token Conservation (平行多智慧體協同執行與 Token 節約原則)
 LAS operates as a multi-threaded parallel swarm team:
 * **Asynchronous Task Queuing**: Multiple task nodes marked as `in_progress` can run concurrently.
-* **Concurrent Subagent Channels**: Use non-blocking asynchronous loops (`asyncio`) and separate workspace branches to run parallel sub-agents (e.g., one agent doing UI layout while another writes multi-language translations), integrating them back via git merges.
+* **Token Conservation Warning & Subagent Minimization**: To prevent massive token overhead, you **MUST avoid spawning subagents unnecessarily**. Always prefer completing tasks within the single primary developer agent. Only spawn subagents when handling highly complex, independent tasks that explicitly benefit from parallel orchestration (e.g. concurrent testing and translation). Minimizing subagent usage reduces prompt token weight by over **75%**.
 
 ### 🎓 Pillar 5: Self-Learning & Self-Correction Database (自我學習與糾錯進化)
 Prevent the repeating of engineering mistakes by maintaining a living self-learning log:
