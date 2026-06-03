@@ -93,41 +93,90 @@ def test_delta_state_reconciler_thread_safety(temp_workspace):
 
 def test_websocket_pubsub_collaboration():
     """Test that collab_manager handles multiple subscriptions and broadcasts correct channel updates."""
+    import api
+    from core.discussion_room import ProofOfConsensus
+    from api import SwarmP2PCrypto
+
+    # Register a consensus for handshake
+    payload_hash = "collab-handshake-test-payload-hash"
+    cert = ProofOfConsensus.create_consensus_certificate(payload_hash, ["ceo", "cto", "dev"])
+    ProofOfConsensus.register_consensus(api.workspace, payload_hash, cert)
+    
+    # Generate signatures for connection handshake
+    sig_ceo = ProofOfConsensus.generate_member_signature("ceo", payload_hash)
+    sig_dev = ProofOfConsensus.generate_member_signature("dev", payload_hash)
+
     client = TestClient(app)
     session_id = "test-collab-session"
 
-    with client.websocket_connect(f"/v1/collaboration/{session_id}") as ws1:
+    url1 = f"/v1/collaboration/{session_id}?role=ceo&payload_hash={payload_hash}&signature={sig_ceo}"
+    url2 = f"/v1/collaboration/{session_id}?role=dev&payload_hash={payload_hash}&signature={sig_dev}"
+
+    with client.websocket_connect(url1) as ws1:
+        # 1. ECDH Handshake for ws1
+        server_hello1 = ws1.receive_json()
+        assert server_hello1["handshake"] == "server_hello"
+        
+        ws1_crypto = SwarmP2PCrypto()
+        ws1.send_json({
+            "handshake": "client_hello",
+            "public_key": ws1_crypto.get_public_bytes()
+        })
+        ws1_key = ws1_crypto.compute_shared_key(server_hello1["public_key"])
+
         # Subscribe to logs
-        ws1.send_json({"action": "subscribe", "channel": "logs"})
-        resp1 = ws1.receive_json()
+        sub_msg1 = {"action": "subscribe", "channel": "logs"}
+        ws1.send_json(SwarmP2PCrypto.encrypt_message(ws1_key, json.dumps(sub_msg1)))
+        resp1_enc = ws1.receive_json()
+        resp1 = json.loads(SwarmP2PCrypto.decrypt_message(ws1_key, resp1_enc))
         assert resp1["status"] == "subscribed"
         assert resp1["channel"] == "logs"
 
         # Subscribe to topology
-        ws1.send_json({"action": "subscribe", "channel": "topology"})
-        resp2 = ws1.receive_json()
+        sub_msg2 = {"action": "subscribe", "channel": "topology"}
+        ws1.send_json(SwarmP2PCrypto.encrypt_message(ws1_key, json.dumps(sub_msg2)))
+        resp2_enc = ws1.receive_json()
+        resp2 = json.loads(SwarmP2PCrypto.decrypt_message(ws1_key, resp2_enc))
         assert resp2["status"] == "subscribed"
         assert resp2["channel"] == "topology"
 
-        with client.websocket_connect(f"/v1/collaboration/{session_id}") as ws2:
+        with client.websocket_connect(url2) as ws2:
+            # ECDH Handshake for ws2
+            server_hello2 = ws2.receive_json()
+            assert server_hello2["handshake"] == "server_hello"
+            
+            ws2_crypto = SwarmP2PCrypto()
+            ws2.send_json({
+                "handshake": "client_hello",
+                "public_key": ws2_crypto.get_public_bytes()
+            })
+            ws2_key = ws2_crypto.compute_shared_key(server_hello2["public_key"])
+
             # Subscribe to logs too
-            ws2.send_json({"action": "subscribe", "channel": "logs"})
-            resp3 = ws2.receive_json()
+            sub_msg3 = {"action": "subscribe", "channel": "logs"}
+            ws2.send_json(SwarmP2PCrypto.encrypt_message(ws2_key, json.dumps(sub_msg3)))
+            resp3_enc = ws2.receive_json()
+            resp3 = json.loads(SwarmP2PCrypto.decrypt_message(ws2_key, resp3_enc))
             assert resp3["status"] == "subscribed"
 
             # Publish log event from ws2
             payload = {"event": "CTO_joined", "agent": "CTO"}
-            ws2.send_json({
+            pub_msg = {
                 "action": "publish",
                 "channel": "logs",
                 "payload": payload
-            })
+            }
+            ws2.send_json(SwarmP2PCrypto.encrypt_message(ws2_key, json.dumps(pub_msg)))
+
             # ws2 expects two incoming messages:
             # 1. The broadcast message it sent to the channel it is subscribed to.
             # 2. The publish response confirmation {"status": "published"}
-            # Since order depends on scheduling, we read both and assert based on keys.
-            msg_a = ws2.receive_json()
-            msg_b = ws2.receive_json()
+            msg_a_enc = ws2.receive_json()
+            msg_b_enc = ws2.receive_json()
+            
+            msg_a = json.loads(SwarmP2PCrypto.decrypt_message(ws2_key, msg_a_enc))
+            msg_b = json.loads(SwarmP2PCrypto.decrypt_message(ws2_key, msg_b_enc))
+            
             if "status" in msg_a:
                 resp4 = msg_a
                 incoming2 = msg_b
@@ -142,6 +191,7 @@ def test_websocket_pubsub_collaboration():
             assert incoming2["payload"]["event"] == "CTO_joined"
 
             # Check that ws1 received the published log event
-            incoming1 = ws1.receive_json()
+            incoming1_enc = ws1.receive_json()
+            incoming1 = json.loads(SwarmP2PCrypto.decrypt_message(ws1_key, incoming1_enc))
             assert incoming1["channel"] == "logs"
             assert incoming1["payload"]["event"] == "CTO_joined"

@@ -45,18 +45,23 @@
 
 ---
 
-## 🏢 PHASE 28 — Federated Swarm Decentralized Peer-to-Peer Storage & Redundant State Mirroring / 聯邦群落去中心化 P2P 存儲與冗餘狀態鏡像
-
-### 28-01 Swarm Dynamic P2P File Chunk Distributor
-- [x] Implement a lightweight decentralized file distributor in `agent_workspace/core/` to split and chunk project data across tenant folders / 在 `agent_workspace/core/` 中實作輕量級去中心化檔案分發器以分流儲存大體積資料
-- [x] Establish integrity assertions utilizing SHA256 checksum maps to verify chunk alignment, blocking session tampering / 使用 SHA256 校驗地圖建立完整性聲明以防止檔案篡改
+- [x] **PHASE 28 — Federated Swarm Decentralized Peer-to-Peer Storage & Redundant State Mirroring**: Lightweight decentralized file distributor in `agent_workspace/core/p2p_storage.py`, SHA256 chunk integrity verification, session delta state mirroring to secondary path replicas in `memory.py`, auto-healing failover state loader with forced IO exception recovery.
 
 ---
 
-### 28-02 Redundant State Vault Mirroring & Failover Routing
-- [x] Implement a state vault mirroring routine inside `memory.py` to mirror active sessions to secondary path replicas / 在 `memory.py` 中實作狀態庫鏡像機制，以冗餘備份當前會話狀態
-- [x] Construct auto-healing failover state loaders that automatically restore the latest snapshot if a workspace folder undergoes hardware resets or directory locks / 建立自愈式容災狀態加載器，在目錄受鎖或丟失時自動回復最新快照
-- [x] Add integration test coverage asserting successful state vault mirroring, P2P file chunk division, and dynamic failover recovery under forced IO exceptions / 撰寫單元測試驗證狀態庫鏡像、分塊檔案傳輸以及強制 IO 異常下的動態自愈與還原
+## 🏢 PHASE 29 — Federated Swarm Peer-to-Peer Encrypted Communications & Secure Session Handshakes / 聯邦群落去中心化 P2P 加密通訊與安全會話握手
+
+### 29-01 Swarm P2P DH Key Exchange & Message Encryption
+- [x] Implement an Elliptic-Curve Diffie-Hellman (ECDH) key exchange mechanism inside `discussion_room.py` or `api.py` / 在 `discussion_room.py` 或 `api.py` 中實作橢圓曲線迪菲-赫爾曼（ECDH）金鑰交換機制
+- [x] Encrypt all agent-to-agent WebSockets messages and collaborative session broadcasts using symmetric AES-GCM-256 with the negotiated session keys / 使用協商出的會話金鑰，對所有代理間的 WebSockets 訊息與協作廣播進行對稱式 AES-GCM-256 加密
+- [x] Ensure that only authenticated nodes possessing a valid key can decrypt live collaborative logs, ledger costs, and telemetry / 確保只有持有有效密鑰的驗證節點才能解密實時協作日誌、財務帳本與遙測數據
+
+---
+
+### 29-02 Dynamic Swarm Session Handshake & Connection Guard
+- [x] Build a secure handshake routing loop for incoming connection verification over WebSocket routes / 為進入 WebSocket 路由的連線建立安全握手校驗機制
+- [x] Validate connection signatures against the swarm consensus registry before upgrading client connections, automatically rejecting rogue clients / 在升級客戶端連線前校驗簽章，自動阻斷並拒絕非法或未授權的代理節點
+- [x] Add integration test coverage asserting ECDH key exchange success, AES-GCM-256 encrypted messaging, and rejection of handshake attempts from invalid dynamic clients / 撰寫單元測試驗證 ECDH 金鑰交換、AES-GCM-256 加密通訊以及未授權連線的阻斷
 
 ---
 
@@ -64,7 +69,7 @@
 
 | Phase | Total Tasks | Completed Tasks | Status |
 |---|---|---|---|
-| **Phase 0 - 27** | 72 tasks | 72 tasks | 100% Done |
-| **Phase 28** | 2 tasks | 2 tasks | 100% Done |
+| **Phase 0 - 28** | 74 tasks | 74 tasks | 100% Done |
+| **Phase 29** | 2 tasks | 2 tasks | 100% Done |
 
 *This queue is managed dynamically by the active LAS Developer Agent. All task updates, outcome logs, and progress status updates are written directly to this file before turn conclusion.*

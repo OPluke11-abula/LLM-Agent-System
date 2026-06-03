@@ -362,6 +362,68 @@ async def stream(request: ChatRequest) -> StreamingResponse:
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
+class SwarmP2PCrypto:
+    """Provides ECDH key exchange and AES-GCM-256 messaging utilities."""
+    def __init__(self):
+        from cryptography.hazmat.primitives.asymmetric import ec
+        self.private_key = ec.generate_private_key(ec.SECP256R1())
+        self.public_key = self.private_key.public_key()
+        
+    def get_public_bytes(self) -> str:
+        from cryptography.hazmat.primitives import serialization
+        pem = self.public_key.public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
+        )
+        return pem.decode("utf-8")
+
+    @classmethod
+    def load_public_key(cls, pem_str: str):
+        from cryptography.hazmat.primitives import serialization
+        return serialization.load_pem_public_key(pem_str.encode("utf-8"))
+
+    def compute_shared_key(self, peer_public_key_pem: str) -> bytes:
+        from cryptography.hazmat.primitives.asymmetric import ec
+        from cryptography.hazmat.primitives import hashes
+        from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+        peer_public_key = self.load_public_key(peer_public_key_pem)
+        shared_secret = self.private_key.exchange(ec.ECDH(), peer_public_key)
+        
+        # Derive key using HKDF
+        derived_key = HKDF(
+            algorithm=hashes.SHA256(),
+            length=32,
+            salt=None,
+            info=b"swarm-session-key",
+        ).derive(shared_secret)
+        
+        return derived_key
+
+    @classmethod
+    def encrypt_message(cls, key: bytes, plaintext: str) -> dict[str, str]:
+        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+        import os
+        import base64
+        aesgcm = AESGCM(key)
+        nonce = os.urandom(12)
+        ciphertext = aesgcm.encrypt(nonce, plaintext.encode("utf-8"), None)
+        return {
+            "encrypted": "true",
+            "ciphertext": base64.b64encode(ciphertext).decode("utf-8"),
+            "nonce": base64.b64encode(nonce).decode("utf-8")
+        }
+
+    @classmethod
+    def decrypt_message(cls, key: bytes, encrypted_payload: dict[str, str]) -> str:
+        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+        import base64
+        aesgcm = AESGCM(key)
+        ciphertext = base64.b64decode(encrypted_payload["ciphertext"])
+        nonce = base64.b64decode(encrypted_payload["nonce"])
+        plaintext = aesgcm.decrypt(nonce, ciphertext, None)
+        return plaintext.decode("utf-8")
+
+
 class MultiChannelPubSubManager:
     """Manages multi-channel WebSocket subscription routing for logs, telemetry, ledger, topology, stdout, and state_sync."""
     def __init__(self):
@@ -375,13 +437,18 @@ class MultiChannelPubSubManager:
             "state_sync": set()
         }
         self.active_sockets: set[WebSocket] = set()
+        self.session_keys: dict[WebSocket, bytes] = {}
 
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
         self.active_sockets.add(websocket)
 
+    def register_key(self, websocket: WebSocket, session_key: bytes):
+        self.session_keys[websocket] = session_key
+
     def disconnect(self, websocket: WebSocket):
         self.active_sockets.discard(websocket)
+        self.session_keys.pop(websocket, None)
         for channel in self.channels.values():
             to_remove = [item for item in channel if item[0] == websocket]
             for item in to_remove:
@@ -405,12 +472,22 @@ class MultiChannelPubSubManager:
         for ws, s_id in list(self.channels[channel]):
             if session_id == "global" or s_id == "global" or s_id == session_id:
                 try:
-                    await ws.send_json({
+                    payload_dict = {
                         "channel": channel,
                         "session_id": session_id,
                         "payload": data,
                         "timestamp": datetime.now(timezone.utc).isoformat()
-                    })
+                    }
+                    
+                    key = self.session_keys.get(ws)
+                    if key:
+                        # Encrypt broadcast message
+                        plaintext = json.dumps(payload_dict, ensure_ascii=False)
+                        encrypted_msg = SwarmP2PCrypto.encrypt_message(key, plaintext)
+                        await ws.send_json(encrypted_msg)
+                    else:
+                        # Fallback for backward compatibility/unencrypted clients if any
+                        await ws.send_json(payload_dict)
                 except Exception:
                     # Stale connection, will be handled during disconnect
                     pass
@@ -504,22 +581,82 @@ async def run_dashboard_chat(session_id: str, msg: str):
 
 @app.websocket("/v1/collaboration/{session_id}")
 async def collaboration_endpoint(websocket: WebSocket, session_id: str):
-    await collab_manager.connect(websocket)
+    # 1. Connection Guard: Validate connection against swarm consensus registry
+    params = websocket.query_params
+    role = params.get("role")
+    payload_hash = params.get("payload_hash")
+    signature = params.get("signature")
+
+    from core.discussion_room import ProofOfConsensus
+    if not (role and payload_hash and signature and 
+            ProofOfConsensus.is_consensus_approved(workspace, payload_hash) and
+            signature == ProofOfConsensus.generate_member_signature(role, payload_hash)):
+        await websocket.accept()
+        await websocket.close(code=4003, reason="Unauthorized Swarm Handshake")
+        return
+
+    # 2. Accept and execute ECDH session key exchange
+    await websocket.accept()
+    collab_manager.active_sockets.add(websocket)
+    
+    server_crypto = SwarmP2PCrypto()
+    try:
+        # Send Server Hello with server public key
+        await websocket.send_json({
+            "handshake": "server_hello",
+            "public_key": server_crypto.get_public_bytes()
+        })
+        # Receive Client Hello with client public key
+        client_hello = await websocket.receive_json()
+        if client_hello.get("handshake") != "client_hello" or "public_key" not in client_hello:
+            await websocket.close(code=4002, reason="Invalid Handshake Protocol")
+            collab_manager.disconnect(websocket)
+            return
+            
+        session_key = server_crypto.compute_shared_key(client_hello["public_key"])
+        collab_manager.register_key(websocket, session_key)
+    except Exception as e:
+        logger.error(f"P2P Key Exchange failed: {e}")
+        await websocket.close(code=4002, reason="Key Exchange Failure")
+        collab_manager.disconnect(websocket)
+        return
+
     try:
         while True:
-            data = await websocket.receive_json()
+            # 3. Encrypted P2P Communications
+            encrypted_data = await websocket.receive_json()
+            if "ciphertext" in encrypted_data and "nonce" in encrypted_data:
+                try:
+                    decrypted_str = SwarmP2PCrypto.decrypt_message(session_key, encrypted_data)
+                    data = json.loads(decrypted_str)
+                except Exception as e:
+                    logger.error(f"Failed to decrypt client frame: {e}")
+                    err_msg = json.dumps({"error": "Decryption failure"})
+                    enc_err = SwarmP2PCrypto.encrypt_message(session_key, err_msg)
+                    await websocket.send_json(enc_err)
+                    continue
+            else:
+                data = encrypted_data
+
             action = data.get("action")
             channel = data.get("channel")
+            
             if action == "subscribe" and channel:
                 await collab_manager.subscribe(websocket, session_id, channel)
-                await websocket.send_json({"status": "subscribed", "channel": channel})
+                resp = {"status": "subscribed", "channel": channel}
+                enc_resp = SwarmP2PCrypto.encrypt_message(session_key, json.dumps(resp))
+                await websocket.send_json(enc_resp)
             elif action == "unsubscribe" and channel:
                 await collab_manager.unsubscribe(websocket, session_id, channel)
-                await websocket.send_json({"status": "unsubscribed", "channel": channel})
+                resp = {"status": "unsubscribed", "channel": channel}
+                enc_resp = SwarmP2PCrypto.encrypt_message(session_key, json.dumps(resp))
+                await websocket.send_json(enc_resp)
             elif action == "publish" and channel:
                 payload = data.get("payload", {})
                 await collab_manager.publish(channel, session_id, payload)
-                await websocket.send_json({"status": "published", "channel": channel})
+                resp = {"status": "published", "channel": channel}
+                enc_resp = SwarmP2PCrypto.encrypt_message(session_key, json.dumps(resp))
+                await websocket.send_json(enc_resp)
     except WebSocketDisconnect:
         collab_manager.disconnect(websocket)
     except Exception as e:
