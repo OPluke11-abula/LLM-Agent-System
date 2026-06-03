@@ -623,6 +623,10 @@ def validate(manifest: ToolManifest, project_root: Path) -> list[str]:
 
 
 def main() -> None:
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except AttributeError:
+        pass
     parser = argparse.ArgumentParser(description="LAS tool manifest and PAP contract manager")
     parser.add_argument(
         "command",
