@@ -195,6 +195,9 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
   const [ledgerData, setLedgerData] = useState<{ total_cost: number; cost_threshold: number; active_model: string; transactions: any[] } | null>(null);
   const [sandboxStatus, setSandboxStatus] = useState<{ total_executions: number; blocked_executions: number; allowed_executions: number; last_execution_status: string } | null>(null);
   const [telemetryData, setTelemetryData] = useState<{ metrics: any[] } | null>(null);
+  const [collabConnected, setCollabConnected] = useState(false);
+  const [activityStream, setActivityStream] = useState<any[]>([]);
+  const subscribedChannels = ["logs", "telemetry", "ledger", "topology", "stdout", "state_sync"];
 
   const activeSessionId = visibleSessionIds[0] || (sessions[0]?.session_id);
 
@@ -358,6 +361,84 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
     return () => {
       cancelled = true;
       clearInterval(interval);
+    };
+  }, [activeSessionId, sessions]);
+
+  useEffect(() => {
+    if (!activeSessionId) return;
+    let ws: WebSocket | null = null;
+    let cancelled = false;
+
+    const connectCollab = () => {
+      if (cancelled) return;
+      try {
+        ws = new WebSocket(`ws://localhost:8000/v1/collaboration/${activeSessionId}`);
+        
+        ws.onopen = () => {
+          if (cancelled) {
+            ws?.close();
+            return;
+          }
+          setCollabConnected(true);
+          // Subscribe to channels
+          const channels = ["logs", "telemetry", "ledger", "topology", "stdout", "state_sync"];
+          channels.forEach(ch => {
+            ws?.send(JSON.stringify({
+              action: "subscribe",
+              channel: ch
+            }));
+          });
+        };
+
+        ws.onmessage = (event) => {
+          if (cancelled) return;
+          try {
+            const data = JSON.parse(event.data);
+            // Append incoming event to the scrolling stream
+            setActivityStream(prev => {
+              const next = [...prev, data];
+              if (next.length > 25) {
+                next.shift(); // Limit to 25 items
+              }
+              return next;
+            });
+
+            // Optimistic update of component states on message arrival
+            if (data.channel === "telemetry" && data.payload) {
+              setTelemetryData({ metrics: [data.payload] });
+            } else if (data.channel === "ledger" && data.payload) {
+              setLedgerData(prev => prev ? {
+                ...prev,
+                total_cost: data.payload.total_cost || prev.total_cost,
+                transactions: data.payload.transactions || prev.transactions
+              } : null);
+            }
+          } catch (e) {
+            console.error("Failed to parse websocket message:", e);
+          }
+        };
+
+        ws.onclose = () => {
+          setCollabConnected(false);
+          // Reconnect logic
+          setTimeout(connectCollab, 3000);
+        };
+
+        ws.onerror = () => {
+          ws?.close();
+        };
+      } catch (e) {
+        console.error("WebSocket collab connection failed:", e);
+      }
+    };
+
+    connectCollab();
+
+    return () => {
+      cancelled = true;
+      if (ws) {
+        ws.close();
+      }
     };
   }, [activeSessionId, sessions]);
 
@@ -722,6 +803,86 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
                 {lang === "zh"
                   ? "遙測路由：非阻塞緩衝與轉發系統運行時之 CPU、記憶體佔用、 WebSocket 延遲與 SQLite 累積成本"
                   : "Telemetry Router: Non-blocking real-time routing of CPU, Memory, WS latency, and cumulative API USD cost metrics"}
+              </div>
+            </div>
+
+            <div className="mx-3 mb-3 p-3 rounded-lg border flex flex-col gap-2 relative group/collab" style={{ background: "var(--bg-card)", borderColor: "var(--border-c)" }}>
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: "var(--accent)" }}>
+                  {lang === "zh" ? "多通道實時協作" : "Live Swarm Collaboration"}
+                </p>
+                <span className={`text-[8px] px-1.5 py-0.5 rounded font-mono font-bold ${collabConnected ? "bg-emerald-950 text-emerald-400 border border-emerald-800" : "bg-red-950 text-red-400 border border-red-800"}`}>
+                  {collabConnected ? "CONNECTED" : "OFFLINE"}
+                </span>
+              </div>
+              
+              <div className="flex flex-wrap gap-1 mt-1">
+                {subscribedChannels.map((ch) => (
+                  <span key={ch} className="text-[7px] font-mono font-black uppercase bg-slate-900 border border-slate-800 px-1 py-0.5 rounded text-slate-400">
+                    #{ch}
+                  </span>
+                ))}
+              </div>
+
+              <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 w-64 -translate-x-1/2 rounded bg-slate-950 px-3 py-2 text-center text-[10px] leading-normal text-slate-300 opacity-0 transition-opacity border border-slate-800 shadow-2xl group-hover/collab:opacity-100">
+                {lang === "zh"
+                  ? "協作通道：提供跨代理/用戶之實時 Pub/Sub 廣播與多路訂閱路由服務"
+                  : "Collaboration channels: Pub/Sub routing for dynamic swarm collaboration streams"}
+              </div>
+            </div>
+
+            <div className="mx-3 mb-3 p-3 rounded-lg border flex flex-col gap-2 relative group/activity" style={{ background: "var(--bg-card)", borderColor: "var(--border-c)" }}>
+              <div className="flex items-center justify-between border-b pb-1" style={{ borderColor: "var(--border-c)" }}>
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: "var(--accent)" }}>
+                  {lang === "zh" ? "實時群落活動流" : "Live Activity Stream"}
+                </p>
+                <span className="text-[8px] font-mono font-bold text-slate-500">
+                  REAL-TIME
+                </span>
+              </div>
+              
+              <div className="max-h-24 overflow-y-auto space-y-1.5 pr-1 font-mono text-[9px] text-slate-400 scrollbar-thin">
+                {activityStream.length > 0 ? (
+                  activityStream.slice().reverse().map((act: any, idx: number) => {
+                    const chLabel = act.channel || "logs";
+                    const timestamp = act.timestamp ? new Date(act.timestamp).toLocaleTimeString() : "";
+                    const payload = act.payload || {};
+                    let displayMsg = JSON.stringify(payload);
+                    if (chLabel === "stdout") {
+                      displayMsg = payload.text || "";
+                    } else if (chLabel === "logs") {
+                      displayMsg = payload.content || payload.msg || displayMsg;
+                    } else if (chLabel === "topology") {
+                      displayMsg = `Node ${payload.node_id || ""} status: ${payload.status || ""}`;
+                    } else if (chLabel === "state_sync") {
+                      displayMsg = `Delta Sync: ${Object.keys(payload.values || {}).join(", ")}`;
+                    }
+
+                    if (displayMsg.length > 60) {
+                      displayMsg = displayMsg.substring(0, 57) + "...";
+                    }
+
+                    return (
+                      <div key={idx} className="flex flex-col border-b border-slate-850 pb-1 last:border-b-0">
+                        <div className="flex justify-between text-[7px] text-slate-500 font-bold mb-0.5">
+                          <span style={{ color: "var(--accent)" }}>#{chLabel}</span>
+                          <span>{timestamp}</span>
+                        </div>
+                        <span className="text-slate-300 break-all leading-tight">{displayMsg}</span>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="text-center text-slate-600 text-[8px] py-4">
+                    {lang === "zh" ? "等待實時廣播活動中..." : "Awaiting collaboration streams..."}
+                  </div>
+                )}
+              </div>
+
+              <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 w-64 -translate-x-1/2 rounded bg-slate-950 px-3 py-2 text-center text-[10px] leading-normal text-slate-300 opacity-0 transition-opacity border border-slate-800 shadow-2xl group-hover/activity:opacity-100">
+                {lang === "zh"
+                  ? "活動流：呈現當前 Session 發送至多通道之最新 logs、stdout 與 delta 狀態變化"
+                  : "Activity stream: chronological live feed of multi-channel logs, stdout, and delta states"}
               </div>
             </div>
           </>

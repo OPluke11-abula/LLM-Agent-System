@@ -362,6 +362,63 @@ async def stream(request: ChatRequest) -> StreamingResponse:
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
+class MultiChannelPubSubManager:
+    """Manages multi-channel WebSocket subscription routing for logs, telemetry, ledger, topology, stdout, and state_sync."""
+    def __init__(self):
+        # Maps channel -> set of (WebSocket, session_id)
+        self.channels: dict[str, set[tuple[WebSocket, str]]] = {
+            "logs": set(),
+            "telemetry": set(),
+            "ledger": set(),
+            "topology": set(),
+            "stdout": set(),
+            "state_sync": set()
+        }
+        self.active_sockets: set[WebSocket] = set()
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_sockets.add(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        self.active_sockets.discard(websocket)
+        for channel in self.channels.values():
+            to_remove = [item for item in channel if item[0] == websocket]
+            for item in to_remove:
+                channel.remove(item)
+
+    async def subscribe(self, websocket: WebSocket, session_id: str, channel: str):
+        if channel in self.channels:
+            self.channels[channel].add((websocket, session_id))
+            logger.info(f"WebSocket subscribed to channel '{channel}' for session '{session_id}'")
+
+    async def unsubscribe(self, websocket: WebSocket, session_id: str, channel: str):
+        if channel in self.channels:
+            self.channels[channel].discard((websocket, session_id))
+            logger.info(f"WebSocket unsubscribed from channel '{channel}' for session '{session_id}'")
+
+    async def publish(self, channel: str, session_id: str, data: dict[str, Any]):
+        if channel not in self.channels:
+            return
+        
+        # Broadcast to all connections subscribed to this channel for this session or "global"
+        for ws, s_id in list(self.channels[channel]):
+            if session_id == "global" or s_id == "global" or s_id == session_id:
+                try:
+                    await ws.send_json({
+                        "channel": channel,
+                        "session_id": session_id,
+                        "payload": data,
+                        "timestamp": datetime.now(timezone.utc).isoformat()
+                    })
+                except Exception:
+                    # Stale connection, will be handled during disconnect
+                    pass
+
+
+collab_manager = MultiChannelPubSubManager()
+
+
 class DashboardConnectionManager:
     def __init__(self):
         self.active_connections: dict[str, list[tuple[WebSocket, str]]] = {}
@@ -443,6 +500,31 @@ async def run_dashboard_chat(session_id: str, msg: str):
             await dashboard_manager.broadcast(session_id, {"session": session_id, **event})
     except Exception as e:
         await dashboard_manager.broadcast(session_id, {"session": session_id, "type": "error", "content": str(e)})
+
+
+@app.websocket("/v1/collaboration/{session_id}")
+async def collaboration_endpoint(websocket: WebSocket, session_id: str):
+    await collab_manager.connect(websocket)
+    try:
+        while True:
+            data = await websocket.receive_json()
+            action = data.get("action")
+            channel = data.get("channel")
+            if action == "subscribe" and channel:
+                await collab_manager.subscribe(websocket, session_id, channel)
+                await websocket.send_json({"status": "subscribed", "channel": channel})
+            elif action == "unsubscribe" and channel:
+                await collab_manager.unsubscribe(websocket, session_id, channel)
+                await websocket.send_json({"status": "unsubscribed", "channel": channel})
+            elif action == "publish" and channel:
+                payload = data.get("payload", {})
+                await collab_manager.publish(channel, session_id, payload)
+                await websocket.send_json({"status": "published", "channel": channel})
+    except WebSocketDisconnect:
+        collab_manager.disconnect(websocket)
+    except Exception as e:
+        logger.error(f"Collaboration websocket error: {e}")
+        collab_manager.disconnect(websocket)
 
 
 @app.websocket("/v1/dashboard/{session_id}/{role}")
@@ -1139,6 +1221,44 @@ async def get_session_telemetry(session_id: str) -> dict[str, Any]:
         "session_id": session_id,
         "metrics": metrics
     }
+
+
+@app.post("/v1/sessions/{session_id}/state/delta")
+@app.post("/v1/session/{session_id}/state/delta")
+async def reconcile_state_delta(session_id: str, delta: dict[str, Any]) -> dict[str, Any]:
+    try:
+        from core.memory import DeltaStateReconciler
+    except ImportError:
+        from agent_workspace.core.memory import DeltaStateReconciler
+
+    reconciler = DeltaStateReconciler(workspace)
+    changed = reconciler.merge_delta(delta)
+    
+    # Broadcast delta to the session's state_sync channel
+    if changed:
+        await collab_manager.publish("state_sync", session_id, delta)
+
+    return {
+        "status": "success",
+        "changed": changed,
+        "state": reconciler.get_state()
+    }
+
+
+@app.get("/v1/sessions/{session_id}/state")
+@app.get("/v1/session/{session_id}/state")
+async def get_reconciled_state(session_id: str) -> dict[str, Any]:
+    try:
+        from core.memory import DeltaStateReconciler
+    except ImportError:
+        from agent_workspace.core.memory import DeltaStateReconciler
+
+    reconciler = DeltaStateReconciler(workspace)
+    return {
+        "session_id": session_id,
+        "state": reconciler.get_state()
+    }
+
 
 
 

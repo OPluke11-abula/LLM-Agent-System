@@ -2,6 +2,8 @@ import os
 import json
 import logging
 import hashlib
+import time
+import threading
 from pathlib import Path
 from datetime import datetime, timezone
 from typing import Any
@@ -13,7 +15,10 @@ class ContextDefragmenter:
 
     def __init__(self, workspace_path: str):
         self.workspace_path = os.path.abspath(workspace_path)
-        self.project_root = Path(self.workspace_path).parent
+        if os.path.basename(self.workspace_path) == "agent_workspace":
+            self.project_root = Path(self.workspace_path).parent
+        else:
+            self.project_root = Path(self.workspace_path)
 
     def defragment(self, session_id: str) -> dict[str, Any]:
         """Perform defragmentation sweep of all historical handoffs."""
@@ -172,3 +177,156 @@ class ContextDefragmenter:
             "reconciliation_efficiency": reconciliation_efficiency,
             "knowledge_graph": knowledge_graph
         }
+
+
+class CRDTState:
+    """Lightweight Last-Write-Wins (LWW) Element-Set CRDT for dynamic state delta synchronization."""
+    def __init__(self, replica_id: str = "default"):
+        self.replica_id = replica_id
+        self.values: dict[str, Any] = {}
+        self.timestamps: dict[str, float] = {}
+        self.tombstones: dict[str, float] = {}
+
+    def update(self, key: str, value: Any, timestamp: float | None = None) -> dict[str, Any]:
+        """Update a key-value pair and return the delta."""
+        t = timestamp or time.time()
+        # Only update if not tombstoned with a newer timestamp
+        if key in self.tombstones and self.tombstones[key] >= t:
+            return {}
+        
+        if key not in self.timestamps or self.timestamps[key] < t:
+            self.values[key] = value
+            self.timestamps[key] = t
+            # remove from tombstones if it was there with older timestamp
+            if key in self.tombstones and self.tombstones[key] < t:
+                del self.tombstones[key]
+            return {
+                "values": {key: value},
+                "timestamps": {key: t},
+                "tombstones": {}
+            }
+        return {}
+
+    def delete(self, key: str, timestamp: float | None = None) -> dict[str, Any]:
+        """Delete a key and return the delta."""
+        t = timestamp or time.time()
+        if key not in self.tombstones or self.tombstones[key] < t:
+            self.tombstones[key] = t
+            if key in self.values:
+                del self.values[key]
+            if key in self.timestamps:
+                del self.timestamps[key]
+            return {
+                "values": {},
+                "timestamps": {},
+                "tombstones": {key: t}
+            }
+        return {}
+
+    def merge_delta(self, delta: dict[str, Any]) -> bool:
+        """Merge a delta dict. Returns True if local state changed."""
+        changed = False
+        incoming_values = delta.get("values", {})
+        incoming_timestamps = delta.get("timestamps", {})
+        incoming_tombstones = delta.get("tombstones", {})
+
+        # 1. Process incoming tombstones
+        for key, t_ts in incoming_tombstones.items():
+            # Check if this tombstone is newer than local value timestamp and local tombstone
+            local_ts = self.timestamps.get(key, 0.0)
+            local_t_ts = self.tombstones.get(key, 0.0)
+            if t_ts > local_ts and t_ts > local_t_ts:
+                self.tombstones[key] = t_ts
+                if key in self.values:
+                    del self.values[key]
+                if key in self.timestamps:
+                    del self.timestamps[key]
+                changed = True
+
+        # 2. Process incoming values
+        for key, val in incoming_values.items():
+            t_ts = incoming_timestamps.get(key, 0.0)
+            # Only merge if not tombstoned with newer or equal timestamp
+            local_t_ts = self.tombstones.get(key, 0.0)
+            if local_t_ts >= t_ts:
+                continue
+
+            local_ts = self.timestamps.get(key, 0.0)
+            if t_ts > local_ts:
+                self.values[key] = val
+                self.timestamps[key] = t_ts
+                if key in self.tombstones:
+                    del self.tombstones[key]
+                changed = True
+
+        return changed
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "replica_id": self.replica_id,
+            "values": self.values,
+            "timestamps": self.timestamps,
+            "tombstones": self.tombstones
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> CRDTState:
+        state = cls(replica_id=data.get("replica_id", "default"))
+        state.values = dict(data.get("values", {}))
+        state.timestamps = dict(data.get("timestamps", {}))
+        state.tombstones = dict(data.get("tombstones", {}))
+        return state
+
+
+class DeltaStateReconciler:
+    def __init__(self, workspace_path: str):
+        self.workspace_path = os.path.abspath(workspace_path)
+        if os.path.basename(self.workspace_path) == "agent_workspace":
+            self.project_root = Path(self.workspace_path).parent
+        else:
+            self.project_root = Path(self.workspace_path)
+        self.state_file = self.project_root / ".agent" / "memory" / "reconciled_state.json"
+        self._lock = threading.Lock()
+
+    def _load_state(self) -> CRDTState:
+        if not self.state_file.is_file():
+            return CRDTState()
+        try:
+            data = json.loads(self.state_file.read_text(encoding="utf-8"))
+            return CRDTState.from_dict(data)
+        except Exception:
+            return CRDTState()
+
+    def _save_state(self, state: CRDTState):
+        self.state_file.parent.mkdir(parents=True, exist_ok=True)
+        self.state_file.write_text(json.dumps(state.to_dict(), indent=2, ensure_ascii=False), encoding="utf-8")
+
+    def apply_update(self, key: str, value: Any) -> dict[str, Any]:
+        with self._lock:
+            state = self._load_state()
+            delta = state.update(key, value)
+            if delta:
+                self._save_state(state)
+            return delta
+
+    def apply_delete(self, key: str) -> dict[str, Any]:
+        with self._lock:
+            state = self._load_state()
+            delta = state.delete(key)
+            if delta:
+                self._save_state(state)
+            return delta
+
+    def merge_delta(self, delta: dict[str, Any]) -> bool:
+        with self._lock:
+            state = self._load_state()
+            changed = state.merge_delta(delta)
+            if changed:
+                self._save_state(state)
+            return changed
+
+    def get_state(self) -> dict[str, Any]:
+        with self._lock:
+            state = self._load_state()
+            return state.values
+
