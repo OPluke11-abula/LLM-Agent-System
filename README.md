@@ -5,7 +5,7 @@
 ![GitHub License](https://img.shields.io/badge/license-Elastic%202.0-blueviolet?style=for-the-badge)
 ![Python Version](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.14-blue?style=for-the-badge)
 ![Framework Protocol](https://img.shields.io/badge/protocol-PAP%20v0.1.0-orange?style=for-the-badge)
-![Build Status](https://img.shields.io/badge/tests-186%20passed%20%2F%20100%25%20green-success?style=for-the-badge)
+![Build Status](https://img.shields.io/badge/tests-198%20passed%20%2F%20100%25%20green-success?style=for-the-badge)
 
 ### [English](#-english) | [繁體中文](#-繁體中文)
 

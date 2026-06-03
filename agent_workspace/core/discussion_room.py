@@ -861,6 +861,28 @@ class ProofOfConsensus:
     CONSENSUS_KEY = "poc-master-consensus-key-84729"
 
     @classmethod
+    def rotate_session_keys(cls):
+        """Rotates SECRET_KEYS and CONSENSUS_KEY dynamically using a random rotation suffix."""
+        import uuid
+        rotation_suffix = uuid.uuid4().hex[:8]
+        for role in list(cls.SECRET_KEYS.keys()):
+            cls.SECRET_KEYS[role] = f"poc-secret-{role}-key-{rotation_suffix}"
+        cls.CONSENSUS_KEY = f"poc-master-consensus-key-{rotation_suffix}"
+        logger.info("[ProofOfConsensus] Swarm session keys rotated with suffix: %s", rotation_suffix)
+
+    @classmethod
+    def reset_keys(cls):
+        """Restores default SECRET_KEYS and CONSENSUS_KEY values."""
+        cls.SECRET_KEYS = {
+            "ceo": "poc-secret-ceo-key-92834",
+            "cto": "poc-secret-cto-key-83749",
+            "dev": "poc-secret-dev-key-10293",
+            "qa": "poc-secret-qa-key-58291",
+            "cfo": "poc-secret-cfo-key-47284"
+        }
+        cls.CONSENSUS_KEY = "poc-master-consensus-key-84729"
+
+    @classmethod
     def get_swarm_members(cls) -> list[str]:
         return list(cls.SECRET_KEYS.keys())
 
@@ -876,7 +898,8 @@ class ProofOfConsensus:
         """Creates a signed consensus certificate if a majority approves."""
         import hashlib
         swarm_members = cls.get_swarm_members()
-        approvals = [r.lower() for r in approved_roles if r.lower() in swarm_members]
+        # Exclude quarantined roles
+        approvals = [r.lower() for r in approved_roles if r.lower() in swarm_members and not SwarmIDS.is_quarantined(r.lower())]
 
         # Majority is > 50% of the swarm
         majority_needed = (len(swarm_members) // 2) + 1  # 3 out of 5
@@ -919,9 +942,15 @@ class ProofOfConsensus:
             for role in approvals:
                 if role not in swarm_members:
                     continue
+                if SwarmIDS.is_quarantined(role):
+                    logger.warning("[ProofOfConsensus] Quarantined node '%s' signature validation skipped.", role)
+                    continue
                 expected_sig = cls.generate_member_signature(role, payload_hash)
                 if signatures.get(role) == expected_sig:
                     valid_approvals.append(role)
+                else:
+                    logger.warning("[ProofOfConsensus] Signature mismatch for role '%s'. Expected %s, got %s", role, expected_sig, signatures.get(role))
+                    SwarmIDS.record_failure(role)
 
             majority_needed = (len(swarm_members) // 2) + 1
             if len(valid_approvals) < majority_needed:
@@ -989,4 +1018,37 @@ class ProofOfConsensus:
         except Exception:
             pass
         return False
+
+
+class SwarmIDS:
+    """Intrusion Detection System (IDS) for Swarm Node/Role consensus auditing."""
+    quarantined_nodes = set()
+    failures_count = {}
+
+    @classmethod
+    def record_failure(cls, role: str):
+        role_lower = role.lower()
+        cls.failures_count[role_lower] = cls.failures_count.get(role_lower, 0) + 1
+        logger.warning("[SwarmIDS] Signature failure recorded for role: %s. Failure count: %d", role_lower, cls.failures_count[role_lower])
+        if cls.failures_count[role_lower] >= 3:
+            cls.quarantine_node(role_lower)
+
+    @classmethod
+    def quarantine_node(cls, role: str):
+        role_lower = role.lower()
+        if role_lower not in cls.quarantined_nodes:
+            cls.quarantined_nodes.add(role_lower)
+            logger.error("[SwarmIDS] Quarantined malicious swarm node/role: %s", role_lower)
+            ProofOfConsensus.rotate_session_keys()
+
+    @classmethod
+    def is_quarantined(cls, role: str) -> bool:
+        return role.lower() in cls.quarantined_nodes
+
+    @classmethod
+    def reset(cls):
+        """Helper to clear failures and quarantine for testing."""
+        cls.quarantined_nodes.clear()
+        cls.failures_count.clear()
+
 

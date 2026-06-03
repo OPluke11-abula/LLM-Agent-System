@@ -47,41 +47,23 @@
 
 - [x] **PHASE 28 — Federated Swarm Decentralized Peer-to-Peer Storage & Redundant State Mirroring**: Lightweight decentralized file distributor in `agent_workspace/core/p2p_storage.py`, SHA256 chunk integrity verification, session delta state mirroring to secondary path replicas in `memory.py`, auto-healing failover state loader with forced IO exception recovery.
 
----
-
 - [x] **PHASE 29 — Federated Swarm Peer-to-Peer Encrypted Communications & Secure Session Handshakes**: ECDH key exchange inside `api.py` and `discussion_room.py`, AES-GCM-256 encrypted messages and broadcasts over WebSockets, connection guard signature validation on WebSocket queries, ECDH & AES communication integration tests.
-
----
-
 - [x] **PHASE 30 — Federated Swarm Self-Optimizing Agent Network Topology & Dynamic Route Pruning**: Active routing feedback loop in `router.py`, administrative router pruning endpoint `POST /v1/router/prune` and status endpoint `GET /v1/router/status`, visual topological load maps, dynamic routing integration tests.
-
----
-
-## 🏢 PHASE 31 — Federated Swarm Cross-Cloud Autonomous Orchestration & Multi-Cloud Deployment / 聯邦群落多雲自主協作與跨雲部署
-
-### 31-01 Cross-Cloud Node Discovery & Tunneling Gateway
-- [x] Implement a cross-cloud gateway using WebSockets with mTLS or secure routing overlays in `api.py` / 在 `api.py` 中實作基於 WebSockets mTLS 或安全路由覆蓋的跨雲網關
-- [x] Establish client-side peer-to-peer discovery routines to link GCP, AWS, and local Tauri Edge nodes into a unified Swarm network / 建立客戶端點對點發現程序，將 GCP、AWS 與本地 Tauri 邊緣節點鏈結為統一 Swarm 網路
-
----
-
-### 31-02 Elastic Cross-Cloud Compute & Model Cost Routing
-- [x] Implement a cloud-cost-aware load balancing router in `observability.py` and `AccountManager` / 在 `observability.py` 與 `AccountManager` 中實作雲端成本感知負載平衡路由器
-- [x] Dynamically dispatch text inference, compilation, and UI layout tasks to GCP Gemini, AWS Bedrock Claude, or local Ollama depending on real-time price & speed metrics / 依據實時價格與速度指標，將文字推理、編譯與 UI 佈局任務動態分派至不同雲端節點
+- [x] **PHASE 31 — Federated Swarm Cross-Cloud Autonomous Orchestration & Multi-Cloud Deployment**: Cross-cloud mTLS WebSocket tunneling gateway in `api.py` and `core/cross_cloud_gateway.py`, dynamic peer discovery routing GCP/AWS/local nodes, cloud-cost-aware model load balancer in `observability.py` and `core/account_manager.py`.
 
 ---
 
 ## 🛡️ PHASE 32 — Swarm Autonomous Zero-Trust Self-Defense & Sandbox Security Interception / 智慧體零信任自主防禦與沙箱安全攔截
 
 ### 32-01 Dynamic AST Sanitization & System Call Interception
-- [ ] Implement a dynamic AST semantic parser and run-time sandbox system-call interceptor inside `sandbox.py` / 在 `sandbox.py` 中實作動態 AST 語意分析器與執行時沙箱系統呼叫攔截器
-- [ ] Automatically block malicious attempts (such as unauthorized host socket scans or directory traversals outside Workspace scope) / 自動阻斷惡意嘗試（如越權網路埠掃描或 Workspace 範圍外的目錄遍歷）
+- [x] Implement a dynamic AST semantic parser and run-time sandbox system-call interceptor inside `sandbox.py` / 在 `sandbox.py` 中實作動態 AST 語意分析器與執行時沙箱系統呼叫攔截器
+- [x] Automatically block malicious attempts (such as unauthorized host socket scans or directory traversals outside Workspace scope) / 自動阻斷惡意嘗試（如越權網路埠掃描或 Workspace 範圍外的目錄遍歷）
 
 ---
 
 ### 32-02 Intrusion Detection & Self-Healing File Rollbacks
-- [ ] Build a Swarm Intrusion Detection System (IDS) that quarantines malicious nodes and triggers session key rotation after multiple consensus sign failures / 建立群落入侵檢測系統，在多次共識簽章失效時隔離惡意節點並觸發會話金鑰輪轉
-- [ ] Construct a workspace file snapshot transaction system to automatically roll back file modifications made by scripts that fail runtime security gates / 建立工作區檔案快照事務系統，在腳本違反安全規則時自動回滾檔案變更
+- [x] Build a Swarm Intrusion Detection System (IDS) that quarantines malicious nodes and triggers session key rotation after multiple consensus sign failures / 建立群落入侵檢測系統，在多次共識簽章失效時隔離惡意節點並觸發會話金鑰輪轉
+- [x] Construct a workspace file snapshot transaction system to automatically roll back file modifications made by scripts that fail runtime security gates / 建立工作區檔案快照事務系統，在腳本違反安全規則時自動回滾檔案變更
 
 ---
 
@@ -89,8 +71,7 @@
 
 | Phase | Total Tasks | Completed Tasks | Status |
 |---|---|---|---|
-| **Phase 0 - 30** | 78 tasks | 78 tasks | 100% Done |
-| **Phase 31** | 2 tasks | 0 tasks | 0% Pending |
-| **Phase 32** | 2 tasks | 0 tasks | 0% Pending |
+| **Phase 0 - 31** | 80 tasks | 80 tasks | 100% Done |
+| **Phase 32** | 2 tasks | 2 tasks | 100% Done |
 
 *This queue is managed dynamically by the active LAS Developer Agent. All task updates, outcome logs, and progress status updates are written directly to this file before turn conclusion.*
