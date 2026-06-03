@@ -13,13 +13,18 @@ Architecture note:
 
 from __future__ import annotations
 
+import os
 import json
 import sqlite3
+import logging
 import threading
+import httpx
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -66,6 +71,19 @@ class MemoryBackend(ABC):
     def close(self) -> None:
         """Close connection to backend."""
         pass
+
+
+class VectorMemoryStore(MemoryBackend):
+    """Abstract base class for vector-enabled memory backends."""
+
+    @abstractmethod
+    def search_by_vector(
+        self,
+        embedding: list[float],
+        session_id: str | None = None,
+        top_k: int = 5,
+    ) -> list[dict[str, Any]]:
+        """Search using a vector embedding directly."""
 
 
 # ---------------------------------------------------------------------------
@@ -117,15 +135,7 @@ class SQLiteBackend(MemoryBackend):
 
     _TRIGGER_DELETE = """
     CREATE TRIGGER IF NOT EXISTS memory_fts_delete AFTER DELETE ON memory_records BEGIN
-        INSERT INTO memory_fts(memory_fts, rowid, session_id, key, summary, keywords)
-        VALUES (
-            'delete',
-            old.rowid,
-            old.session_id,
-            old.key,
-            json_extract(old.value, '$.summary'),
-            json_extract(old.value, '$.keywords')
-        );
+        DELETE FROM memory_fts WHERE rowid = old.rowid;
     END;
     """
 
@@ -480,6 +490,430 @@ class FileBackend(MemoryBackend):
 
 
 # ---------------------------------------------------------------------------
+# Chroma REST implementation — pure HTTP REST APIs without binary chromadb
+# ---------------------------------------------------------------------------
+
+class ChromaBackend(VectorMemoryStore):
+    """ChromaDB HTTP REST client backend."""
+    _lock = threading.Lock()
+
+    def __init__(self, db_path_or_memory_dir: str | Path) -> None:
+        self.memory_dir = Path(db_path_or_memory_dir)
+        self.sqlite_fallback = None
+        self._local = threading.local()
+
+        self.host = os.environ.get("CHROMA_HOST", "localhost")
+        self.port = os.environ.get("CHROMA_PORT", "8000")
+        self.collection_name = os.environ.get("CHROMA_COLLECTION", "las_memory")
+        self.base_url = f"http://{self.host}:{self.port}/api/v1"
+
+        try:
+            self._get_client()
+            self._get_collection_id()
+        except Exception as e:
+            logger.warning("[ChromaBackend] Connection failed, falling back to SQLite. Error: %s", e)
+            self.sqlite_fallback = SQLiteBackend(self.memory_dir / "long_term_memory.db")
+
+    def _get_client(self) -> httpx.Client:
+        client = getattr(self._local, "client", None)
+        if client is None:
+            client = httpx.Client(timeout=10.0)
+            self._local.client = client
+        return client
+
+    def _init_collection(self) -> None:
+        with self._lock:
+            client = self._get_client()
+            url = f"{self.base_url}/collections"
+            payload = {"name": self.collection_name, "metadata": None, "get_or_create": True}
+            response = client.post(url, json=payload)
+            response.raise_for_status()
+            self.collection_id = response.json()["id"]
+
+    def _get_collection_id(self) -> str:
+        if not hasattr(self, "collection_id") or not self.collection_id:
+            self._init_collection()
+        return self.collection_id
+
+    def write(self, session_id: str, key: str, value: dict[str, Any]) -> None:
+        if self.sqlite_fallback:
+            self.sqlite_fallback.write(session_id, key, value)
+            return
+        try:
+            client = self._get_client()
+            coll_id = self._get_collection_id()
+            url = f"{self.base_url}/collections/{coll_id}/upsert"
+
+            embedding = value.get("payload", {}).get("embedding")
+            if not embedding:
+                from core.embeddings import generate_mock_embedding
+                summary = value.get("summary", "") or key
+                embedding = generate_mock_embedding(summary, 1536)
+
+            payload = {
+                "ids": [key],
+                "embeddings": [embedding],
+                "metadatas": [{"session_id": session_id, "key": key, "created_at": value.get("created_at", "")}],
+                "documents": [json.dumps(value, ensure_ascii=False)]
+            }
+            response = client.post(url, json=payload)
+            response.raise_for_status()
+        except Exception as e:
+            logger.warning("[ChromaBackend] Write failed, falling back to SQLite. Error: %s", e)
+            if not self.sqlite_fallback:
+                self.sqlite_fallback = SQLiteBackend(self.memory_dir / "long_term_memory.db")
+            self.sqlite_fallback.write(session_id, key, value)
+
+    def read(self, session_id: str, key: str) -> dict[str, Any] | None:
+        if self.sqlite_fallback:
+            return self.sqlite_fallback.read(session_id, key)
+        try:
+            client = self._get_client()
+            coll_id = self._get_collection_id()
+            url = f"{self.base_url}/collections/{coll_id}/get"
+            payload = {
+                "ids": [key],
+                "where": {"session_id": session_id}
+            }
+            response = client.post(url, json=payload)
+            response.raise_for_status()
+            data = response.json()
+            documents = data.get("documents", [])
+            if not documents or not documents[0]:
+                return None
+            return json.loads(documents[0])
+        except Exception as e:
+            logger.warning("[ChromaBackend] Read failed, falling back to SQLite. Error: %s", e)
+            if not self.sqlite_fallback:
+                self.sqlite_fallback = SQLiteBackend(self.memory_dir / "long_term_memory.db")
+            return self.sqlite_fallback.read(session_id, key)
+
+    def search(
+        self,
+        query: str,
+        session_id: str | None = None,
+        top_k: int = 5,
+    ) -> list[dict[str, Any]]:
+        if self.sqlite_fallback:
+            return self.sqlite_fallback.search(query, session_id=session_id, top_k=top_k)
+        try:
+            from core.embeddings import EmbeddingGenerator
+            generator = EmbeddingGenerator()
+            embedding = generator.get_embedding(query)
+            return self.search_by_vector(embedding, session_id=session_id, top_k=top_k)
+        except Exception as e:
+            logger.warning("[ChromaBackend] Search failed, falling back to SQLite. Error: %s", e)
+            if not self.sqlite_fallback:
+                self.sqlite_fallback = SQLiteBackend(self.memory_dir / "long_term_memory.db")
+            return self.sqlite_fallback.search(query, session_id=session_id, top_k=top_k)
+
+    def search_by_vector(
+        self,
+        embedding: list[float],
+        session_id: str | None = None,
+        top_k: int = 5,
+    ) -> list[dict[str, Any]]:
+        if self.sqlite_fallback:
+            return self.sqlite_fallback.all_records()[:top_k]
+        try:
+            client = self._get_client()
+            coll_id = self._get_collection_id()
+            url = f"{self.base_url}/collections/{coll_id}/query"
+            payload = {
+                "query_embeddings": [embedding],
+                "n_results": top_k,
+                "include": ["documents", "metadatas", "distances"]
+            }
+            if session_id:
+                payload["where"] = {"session_id": session_id}
+
+            response = client.post(url, json=payload)
+            response.raise_for_status()
+            data = response.json()
+
+            documents = data.get("documents", [])
+            if not documents or not documents[0]:
+                return []
+
+            results = []
+            for doc in documents[0]:
+                if doc:
+                    results.append(json.loads(doc))
+            return results
+        except Exception as e:
+            logger.warning("[ChromaBackend] search_by_vector failed, falling back to SQLite. Error: %s", e)
+            if not self.sqlite_fallback:
+                self.sqlite_fallback = SQLiteBackend(self.memory_dir / "long_term_memory.db")
+            return self.sqlite_fallback.all_records()[:top_k]
+
+    def all_records(self) -> list[dict[str, Any]]:
+        if self.sqlite_fallback:
+            return self.sqlite_fallback.all_records()
+        try:
+            client = self._get_client()
+            coll_id = self._get_collection_id()
+            url = f"{self.base_url}/collections/{coll_id}/get"
+            payload = {
+                "limit": 10000,
+                "include": ["documents"]
+            }
+            response = client.post(url, json=payload)
+            response.raise_for_status()
+            data = response.json()
+            documents = data.get("documents", [])
+            if not documents:
+                return []
+            return [json.loads(doc) for doc in documents if doc]
+        except Exception as e:
+            logger.warning("[ChromaBackend] all_records failed, falling back to SQLite. Error: %s", e)
+            if not self.sqlite_fallback:
+                self.sqlite_fallback = SQLiteBackend(self.memory_dir / "long_term_memory.db")
+            return self.sqlite_fallback.all_records()
+
+    def delete(self, session_id: str, key: str) -> bool:
+        if self.sqlite_fallback:
+            return self.sqlite_fallback.delete(session_id, key)
+        try:
+            client = self._get_client()
+            coll_id = self._get_collection_id()
+            url = f"{self.base_url}/collections/{coll_id}/delete"
+            payload = {
+                "ids": [key],
+                "where": {"session_id": session_id}
+            }
+            response = client.post(url, json=payload)
+            response.raise_for_status()
+            data = response.json()
+            return len(data) > 0 if isinstance(data, list) else bool(data)
+        except Exception as e:
+            logger.warning("[ChromaBackend] Delete failed, falling back to SQLite. Error: %s", e)
+            if not self.sqlite_fallback:
+                self.sqlite_fallback = SQLiteBackend(self.memory_dir / "long_term_memory.db")
+            return self.sqlite_fallback.delete(session_id, key)
+
+    def close(self) -> None:
+        client = getattr(self._local, "client", None)
+        if client is not None:
+            try:
+                client.close()
+            except Exception:
+                pass
+            self._local.client = None
+        if self.sqlite_fallback:
+            self.sqlite_fallback.close()
+
+    def __del__(self) -> None:
+        self.close()
+
+
+# ---------------------------------------------------------------------------
+# Pgvector implementation — using psycopg2
+# ---------------------------------------------------------------------------
+
+class PgvectorBackend(VectorMemoryStore):
+    """PostgreSQL / pgvector long-term memory backend."""
+    _lock = threading.Lock()
+
+    def __init__(self, db_path_or_memory_dir: str | Path) -> None:
+        self.memory_dir = Path(db_path_or_memory_dir)
+        self.sqlite_fallback = None
+        self._local = threading.local()
+
+        self.host = os.environ.get("PG_HOST", "localhost")
+        self.port = os.environ.get("PG_PORT", "5432")
+        self.user = os.environ.get("PG_USER", "postgres")
+        self.password = os.environ.get("PG_PASSWORD", "postgres")
+        self.database = os.environ.get("PG_DATABASE", "postgres")
+
+        try:
+            import psycopg2
+            conn = self._get_conn()
+            self._init_schema(conn)
+        except Exception as e:
+            logger.warning("[PgvectorBackend] Connection failed, falling back to SQLite. Error: %s", e)
+            self.sqlite_fallback = SQLiteBackend(self.memory_dir / "long_term_memory.db")
+
+    def _get_conn(self):
+        conn = getattr(self._local, "conn", None)
+        if conn is None:
+            import psycopg2
+            conn = psycopg2.connect(
+                host=self.host,
+                port=self.port,
+                user=self.user,
+                password=self.password,
+                database=self.database,
+                connect_timeout=5
+            )
+            conn.autocommit = True
+            self._local.conn = conn
+        return conn
+
+    def _init_schema(self, conn) -> None:
+        with self._lock:
+            with conn.cursor() as cur:
+                cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS las_memory (
+                        session_id  VARCHAR(255) NOT NULL,
+                        key         VARCHAR(255) NOT NULL,
+                        value       TEXT NOT NULL,
+                        created_at  VARCHAR(255) NOT NULL,
+                        embedding   vector(1536),
+                        PRIMARY KEY (session_id, key)
+                    );
+                """)
+
+    def write(self, session_id: str, key: str, value: dict[str, Any]) -> None:
+        if self.sqlite_fallback:
+            self.sqlite_fallback.write(session_id, key, value)
+            return
+        try:
+            conn = self._get_conn()
+            embedding = value.get("payload", {}).get("embedding")
+            if not embedding:
+                from core.embeddings import generate_mock_embedding
+                summary = value.get("summary", "") or key
+                embedding = generate_mock_embedding(summary, 1536)
+
+            blob = json.dumps(value, ensure_ascii=False)
+            created_at = value.get("created_at", "")
+
+            with self._lock:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        INSERT INTO las_memory (session_id, key, value, created_at, embedding)
+                        VALUES (%s, %s, %s, %s, %s)
+                        ON CONFLICT (session_id, key) DO UPDATE
+                        SET value = EXCLUDED.value, created_at = EXCLUDED.created_at, embedding = EXCLUDED.embedding;
+                    """, (session_id, key, blob, created_at, embedding))
+        except Exception as e:
+            logger.warning("[PgvectorBackend] Write failed, falling back to SQLite. Error: %s", e)
+            if not self.sqlite_fallback:
+                self.sqlite_fallback = SQLiteBackend(self.memory_dir / "long_term_memory.db")
+            self.sqlite_fallback.write(session_id, key, value)
+
+    def read(self, session_id: str, key: str) -> dict[str, Any] | None:
+        if self.sqlite_fallback:
+            return self.sqlite_fallback.read(session_id, key)
+        try:
+            conn = self._get_conn()
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT value FROM las_memory WHERE session_id = %s AND key = %s;",
+                    (session_id, key)
+                )
+                row = cur.fetchone()
+                if row is None:
+                    return None
+                return json.loads(row[0])
+        except Exception as e:
+            logger.warning("[PgvectorBackend] Read failed, falling back to SQLite. Error: %s", e)
+            if not self.sqlite_fallback:
+                self.sqlite_fallback = SQLiteBackend(self.memory_dir / "long_term_memory.db")
+            return self.sqlite_fallback.read(session_id, key)
+
+    def search(
+        self,
+        query: str,
+        session_id: str | None = None,
+        top_k: int = 5,
+    ) -> list[dict[str, Any]]:
+        if self.sqlite_fallback:
+            return self.sqlite_fallback.search(query, session_id=session_id, top_k=top_k)
+        try:
+            from core.embeddings import EmbeddingGenerator
+            generator = EmbeddingGenerator()
+            embedding = generator.get_embedding(query)
+            return self.search_by_vector(embedding, session_id=session_id, top_k=top_k)
+        except Exception as e:
+            logger.warning("[PgvectorBackend] Search failed, falling back to SQLite. Error: %s", e)
+            if not self.sqlite_fallback:
+                self.sqlite_fallback = SQLiteBackend(self.memory_dir / "long_term_memory.db")
+            return self.sqlite_fallback.search(query, session_id=session_id, top_k=top_k)
+
+    def search_by_vector(
+        self,
+        embedding: list[float],
+        session_id: str | None = None,
+        top_k: int = 5,
+    ) -> list[dict[str, Any]]:
+        if self.sqlite_fallback:
+            return self.sqlite_fallback.all_records()[:top_k]
+        try:
+            conn = self._get_conn()
+            with conn.cursor() as cur:
+                if session_id:
+                    cur.execute("""
+                        SELECT value FROM las_memory
+                        WHERE session_id = %s
+                        ORDER BY embedding <=> %s::vector
+                        LIMIT %s;
+                    """, (session_id, embedding, top_k))
+                else:
+                    cur.execute("""
+                        SELECT value FROM las_memory
+                        ORDER BY embedding <=> %s::vector
+                        LIMIT %s;
+                    """, (embedding, top_k))
+                rows = cur.fetchall()
+                return [json.loads(row[0]) for row in rows]
+        except Exception as e:
+            logger.warning("[PgvectorBackend] search_by_vector failed, falling back to SQLite. Error: %s", e)
+            if not self.sqlite_fallback:
+                self.sqlite_fallback = SQLiteBackend(self.memory_dir / "long_term_memory.db")
+            return self.sqlite_fallback.all_records()[:top_k]
+
+    def all_records(self) -> list[dict[str, Any]]:
+        if self.sqlite_fallback:
+            return self.sqlite_fallback.all_records()
+        try:
+            conn = self._get_conn()
+            with conn.cursor() as cur:
+                cur.execute("SELECT value FROM las_memory ORDER BY created_at DESC;")
+                rows = cur.fetchall()
+                return [json.loads(row[0]) for row in rows]
+        except Exception as e:
+            logger.warning("[PgvectorBackend] all_records failed, falling back to SQLite. Error: %s", e)
+            if not self.sqlite_fallback:
+                self.sqlite_fallback = SQLiteBackend(self.memory_dir / "long_term_memory.db")
+            return self.sqlite_fallback.all_records()
+
+    def delete(self, session_id: str, key: str) -> bool:
+        if self.sqlite_fallback:
+            return self.sqlite_fallback.delete(session_id, key)
+        try:
+            conn = self._get_conn()
+            with self._lock:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "DELETE FROM las_memory WHERE session_id = %s AND key = %s;",
+                        (session_id, key)
+                    )
+                    rowcount = cur.rowcount
+                    return rowcount > 0
+        except Exception as e:
+            logger.warning("[PgvectorBackend] Delete failed, falling back to SQLite. Error: %s", e)
+            if not self.sqlite_fallback:
+                self.sqlite_fallback = SQLiteBackend(self.memory_dir / "long_term_memory.db")
+            return self.sqlite_fallback.delete(session_id, key)
+
+    def close(self) -> None:
+        conn = getattr(self._local, "conn", None)
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
+            self._local.conn = None
+        if self.sqlite_fallback:
+            self.sqlite_fallback.close()
+
+    def __del__(self) -> None:
+        self.close()
+
+
+# ---------------------------------------------------------------------------
 # Factory
 # ---------------------------------------------------------------------------
 
@@ -487,6 +921,8 @@ _BACKEND_REGISTRY: dict[str, type[MemoryBackend]] = {
     "sqlite": SQLiteBackend,
     "redis": RedisBackend,
     "file": FileBackend,
+    "chroma": ChromaBackend,
+    "pgvector": PgvectorBackend,
 }
 
 

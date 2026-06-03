@@ -145,6 +145,33 @@ class PromptComposer:
             logger.error(f"Failed to load lessons learned: {e}")
             
         return ""
+    def _get_long_term_memory(self) -> Any:
+        import yaml
+        config_path = Path(self.project_root) / "config.yaml"
+        try:
+            if config_path.is_file():
+                config = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+            else:
+                config = {}
+        except Exception:
+            config = {}
+        
+        memory_config = config.get("memory", {})
+        memory_dir = Path(self.project_root) / "memory"
+        
+        try:
+            from long_term_memory import LongTermMemoryStore
+        except ImportError:
+            from agent_workspace.long_term_memory import LongTermMemoryStore
+            
+        try:
+            return LongTermMemoryStore(
+                memory_dir,
+                backend_name=memory_config.get("backend", "sqlite")
+            )
+        except Exception as e:
+            logger.warning("[PromptComposer] Failed to load LongTermMemoryStore: %s", e)
+            return None
 
     def build(self, prompt_id: str, variables: dict[str, Any]) -> str:
         """Load a prompt template, validate variables, escape values, and render it."""
@@ -162,7 +189,7 @@ class PromptComposer:
         # Escape variables to prevent SSTI
         escaped_vars = {}
         for k, v in variables.items():
-            if k in expected_vars:
+            if isinstance(v, str):
                 escaped_vars[k] = jinja2_escape(v)
             else:
                 escaped_vars[k] = v
@@ -172,9 +199,42 @@ class PromptComposer:
         template = Template(template_str)
         rendered = template.render(**escaped_vars)
         
+        # Query long-term memory for semantic context when variables contain search-like text
+        search_keys = {"task_description", "user_query", "query", "description", "user_request"}
+        query_texts = []
+        for k, v in variables.items():
+            if k in search_keys and isinstance(v, str) and v.strip():
+                query_texts.append(v.strip())
+                
+        semantic_context = ""
+        if query_texts:
+            store = self._get_long_term_memory()
+            if store:
+                results = []
+                seen = set()
+                for query_text in query_texts:
+                    try:
+                        res = store.query(query_text, limit=3)
+                        for r in res:
+                            rid = r.get("id")
+                            if rid and rid not in seen:
+                                seen.add(rid)
+                                results.append(r)
+                    except Exception as e:
+                        logger.warning("[PromptComposer] Failed to query semantic memories: %s", e)
+                
+                if results:
+                    memories_text = "\n\n## 🧠 RELEVANT HISTORICAL CONTEXT (Semantic Memories):\n"
+                    for r in results:
+                        created = r.get("created_at", "")
+                        domain = r.get("domain", "episodic")
+                        summary = r.get("summary", "")
+                        memories_text += f"- [{created}] [{domain}] {summary}\n"
+                    semantic_context = memories_text
+
         # Append dynamic lessons learned directives
         lessons = self._load_lessons_learned()
-        compiled = rendered + lessons
+        compiled = rendered + semantic_context + lessons
         return self.prune_compiled_prompt(compiled)
 
     def prune_compiled_prompt(self, compiled_prompt: str) -> str:

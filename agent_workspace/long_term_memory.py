@@ -248,6 +248,7 @@ class LongTermMemoryStore:
             message_count=len(normalized_messages),
             payload={"messages": normalized_messages},
         )
+        self._add_embedding_to_payload(record)
         self._backend.write(session_id, record.id, asdict(record))
         return record
 
@@ -271,9 +272,14 @@ class LongTermMemoryStore:
             return cached
             
         # 2. Parse query using the FTS5SemanticQueryEngine
-        fts_query = FTS5SemanticQueryEngine.parse_query(query_text)
-        if not fts_query:
+        from memory_backends import VectorMemoryStore
+        is_vector = isinstance(self._backend, VectorMemoryStore) and not getattr(self._backend, "sqlite_fallback", None)
+        if is_vector:
             fts_query = query_text
+        else:
+            fts_query = FTS5SemanticQueryEngine.parse_query(query_text)
+            if not fts_query:
+                fts_query = query_text
             
         # 3. Execute search against the backend with dynamic latency monitoring
         try:
@@ -341,6 +347,7 @@ class LongTermMemoryStore:
             citations=citations or [],
             privacy_level="project",
         )
+        self._add_embedding_to_payload(record)
         self._backend.write(session_id, record.id, asdict(record))
         return record
 
@@ -376,6 +383,7 @@ class LongTermMemoryStore:
             expires_at=expires_at,
             privacy_level="user",
         )
+        self._add_embedding_to_payload(record)
         self._backend.write(session_id, record.id, asdict(record))
         return record
 
@@ -394,6 +402,21 @@ class LongTermMemoryStore:
                 if self._backend.delete(r.get("session_id", ""), r.get("id", "")):
                     deleted_count += 1
         return deleted_count
+
+    def _add_embedding_to_payload(self, record: LongTermMemoryRecord) -> None:
+        try:
+            try:
+                from core.embeddings import EmbeddingGenerator
+            except ImportError:
+                from agent_workspace.core.embeddings import EmbeddingGenerator
+            generator = EmbeddingGenerator()
+            text_to_embed = record.summary or record.id
+            embedding = generator.get_embedding(text_to_embed)
+            if not isinstance(embedding, list) or not all(isinstance(x, (int, float)) for x in embedding):
+                raise ValueError("Embedding must be a list of floats")
+            record.payload["embedding"] = embedding
+        except Exception as e:
+            logger.warning("[LongTermMemoryStore] Failed to generate/validate embedding: %s", e)
 
     # -- internal helpers (unchanged from v1) ----------------------------------
 
