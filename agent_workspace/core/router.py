@@ -632,7 +632,7 @@ class AgentRouter:
             prefix = f"Parameter '{path_str}' " if path_str else ""
             raise ToolValidationError(f"Routing validation failed for skill '{skill_id}': {prefix}{err.message}") from err
 
-    def _resolve_account(self, account_id: str | None = None) -> dict[str, Any]:
+    def _resolve_account(self, account_id: str | None = None, task_type: str | None = None) -> dict[str, Any]:
         """Resolve the active or requested account, and check its token budget.
         
         Attempts failover to the first account under budget if budget is exceeded.
@@ -640,6 +640,8 @@ class AgentRouter:
         account = None
         if account_id:
             account = self.account_manager.get_account(account_id)
+        if not account and task_type:
+            account = self.account_manager.get_optimal_account_for_task(task_type)
         if not account:
             account = self.account_manager.get_active_account()
         
@@ -745,6 +747,17 @@ class AgentRouter:
             latency = time.time() - start_time
             ROUTE_REGISTRY.end_dispatch(node_id, latency, success)
 
+    def _detect_task_type(self, user_input: str) -> str:
+        if not user_input:
+            return "text_inference"
+        content = user_input.lower()
+        if "compile" in content or "code" in content:
+            return "compilation"
+        elif "layout" in content or "ui" in content or "css" in content:
+            return "ui_layout"
+        else:
+            return "text_inference"
+
     async def _run_agent_loop_internal(
         self,
         user_input: str,
@@ -753,7 +766,9 @@ class AgentRouter:
         account_id: str | None = None,
     ) -> str:
         """Run the non-streaming closed-loop agent path internal implementation."""
-        self._resolved_account = self._resolve_account(account_id)
+        loop_start_time = time.time()
+        task_type = self._detect_task_type(user_input)
+        self._resolved_account = self._resolve_account(account_id, task_type=task_type)
         api_key = self.account_manager.resolve_api_key(self._resolved_account)
         self._provider = ProviderFactory.get_provider(
             self._resolved_account["provider"],
@@ -889,6 +904,13 @@ class AgentRouter:
                 )
                 ACTIVE_SESSIONS.dec()
 
+                if hasattr(self, "_resolved_account") and self._resolved_account:
+                    try:
+                        from observability import get_cost_router
+                    except ImportError:
+                        from agent_workspace.observability import get_cost_router
+                    get_cost_router().record_latency(self._resolved_account["provider"], time.time() - loop_start_time)
+
             return final_response
 
     async def _handle_tool_calls(
@@ -995,7 +1017,9 @@ class AgentRouter:
         account_id: str | None = None,
     ):
         """Run the raw streaming closed-loop agent path."""
-        self._resolved_account = self._resolve_account(account_id)
+        loop_start_time = time.time()
+        task_type = self._detect_task_type(user_input)
+        self._resolved_account = self._resolve_account(account_id, task_type=task_type)
         api_key = self.account_manager.resolve_api_key(self._resolved_account)
         self._provider = ProviderFactory.get_provider(
             self._resolved_account["provider"],
@@ -1200,6 +1224,13 @@ class AgentRouter:
 
                 # Increment conversational turn (Task 23-01)
                 self.engine.increment_turns(self.session_id, f"Session stream turn completed. Input: {user_input[:100]}")
+
+                if hasattr(self, "_resolved_account") and self._resolved_account:
+                    try:
+                        from observability import get_cost_router
+                    except ImportError:
+                        from agent_workspace.observability import get_cost_router
+                    get_cost_router().record_latency(self._resolved_account["provider"], time.time() - loop_start_time)
 
             yield {"type": "done", "content": final_response}
 

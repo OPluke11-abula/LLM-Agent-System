@@ -624,4 +624,79 @@ def get_telemetry_router(workspace_path: str = ".") -> TelemetryRouter:
     return _GLOBAL_TELEMETRY_ROUTER
 
 
+class CloudCostRouter:
+    def __init__(self):
+        self.metrics = {
+            "google-genai": {"price_per_1k": 0.000075, "base_speed": 80.0, "latency_history": []},
+            "aws-bedrock": {"price_per_1k": 0.003, "base_speed": 50.0, "latency_history": []},
+            "local-ollama": {"price_per_1k": 0.0, "base_speed": 30.0, "latency_history": []}
+        }
+        self.lock = threading.Lock()
+
+    def record_latency(self, provider: str, latency_sec: float):
+        with self.lock:
+            p = provider.lower()
+            if p in self.metrics:
+                self.metrics[p]["latency_history"].append(latency_sec)
+                if len(self.metrics[p]["latency_history"]) > 10:
+                    self.metrics[p]["latency_history"].pop(0)
+
+    def get_effective_speed(self, provider: str) -> float:
+        with self.lock:
+            p = provider.lower()
+            if p not in self.metrics:
+                return 50.0
+            history = self.metrics[p]["latency_history"]
+            if history:
+                avg_latency = sum(history) / len(history)
+                if avg_latency > 0:
+                    return min(150.0, max(5.0, 1.0 / avg_latency * 100.0))
+            return self.metrics[p]["base_speed"]
+
+    def select_optimal_provider(self, task_type: str, available_providers: list[str]) -> str:
+        """
+        Choose the optimal provider from available_providers depending on task_type,
+        price, and dynamic latency/speed metrics.
+        """
+        if not available_providers:
+            return "google-genai"
+            
+        weights = {
+            "compilation": {"w_cost": 0.1, "w_speed": 0.9},
+            "ui_layout": {"w_cost": 0.4, "w_speed": 0.6},
+            "text_inference": {"w_cost": 0.8, "w_speed": 0.2}
+        }
+        
+        task_weights = weights.get(task_type, weights["text_inference"])
+        w_cost = task_weights["w_cost"]
+        w_speed = task_weights["w_speed"]
+        
+        best_provider = available_providers[0]
+        best_score = -1.0
+        
+        for provider in available_providers:
+            p = provider.lower()
+            cost = self.metrics.get(p, {"price_per_1k": 0.001})["price_per_1k"]
+            speed = self.get_effective_speed(p)
+            
+            # Utility for cost (lower cost is better utility)
+            cost_utility = 1.0 / (cost + 0.0001)
+            
+            # Weighted utility score
+            score = (w_cost * cost_utility) + (w_speed * speed)
+            if score > best_score:
+                best_score = score
+                best_provider = provider
+                
+        return best_provider
+
+
+_GLOBAL_COST_ROUTER = CloudCostRouter()
+
+def get_cost_router() -> CloudCostRouter:
+    global _GLOBAL_COST_ROUTER
+    return _GLOBAL_COST_ROUTER
+
+
+
 

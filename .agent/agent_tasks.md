@@ -53,18 +53,35 @@
 
 ---
 
-## 🏢 PHASE 30 — Federated Swarm Self-Optimizing Agent Network Topology & Dynamic Route Pruning / 聯邦群落自我優化代理網路拓撲與動態路由剪枝
-
-### 30-01 Dynamic Workspace Router Optimization & Route Pruning
-- [x] Implement an active routing feedback optimization loop in `router.py` / 在 `router.py` 中實作動態路由反饋優化機制
-- [x] Measure routing efficiency, latency, and success rate for dynamically dispatched agent tasks, automatically pruning stale or low-performance routing options / 測量動態派發任務的路由效率、延遲與成功率，自動剪枝失效或低效的路由節點
-- [x] Expose an administrative endpoint `POST /v1/router/prune` to manually or programmatically trigger network route cleanup sweeps / 提供 `POST /v1/router/prune` 路由以手動或自動清理路由拓撲
+- [x] **PHASE 30 — Federated Swarm Self-Optimizing Agent Network Topology & Dynamic Route Pruning**: Active routing feedback loop in `router.py`, administrative router pruning endpoint `POST /v1/router/prune` and status endpoint `GET /v1/router/status`, visual topological load maps, dynamic routing integration tests.
 
 ---
 
-### 30-02 Multi-Swarm Topological Load Profiling Dashboard
-- [x] Build a visual "Topological Load & Efficiency Map" component in the React console dashboard / 在 React 前端控制台畫布中設計並整合實時視覺化的「拓撲負載與效率地圖」組件
-- [x] Write integration test coverage asserting successful dynamic routing optimization, performance bottleneck detection, and automatic node pruning under simulated heavy concurrent networks / 撰寫單元測試驗證動態路由剪枝、瓶頸檢測以及高併發拓撲優化功能
+## 🏢 PHASE 31 — Federated Swarm Cross-Cloud Autonomous Orchestration & Multi-Cloud Deployment / 聯邦群落多雲自主協作與跨雲部署
+
+### 31-01 Cross-Cloud Node Discovery & Tunneling Gateway
+- [x] Implement a cross-cloud gateway using WebSockets with mTLS or secure routing overlays in `api.py` / 在 `api.py` 中實作基於 WebSockets mTLS 或安全路由覆蓋的跨雲網關
+- [x] Establish client-side peer-to-peer discovery routines to link GCP, AWS, and local Tauri Edge nodes into a unified Swarm network / 建立客戶端點對點發現程序，將 GCP、AWS 與本地 Tauri 邊緣節點鏈結為統一 Swarm 網路
+
+---
+
+### 31-02 Elastic Cross-Cloud Compute & Model Cost Routing
+- [x] Implement a cloud-cost-aware load balancing router in `observability.py` and `AccountManager` / 在 `observability.py` 與 `AccountManager` 中實作雲端成本感知負載平衡路由器
+- [x] Dynamically dispatch text inference, compilation, and UI layout tasks to GCP Gemini, AWS Bedrock Claude, or local Ollama depending on real-time price & speed metrics / 依據實時價格與速度指標，將文字推理、編譯與 UI 佈局任務動態分派至不同雲端節點
+
+---
+
+## 🛡️ PHASE 32 — Swarm Autonomous Zero-Trust Self-Defense & Sandbox Security Interception / 智慧體零信任自主防禦與沙箱安全攔截
+
+### 32-01 Dynamic AST Sanitization & System Call Interception
+- [ ] Implement a dynamic AST semantic parser and run-time sandbox system-call interceptor inside `sandbox.py` / 在 `sandbox.py` 中實作動態 AST 語意分析器與執行時沙箱系統呼叫攔截器
+- [ ] Automatically block malicious attempts (such as unauthorized host socket scans or directory traversals outside Workspace scope) / 自動阻斷惡意嘗試（如越權網路埠掃描或 Workspace 範圍外的目錄遍歷）
+
+---
+
+### 32-02 Intrusion Detection & Self-Healing File Rollbacks
+- [ ] Build a Swarm Intrusion Detection System (IDS) that quarantines malicious nodes and triggers session key rotation after multiple consensus sign failures / 建立群落入侵檢測系統，在多次共識簽章失效時隔離惡意節點並觸發會話金鑰輪轉
+- [ ] Construct a workspace file snapshot transaction system to automatically roll back file modifications made by scripts that fail runtime security gates / 建立工作區檔案快照事務系統，在腳本違反安全規則時自動回滾檔案變更
 
 ---
 
@@ -73,5 +90,7 @@
 | Phase | Total Tasks | Completed Tasks | Status |
 |---|---|---|---|
 | **Phase 0 - 30** | 78 tasks | 78 tasks | 100% Done |
+| **Phase 31** | 2 tasks | 0 tasks | 0% Pending |
+| **Phase 32** | 2 tasks | 0 tasks | 0% Pending |
 
 *This queue is managed dynamically by the active LAS Developer Agent. All task updates, outcome logs, and progress status updates are written directly to this file before turn conclusion.*

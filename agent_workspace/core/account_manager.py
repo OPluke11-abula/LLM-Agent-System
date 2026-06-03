@@ -277,3 +277,31 @@ class AccountManager:
             env_var_name = api_key.split("env:", 1)[1].strip()
             return os.environ.get(env_var_name, "")
         return api_key
+
+    def get_optimal_account_for_task(self, task_type: str) -> dict[str, Any] | None:
+        """
+        Query the global CloudCostRouter to select the best account among available configured accounts.
+        """
+        accounts = self.list_accounts()
+        if not accounts:
+            return self.get_active_account()
+
+        providers_map = {}
+        for acc in accounts:
+            prov = acc.get("provider", "").lower()
+            if prov:
+                providers_map[prov] = acc
+
+        if not providers_map:
+            return self.get_active_account()
+
+        try:
+            from observability import get_cost_router
+        except ImportError:
+            from agent_workspace.observability import get_cost_router
+
+        router = get_cost_router()
+        optimal_provider = router.select_optimal_provider(task_type, list(providers_map.keys()))
+        
+        return providers_map.get(optimal_provider.lower(), self.get_active_account())
+

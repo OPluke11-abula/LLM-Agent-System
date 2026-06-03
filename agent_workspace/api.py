@@ -1430,6 +1430,49 @@ async def prune_router_routes(session_id: str | None = None, force: bool = False
     }
 
 
+@app.websocket("/v1/cross-cloud/tunnel")
+async def cross_cloud_tunnel_endpoint(websocket: WebSocket):
+    params = websocket.query_params
+    client_cert = params.get("client_cert")
+    signature = params.get("signature")
+    payload = params.get("payload")
+    cloud_name = params.get("cloud_name", "").upper()
+    
+    try:
+        from core.cross_cloud_gateway import CROSS_CLOUD_GATEWAY
+    except ImportError:
+        from agent_workspace.core.cross_cloud_gateway import CROSS_CLOUD_GATEWAY
+
+    if not CROSS_CLOUD_GATEWAY.validate_handshake(client_cert, signature, payload):
+        await websocket.close(code=4003)
+        return
+
+    await websocket.accept()
+
+    CROSS_CLOUD_GATEWAY.peers[cloud_name] = {
+        "ws": websocket,
+        "url": f"ws_client_{cloud_name}",
+        "status": "connected",
+        "connected_at": datetime.now(timezone.utc).isoformat(),
+        "simulated": False
+    }
+
+    logger.info("[CrossCloudGateway] Accepted WebSocket tunnel from %s", cloud_name)
+
+    try:
+        while True:
+            data = await websocket.receive_text()
+            packet = json.loads(data)
+            await CROSS_CLOUD_GATEWAY.route_packet(packet)
+    except WebSocketDisconnect:
+        logger.info("[CrossCloudGateway] WebSocket tunnel disconnected from %s", cloud_name)
+    except Exception as e:
+        logger.error("[CrossCloudGateway] Error in WebSocket tunnel loop: %s", e)
+    finally:
+        CROSS_CLOUD_GATEWAY.peers.pop(cloud_name, None)
+
+
+
 
 
 
