@@ -279,27 +279,76 @@ class CRDTState:
 
 
 class DeltaStateReconciler:
-    def __init__(self, workspace_path: str):
+    def __init__(self, workspace_path: str, mirror_paths: list[str | Path] | None = None):
         self.workspace_path = os.path.abspath(workspace_path)
         if os.path.basename(self.workspace_path) == "agent_workspace":
             self.project_root = Path(self.workspace_path).parent
         else:
             self.project_root = Path(self.workspace_path)
         self.state_file = self.project_root / ".agent" / "memory" / "reconciled_state.json"
+        
+        # Vault mirroring paths
+        if mirror_paths is not None:
+            self.mirror_paths = [Path(p) for p in mirror_paths]
+        else:
+            self.mirror_paths = [
+                self.project_root / ".agent" / "memory" / "vault_mirrors" / "mirror_1",
+                self.project_root / ".agent" / "memory" / "vault_mirrors" / "mirror_2"
+            ]
         self._lock = threading.Lock()
 
     def _load_state(self) -> CRDTState:
+        primary_failed = False
         if not self.state_file.is_file():
-            return CRDTState()
-        try:
-            data = json.loads(self.state_file.read_text(encoding="utf-8"))
-            return CRDTState.from_dict(data)
-        except Exception:
-            return CRDTState()
+            primary_failed = True
+        else:
+            try:
+                data = json.loads(self.state_file.read_text(encoding="utf-8"))
+                return CRDTState.from_dict(data)
+            except Exception as e:
+                logger.warning(f"Primary state file load failed, initiating failover: {e}")
+                primary_failed = True
+                
+        if primary_failed:
+            # Attempt failover restoration from mirrored vaults
+            for mirror_path in self.mirror_paths:
+                mirror_file = Path(mirror_path) / "reconciled_state.json"
+                if mirror_file.is_file():
+                    try:
+                        data = json.loads(mirror_file.read_text(encoding="utf-8"))
+                        loaded_state = CRDTState.from_dict(data)
+                        
+                        # Auto-heal: Restore the valid state to the primary path
+                        try:
+                            self.state_file.parent.mkdir(parents=True, exist_ok=True)
+                            self.state_file.write_text(
+                                json.dumps(loaded_state.to_dict(), indent=2, ensure_ascii=False),
+                                encoding="utf-8"
+                            )
+                            logger.info(f"Auto-healed primary state from mirror: {mirror_path}")
+                        except Exception as write_err:
+                            logger.error(f"Failed to auto-heal primary state file: {write_err}")
+                            
+                        return loaded_state
+                    except Exception as mirror_err:
+                        logger.warning(f"Failed to load state from mirror {mirror_path}: {mirror_err}")
+                        
+        return CRDTState()
 
     def _save_state(self, state: CRDTState):
         self.state_file.parent.mkdir(parents=True, exist_ok=True)
-        self.state_file.write_text(json.dumps(state.to_dict(), indent=2, ensure_ascii=False), encoding="utf-8")
+        data_str = json.dumps(state.to_dict(), indent=2, ensure_ascii=False)
+        self.state_file.write_text(data_str, encoding="utf-8")
+        
+        # Redundant state vault mirroring
+        for mirror_path in self.mirror_paths:
+            try:
+                mirror_dir = Path(mirror_path)
+                mirror_dir.mkdir(parents=True, exist_ok=True)
+                mirror_file = mirror_dir / "reconciled_state.json"
+                mirror_file.write_text(data_str, encoding="utf-8")
+            except Exception as e:
+                logger.warning(f"Failed to mirror state to {mirror_path}: {e}")
 
     def apply_update(self, key: str, value: Any) -> dict[str, Any]:
         with self._lock:
