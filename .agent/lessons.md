@@ -1,0 +1,24 @@
+# Lessons — Agent Self-Learning Memory
+> Auto-maintained by the self-learning skill. Do not delete.
+> Workspace scope: applies to the LLM-Agent-System project.
+
+## [2026-06-03] Agent Role Boundary Calibration
+
+**Before**: Automatically transitioning from planning to codebase modifications, code generation, and test execution upon workflow triggers.
+**After**: Strict enforcement of the Systems Analyst and Software Architect boundaries. Prioritize high-level architecture design, interface contract specifications, dynamic cost-accounting reviews, and security gate audits. Do not proceed to codebase execution or modification unless explicitly instructed by the user.
+**Why**: The user corrected the agent's role, emphasizing that the primary function is that of an Analyst and Architect rather than a programmer.
+**Tags**: #role-calibration #architect #analyst #boundary-control
+
+## [2026-06-03] High-Fidelity Prompt Delegation in Multi-Agent Swarms
+
+**Before**: Writing brief, generic, or summary-only task delegation prompts when passing objectives to downstream executors or providing task descriptions.
+**After**: Construct highly detailed, structural, and complete task dispatches that specify precise file scopes, API specifications, fallback behaviors, concurrency requirements, security guidelines, and mocked test assertions.
+**Why**: Downstream child agents or execution engines require high context density and explicit operational boundaries to prevent low-quality code generation, shallow implementations, or design regressions.
+**Application to LAS**:
+- **Structured Delegation in Swarms**: In Phase 34's `AgentCrew` and `AgentRouter`, the task delegation prompt templates (used by the moderator or parent agent) should not be free-form text. Instead, they should enforce a structured schema requiring parent agents to list:
+  1. Input/Output specifications.
+  2. Mock requirements (preventing real API costs during tests).
+  3. Security sandbox constraints.
+  4. Precise file paths and exit criteria.
+- **Dynamic Checklists**: PromptComposer templates can be updated to automatically inject a verification checklist into the child agent's prompt to enforce rigorous quality gates.
+**Tags**: #prompt-engineering #swarms #multi-agent #delegation-safety
