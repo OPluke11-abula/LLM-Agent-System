@@ -1397,6 +1397,40 @@ async def get_reconciled_state(session_id: str) -> dict[str, Any]:
     }
 
 
+@app.get("/v1/router/status")
+@app.get("/v1/sessions/{session_id}/router/status")
+@app.get("/v1/session/{session_id}/router/status")
+async def get_router_status(session_id: str | None = None) -> dict[str, Any]:
+    try:
+        from core.router import ROUTE_REGISTRY
+    except ImportError:
+        from agent_workspace.core.router import ROUTE_REGISTRY
+        
+    return {
+        "routes": list(ROUTE_REGISTRY.routes.values()),
+        "pruned_history": ROUTE_REGISTRY.pruned_history
+    }
+
+
+@app.post("/v1/router/prune")
+@app.post("/v1/sessions/{session_id}/router/prune")
+@app.post("/v1/session/{session_id}/router/prune")
+async def prune_router_routes(session_id: str | None = None, force: bool = False) -> dict[str, Any]:
+    try:
+        from core.router import ROUTE_REGISTRY
+    except ImportError:
+        from agent_workspace.core.router import ROUTE_REGISTRY
+        
+    pruned_any = ROUTE_REGISTRY.prune_stale_or_all(force_all=force)
+    return {
+        "status": "success",
+        "pruned_any": pruned_any,
+        "active_routes": [r for r in ROUTE_REGISTRY.routes.values() if r["status"] == "active"],
+        "pruned_history": ROUTE_REGISTRY.pruned_history
+    }
+
+
+
 
 
 

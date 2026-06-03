@@ -197,6 +197,8 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
   const [telemetryData, setTelemetryData] = useState<{ metrics: any[] } | null>(null);
   const [collabConnected, setCollabConnected] = useState(false);
   const [activityStream, setActivityStream] = useState<any[]>([]);
+  const [routerStatus, setRouterStatus] = useState<{ routes: any[]; pruned_history: any[] } | null>(null);
+  const [pruning, setPruning] = useState(false);
   const subscribedChannels = ["logs", "telemetry", "ledger", "topology", "stdout", "state_sync"];
 
   const activeSessionId = visibleSessionIds[0] || (sessions[0]?.session_id);
@@ -366,6 +368,35 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
 
   useEffect(() => {
     if (!activeSessionId) return;
+    let cancelled = false;
+
+    const fetchRouterStatus = async () => {
+      try {
+        const response = await fetch(`http://localhost:8000/v1/sessions/${activeSessionId}/router/status`);
+        if (!response.ok) return;
+        const data = await response.json();
+        if (!cancelled) {
+          setRouterStatus({
+            routes: data.routes || [],
+            pruned_history: data.pruned_history || []
+          });
+        }
+      } catch (e) {
+        console.error("Failed to fetch router status:", e);
+      }
+    };
+
+    fetchRouterStatus();
+    const interval = setInterval(fetchRouterStatus, 5000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [activeSessionId, sessions]);
+
+  useEffect(() => {
+    if (!activeSessionId) return;
     let ws: WebSocket | null = null;
     let cancelled = false;
 
@@ -488,6 +519,34 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
       alert(`Defragmentation sweep failed: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setDefragmenting(false);
+    }
+  };
+
+  const handlePrune = async (force: boolean = false) => {
+    if (!activeSessionId) return;
+    setPruning(true);
+    try {
+      const response = await fetch(`http://localhost:8000/v1/sessions/${activeSessionId}/router/prune?force=${force}`, {
+        method: "POST",
+      });
+      if (!response.ok) throw new Error("Pruning sweep failed");
+      const data = await response.json();
+      
+      setRouterStatus({
+        routes: data.active_routes || [],
+        pruned_history: data.pruned_history || []
+      });
+      
+      alert(
+        lang === "zh"
+          ? `路由優化清理完成！\n是否執行了清理: ${data.pruned_any ? '是' : '否'}\n活動路由數: ${data.active_routes?.length ?? 0}`
+          : `Route optimization complete!\nRoutes pruned: ${data.pruned_any ? 'Yes' : 'No'}\nActive routes: ${data.active_routes?.length ?? 0}`
+      );
+    } catch (e) {
+      console.error(e);
+      alert(`Pruning failed: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setPruning(false);
     }
   };
 
@@ -803,6 +862,103 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
                 {lang === "zh"
                   ? "遙測路由：非阻塞緩衝與轉發系統運行時之 CPU、記憶體佔用、 WebSocket 延遲與 SQLite 累積成本"
                   : "Telemetry Router: Non-blocking real-time routing of CPU, Memory, WS latency, and cumulative API USD cost metrics"}
+              </div>
+            </div>
+
+            <div className="mx-3 mb-3 p-3 rounded-lg border flex flex-col gap-2 relative group/router" style={{ background: "var(--bg-card)", borderColor: "var(--border-c)" }}>
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: "var(--accent)" }}>
+                  {lang === "zh" ? "拓撲負載與路由優化" : "Topological Load & Route Map"}
+                </p>
+                <span className="text-[8px] font-mono font-bold text-slate-500">
+                  OPTIMIZING
+                </span>
+              </div>
+              
+              <div className="flex flex-col gap-2 mt-1 font-mono text-[9px] text-slate-400">
+                <span className="text-[8px] font-bold uppercase tracking-[0.15em] t3">
+                  {lang === "zh" ? "活躍節點負載" : "Active Node Load"}
+                </span>
+                {routerStatus && routerStatus.routes && routerStatus.routes.filter(r => r.status === "active").length > 0 ? (
+                  routerStatus.routes.filter(r => r.status === "active").map((r) => {
+                    const avgLat = r.latency_history.length > 0 ? (r.latency_history.reduce((a: number, b: number) => a + b, 0) / r.latency_history.length * 1000) : 0;
+                    return (
+                      <div key={r.node_id} className="flex flex-col gap-1 border-t border-slate-800/40 pt-1.5 first:border-0 first:pt-0">
+                        <div className="flex justify-between items-center text-[8px]">
+                          <span className="font-bold text-slate-350">{r.node_id}</span>
+                          <span className="text-[8px] text-slate-500 font-bold">
+                            {r.active_load} active / {Math.round(avgLat)}ms
+                          </span>
+                        </div>
+                        <div className="w-full h-1.5 rounded bg-slate-800 overflow-hidden relative border border-slate-700">
+                          <div
+                            className={`h-full rounded transition-all duration-300 ${
+                              r.active_load > 0 ? "bg-amber-500 animate-pulse" : "bg-emerald-500"
+                            }`}
+                            style={{
+                              width: `${Math.min(100, (r.active_load > 0 ? r.active_load * 25 : 10))}%`
+                            }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="text-center text-slate-650 text-[8px] py-1">
+                    {lang === "zh" ? "無活躍節點負載" : "No active node dispatches"}
+                  </div>
+                )}
+
+                <div className="mt-1 border-t pt-1.5 flex flex-col gap-1.5" style={{ borderColor: "var(--border-c)" }}>
+                  <span className="text-[8px] font-bold uppercase tracking-[0.15em] text-amber-500/80">
+                    {lang === "zh" ? "被修剪路由路徑" : "Pruned Path History"}
+                  </span>
+                  <div className="max-h-20 overflow-y-auto space-y-1.5 font-mono text-[8px] scrollbar-thin">
+                    {routerStatus && routerStatus.pruned_history && routerStatus.pruned_history.length > 0 ? (
+                      routerStatus.pruned_history.slice().reverse().map((p: any, idx: number) => (
+                        <div key={idx} className="flex flex-col rounded p-1 bg-red-950/20 border border-red-950/40 text-slate-400">
+                          <div className="flex justify-between items-center text-[7px] font-bold">
+                            <span className="text-red-400">{p.node_id}</span>
+                            <span className="text-slate-500">{new Date(p.pruned_at).toLocaleTimeString()}</span>
+                          </div>
+                          <span className="text-[7.5px] leading-relaxed break-all mt-0.5 text-slate-350">{p.reason}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center text-slate-650 text-[8px] py-1">
+                        {lang === "zh" ? "無已修剪路徑" : "No paths pruned yet"}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-1.5 mt-1 border-t pt-2" style={{ borderColor: "var(--border-c)" }}>
+                <button
+                  type="button"
+                  disabled={pruning}
+                  onClick={() => handlePrune(false)}
+                  className="flex-1 py-1 px-2 rounded border border-slate-700 bg-slate-800/40 text-slate-300 hover:bg-slate-800/80 transition-all text-[9px] font-bold flex items-center justify-center gap-1 active:scale-95 duration-100"
+                >
+                  <svg className={`h-2.5 w-2.5 text-slate-400 ${pruning ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  {pruning ? "..." : (lang === "zh" ? "清理過期" : "Prune Stale")}
+                </button>
+                <button
+                  type="button"
+                  disabled={pruning}
+                  onClick={() => handlePrune(true)}
+                  className="flex-1 py-1 px-2 rounded border border-amber-800/40 bg-amber-950/10 text-amber-400 hover:bg-amber-950/30 transition-all text-[9px] font-bold flex items-center justify-center gap-1 active:scale-95 duration-100"
+                >
+                  {lang === "zh" ? "強制修剪" : "Force Prune"}
+                </button>
+              </div>
+
+              <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 w-64 -translate-x-1/2 rounded bg-slate-950 px-3 py-2 text-center text-[10px] leading-normal text-slate-300 opacity-0 transition-opacity border border-slate-800 shadow-2xl group-hover/router:opacity-100">
+                {lang === "zh"
+                  ? "拓撲路由優化：動態監控代理負載及響應時間，對低效或無響應的路由進行自動修剪，並可手動一鍵 sweeps 清理"
+                  : "Topological Optimization: Measures node dispatch latencies & success rates, auto-prunes low-performance paths, and supports admin sweeps."}
               </div>
             </div>
 
