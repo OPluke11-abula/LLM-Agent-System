@@ -132,6 +132,15 @@ python agent_workspace/cli.py --chat
 
 ---
 
+### 🛡️ SOC2 Audit Ledger & Container Sandboxing
+
+LAS includes enterprise-grade security auditing and containerized sandboxing:
+* **Immutable Cryptographic Audit Trail**: Automatically intercepts and logs critical events (system calls, WebSocket packets, and consensus votes) to an SQLite ledger database. Each log entry is cryptographically chained using SHA-256 signatures (`previous_hash` + `current_hash` validation), allowing instant detection of tampered or corrupted log entries.
+* **Restricted Docker Sandbox**: Dynamically executes generated Python script files inside a constrained, zero-network `python:3.11-slim` container (disabled networking, 128MB maximum memory limit).
+* **Graceful AST Fallbacks**: In case the Docker SDK or local Docker daemon is offline, execution automatically falls back gracefully to a restricted AST-sanitized sandboxing layer with security notifications.
+
+---
+
 ## 🌐 繁體中文
 
 > ### 🧠 **首個讓 AI 幫你客製化與重構 AI 的框架**
@@ -239,6 +248,15 @@ python agent_workspace/cli.py --run-workflow my_workflow
 # 啟動具有實時 HITL 人機審批的互動式對話
 python agent_workspace/cli.py --chat
 ```
+
+---
+
+### 🛡️ SOC2 密碼學審計日誌與容器沙箱
+
+LAS 內建企業級安全防護與可溯源的容器沙箱執行環境：
+* **不可篡改密碼學審計軌跡 (SOC2)**: 自動攔截並記錄關鍵操作（系統呼叫、WebSocket 通訊封包與共識投票登記）至 SQLite 審計資料庫。每一筆日誌皆透過 SHA-256 進行前後鏈式簽章追蹤，能自動偵測並精準回報手動篡改或損毀的日誌 ID。
+* **限制型 Docker 沙箱環境**: 在完全停用網路連線 (`network="none"`) 且具備記憶體配額配給（最大 128MB）的隔離 `python:3.11-slim` 容器中執行生成的 Python 腳本。
+* **自動退回安全 AST 沙箱**: 若本地主機未啟動 Docker Daemon 或缺少 SDK 套件，沙箱執行引擎會自動且優雅地降級回退至具備 AST 靜態語法白名單的本地沙箱，並同步拋出安全性警報日誌。
 
 ---
 

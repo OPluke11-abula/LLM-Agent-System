@@ -641,6 +641,25 @@ async def collaboration_endpoint(websocket: WebSocket, session_id: str):
 
             action = data.get("action")
             channel = data.get("channel")
+
+            # Intercept and log P2P WebSocket message to AuditLedger
+            if "pytest" not in sys.modules:
+                try:
+                    from core.audit_ledger import AuditLedger
+                except ImportError:
+                    from agent_workspace.core.audit_ledger import AuditLedger
+                try:
+                    audit = AuditLedger(workspace)
+                    loop = asyncio.get_running_loop()
+                    loop.run_in_executor(None, audit.record_event, "websocket_packet", {
+                        "session_id": session_id,
+                        "direction": "receive",
+                        "action": action,
+                        "channel": channel,
+                        "payload_summary": str(data.get("payload"))[:200] if data.get("payload") else None
+                    })
+                except Exception as ae:
+                    logger.warning(f"Failed to log P2P websocket packet to audit ledger: {ae}")
             
             if action == "subscribe" and channel:
                 await collab_manager.subscribe(websocket, session_id, channel)
@@ -1556,6 +1575,29 @@ async def crew_sync_endpoint(websocket: WebSocket, session_id: str):
             else:
                 decrypted_str = json.dumps(encrypted_data)
 
+            # Intercept and log Sync WebSocket message to AuditLedger
+            if "pytest" not in sys.modules:
+                try:
+                    from core.audit_ledger import AuditLedger
+                except ImportError:
+                    from agent_workspace.core.audit_ledger import AuditLedger
+                try:
+                    audit = AuditLedger(workspace)
+                    try:
+                        sync_data = json.loads(decrypted_str)
+                    except Exception:
+                        sync_data = {}
+                    loop = asyncio.get_running_loop()
+                    loop.run_in_executor(None, audit.record_event, "websocket_packet", {
+                        "session_id": session_id,
+                        "direction": "receive",
+                        "action": sync_data.get("action", "sync"),
+                        "checkpoint": sync_data.get("checkpoint"),
+                        "payload_summary": str(sync_data.get("data"))[:200] if sync_data.get("data") else None
+                    })
+                except Exception as ae:
+                    logger.warning(f"Failed to log sync websocket packet to audit ledger: {ae}")
+
             # 4. Broadcast the decrypted sync packet to other workers
             await crew_sync_manager.broadcast(session_id, websocket, decrypted_str)
     except WebSocketDisconnect:
@@ -1706,6 +1748,60 @@ async def get_saas_invoice(filter_id: str | None = None, markup_multiplier: floa
     tracker = SaaSBillingTracker(ledger)
     invoice = tracker.get_saas_invoice(filter_id=filter_id, markup_multiplier=markup_multiplier)
     return invoice
+
+
+class SandboxExecuteRequest(BaseModel):
+    code_content: str
+    sandbox_type: str = "ast"
+    globals_dict: dict[str, Any] | None = None
+    locals_dict: dict[str, Any] | None = None
+
+
+@app.post("/v1/sandbox/execute")
+async def execute_in_sandbox(req: SandboxExecuteRequest):
+    try:
+        from core.sandbox import SandboxGuard
+    except ImportError:
+        from agent_workspace.core.sandbox import SandboxGuard
+
+    try:
+        result = SandboxGuard.execute_safe(
+            workspace_path=workspace,
+            code_content=req.code_content,
+            globals_dict=req.globals_dict,
+            locals_dict=req.locals_dict,
+            sandbox_type=req.sandbox_type
+        )
+        return {"status": "success", "result": result}
+    except PermissionError as pe:
+        raise HTTPException(status_code=403, detail=str(pe))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/v1/audit/logs")
+async def get_audit_logs(event_type: str | None = None):
+    try:
+        from core.audit_ledger import AuditLedger
+    except ImportError:
+        from agent_workspace.core.audit_ledger import AuditLedger
+
+    ledger = AuditLedger(workspace)
+    logs = ledger.get_logs(event_type)
+    return {"status": "success", "logs": logs}
+
+
+@app.get("/v1/audit/verify")
+async def verify_audit_chain():
+    try:
+        from core.audit_ledger import AuditLedger
+    except ImportError:
+        from agent_workspace.core.audit_ledger import AuditLedger
+
+    ledger = AuditLedger(workspace)
+    verification = ledger.verify_chain_integrity()
+    return {"status": "success", **verification}
+
 
 
 

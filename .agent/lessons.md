@@ -22,3 +22,15 @@
   4. Precise file paths and exit criteria.
 - **Dynamic Checklists**: PromptComposer templates can be updated to automatically inject a verification checklist into the child agent's prompt to enforce rigorous quality gates.
 **Tags**: #prompt-engineering #swarms #multi-agent #delegation-safety
+
+## [2026-06-04] Destructive Working Directory Checkout and Actor Synchronization Safeguards
+
+**Before**: Running git checkouts (`git checkout <commit> -- <files>`) or file removals based solely on local working directory status (`git status`), without checking the recent commit logs for changes submitted by other actors.
+**After**: Before executing any checkout, reset, or file deletion command targeting historical commits, the agent MUST:
+  1. Inspect the recent commit logs (`git log -n 5`) to check if other actors (humans or other AI agents) have committed files.
+  2. If committed work from other actors is detected, verify with the user before performing any git checkouts or overwrites that would overwrite those files in the working directory.
+  3. Never assume a "clean" status relative to HEAD means there is no other work, since HEAD itself might have advanced with commits from other actors.
+**Why**: Blind checkouts to historical commits can overwrite or delete committed files of other actors in the active working directory, causing immediate code loss fears and coordination friction.
+**Application to LAS**:
+- **Swarm Conflict Auditing**: In multi-agent environments or multi-cloud systems (Phase 31+), before an agent rolls back workspace snapshots or overwrites shared files, it must execute a consensus-based file integrity log audit to verify that it is not overwriting concurrent commits made by peer agents.
+**Tags**: #git-safety #actor-coordination #destructive-operations #lessons-learned

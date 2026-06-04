@@ -977,6 +977,22 @@ class ProofOfConsensus:
         if not cls.verify_consensus_certificate(certificate):
             raise ValueError("Cannot register invalid consensus certificate.")
 
+        # Log consensus registration to AuditLedger
+        try:
+            from core.audit_ledger import AuditLedger
+        except ImportError:
+            from agent_workspace.core.audit_ledger import AuditLedger
+
+        try:
+            audit = AuditLedger(workspace_path)
+            audit.record_event("consensus_vote", {
+                "payload_hash": payload_hash,
+                "approvals": certificate.get("approvals", []),
+                "consensus_signature": certificate.get("consensus_signature")
+            })
+        except Exception as e:
+            logger.warning("[ProofOfConsensus] Audit logging failed: %s", e)
+
         project_root = Path(workspace_path)
         if not (project_root / ".agent").is_dir() and (project_root.parent / ".agent").is_dir():
             project_root = project_root.parent

@@ -120,9 +120,17 @@ class SandboxGuard:
     last_execution_status = "none"
 
     @classmethod
-    def execute_safe(cls, workspace_path: str, code_content: str, globals_dict: Dict[str, Any] = None, locals_dict: Dict[str, Any] = None) -> Dict[str, Any]:
+    def execute_safe(
+        cls,
+        workspace_path: str,
+        code_content: str,
+        globals_dict: Dict[str, Any] = None,
+        locals_dict: Dict[str, Any] = None,
+        sandbox_type: str = "ast"
+    ) -> Dict[str, Any]:
         """
         Executes code_content under a restricted, zero-trust sandbox.
+        Supports 'ast' or 'docker' modes, with graceful fallback.
         Requires signature verification from ProofOfConsensus.
         """
         cls.total_executions += 1
@@ -137,11 +145,137 @@ class SandboxGuard:
         if not ProofOfConsensus.is_consensus_approved(workspace_path, payload_hash):
             cls.blocked_executions += 1
             cls.last_execution_status = "blocked"
+            try:
+                from core.audit_ledger import AuditLedger
+                audit = AuditLedger(workspace_path)
+                audit.record_event("system_call", {
+                    "sandbox_type": sandbox_type,
+                    "code_hash": payload_hash,
+                    "status": "blocked",
+                    "error": "Consensus signature verification failed."
+                })
+            except Exception:
+                pass
             raise PermissionError("Security violation: Sandbox execution blocked. Consensus signature verification failed.")
 
+        # Determine resolved sandbox type and handle Docker checks
+        resolved_sandbox_type = sandbox_type.lower()
+        if resolved_sandbox_type == "docker":
+            docker_available = False
+            client = None
+            try:
+                import docker
+                client = docker.from_env()
+                client.ping()
+                docker_available = True
+            except Exception:
+                pass
+            
+            # Check CLI fallback possibility
+            docker_cli_available = False
+            if not docker_available:
+                import subprocess
+                try:
+                    res = subprocess.run(["docker", "info"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    if res.returncode == 0:
+                        docker_cli_available = True
+                except Exception:
+                    pass
+            
+            if not docker_available and not docker_cli_available:
+                logger.warning("[SandboxGuard] Docker sandbox requested but Docker is unavailable. Falling back to AST.")
+                resolved_sandbox_type = "ast"
+
+        # 2. Execute Docker Sandbox
+        if resolved_sandbox_type == "docker":
+            import base64
+            import subprocess
+            encoded_code = base64.b64encode(code_content.encode("utf-8")).decode("utf-8")
+            exit_code = -1
+            stdout = ""
+            stderr = ""
+            
+            # Try SDK first
+            try:
+                import docker
+                client = docker.from_env()
+                container = client.containers.run(
+                    image="python:3.11-slim",
+                    command=["sh", "-c", f"echo {encoded_code} | base64 -d | python"],
+                    mem_limit="128m",
+                    network_mode="none",
+                    detach=True,
+                    stdout=True,
+                    stderr=True
+                )
+                result = container.wait(timeout=10.0)
+                exit_code = result.get("StatusCode", 0)
+                stdout = container.logs(stdout=True, stderr=False).decode("utf-8")
+                stderr = container.logs(stdout=False, stderr=True).decode("utf-8")
+                container.remove(force=True)
+            except Exception as e:
+                logger.warning(f"Docker Python SDK execution failed: {e}. Trying CLI fallback...")
+                
+            # CLI fallback
+            if exit_code == -1:
+                try:
+                    cmd = [
+                        "docker", "run", "--rm",
+                        "-m", "128m",
+                        "--network", "none",
+                        "python:3.11-slim",
+                        "sh", "-c", f"echo {encoded_code} | base64 -d | python"
+                    ]
+                    res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=10.0)
+                    exit_code = res.returncode
+                    stdout = res.stdout
+                    stderr = res.stderr
+                except Exception as err:
+                    cls.blocked_executions += 1
+                    cls.last_execution_status = "failed"
+                    # Log failed run to ledger
+                    try:
+                        from core.audit_ledger import AuditLedger
+                        audit = AuditLedger(workspace_path)
+                        audit.record_event("system_call", {
+                            "sandbox_type": "docker",
+                            "code_hash": payload_hash,
+                            "status": "failed",
+                            "error": str(err)
+                        })
+                    except Exception:
+                        pass
+                    raise RuntimeError(f"Docker sandbox execution failed (Docker Daemon/CLI unavailable): {err}")
+
+            # Log to audit trail
+            try:
+                from core.audit_ledger import AuditLedger
+                audit = AuditLedger(workspace_path)
+                audit.record_event("system_call", {
+                    "sandbox_type": "docker",
+                    "code_hash": payload_hash,
+                    "status": "allowed" if exit_code == 0 else "failed",
+                    "exit_code": exit_code,
+                    "stdout": stdout,
+                    "stderr": stderr
+                })
+            except Exception:
+                pass
+
+            cls.allowed_executions += 1
+            cls.last_execution_status = "allowed" if exit_code == 0 else "failed"
+
+            return {
+                "stdout": stdout,
+                "stderr": stderr,
+                "exit_code": exit_code,
+                "status": "completed" if exit_code == 0 else "error"
+            }
+
+        # 3. Execute AST Sandbox (AST is resolved_sandbox_type == "ast")
         # Execute safety checks and code within the rollback transaction
         with FileSnapshotTransaction(workspace_path):
-            # 2. Zero-Trust AST Security Audit
+            # Zero-Trust AST Security Audit
             try:
                 tree = ast.parse(code_content)
             except SyntaxError as e:
@@ -216,7 +350,7 @@ class SandboxGuard:
                             cls.last_execution_status = "blocked"
                             raise PermissionError(f"Security violation: Blocked string literal containing '{word}' detected.")
 
-            # 3. Restricted Execution Environment
+            # Restricted Execution Environment
             safe_globals = {
                 "__builtins__": {
                     k: v for k, v in __builtins__.items()
@@ -256,9 +390,32 @@ class SandboxGuard:
                 cls.allowed_executions += 1
                 cls.last_execution_status = "allowed"
                 
+                # Log to audit trail
+                try:
+                    from core.audit_ledger import AuditLedger
+                    audit = AuditLedger(workspace_path)
+                    audit.record_event("system_call", {
+                        "sandbox_type": "ast",
+                        "code_hash": payload_hash,
+                        "status": "allowed"
+                    })
+                except Exception:
+                    pass
+
                 return {k: v for k, v in sandbox_locals.items() if k != "__builtins__"}
             except Exception as e:
                 cls.blocked_executions += 1
                 cls.last_execution_status = "failed"
                 logger.error("Sandbox execution runtime error: %s", e)
+                try:
+                    from core.audit_ledger import AuditLedger
+                    audit = AuditLedger(workspace_path)
+                    audit.record_event("system_call", {
+                        "sandbox_type": "ast",
+                        "code_hash": payload_hash,
+                        "status": "failed",
+                        "error": str(e)
+                    })
+                except Exception:
+                    pass
                 raise RuntimeError(f"Sandbox runtime execution failed: {e}") from e
