@@ -34,3 +34,13 @@
 **Application to LAS**:
 - **Swarm Conflict Auditing**: In multi-agent environments or multi-cloud systems (Phase 31+), before an agent rolls back workspace snapshots or overwrites shared files, it must execute a consensus-based file integrity log audit to verify that it is not overwriting concurrent commits made by peer agents.
 **Tags**: #git-safety #actor-coordination #destructive-operations #lessons-learned
+
+## [2026-06-04] Zero-Dependency JWT, WebSocket Testing Lifecycles, and Dynamic Module Paths
+
+**Before**: Using external packages (`PyJWT`, `python-jose`) for token auth, relying on `websocket_connect` to raise errors during handshakes, and caching module-level variables at import time in test cases.
+**After**:
+  1. **Zero-Dependency JWT**: Implement standard base64url HMAC-SHA256 JWT checks using standard modules (`hmac`, `hashlib`, `base64`) to prevent packaging overhead.
+  2. **WebSocket Test Assertions**: In Starlette `TestClient`, server-side connection closures (e.g. code `4001`) must be checked by expecting a `WebSocketDisconnect` during message reads rather than expecting `websocket_connect` context entry to fail.
+  3. **Dynamic Variable Access**: Access globally patched module variables (like `api.workspace`) dynamically via `import api; api.workspace` instead of caching them via `from api import workspace` at import time to prevent path mismatches across concurrent tests.
+**Why**: Ensures robust multi-tenant authorization coverage, zero dependencies, and flawless test suites execution.
+**Tags**: #multi-tenancy #websockets #jwt #pytest #path-resolution
