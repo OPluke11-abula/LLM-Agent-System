@@ -1615,6 +1615,99 @@ async def get_crew_topology(session_id: str | None = None):
     return CrewRegistry.get_topology(session_id)
 
 
+class BuilderAgentRequest(BaseModel):
+    name: str
+    role: str
+    description: str
+    guidelines: list[str]
+    system_template: str
+    template_variables: dict | None = None
+    allowed_tools: list[str] | None = None
+    telemetry_gateways: list[dict] | None = None
+
+
+@app.post("/v1/builder/agents")
+async def create_builder_agent(req: BuilderAgentRequest):
+    try:
+        from core.builder import AgentBuilderRegistry
+    except ImportError:
+        from agent_workspace.core.builder import AgentBuilderRegistry
+        
+    config = req.model_dump()
+    registered = AgentBuilderRegistry.register_agent(req.name, config)
+    return {"status": "success", "agent": registered}
+
+
+@app.get("/v1/builder/templates")
+async def get_builder_templates():
+    try:
+        from core.builder import PRESET_TEMPLATES
+    except ImportError:
+        from agent_workspace.core.builder import PRESET_TEMPLATES
+        
+    return {"templates": PRESET_TEMPLATES}
+
+
+class BuilderTestRequest(BaseModel):
+    agent_config: dict
+    test_input: str
+    session_id: str | None = None
+    variables: dict | None = None
+
+
+@app.post("/v1/builder/test")
+async def test_builder_agent(req: BuilderTestRequest):
+    try:
+        from core.builder import render_system_prompt, emit_mock_webhook_telemetry
+        from core.ledger import FinancialLedger
+    except ImportError:
+        from agent_workspace.core.builder import render_system_prompt, emit_mock_webhook_telemetry
+        from agent_workspace.core.ledger import FinancialLedger
+
+    system_template = req.agent_config.get("system_template", "")
+    render_vars = {**req.agent_config, **(req.variables or {})}
+    rendered_prompt = render_system_prompt(system_template, render_vars)
+    
+    # Record transaction to ledger
+    ledger = FinancialLedger(workspace)
+    model_name = req.agent_config.get("model", "saas-builder-test")
+    cost = ledger.record_transaction(
+        session_id=req.session_id or "builder-test-session",
+        account_id="saas-builder",
+        provider="mock-provider",
+        model=model_name,
+        prompt_tokens=150,
+        completion_tokens=250
+    )
+    
+    # Emit telemetry webhook gateways logs
+    gateways = req.agent_config.get("telemetry_gateways", [])
+    telemetry_logs = emit_mock_webhook_telemetry(gateways, f"Agent response generated for user prompt: {req.test_input}")
+
+    return {
+        "status": "success",
+        "rendered_prompt": rendered_prompt,
+        "output": f"[Console Test Output for '{req.agent_config.get('name', 'CustomAgent')}']: Processed: '{req.test_input}'.",
+        "estimated_cost_usd": cost,
+        "telemetry_logs": telemetry_logs
+    }
+
+
+@app.get("/v1/billing/saas/invoice")
+async def get_saas_invoice(filter_id: str | None = None, markup_multiplier: float = 1.5):
+    try:
+        from core.ledger import FinancialLedger
+        from core.billing import SaaSBillingTracker
+    except ImportError:
+        from agent_workspace.core.ledger import FinancialLedger
+        from agent_workspace.core.billing import SaaSBillingTracker
+        
+    ledger = FinancialLedger(workspace)
+    tracker = SaaSBillingTracker(ledger)
+    invoice = tracker.get_saas_invoice(filter_id=filter_id, markup_multiplier=markup_multiplier)
+    return invoice
+
+
 
 
 
