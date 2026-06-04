@@ -26,6 +26,7 @@ from fastapi.responses import Response, StreamingResponse, JSONResponse
 from pydantic import BaseModel, Field
 import yaml
 import dotenv
+import threading
 
 workspace = os.path.dirname(os.path.abspath(__file__))
 dotenv.load_dotenv(Path(workspace) / ".env")
@@ -1470,6 +1471,149 @@ async def cross_cloud_tunnel_endpoint(websocket: WebSocket):
         logger.error("[CrossCloudGateway] Error in WebSocket tunnel loop: %s", e)
     finally:
         CROSS_CLOUD_GATEWAY.peers.pop(cloud_name, None)
+
+
+class CrewSyncManager:
+    """Manages secure multi-agent state, log, and file checkpoint synchronization over WebSockets."""
+    def __init__(self):
+        self.sessions: dict[str, list[tuple[WebSocket, bytes]]] = {}
+        self.lock = threading.Lock()
+
+    def connect(self, session_id: str, websocket: WebSocket, session_key: bytes):
+        with self.lock:
+            if session_id not in self.sessions:
+                self.sessions[session_id] = []
+            self.sessions[session_id].append((websocket, session_key))
+            logger.info(f"Worker WebSocket connected to crew sync session '{session_id}'")
+
+    def disconnect(self, session_id: str, websocket: WebSocket):
+        with self.lock:
+            if session_id in self.sessions:
+                self.sessions[session_id] = [
+                    (ws, key) for ws, key in self.sessions[session_id] if ws != websocket
+                ]
+                if not self.sessions[session_id]:
+                    del self.sessions[session_id]
+            logger.info(f"Worker WebSocket disconnected from crew sync session '{session_id}'")
+
+    async def broadcast(self, session_id: str, sender_ws: WebSocket, decrypted_message: str):
+        targets = []
+        with self.lock:
+            if session_id in self.sessions:
+                for ws, key in self.sessions[session_id]:
+                    if ws != sender_ws:
+                        targets.append((ws, key))
+
+        for ws, key in targets:
+            try:
+                enc_msg = SwarmP2PCrypto.encrypt_message(key, decrypted_message)
+                await ws.send_json(enc_msg)
+            except Exception as e:
+                logger.error(f"Error broadcasting crew sync event: {e}")
+
+
+crew_sync_manager = CrewSyncManager()
+
+
+@app.websocket("/v1/crew/sync/{session_id}")
+async def crew_sync_endpoint(websocket: WebSocket, session_id: str):
+    await websocket.accept()
+    
+    server_crypto = SwarmP2PCrypto()
+    try:
+        # 1. Send Server Hello
+        await websocket.send_json({
+            "handshake": "server_hello",
+            "public_key": server_crypto.get_public_bytes()
+        })
+        
+        # 2. Receive Client Hello
+        client_hello = await websocket.receive_json()
+        if client_hello.get("handshake") != "client_hello" or "public_key" not in client_hello:
+            await websocket.close(code=4002, reason="Invalid Handshake Protocol")
+            return
+            
+        session_key = server_crypto.compute_shared_key(client_hello["public_key"])
+        crew_sync_manager.connect(session_id, websocket, session_key)
+    except Exception as e:
+        logger.error(f"Crew sync WebSocket handshake failed: {e}")
+        await websocket.close(code=4002, reason="Handshake Failure")
+        return
+
+    try:
+        while True:
+            # 3. Receive encrypted payloads
+            encrypted_data = await websocket.receive_json()
+            if "ciphertext" in encrypted_data and "nonce" in encrypted_data:
+                try:
+                    decrypted_str = SwarmP2PCrypto.decrypt_message(session_key, encrypted_data)
+                except Exception as e:
+                    logger.error(f"Failed to decrypt crew sync frame: {e}")
+                    err_msg = json.dumps({"error": "Decryption failure"})
+                    enc_err = SwarmP2PCrypto.encrypt_message(session_key, err_msg)
+                    await websocket.send_json(enc_err)
+                    continue
+            else:
+                decrypted_str = json.dumps(encrypted_data)
+
+            # 4. Broadcast the decrypted sync packet to other workers
+            await crew_sync_manager.broadcast(session_id, websocket, decrypted_str)
+    except WebSocketDisconnect:
+        crew_sync_manager.disconnect(session_id, websocket)
+    except Exception as e:
+        logger.error(f"Crew sync WebSocket connection error: {e}")
+        crew_sync_manager.disconnect(session_id, websocket)
+
+
+class CrewRegisterRequest(BaseModel):
+    session_id: str
+    node_id: str | None = None
+    role: str
+    parent_node_id: str | None = None
+    status: str = "pending"
+    description: str = ""
+    input_parameters: dict | None = None
+    security_restrictions: dict | None = None
+    mock_directives: dict | None = None
+    validation_assertions: list[str] | None = None
+
+
+@app.post("/v1/crew/register")
+async def register_crew_node(req: CrewRegisterRequest):
+    try:
+        from core.agent_crew import CrewRegistry
+    except ImportError:
+        from agent_workspace.core.agent_crew import CrewRegistry
+
+    node_id = req.node_id or f"node-{req.role.lower()}-{uuid.uuid4()}"
+    CrewRegistry.register_node(
+        session_id=req.session_id,
+        node_id=node_id,
+        role=req.role,
+        parent_node_id=req.parent_node_id,
+        status=req.status,
+        description=req.description,
+        input_parameters=req.input_parameters,
+        security_restrictions=req.security_restrictions,
+        mock_directives=req.mock_directives,
+        validation_assertions=req.validation_assertions,
+    )
+    return {
+        "status": "success",
+        "session_id": req.session_id,
+        "node_id": node_id
+    }
+
+
+@app.get("/v1/crew/topology")
+async def get_crew_topology(session_id: str | None = None):
+    try:
+        from core.agent_crew import CrewRegistry
+    except ImportError:
+        from agent_workspace.core.agent_crew import CrewRegistry
+
+    return CrewRegistry.get_topology(session_id)
+
 
 
 

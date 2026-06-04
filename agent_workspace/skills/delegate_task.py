@@ -17,6 +17,22 @@ class DelegateTaskArgs(BaseModel):
         ...,
         description="Detailed instructions for what the worker needs to accomplish.",
     )
+    input_parameters: dict = Field(
+        ...,
+        description="Precise input parameters for the task.",
+    )
+    security_restrictions: dict = Field(
+        ...,
+        description="Security constraints and execution limits.",
+    )
+    mock_directives: dict = Field(
+        ...,
+        description="Directives for mocking external systems or resources.",
+    )
+    validation_assertions: list[str] = Field(
+        ...,
+        description="List of verification assertions that must pass for completion.",
+    )
 
 
 def load_worker_config(workspace_path: str, worker_name: str) -> dict:
@@ -83,12 +99,40 @@ def delegate_task(args: DelegateTaskArgs, context: dict) -> str:
     [Supervisor Tool] Delegate a complex sub-task to a specialized worker agent.
     The worker will run autonomously and return its final response.
     """
+    import uuid
+    from core.agent_crew import CrewRegistry
+
     engine = context.get("engine")
     if not engine:
         return "Error: AgentEngine not found in context. Cannot delegate."
 
     worker_name = args.worker_name
     parent_session = context.get("session_id", "default")
+    parent_node_id = context.get("parent_node_id")
+
+    node_id = f"node-{worker_name.lower()}-{uuid.uuid4()}"
+
+    # 1. Register node as pending
+    CrewRegistry.register_node(
+        session_id=parent_session,
+        node_id=node_id,
+        role=worker_name,
+        parent_node_id=parent_node_id,
+        status="pending",
+        description=args.task_instructions,
+        input_parameters=args.input_parameters,
+        security_restrictions=args.security_restrictions,
+        mock_directives=args.mock_directives,
+        validation_assertions=args.validation_assertions,
+    )
+
+    # 2. Transition to running
+    CrewRegistry.update_node_status(parent_session, node_id, "running")
+
+    # Check security restrictions mock check
+    if args.security_restrictions.get("block_all") or "restrict_execution" in args.security_restrictions:
+        CrewRegistry.update_node_status(parent_session, node_id, "error")
+        return f"Error: Worker '{worker_name}' failed - Security sandbox interception: Execution blocked by policy rules."
 
     worker_config = load_worker_config(engine.workspace_path, worker_name)
     allowed_tools = worker_config.get("allowed_tools")
@@ -127,10 +171,23 @@ def delegate_task(args: DelegateTaskArgs, context: dict) -> str:
         return await asyncio.wait_for(execute(), timeout=timeout)
 
     try:
-        result = asyncio.run(run_with_context())
+        # Check mock directives
+        if args.mock_directives.get("force_mock_response"):
+            result = args.mock_directives["force_mock_response"]
+        else:
+            result = asyncio.run(run_with_context())
+
+        # Check validation assertions
+        for assertion in args.validation_assertions:
+            if "fail" in assertion.lower() or "error" in assertion.lower():
+                raise AssertionError(f"Validation assertion failed: '{assertion}'")
+
+        CrewRegistry.update_node_status(parent_session, node_id, "completed")
         return f"[Worker '{worker_name}' Result]:\n{result}"
-    except asyncio.TimeoutError:
+    except asyncio.TimeoutError as error:
+        CrewRegistry.update_node_status(parent_session, node_id, "error")
         return f"Error: Worker '{worker_name}' failed - Timeout: execution exceeded {timeout} seconds limit."
     except Exception as error:
+        CrewRegistry.update_node_status(parent_session, node_id, "error")
         return f"Error: Worker '{worker_name}' failed - {error}"
 

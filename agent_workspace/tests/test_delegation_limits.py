@@ -23,7 +23,14 @@ def test_delegate_task_timeout():
     mock_engine.workspace_path = "."
     
     context = {"engine": mock_engine, "session_id": "test_session"}
-    args = DelegateTaskArgs(worker_name="slow_worker", task_instructions="Do something very slow")
+    args = DelegateTaskArgs(
+        worker_name="slow_worker",
+        task_instructions="Do something very slow",
+        input_parameters={},
+        security_restrictions={},
+        mock_directives={},
+        validation_assertions=[]
+    )
     
     async def mock_run_agent_loop(*args, **kwargs):
         await asyncio.sleep(0.5)
