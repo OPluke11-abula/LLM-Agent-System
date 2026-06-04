@@ -42,14 +42,29 @@ class FinancialLedger:
                         total_tokens INTEGER NOT NULL,
                         cost REAL NOT NULL,
                         timestamp TEXT NOT NULL,
-                        tenant_id TEXT DEFAULT 'default_tenant'
+                        tenant_id TEXT DEFAULT 'default_tenant',
+                        markup_multiplier REAL DEFAULT 1.5
+                    )
+                    """
+                )
+                conn.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS stripe_sync_metadata (
+                        tenant_id TEXT PRIMARY KEY,
+                        last_synced_id INTEGER DEFAULT 0
                     )
                     """
                 )
                 conn.commit()
-                # Run dynamic migration check for existing tables without tenant_id column
+                # Run dynamic migration check for existing tables without tenant_id/markup_multiplier column
                 try:
                     conn.execute("ALTER TABLE financial_ledger ADD COLUMN tenant_id TEXT DEFAULT 'default_tenant'")
+                    conn.commit()
+                except sqlite3.OperationalError:
+                    pass
+
+                try:
+                    conn.execute("ALTER TABLE financial_ledger ADD COLUMN markup_multiplier REAL DEFAULT 1.5")
                     conn.commit()
                 except sqlite3.OperationalError:
                     pass
@@ -79,7 +94,8 @@ class FinancialLedger:
         model: str,
         prompt_tokens: int,
         completion_tokens: int,
-        tenant_id: str = "default_tenant"
+        tenant_id: str = "default_tenant",
+        markup_multiplier: float | None = None
     ) -> float:
         """Records a token usage transaction to the financial ledger SQLite database."""
         total_tokens = prompt_tokens + completion_tokens
@@ -92,10 +108,10 @@ class FinancialLedger:
                 conn.execute(
                     """
                     INSERT INTO financial_ledger (
-                        session_id, account_id, provider, model, prompt_tokens, completion_tokens, total_tokens, cost, timestamp, tenant_id
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        session_id, account_id, provider, model, prompt_tokens, completion_tokens, total_tokens, cost, timestamp, tenant_id, markup_multiplier
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
-                    (session_id, account_id, provider, model, prompt_tokens, completion_tokens, total_tokens, cost, now, tenant_id)
+                    (session_id, account_id, provider, model, prompt_tokens, completion_tokens, total_tokens, cost, now, tenant_id, markup_multiplier)
                 )
                 conn.commit()
                 logger.info("[CFO Ledger Log] Session: %s, Cost: $%0.6f added.", session_id, cost)

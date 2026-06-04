@@ -55,14 +55,75 @@ class BaseLLMProvider(ABC):
             if config.get("model"):
                 span.set_attribute("model", config["model"])
                 
-            with Timer(LLM_CALL_LATENCY, labels={"provider": provider_label}):
-                result = await self.complete(system_prompt, messages, tool_schemas, config)
+            try:
+                with Timer(LLM_CALL_LATENCY, labels={"provider": provider_label}):
+                    result = await self.complete(system_prompt, messages, tool_schemas, config)
+                if result[0] == "error":
+                    raise Exception(str(result[1]))
+            except Exception as e:
+                logger.warning("Primary provider %s request failed: %s. SLA Router engaging failover...", provider_label, e)
+                try:
+                    from core.account_manager import AccountManager
+                except ImportError:
+                    from agent_workspace.core.account_manager import AccountManager
+                
+                workspace_dir = os.environ.get("AGENT_WORKSPACE_DIR") or os.getcwd()
+                am = AccountManager(workspace_dir)
+                active_acc = am.get_active_account()
+                
+                fallback_acc = None
+                accounts = am.list_accounts()
+                for acc in accounts:
+                    if active_acc and acc["id"] == active_acc["id"]:
+                        continue
+                    budget = acc.get("token_budget", -1)
+                    used = acc.get("tokens_used", 0)
+                    if budget == -1 or used < budget:
+                        fallback_acc = acc
+                        break
+                
+                if fallback_acc:
+                    try:
+                        from core.audit_ledger import AuditLedger
+                    except ImportError:
+                        from agent_workspace.core.audit_ledger import AuditLedger
+                        
+                    session_id = config.get("session_id", "default-session")
+                    tenant_id = am.get_session_tenant(session_id) or "default_tenant"
+                    
+                    audit = AuditLedger(workspace_dir)
+                    audit.record_event("system_call", {
+                        "event": "sla_failover",
+                        "original_account_id": active_acc["id"] if active_acc else "unknown",
+                        "original_provider": provider_label,
+                        "fallback_account_id": fallback_acc["id"],
+                        "fallback_provider": fallback_acc["provider"],
+                        "fallback_model": fallback_acc["model"],
+                        "markup_multiplier": 1.8,
+                        "error": str(e)
+                    }, tenant_id=tenant_id)
+                    
+                    if active_acc:
+                        am.register_failover(active_acc["id"], fallback_acc["id"], 1.8)
+                    
+                    fallback_provider = ProviderFactory.get_provider(
+                        fallback_acc["provider"],
+                        api_key=am.resolve_api_key(fallback_acc),
+                        base_url=fallback_acc.get("base_url")
+                    )
+                    
+                    fallback_config = dict(config)
+                    fallback_config["model"] = fallback_acc["model"]
+                    if fallback_acc.get("base_url"):
+                        fallback_config["base_url"] = fallback_acc["base_url"]
+                    
+                    LLM_CALL_COUNT.labels(provider=provider_label, status="recovered").inc()
+                    return await fallback_provider.complete(system_prompt, messages, tool_schemas, fallback_config)
+                else:
+                    raise
             
-            status = "error" if result[0] == "error" else "success"
+            status = "success"
             span.set_attribute("status", status)
-            if status == "error":
-                span.record_exception(Exception(str(result[1])))
-            
             LLM_CALL_COUNT.labels(provider=provider_label, status=status).inc()
             return result
 
@@ -79,8 +140,73 @@ class BaseLLMProvider(ABC):
             if config.get("model"):
                 span.set_attribute("model", config["model"])
             
-            async for event in self.stream(system_prompt, messages, tool_schemas, config):
-                yield event
+            try:
+                async for event in self.stream(system_prompt, messages, tool_schemas, config):
+                    if event[0] == "error":
+                        raise Exception(str(event[1]))
+                    yield event
+            except Exception as e:
+                logger.warning("Primary provider stream %s failed: %s. SLA Router engaging failover...", provider_label, e)
+                try:
+                    from core.account_manager import AccountManager
+                except ImportError:
+                    from agent_workspace.core.account_manager import AccountManager
+                
+                workspace_dir = os.environ.get("AGENT_WORKSPACE_DIR") or os.getcwd()
+                am = AccountManager(workspace_dir)
+                active_acc = am.get_active_account()
+                
+                fallback_acc = None
+                accounts = am.list_accounts()
+                for acc in accounts:
+                    if active_acc and acc["id"] == active_acc["id"]:
+                        continue
+                    budget = acc.get("token_budget", -1)
+                    used = acc.get("tokens_used", 0)
+                    if budget == -1 or used < budget:
+                        fallback_acc = acc
+                        break
+                
+                if fallback_acc:
+                    try:
+                        from core.audit_ledger import AuditLedger
+                    except ImportError:
+                        from agent_workspace.core.audit_ledger import AuditLedger
+                        
+                    session_id = config.get("session_id", "default-session")
+                    tenant_id = am.get_session_tenant(session_id) or "default_tenant"
+                    
+                    audit = AuditLedger(workspace_dir)
+                    audit.record_event("system_call", {
+                        "event": "sla_failover",
+                        "original_account_id": active_acc["id"] if active_acc else "unknown",
+                        "original_provider": provider_label,
+                        "fallback_account_id": fallback_acc["id"],
+                        "fallback_provider": fallback_acc["provider"],
+                        "fallback_model": fallback_acc["model"],
+                        "markup_multiplier": 1.8,
+                        "error": str(e)
+                    }, tenant_id=tenant_id)
+                    
+                    if active_acc:
+                        am.register_failover(active_acc["id"], fallback_acc["id"], 1.8)
+                    
+                    fallback_provider = ProviderFactory.get_provider(
+                        fallback_acc["provider"],
+                        api_key=am.resolve_api_key(fallback_acc),
+                        base_url=fallback_acc.get("base_url")
+                    )
+                    
+                    fallback_config = dict(config)
+                    fallback_config["model"] = fallback_acc["model"]
+                    if fallback_acc.get("base_url"):
+                        fallback_config["base_url"] = fallback_acc["base_url"]
+                    
+                    LLM_CALL_COUNT.labels(provider=provider_label, status="recovered").inc()
+                    async for event in fallback_provider.stream(system_prompt, messages, tool_schemas, fallback_config):
+                        yield event
+                else:
+                    raise
 
     @abstractmethod
     async def complete(

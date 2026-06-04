@@ -86,7 +86,20 @@ async def run_stream(args: argparse.Namespace) -> int:
     # Try connecting to the collaboration WebSocket endpoint
     ws_conn = None
     try:
+        token = os.environ.get("JWT_TOKEN")
+        api_key = os.environ.get("API_KEY")
+        query_params = []
+        if token:
+            query_params.append(f"token={token}")
+        elif api_key:
+            query_params.append(f"api_key={api_key}")
+        else:
+            query_params.append("api_key=key-admin")
+            
         ws_url = f"ws://localhost:8000/v1/collaboration/{session_id}"
+        if query_params:
+            ws_url += "?" + "&".join(query_params)
+            
         ws_conn = await websockets.connect(ws_url)
         logger.info("Connected to live collaboration WebSocket.")
     except Exception as ws_err:

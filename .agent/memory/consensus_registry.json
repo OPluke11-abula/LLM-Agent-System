@@ -1,0 +1,32 @@
+{
+  "collab-handshake-test-payload-hash": {
+    "payload_hash": "collab-handshake-test-payload-hash",
+    "approvals": [
+      "ceo",
+      "cto",
+      "dev"
+    ],
+    "signatures": {
+      "ceo": "d4318dcb18099ee4c402060a2c2d70e257bdf83b73039272033a25d5c78e6b63",
+      "cto": "d2005015e3eb4b3070b3832dab7d03aa71a2c03cc89868b84c76f90a37edf85c",
+      "dev": "af9c550ce74f17e99bad3024740aa55c0ba1c0a331fb05b83285f561e3a54b48"
+    },
+    "consensus_signature": "53ea607e431fabaaec4c7bc3c66de7247df049ec809d89a126f5aa72102aa551",
+    "timestamp": "2026-06-04T08:57:49.137219+00:00"
+  },
+  "ws-isolation-test-hash": {
+    "payload_hash": "ws-isolation-test-hash",
+    "approvals": [
+      "ceo",
+      "cto",
+      "dev"
+    ],
+    "signatures": {
+      "ceo": "2873a0d639eacd75a3ec99ec7e8d578bdf74b4795bae2110d88eb17104f537a5",
+      "cto": "14e05d04a2752e393751d743a3c2645701be09058059b4a16dc603f8c12534d8",
+      "dev": "b6a516c1ea73c0775a3ad5d57bc0e19dac63d16c644c336f838c1ace89601fed"
+    },
+    "consensus_signature": "ff2ba406da1415db96271191e19dec3406230a9a3a3648c357c5057a1baf2085",
+    "timestamp": "2026-06-04T14:16:51.630431+00:00"
+  }
+}

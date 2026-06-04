@@ -32,7 +32,16 @@ class CrewRegistry:
         security_restrictions: Optional[Dict[str, Any]] = None,
         mock_directives: Optional[Dict[str, Any]] = None,
         validation_assertions: Optional[List[str]] = None,
+        tenant_id: Optional[str] = None,
     ) -> None:
+        if not tenant_id:
+            try:
+                from core.account_manager import AccountManager
+                tenant_id = AccountManager.get_session_tenant(session_id)
+            except Exception:
+                pass
+            tenant_id = tenant_id or "default_tenant"
+
         with cls._lock:
             if session_id not in cls._sessions:
                 cls._sessions[session_id] = {}
@@ -47,8 +56,9 @@ class CrewRegistry:
                 "security_restrictions": security_restrictions or {},
                 "mock_directives": mock_directives or {},
                 "validation_assertions": validation_assertions or [],
+                "tenant_id": tenant_id,
             }
-            logger.info(f"Registered crew node '{node_id}' for role '{role}' in session '{session_id}'")
+            logger.info(f"Registered crew node '{node_id}' for role '{role}' in session '{session_id}' under tenant '{tenant_id}'")
 
     @classmethod
     def update_node_status(cls, session_id: str, node_id: str, status: str) -> None:
@@ -58,7 +68,7 @@ class CrewRegistry:
                 logger.info(f"Updated crew node '{node_id}' status to '{status}' in session '{session_id}'")
 
     @classmethod
-    def get_topology(cls, session_id: Optional[str] = None) -> Dict[str, Any]:
+    def get_topology(cls, session_id: Optional[str] = None, tenant_id: str = "default_tenant") -> Dict[str, Any]:
         """
         Returns nodes and edges matching the node-based visual control-plane standard.
         """
@@ -72,6 +82,9 @@ class CrewRegistry:
                 if s_id not in cls._sessions:
                     continue
                 for node_id, node_data in cls._sessions[s_id].items():
+                    # Filter by tenant
+                    if node_data.get("tenant_id", "default_tenant") != tenant_id:
+                        continue
                     # Format node for visual canvas
                     nodes.append({
                         "id": node_id,

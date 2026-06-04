@@ -143,10 +143,11 @@ LAS includes enterprise-grade security auditing and containerized sandboxing:
 
 ### 🔑 SaaS Multi-Tenancy & Channel Webhook Adapters
 
-LAS features built-in multi-tenant isolation and secure webhooks:
+LAS features built-in multi-tenant isolation, secure webhooks, and automated usage sync:
 * **JWT & API Key Authentication**: Secures builder, sandbox, audit, and billing APIs with role-based tenant routing. Row-level tenant isolation is enforced at the SQLite layer for `AuditLedger` and `FinancialLedger`.
 * **Slack & LINE Production Webhook Adapters**: Direct POST webhook routes with cryptographic signature checking (HMAC-SHA256 of `x-slack-signature` and `x-line-signature` / base64 hashing), protecting workspaces against replay attacks.
 * **WebSocket Room Isolation**: Automatically verifies authentication tokens and api keys on collaboration WebSocket handshakes, restricting broadcasts strictly to users within the same tenant.
+* **Stripe Metered Billing & SLA Audited Failovers**: Periodically aggregates token usage from `FinancialLedger` and pushes increments to Stripe's Usage Record API via an asynchronous background scheduler, verifies incoming Stripe webhooks timing-safe, and automatically routes model provider failovers to fallback accounts under a custom 1.8x markup registered in `AuditLedger`.
 
 ---
 
@@ -275,6 +276,7 @@ LAS 提供原生多租戶 SaaS 架構與安全的通訊管道轉接器：
 * **JWT 與 API 金鑰雙重認證**: 安全防護智慧體構建器 (Builder)、安全沙箱 (Sandbox)、審計軌跡 (Audit) 與財務帳單 API。在資料庫底層對 `AuditLedger` 與 `FinancialLedger` 強制執行列級多租戶查詢隔離。
 * **Slack 與 LINE 生產級 Webhook 轉接器**: 提供專屬 POST Webhook 路由，內建 HMAC-SHA256 簽章校驗機制（比對 `x-slack-signature` 與 `x-line-signature`），防範重放攻擊 (Replay Attacks)。
 * **WebSocket 租戶房間隔離**: 在 `/v1/collaboration/{session_id}` 握手時自動校驗 JWT 與金鑰，限制廣播訊息僅在相同租戶 ID 的成員之間流通，防止跨租戶資料外洩。
+* **Stripe 計量計費與 SLA 智能避障**: 透過背景工作排程器定期彙整 `FinancialLedger` 中的 Token 消耗，並以增量方式呼叫 Stripe 的 Usage Record API。Webhook 接收端點具備時間安全的 HMAC 簽章驗證，防護重放攻擊。當主模型供應商發生故障時，自動路由避障至備用帳戶，並自動套用 1.8 倍加成費率且寫入 SOC2 審計軌跡 `AuditLedger`。
 
 ---
 

@@ -303,6 +303,10 @@
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
           Design Mode
         </button>
+        <button id="auth-settings-btn" onclick="toggleAuthModal()" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-cyan-500/30 rounded-lg text-xs font-bold tracking-wide transition flex items-center gap-1.5 shadow-lg">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+          Tenant Auth
+        </button>
       </div>
     </header>
 
@@ -726,7 +730,9 @@
 
     async function fetchTools() {
       try {
-        const response = await fetch('http://localhost:8000/v1/tools');
+        const response = await fetch('http://localhost:8000/v1/tools', {
+          headers: getAuthHeaders()
+        });
         if (response.ok) {
           const data = await response.json();
           allTools = data.tools || FALLBACK_TOOLS;
@@ -784,7 +790,15 @@
       });
 
       try {
-        const response = await fetch('workspace.json');
+        const authType = localStorage.getItem('las_auth_type');
+        let response;
+        if (authType) {
+          response = await fetch('http://localhost:8000/v1/workspace/config', {
+            headers: getAuthHeaders()
+          });
+        } else {
+          response = await fetch('workspace.json');
+        }
         if (!response.ok) throw new Error('Network response was not ok');
         const data = await response.json();
         cachedWorkspaceData = data;
@@ -1094,7 +1108,7 @@
       try {
         const response = await fetch(`http://localhost:8000/v1/sessions/${sessionId}/${action}`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
+          headers: Object.assign({ 'Content-Type': 'application/json' }, getAuthHeaders())
         });
         if (!response.ok) throw new Error('API request failed');
         const res = await response.json();
@@ -1241,6 +1255,20 @@
       let wsUrl = 'ws://localhost:8000/v1/stream';
       if (pathSessionId && pathRole) {
         wsUrl = `ws://localhost:8000/v1/dashboard/${pathSessionId}/${pathRole}`;
+      }
+      
+      const authType = localStorage.getItem('las_auth_type') || 'api_key';
+      const queryParams = [];
+      if (authType === 'api_key') {
+        const apiKey = localStorage.getItem('las_api_key');
+        if (apiKey) queryParams.push(`api_key=${apiKey}`);
+      } else {
+        const token = localStorage.getItem('las_jwt_token');
+        if (token) queryParams.push(`token=${token}`);
+      }
+      
+      if (queryParams.length > 0) {
+        wsUrl += (wsUrl.includes('?') ? '&' : '?') + queryParams.join('&');
       }
       
       const ws = new WebSocket(wsUrl);
@@ -2298,8 +2326,118 @@
       return val;
     }
 
+    function getAuthHeaders() {
+      const type = localStorage.getItem('las_auth_type');
+      const headers = { 'Content-Type': 'application/json' };
+      if (type === 'api_key') {
+        const apiKey = localStorage.getItem('las_api_key');
+        if (apiKey) {
+          headers['x-api-key'] = apiKey;
+        }
+      } else if (type === 'jwt') {
+        const token = localStorage.getItem('las_jwt_token');
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+      }
+      return headers;
+    }
+
+    // Modal control functions
+    window.toggleAuthModal = function() {
+      const modal = document.getElementById('auth-modal');
+      modal.classList.toggle('hidden');
+      if (!modal.classList.contains('hidden')) {
+        document.getElementById('auth-type').value = localStorage.getItem('las_auth_type') || 'api_key';
+        document.getElementById('auth-api-key').value = localStorage.getItem('las_api_key') || '';
+        document.getElementById('auth-jwt-token').value = localStorage.getItem('las_jwt_token') || '';
+        document.getElementById('auth-tenant-id').value = localStorage.getItem('las_tenant_id') || '';
+        switchAuthType();
+      }
+    };
+
+    window.switchAuthType = function() {
+      const type = document.getElementById('auth-type').value;
+      if (type === 'api_key') {
+        document.getElementById('auth-input-key-container').classList.remove('hidden');
+        document.getElementById('auth-input-token-container').classList.add('hidden');
+      } else {
+        document.getElementById('auth-input-key-container').classList.add('hidden');
+        document.getElementById('auth-input-token-container').classList.remove('hidden');
+      }
+    };
+
+    window.saveAuthSettings = function() {
+      const type = document.getElementById('auth-type').value;
+      const apiKey = document.getElementById('auth-api-key').value.trim();
+      const token = document.getElementById('auth-jwt-token').value.trim();
+      const tenantId = document.getElementById('auth-tenant-id').value.trim();
+      
+      localStorage.setItem('las_auth_type', type);
+      localStorage.setItem('las_api_key', apiKey);
+      localStorage.setItem('las_jwt_token', token);
+      localStorage.setItem('las_tenant_id', tenantId);
+      
+      toggleAuthModal();
+      window.location.reload();
+    };
+
+    window.clearAuthSettings = function() {
+      localStorage.removeItem('las_auth_type');
+      localStorage.removeItem('las_api_key');
+      localStorage.removeItem('las_jwt_token');
+      localStorage.removeItem('las_tenant_id');
+      toggleAuthModal();
+      window.location.reload();
+    };
+
     // Run
     init();
   </script>
+
+  <!-- Auth Settings Modal -->
+  <div id="auth-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm">
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 w-96 max-w-full shadow-2xl flex flex-col gap-4">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+        <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+          <svg class="w-4 h-4 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+          SaaS Tenant Authentication
+        </h3>
+        <button onclick="toggleAuthModal()" class="text-slate-500 hover:text-slate-300 transition">
+          <svg class="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+        </button>
+      </div>
+      
+      <div class="flex flex-col gap-3">
+        <div>
+          <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500 block mb-1">Auth Type</label>
+          <select id="auth-type" onchange="switchAuthType()" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-cyan-500/50">
+            <option value="api_key">API Key</option>
+            <option value="jwt">JWT Token</option>
+          </select>
+        </div>
+        
+        <div id="auth-input-key-container">
+          <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500 block mb-1">API Key</label>
+          <input type="text" id="auth-api-key" placeholder="e.g. key-tenant-a" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-cyan-500/50" />
+        </div>
+        
+        <div id="auth-input-token-container" class="hidden">
+          <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500 block mb-1">JWT Bearer Token</label>
+          <textarea id="auth-jwt-token" rows="3" placeholder="Paste your JWT access token here..." class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-cyan-500/50 font-mono"></textarea>
+        </div>
+        
+        <div>
+          <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500 block mb-1">Tenant ID</label>
+          <input type="text" id="auth-tenant-id" placeholder="e.g. tenant_a" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-cyan-500/50" />
+        </div>
+      </div>
+      
+      <div class="flex justify-end gap-2 mt-2 pt-3 border-t border-slate-800/80">
+        <button onclick="clearAuthSettings()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 rounded text-xs font-bold transition">Clear</button>
+        <button onclick="saveAuthSettings()" class="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-slate-950 rounded text-xs font-bold transition shadow-lg">Save Settings</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

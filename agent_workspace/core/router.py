@@ -686,7 +686,7 @@ class AgentRouter:
                 model = self._config.get("llm", {}).get("model", model)
                 base_url = self._config.get("llm", {}).get("base_url")
 
-            config = {"model": model}
+            config = {"model": model, "session_id": self.session_id}
             if base_url:
                 config["base_url"] = base_url
 
@@ -813,6 +813,7 @@ class AgentRouter:
 
                     llm_config = self._config.get("llm", {}).copy()
                     llm_config["model"] = self._resolved_account.get("model", llm_config.get("model"))
+                    llm_config["session_id"] = self.session_id
                     if self._resolved_account.get("base_url"):
                         llm_config["base_url"] = self._resolved_account.get("base_url")
                     if output_schema:
@@ -1059,6 +1060,7 @@ class AgentRouter:
                     iteration += 1
                     llm_config = self._config.get("llm", {}).copy()
                     llm_config["model"] = self._resolved_account.get("model", llm_config.get("model"))
+                    llm_config["session_id"] = self.session_id
                     if self._resolved_account.get("base_url"):
                         llm_config["base_url"] = self._resolved_account.get("base_url")
                     if output_schema:

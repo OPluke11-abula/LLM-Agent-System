@@ -21,7 +21,6 @@ class SaaSBillingTracker:
         and platform-markup adjusted billing summaries.
         """
         raw_total_cost = self.ledger.get_total_cost(filter_id, tenant_id=tenant_id)
-        billed_total_cost = raw_total_cost * markup_multiplier
 
         raw_records = self.ledger.get_all_records(tenant_id=tenant_id)
         
@@ -39,10 +38,17 @@ class SaaSBillingTracker:
         total_tokens = sum(r["total_tokens"] for r in filtered_records)
 
         billed_transactions = []
+        billed_total_cost = 0.0
         for r in filtered_records:
             br = dict(r)
             br["raw_cost"] = r["cost"]
-            br["billed_cost"] = r["cost"] * markup_multiplier
+            # Use transaction's markup_multiplier if recorded, otherwise default parameter
+            tx_markup = r.get("markup_multiplier")
+            if tx_markup is None:
+                tx_markup = markup_multiplier
+            br["markup_multiplier"] = tx_markup
+            br["billed_cost"] = r["cost"] * tx_markup
+            billed_total_cost += br["billed_cost"]
             billed_transactions.append(br)
 
         return {

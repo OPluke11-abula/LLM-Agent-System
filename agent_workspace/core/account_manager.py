@@ -13,6 +13,32 @@ from typing import Any
 class AccountManager:
     """Manages secure loading, saving, and token usage tracking for multiple LLM accounts."""
 
+    _session_tenants: dict[str, str] = {}
+    _failovers: dict[str, dict[str, Any]] = {}
+
+    @classmethod
+    def register_session_tenant(cls, session_id: str, tenant_id: str) -> None:
+        cls._session_tenants[session_id] = tenant_id
+
+    @classmethod
+    def get_session_tenant(cls, session_id: str) -> str | None:
+        return cls._session_tenants.get(session_id)
+
+    @classmethod
+    def register_failover(cls, original_account_id: str, fallback_account_id: str, markup_multiplier: float = 1.8) -> None:
+        cls._failovers[original_account_id] = {
+            "fallback_account_id": fallback_account_id,
+            "markup_multiplier": markup_multiplier
+        }
+
+    @classmethod
+    def get_failover(cls, original_account_id: str) -> dict[str, Any] | None:
+        return cls._failovers.get(original_account_id)
+
+    @classmethod
+    def clear_failovers(cls) -> None:
+        cls._failovers.clear()
+
     def __init__(self, workspace_path: str):
         self.workspace_path = os.path.abspath(workspace_path)
         self.accounts_path = os.path.join(self.workspace_path, "accounts.json")
@@ -233,6 +259,11 @@ class AccountManager:
                 self._save_accounts(data)
 
     def record_usage(self, account_id: str, prompt_tokens: int, completion_tokens: int, session_id: str = "default-session") -> bool:
+        # Check failover mapping
+        failover_info = self.get_failover(account_id)
+        target_account_id = failover_info["fallback_account_id"] if failover_info else account_id
+        markup = failover_info["markup_multiplier"] if failover_info else None
+
         data = self._load_data()
         accounts = data.get("accounts", [])
         updated = False
@@ -240,7 +271,7 @@ class AccountManager:
         model = "gemini-2.5-flash"
         
         for acc in accounts:
-            if acc["id"] == account_id:
+            if acc["id"] == target_account_id:
                 acc["tokens_used"] = acc.get("tokens_used", 0) + prompt_tokens + completion_tokens
                 provider = acc.get("provider", provider)
                 model = acc.get("model", model)
@@ -256,18 +287,21 @@ class AccountManager:
             except ImportError:
                 from agent_workspace.core.ledger import FinancialLedger
                 
+            tenant_id = self.get_session_tenant(session_id) or "default_tenant"
             ledger = FinancialLedger(self.workspace_path)
             ledger.record_transaction(
                 session_id=session_id,
-                account_id=account_id,
+                account_id=target_account_id,
                 provider=provider,
                 model=model,
                 prompt_tokens=prompt_tokens,
-                completion_tokens=completion_tokens
+                completion_tokens=completion_tokens,
+                tenant_id=tenant_id,
+                markup_multiplier=markup
             )
             
             # Check budget and rotate/downscale if threshold exceeded
-            self.check_and_rotate_budget(account_id, session_id)
+            self.check_and_rotate_budget(target_account_id, session_id)
             
         return updated
 
