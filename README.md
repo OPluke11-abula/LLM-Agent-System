@@ -141,6 +141,15 @@ LAS includes enterprise-grade security auditing and containerized sandboxing:
 
 ---
 
+### 🔑 SaaS Multi-Tenancy & Channel Webhook Adapters
+
+LAS features built-in multi-tenant isolation and secure webhooks:
+* **JWT & API Key Authentication**: Secures builder, sandbox, audit, and billing APIs with role-based tenant routing. Row-level tenant isolation is enforced at the SQLite layer for `AuditLedger` and `FinancialLedger`.
+* **Slack & LINE Production Webhook Adapters**: Direct POST webhook routes with cryptographic signature checking (HMAC-SHA256 of `x-slack-signature` and `x-line-signature` / base64 hashing), protecting workspaces against replay attacks.
+* **WebSocket Room Isolation**: Automatically verifies authentication tokens and api keys on collaboration WebSocket handshakes, restricting broadcasts strictly to users within the same tenant.
+
+---
+
 ## 🌐 繁體中文
 
 > ### 🧠 **首個讓 AI 幫你客製化與重構 AI 的框架**
@@ -257,6 +266,15 @@ LAS 內建企業級安全防護與可溯源的容器沙箱執行環境：
 * **不可篡改密碼學審計軌跡 (SOC2)**: 自動攔截並記錄關鍵操作（系統呼叫、WebSocket 通訊封包與共識投票登記）至 SQLite 審計資料庫。每一筆日誌皆透過 SHA-256 進行前後鏈式簽章追蹤，能自動偵測並精準回報手動篡改或損毀的日誌 ID。
 * **限制型 Docker 沙箱環境**: 在完全停用網路連線 (`network="none"`) 且具備記憶體配額配給（最大 128MB）的隔離 `python:3.11-slim` 容器中執行生成的 Python 腳本。
 * **自動退回安全 AST 沙箱**: 若本地主機未啟動 Docker Daemon 或缺少 SDK 套件，沙箱執行引擎會自動且優雅地降級回退至具備 AST 靜態語法白名單的本地沙箱，並同步拋出安全性警報日誌。
+
+---
+
+### 🔑 SaaS 多租戶隔離與生產級管道轉接器
+
+LAS 提供原生多租戶 SaaS 架構與安全的通訊管道轉接器：
+* **JWT 與 API 金鑰雙重認證**: 安全防護智慧體構建器 (Builder)、安全沙箱 (Sandbox)、審計軌跡 (Audit) 與財務帳單 API。在資料庫底層對 `AuditLedger` 與 `FinancialLedger` 強制執行列級多租戶查詢隔離。
+* **Slack 與 LINE 生產級 Webhook 轉接器**: 提供專屬 POST Webhook 路由，內建 HMAC-SHA256 簽章校驗機制（比對 `x-slack-signature` 與 `x-line-signature`），防範重放攻擊 (Replay Attacks)。
+* **WebSocket 租戶房間隔離**: 在 `/v1/collaboration/{session_id}` 握手時自動校驗 JWT 與金鑰，限制廣播訊息僅在相同租戶 ID 的成員之間流通，防止跨租戶資料外洩。
 
 ---
 

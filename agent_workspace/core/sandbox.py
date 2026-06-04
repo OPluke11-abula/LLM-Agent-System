@@ -126,7 +126,8 @@ class SandboxGuard:
         code_content: str,
         globals_dict: Dict[str, Any] = None,
         locals_dict: Dict[str, Any] = None,
-        sandbox_type: str = "ast"
+        sandbox_type: str = "ast",
+        tenant_id: str = "default_tenant"
     ) -> Dict[str, Any]:
         """
         Executes code_content under a restricted, zero-trust sandbox.
@@ -153,7 +154,7 @@ class SandboxGuard:
                     "code_hash": payload_hash,
                     "status": "blocked",
                     "error": "Consensus signature verification failed."
-                })
+                }, tenant_id=tenant_id)
             except Exception:
                 pass
             raise PermissionError("Security violation: Sandbox execution blocked. Consensus signature verification failed.")
@@ -242,7 +243,7 @@ class SandboxGuard:
                             "code_hash": payload_hash,
                             "status": "failed",
                             "error": str(err)
-                        })
+                        }, tenant_id=tenant_id)
                     except Exception:
                         pass
                     raise RuntimeError(f"Docker sandbox execution failed (Docker Daemon/CLI unavailable): {err}")
@@ -258,7 +259,7 @@ class SandboxGuard:
                     "exit_code": exit_code,
                     "stdout": stdout,
                     "stderr": stderr
-                })
+                }, tenant_id=tenant_id)
             except Exception:
                 pass
 
@@ -398,7 +399,7 @@ class SandboxGuard:
                         "sandbox_type": "ast",
                         "code_hash": payload_hash,
                         "status": "allowed"
-                    })
+                    }, tenant_id=tenant_id)
                 except Exception:
                     pass
 
@@ -415,7 +416,7 @@ class SandboxGuard:
                         "code_hash": payload_hash,
                         "status": "failed",
                         "error": str(e)
-                    })
+                    }, tenant_id=tenant_id)
                 except Exception:
                     pass
                 raise RuntimeError(f"Sandbox runtime execution failed: {e}") from e

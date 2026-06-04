@@ -41,11 +41,18 @@ class FinancialLedger:
                         completion_tokens INTEGER NOT NULL,
                         total_tokens INTEGER NOT NULL,
                         cost REAL NOT NULL,
-                        timestamp TEXT NOT NULL
+                        timestamp TEXT NOT NULL,
+                        tenant_id TEXT DEFAULT 'default_tenant'
                     )
                     """
                 )
                 conn.commit()
+                # Run dynamic migration check for existing tables without tenant_id column
+                try:
+                    conn.execute("ALTER TABLE financial_ledger ADD COLUMN tenant_id TEXT DEFAULT 'default_tenant'")
+                    conn.commit()
+                except sqlite3.OperationalError:
+                    pass
             finally:
                 conn.close()
 
@@ -71,7 +78,8 @@ class FinancialLedger:
         provider: str,
         model: str,
         prompt_tokens: int,
-        completion_tokens: int
+        completion_tokens: int,
+        tenant_id: str = "default_tenant"
     ) -> float:
         """Records a token usage transaction to the financial ledger SQLite database."""
         total_tokens = prompt_tokens + completion_tokens
@@ -84,10 +92,10 @@ class FinancialLedger:
                 conn.execute(
                     """
                     INSERT INTO financial_ledger (
-                        session_id, account_id, provider, model, prompt_tokens, completion_tokens, total_tokens, cost, timestamp
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        session_id, account_id, provider, model, prompt_tokens, completion_tokens, total_tokens, cost, timestamp, tenant_id
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
-                    (session_id, account_id, provider, model, prompt_tokens, completion_tokens, total_tokens, cost, now)
+                    (session_id, account_id, provider, model, prompt_tokens, completion_tokens, total_tokens, cost, now, tenant_id)
                 )
                 conn.commit()
                 logger.info("[CFO Ledger Log] Session: %s, Cost: $%0.6f added.", session_id, cost)
@@ -95,30 +103,30 @@ class FinancialLedger:
                 conn.close()
         return cost
 
-    def get_total_cost(self, filter_id: str | None = None) -> float:
-        """Calculates total cost across all sessions or filtered by session/account."""
+    def get_total_cost(self, filter_id: str | None = None, tenant_id: str = "default_tenant") -> float:
+        """Calculates total cost across all sessions or filtered by session/account, isolated by tenant."""
         with self._lock:
             conn = self._get_conn()
             try:
                 if filter_id:
                     cursor = conn.execute(
-                        "SELECT SUM(cost) FROM financial_ledger WHERE session_id = ? OR account_id = ?",
-                        (filter_id, filter_id)
+                        "SELECT SUM(cost) FROM financial_ledger WHERE tenant_id = ? AND (session_id = ? OR account_id = ?)",
+                        (tenant_id, filter_id, filter_id)
                     )
                 else:
-                    cursor = conn.execute("SELECT SUM(cost) FROM financial_ledger")
+                    cursor = conn.execute("SELECT SUM(cost) FROM financial_ledger WHERE tenant_id = ?", (tenant_id,))
                 row = cursor.fetchone()
                 total = row[0] if row and row[0] is not None else 0.0
             finally:
                 conn.close()
         return float(total)
 
-    def get_all_records(self) -> list[dict[str, Any]]:
-        """Returns all ledger transaction entries."""
+    def get_all_records(self, tenant_id: str = "default_tenant") -> list[dict[str, Any]]:
+        """Returns all ledger transaction entries matching tenant_id."""
         with self._lock:
             conn = self._get_conn()
             try:
-                cursor = conn.execute("SELECT * FROM financial_ledger ORDER BY timestamp ASC")
+                cursor = conn.execute("SELECT * FROM financial_ledger WHERE tenant_id = ? ORDER BY timestamp ASC", (tenant_id,))
                 records = [dict(row) for row in cursor.fetchall()]
             finally:
                 conn.close()

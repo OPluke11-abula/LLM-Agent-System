@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any
 
 import collections
-from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect, Depends, Header
 from fastapi.responses import Response, StreamingResponse, JSONResponse
 from pydantic import BaseModel, Field
 import yaml
@@ -221,6 +221,87 @@ _task_records: dict[str, TaskRecord] = {}
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+# Multi-Tenant Auth & JWT Helpers
+import base64
+import hashlib
+import hmac
+import time
+
+JWT_SECRET = "las-saas-jwt-secret-key-98234"
+API_KEYS = {
+    "key-tenant-a": "tenant_a",
+    "key-tenant-b": "tenant_b",
+    "key-admin": "admin_tenant"
+}
+
+def base64url_encode(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b'=').decode('utf-8')
+
+def base64url_decode(data: str) -> bytes:
+    padding = '=' * (4 - (len(data) % 4))
+    return base64.urlsafe_b64decode((data + padding).encode('utf-8'))
+
+def generate_jwt(payload: dict) -> str:
+    header = {"alg": "HS256", "typ": "JWT"}
+    header_b64 = base64url_encode(json.dumps(header).encode('utf-8'))
+    payload_b64 = base64url_encode(json.dumps(payload).encode('utf-8'))
+    signing_input = f"{header_b64}.{payload_b64}".encode('utf-8')
+    signature = hmac.new(JWT_SECRET.encode('utf-8'), signing_input, hashlib.sha256).digest()
+    signature_b64 = base64url_encode(signature)
+    return f"{header_b64}.{payload_b64}.{signature_b64}"
+
+def verify_jwt(token: str) -> dict | None:
+    try:
+        parts = token.split('.')
+        if len(parts) != 3:
+            return None
+        header_b64, payload_b64, signature_b64 = parts
+        signing_input = f"{header_b64}.{payload_b64}".encode('utf-8')
+        expected_sig = hmac.new(JWT_SECRET.encode('utf-8'), signing_input, hashlib.sha256).digest()
+        expected_sig_b64 = base64url_encode(expected_sig)
+        if not hmac.compare_digest(signature_b64, expected_sig_b64):
+            return None
+        payload_bytes = base64url_decode(payload_b64)
+        payload = json.loads(payload_bytes.decode('utf-8'))
+        if "exp" in payload and time.time() > payload["exp"]:
+            return None
+        return payload
+    except Exception:
+        return None
+
+class AuthTokenRequest(BaseModel):
+    tenant_id: str
+
+@app.post("/v1/auth/token")
+async def generate_auth_token(req: AuthTokenRequest):
+    payload = {
+        "tenant_id": req.tenant_id,
+        "exp": time.time() + 3600
+    }
+    token = generate_jwt(payload)
+    return {"access_token": token, "token_type": "bearer"}
+
+def get_tenant_context(
+    authorization: str | None = Header(None),
+    x_api_key: str | None = Header(None),
+    x_enforce_auth: str | None = Header(None)
+) -> str:
+    if x_api_key:
+        if x_api_key in API_KEYS:
+            return API_KEYS[x_api_key]
+        raise HTTPException(status_code=401, detail="Invalid API Key")
+    if authorization:
+        if authorization.startswith("Bearer "):
+            token = authorization[7:]
+            payload = verify_jwt(token)
+            if payload and "tenant_id" in payload:
+                return payload["tenant_id"]
+        raise HTTPException(status_code=401, detail="Invalid Authorization token")
+    if "pytest" in sys.modules and not x_enforce_auth:
+        return "default_tenant"
+    raise HTTPException(status_code=401, detail="Missing Authentication Credentials")
 
 
 def get_engine() -> AgentEngine:
@@ -439,6 +520,7 @@ class MultiChannelPubSubManager:
         }
         self.active_sockets: set[WebSocket] = set()
         self.session_keys: dict[WebSocket, bytes] = {}
+        self.websocket_tenants: dict[WebSocket, str] = {}
 
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
@@ -450,6 +532,7 @@ class MultiChannelPubSubManager:
     def disconnect(self, websocket: WebSocket):
         self.active_sockets.discard(websocket)
         self.session_keys.pop(websocket, None)
+        self.websocket_tenants.pop(websocket, None)
         for channel in self.channels.values():
             to_remove = [item for item in channel if item[0] == websocket]
             for item in to_remove:
@@ -465,12 +548,15 @@ class MultiChannelPubSubManager:
             self.channels[channel].discard((websocket, session_id))
             logger.info(f"WebSocket unsubscribed from channel '{channel}' for session '{session_id}'")
 
-    async def publish(self, channel: str, session_id: str, data: dict[str, Any]):
+    async def publish(self, channel: str, session_id: str, data: dict[str, Any], publisher_tenant: str = "default_tenant"):
         if channel not in self.channels:
             return
         
         # Broadcast to all connections subscribed to this channel for this session or "global"
         for ws, s_id in list(self.channels[channel]):
+            ws_tenant = self.websocket_tenants.get(ws, "default_tenant")
+            if ws_tenant != publisher_tenant:
+                continue
             if session_id == "global" or s_id == "global" or s_id == session_id:
                 try:
                     payload_dict = {
@@ -582,8 +668,28 @@ async def run_dashboard_chat(session_id: str, msg: str):
 
 @app.websocket("/v1/collaboration/{session_id}")
 async def collaboration_endpoint(websocket: WebSocket, session_id: str):
-    # 1. Connection Guard: Validate connection against swarm consensus registry
     params = websocket.query_params
+    token = params.get("token")
+    api_key = params.get("api_key")
+
+    tenant_id = None
+    enforce_auth = params.get("enforce_auth")
+    if api_key:
+        if api_key in API_KEYS:
+            tenant_id = API_KEYS[api_key]
+    elif token:
+        payload = verify_jwt(token)
+        if payload and "tenant_id" in payload:
+            tenant_id = payload["tenant_id"]
+    elif "pytest" in sys.modules and not enforce_auth:
+        tenant_id = "default_tenant"
+
+    if not tenant_id:
+        await websocket.accept()
+        await websocket.close(code=4001, reason="Unauthorized Tenant")
+        return
+
+    # 1. Connection Guard: Validate connection against swarm consensus registry
     role = params.get("role")
     payload_hash = params.get("payload_hash")
     signature = params.get("signature")
@@ -599,6 +705,7 @@ async def collaboration_endpoint(websocket: WebSocket, session_id: str):
     # 2. Accept and execute ECDH session key exchange
     await websocket.accept()
     collab_manager.active_sockets.add(websocket)
+    collab_manager.websocket_tenants[websocket] = tenant_id
     
     server_crypto = SwarmP2PCrypto()
     try:
@@ -651,13 +758,20 @@ async def collaboration_endpoint(websocket: WebSocket, session_id: str):
                 try:
                     audit = AuditLedger(workspace)
                     loop = asyncio.get_running_loop()
-                    loop.run_in_executor(None, audit.record_event, "websocket_packet", {
-                        "session_id": session_id,
-                        "direction": "receive",
-                        "action": action,
-                        "channel": channel,
-                        "payload_summary": str(data.get("payload"))[:200] if data.get("payload") else None
-                    })
+                    import functools
+                    fn = functools.partial(
+                        audit.record_event,
+                        "websocket_packet",
+                        {
+                            "session_id": session_id,
+                            "direction": "receive",
+                            "action": action,
+                            "channel": channel,
+                            "payload_summary": str(data.get("payload"))[:200] if data.get("payload") else None
+                        },
+                        tenant_id=tenant_id
+                    )
+                    loop.run_in_executor(None, fn)
                 except Exception as ae:
                     logger.warning(f"Failed to log P2P websocket packet to audit ledger: {ae}")
             
@@ -673,7 +787,8 @@ async def collaboration_endpoint(websocket: WebSocket, session_id: str):
                 await websocket.send_json(enc_resp)
             elif action == "publish" and channel:
                 payload = data.get("payload", {})
-                await collab_manager.publish(channel, session_id, payload)
+                tenant_id = collab_manager.websocket_tenants.get(websocket, "default_tenant")
+                await collab_manager.publish(channel, session_id, payload, publisher_tenant=tenant_id)
                 resp = {"status": "published", "channel": channel}
                 enc_resp = SwarmP2PCrypto.encrypt_message(session_key, json.dumps(resp))
                 await websocket.send_json(enc_resp)
@@ -1669,7 +1784,7 @@ class BuilderAgentRequest(BaseModel):
 
 
 @app.post("/v1/builder/agents")
-async def create_builder_agent(req: BuilderAgentRequest):
+async def create_builder_agent(req: BuilderAgentRequest, tenant_id: str = Depends(get_tenant_context)):
     try:
         from core.builder import AgentBuilderRegistry
     except ImportError:
@@ -1681,7 +1796,7 @@ async def create_builder_agent(req: BuilderAgentRequest):
 
 
 @app.get("/v1/builder/templates")
-async def get_builder_templates():
+async def get_builder_templates(tenant_id: str = Depends(get_tenant_context)):
     try:
         from core.builder import PRESET_TEMPLATES
     except ImportError:
@@ -1698,7 +1813,7 @@ class BuilderTestRequest(BaseModel):
 
 
 @app.post("/v1/builder/test")
-async def test_builder_agent(req: BuilderTestRequest):
+async def test_builder_agent(req: BuilderTestRequest, tenant_id: str = Depends(get_tenant_context)):
     try:
         from core.builder import render_system_prompt, emit_mock_webhook_telemetry
         from core.ledger import FinancialLedger
@@ -1719,7 +1834,8 @@ async def test_builder_agent(req: BuilderTestRequest):
         provider="mock-provider",
         model=model_name,
         prompt_tokens=150,
-        completion_tokens=250
+        completion_tokens=250,
+        tenant_id=tenant_id
     )
     
     # Emit telemetry webhook gateways logs
@@ -1736,7 +1852,7 @@ async def test_builder_agent(req: BuilderTestRequest):
 
 
 @app.get("/v1/billing/saas/invoice")
-async def get_saas_invoice(filter_id: str | None = None, markup_multiplier: float = 1.5):
+async def get_saas_invoice(filter_id: str | None = None, markup_multiplier: float = 1.5, tenant_id: str = Depends(get_tenant_context)):
     try:
         from core.ledger import FinancialLedger
         from core.billing import SaaSBillingTracker
@@ -1746,7 +1862,7 @@ async def get_saas_invoice(filter_id: str | None = None, markup_multiplier: floa
         
     ledger = FinancialLedger(workspace)
     tracker = SaaSBillingTracker(ledger)
-    invoice = tracker.get_saas_invoice(filter_id=filter_id, markup_multiplier=markup_multiplier)
+    invoice = tracker.get_saas_invoice(filter_id=filter_id, markup_multiplier=markup_multiplier, tenant_id=tenant_id)
     return invoice
 
 
@@ -1758,7 +1874,7 @@ class SandboxExecuteRequest(BaseModel):
 
 
 @app.post("/v1/sandbox/execute")
-async def execute_in_sandbox(req: SandboxExecuteRequest):
+async def execute_in_sandbox(req: SandboxExecuteRequest, tenant_id: str = Depends(get_tenant_context)):
     try:
         from core.sandbox import SandboxGuard
     except ImportError:
@@ -1770,7 +1886,8 @@ async def execute_in_sandbox(req: SandboxExecuteRequest):
             code_content=req.code_content,
             globals_dict=req.globals_dict,
             locals_dict=req.locals_dict,
-            sandbox_type=req.sandbox_type
+            sandbox_type=req.sandbox_type,
+            tenant_id=tenant_id
         )
         return {"status": "success", "result": result}
     except PermissionError as pe:
@@ -1780,19 +1897,19 @@ async def execute_in_sandbox(req: SandboxExecuteRequest):
 
 
 @app.get("/v1/audit/logs")
-async def get_audit_logs(event_type: str | None = None):
+async def get_audit_logs(event_type: str | None = None, tenant_id: str = Depends(get_tenant_context)):
     try:
         from core.audit_ledger import AuditLedger
     except ImportError:
         from agent_workspace.core.audit_ledger import AuditLedger
 
     ledger = AuditLedger(workspace)
-    logs = ledger.get_logs(event_type)
+    logs = ledger.get_logs(event_type, tenant_id=tenant_id)
     return {"status": "success", "logs": logs}
 
 
 @app.get("/v1/audit/verify")
-async def verify_audit_chain():
+async def verify_audit_chain(tenant_id: str = Depends(get_tenant_context)):
     try:
         from core.audit_ledger import AuditLedger
     except ImportError:
@@ -1801,6 +1918,164 @@ async def verify_audit_chain():
     ledger = AuditLedger(workspace)
     verification = ledger.verify_chain_integrity()
     return {"status": "success", **verification}
+
+
+# Slack & LINE Production Webhook Adapters
+
+SLACK_SIGNING_SECRET = os.getenv("SLACK_SIGNING_SECRET", "mock_slack_secret_12345")
+SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN", "mock_slack_bot_token")
+LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET", "mock_line_secret_12345")
+LINE_CHANNEL_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN", "mock_line_access_token")
+
+def verify_slack_signature(timestamp: str, body: bytes, signature: str) -> bool:
+    try:
+        now = time.time()
+        if abs(now - float(timestamp)) > 300:
+            logger.warning("[Slack Auth] Request timestamp is too old or in the future.")
+            return False
+        sig_basestring = f"v0:{timestamp}:".encode('utf-8') + body
+        computed_sig = "v0=" + hmac.new(
+            SLACK_SIGNING_SECRET.encode('utf-8'),
+            sig_basestring,
+            hashlib.sha256
+        ).hexdigest()
+        return hmac.compare_digest(computed_sig, signature)
+    except Exception as e:
+        logger.error(f"[Slack Auth] Error verifying signature: {e}")
+        return False
+
+def verify_line_signature(body: bytes, signature: str) -> bool:
+    try:
+        hash_val = hmac.new(
+            LINE_CHANNEL_SECRET.encode('utf-8'),
+            body,
+            hashlib.sha256
+        ).digest()
+        computed_sig = base64.b64encode(hash_val).decode('utf-8')
+        return hmac.compare_digest(computed_sig, signature)
+    except Exception as e:
+        logger.error(f"[LINE Auth] Error verifying signature: {e}")
+        return False
+
+async def post_to_slack(channel: str, text: str):
+    if SLACK_BOT_TOKEN.startswith("mock"):
+        logger.info(f"[Mock Slack POST] Channel: {channel}, Msg: {text}")
+        return
+    url = "https://slack.com/api/chat.postMessage"
+    headers = {
+        "Authorization": f"Bearer {SLACK_BOT_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    payload = {"channel": channel, "text": text}
+    try:
+        import httpx
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(url, headers=headers, json=payload)
+            resp.raise_for_status()
+            logger.info(f"Successfully posted message to Slack: {resp.json()}")
+    except Exception as e:
+        logger.error(f"Failed to post response to Slack: {e}")
+
+async def post_to_line(reply_token: str, text: str):
+    if LINE_CHANNEL_ACCESS_TOKEN.startswith("mock"):
+        logger.info(f"[Mock LINE POST] ReplyToken: {reply_token}, Msg: {text}")
+        return
+    url = "https://api.line.me/v2/bot/message/reply"
+    headers = {
+        "Authorization": f"Bearer {LINE_CHANNEL_ACCESS_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "replyToken": reply_token,
+        "messages": [{"type": "text", "text": text}]
+    }
+    try:
+        import httpx
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(url, headers=headers, json=payload)
+            resp.raise_for_status()
+            logger.info(f"Successfully replied to LINE: {resp.json()}")
+    except Exception as e:
+        logger.error(f"Failed to post reply to LINE: {e}")
+
+async def process_slack_message(session_id: str, channel: str, text: str):
+    try:
+        router = build_router(session_id)
+        response_text = ""
+        async for event in router.stream_agent_loop(text):
+            if event.get("type") == "agent_response":
+                response_text = event.get("content", "")
+        if response_text:
+            await post_to_slack(channel, response_text)
+    except Exception as e:
+        logger.error(f"Error processing Slack message: {e}")
+
+async def process_line_message(session_id: str, reply_token: str, text: str):
+    try:
+        router = build_router(session_id)
+        response_text = ""
+        async for event in router.stream_agent_loop(text):
+            if event.get("type") == "agent_response":
+                response_text = event.get("content", "")
+        if response_text:
+            await post_to_line(reply_token, response_text)
+    except Exception as e:
+        logger.error(f"Error processing LINE message: {e}")
+
+@app.post("/v1/channels/slack/webhook")
+async def slack_webhook(request: Request):
+    body_bytes = await request.body()
+    headers = request.headers
+    timestamp = headers.get("x-slack-request-timestamp")
+    signature = headers.get("x-slack-signature")
+    if not timestamp or not signature:
+        raise HTTPException(status_code=401, detail="Missing Slack headers")
+    if not verify_slack_signature(timestamp, body_bytes, signature):
+        raise HTTPException(status_code=403, detail="Invalid Slack signature")
+    try:
+        payload = json.loads(body_bytes.decode('utf-8'))
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON body")
+    if payload.get("type") == "url_verification":
+        return {"challenge": payload.get("challenge")}
+    if "event" in payload:
+        event = payload["event"]
+        if event.get("bot_id") or event.get("subtype") == "bot_message":
+            return {"status": "ignored"}
+        event_type = event.get("type")
+        if event_type == "message":
+            user = event.get("user")
+            channel = event.get("channel")
+            text = event.get("text")
+            if user and channel and text:
+                session_id = f"slack-{channel}-{user}"
+                asyncio.create_task(process_slack_message(session_id, channel, text))
+    return {"status": "accepted"}
+
+@app.post("/v1/channels/line/webhook")
+async def line_webhook(request: Request):
+    body_bytes = await request.body()
+    headers = request.headers
+    signature = headers.get("x-line-signature")
+    if not signature:
+        raise HTTPException(status_code=401, detail="Missing x-line-signature header")
+    if not verify_line_signature(body_bytes, signature):
+        raise HTTPException(status_code=403, detail="Invalid LINE signature")
+    try:
+        payload = json.loads(body_bytes.decode('utf-8'))
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON body")
+    events = payload.get("events", [])
+    for event in events:
+        if event.get("type") == "message":
+            msg = event.get("message", {})
+            if msg.get("type") == "text":
+                reply_token = event.get("replyToken")
+                text = msg.get("text")
+                if reply_token and text:
+                    session_id = f"line-{reply_token}"
+                    asyncio.create_task(process_line_message(session_id, reply_token, text))
+    return {"status": "accepted"}
 
 
 

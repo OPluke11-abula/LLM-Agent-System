@@ -13,16 +13,17 @@ class SaaSBillingTracker:
     def get_saas_invoice(
         self,
         filter_id: Optional[str] = None,
-        markup_multiplier: float = 1.5
+        markup_multiplier: float = 1.5,
+        tenant_id: str = "default_tenant"
     ) -> Dict[str, Any]:
         """
         Calculates itemized invoicing, total token usage, raw cost,
         and platform-markup adjusted billing summaries.
         """
-        raw_total_cost = self.ledger.get_total_cost(filter_id)
+        raw_total_cost = self.ledger.get_total_cost(filter_id, tenant_id=tenant_id)
         billed_total_cost = raw_total_cost * markup_multiplier
 
-        raw_records = self.ledger.get_all_records()
+        raw_records = self.ledger.get_all_records(tenant_id=tenant_id)
         
         # Filter records by session_id or account_id in python if filter_id is supplied
         filtered_records = []

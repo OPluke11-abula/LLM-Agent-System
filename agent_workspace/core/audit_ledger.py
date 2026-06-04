@@ -46,15 +46,22 @@ class AuditLedger:
                         payload TEXT NOT NULL,
                         previous_hash TEXT NOT NULL,
                         current_hash TEXT NOT NULL,
-                        timestamp TEXT NOT NULL
+                        timestamp TEXT NOT NULL,
+                        tenant_id TEXT DEFAULT 'default_tenant'
                     )
                     """
                 )
                 conn.commit()
+                # Run dynamic migration check for existing tables without tenant_id column
+                try:
+                    conn.execute("ALTER TABLE audit_ledger ADD COLUMN tenant_id TEXT DEFAULT 'default_tenant'")
+                    conn.commit()
+                except sqlite3.OperationalError:
+                    pass
             finally:
                 conn.close()
 
-    def record_event(self, event_type: str, payload: Dict[str, Any]) -> int:
+    def record_event(self, event_type: str, payload: Dict[str, Any], tenant_id: str = "default_tenant") -> int:
         """Records an audited event, cryptographically chaining it to the previous record."""
         payload_str = json.dumps(payload, sort_keys=True)
         timestamp = datetime.now(timezone.utc).isoformat()
@@ -74,10 +81,10 @@ class AuditLedger:
                 # 3. Insert record
                 cursor = conn.execute(
                     """
-                    INSERT INTO audit_ledger (event_type, payload, previous_hash, current_hash, timestamp)
-                    VALUES (?, ?, ?, ?, ?)
+                    INSERT INTO audit_ledger (event_type, payload, previous_hash, current_hash, timestamp, tenant_id)
+                    VALUES (?, ?, ?, ?, ?, ?)
                     """,
-                    (event_type, payload_str, previous_hash, current_hash, timestamp)
+                    (event_type, payload_str, previous_hash, current_hash, timestamp, tenant_id)
                 )
                 conn.commit()
                 row_id = cursor.lastrowid or 0
@@ -132,18 +139,18 @@ class AuditLedger:
 
         return {"valid": True, "tampered_id": None}
 
-    def get_logs(self, event_type: Optional[str] = None) -> List[Dict[str, Any]]:
-        """Queries log entries, optionally filtered by event_type."""
+    def get_logs(self, event_type: Optional[str] = None, tenant_id: str = "default_tenant") -> List[Dict[str, Any]]:
+        """Queries log entries, optionally filtered by event_type, isolated by tenant."""
         with self._lock:
             conn = self._get_conn()
             try:
                 if event_type:
                     cursor = conn.execute(
-                        "SELECT * FROM audit_ledger WHERE event_type = ? ORDER BY id ASC",
-                        (event_type,)
+                        "SELECT * FROM audit_ledger WHERE tenant_id = ? AND event_type = ? ORDER BY id ASC",
+                        (tenant_id, event_type)
                     )
                 else:
-                    cursor = conn.execute("SELECT * FROM audit_ledger ORDER BY id ASC")
+                    cursor = conn.execute("SELECT * FROM audit_ledger WHERE tenant_id = ? ORDER BY id ASC", (tenant_id,))
                 records = []
                 for row in cursor.fetchall():
                     rec = dict(row)

@@ -65,6 +65,12 @@
 - [x] Build a Swarm Intrusion Detection System (IDS) that quarantines malicious nodes and triggers session key rotation after multiple consensus sign failures / 建立群落入侵檢測系統，在多次共識簽章失效時隔離惡意節點並觸發會話金鑰輪轉
 - [x] Construct a workspace file snapshot transaction system to automatically roll back file modifications made by scripts that fail runtime security gates / 建立工作區檔案快照事務系統，在腳本違反安全規則時自動回滾檔案變更
 
+- [x] **PHASE 33 — Semantic Vector Memory Layer & ChromaDB/pgvector Upgrades**: ChromaBackend/PgvectorBackend and thread-safe EmbeddingGenerator.
+- [x] **PHASE 34 — Advanced Multi-Agent Delegation Protocols & Crew Orchestrator**: AgentCrew orchestrator, delegation payload schema, and AES-GCM encrypted WebSockets sync.
+- [x] **PHASE 35 — No-Code Agent Builder SaaS Dashboard**: Web-based management dashboard, YAML configs, Jinja2 templates, billing markings, and SaaS markup.
+- [x] **PHASE 36 — SOC2 Audit Ledger & Container Sandboxing**: Immutable SQLite audit ledger with SHA-256 chaining, verify_chain_integrity, constrained Docker sandbox.
+- [x] **PHASE 37 — SaaS Multi-Tenant Authentication & Production Channel Adapters**: JWT/API Key auth, database tenancy, Slack/LINE webhooks with HMAC-SHA256 signature verification, WebSocket room isolation.
+
 ---
 
 ## 📈 Queue Summary & Progress
@@ -73,5 +79,7 @@
 |---|---|---|---|
 | **Phase 0 - 31** | 80 tasks | 80 tasks | 100% Done |
 | **Phase 32** | 2 tasks | 2 tasks | 100% Done |
+| **Phase 33 - 36** | 8 tasks | 8 tasks | 100% Done |
+| **Phase 37** | 5 tasks | 5 tasks | 100% Done |
 
 *This queue is managed dynamically by the active LAS Developer Agent. All task updates, outcome logs, and progress status updates are written directly to this file before turn conclusion.*
