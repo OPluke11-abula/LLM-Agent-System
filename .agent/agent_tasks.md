@@ -71,6 +71,8 @@
 - [x] **PHASE 36 — SOC2 Audit Ledger & Container Sandboxing**: Immutable SQLite audit ledger with SHA-256 chaining, verify_chain_integrity, constrained Docker sandbox.
 - [x] **PHASE 37 — SaaS Multi-Tenant Authentication & Production Channel Adapters**: JWT/API Key auth, database tenancy, Slack/LINE webhooks with HMAC-SHA256 signature verification, WebSocket room isolation.
 - [x] **PHASE 38 — React Flow UI Tenant Auth, Stripe Metered Billing & SLA Audited Failovers**: Premium Auth panel in UI, workspace configuration filtering, Stripe webhook signature HMAC check and usage records worker synchronization, model failover guard with SLA recovery Audit logging and custom 1.8x transaction markup pricing.
+- [x] **PHASE 39 — Stripe Subscription Webhook Actions, Access Controls & Rate-Limiting**: Stripe subscription lifecycle webhook processing, TenantStatusManager status updates (active, frozen, canceled) in SQLite, get_tenant_context() and WebSocket connections access blocking (HTTP 403 / close code 4003) for frozen/canceled status, 5k tokens/min sliding-window token rate limiting enforcement (HTTP 429 / close code 4029), and direct LLM provider bypass blocking.
+- [x] **PHASE 40 — Distributed Redis Message Broker & Swarm Microservices Deployment**: RedisSwarmBroker pluggable messaging adapter with InMemorySwarmBroker fallback, standalone microservices daemon with peer discovery heartbeats, docker-compose orchestration, metrics FastAPI endpoint with Prometheus telemetry and real-time container resource utilization logging.
 
 ---
 
@@ -83,5 +85,7 @@
 | **Phase 33 - 36** | 8 tasks | 8 tasks | 100% Done |
 | **Phase 37** | 5 tasks | 5 tasks | 100% Done |
 | **Phase 38** | 5 tasks | 5 tasks | 100% Done |
+| **Phase 39** | 4 tasks | 4 tasks | 100% Done |
+| **Phase 40** | 5 tasks | 5 tasks | 100% Done |
 
 *This queue is managed dynamically by the active LAS Developer Agent. All task updates, outcome logs, and progress status updates are written directly to this file before turn conclusion.*

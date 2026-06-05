@@ -55,6 +55,17 @@ class FinancialLedger:
                     )
                     """
                 )
+                conn.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS tenant_subscription_status (
+                        tenant_id TEXT PRIMARY KEY,
+                        status TEXT NOT NULL,
+                        stripe_customer_id TEXT,
+                        stripe_subscription_id TEXT,
+                        last_updated TEXT NOT NULL
+                    )
+                    """
+                )
                 conn.commit()
                 # Run dynamic migration check for existing tables without tenant_id/markup_multiplier column
                 try:
@@ -117,6 +128,22 @@ class FinancialLedger:
                 logger.info("[CFO Ledger Log] Session: %s, Cost: $%0.6f added.", session_id, cost)
             finally:
                 conn.close()
+
+        # Increment Prometheus tenant tokens
+        try:
+            try:
+                from observability import PROMETHEUS_AVAILABLE, _get_or_create_metric
+            except ImportError:
+                from agent_workspace.observability import PROMETHEUS_AVAILABLE, _get_or_create_metric
+            if PROMETHEUS_AVAILABLE:
+                from prometheus_client import Counter
+                tenant_tokens = _get_or_create_metric(Counter, "las_tenant_tokens_total", "Total tokens consumed by tenant", ["tenant_id", "token_type"])
+                tenant_tokens.labels(tenant_id=tenant_id, token_type="prompt").inc(prompt_tokens)
+                tenant_tokens.labels(tenant_id=tenant_id, token_type="completion").inc(completion_tokens)
+                tenant_tokens.labels(tenant_id=tenant_id, token_type="total").inc(total_tokens)
+        except Exception as e:
+            logger.warning(f"Failed to record Prometheus tenant token metric: {e}")
+
         return cost
 
     def get_total_cost(self, filter_id: str | None = None, tenant_id: str = "default_tenant") -> float:

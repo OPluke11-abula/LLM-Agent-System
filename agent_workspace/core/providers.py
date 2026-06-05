@@ -56,6 +56,27 @@ class BaseLLMProvider(ABC):
                 span.set_attribute("model", config["model"])
                 
             try:
+                from core.account_manager import AccountManager
+            except ImportError:
+                from agent_workspace.core.account_manager import AccountManager
+            
+            workspace_dir = os.environ.get("AGENT_WORKSPACE_DIR") or os.getcwd()
+            am = AccountManager(workspace_dir)
+            session_id = config.get("session_id", "default-session")
+            tenant_id = am.get_session_tenant(session_id) or "default_tenant"
+
+            try:
+                from core.ledger import FinancialLedger
+                from core.billing import TenantRateLimiter
+            except ImportError:
+                from agent_workspace.core.ledger import FinancialLedger
+                from agent_workspace.core.billing import TenantRateLimiter
+
+            ledger = FinancialLedger(workspace_dir)
+            limiter = TenantRateLimiter(ledger)
+            limiter.check_rate_limit(tenant_id)
+
+            try:
                 with Timer(LLM_CALL_LATENCY, labels={"provider": provider_label}):
                     result = await self.complete(system_prompt, messages, tool_schemas, config)
                 if result[0] == "error":
@@ -140,6 +161,27 @@ class BaseLLMProvider(ABC):
             if config.get("model"):
                 span.set_attribute("model", config["model"])
             
+            try:
+                from core.account_manager import AccountManager
+            except ImportError:
+                from agent_workspace.core.account_manager import AccountManager
+            
+            workspace_dir = os.environ.get("AGENT_WORKSPACE_DIR") or os.getcwd()
+            am = AccountManager(workspace_dir)
+            session_id = config.get("session_id", "default-session")
+            tenant_id = am.get_session_tenant(session_id) or "default_tenant"
+
+            try:
+                from core.ledger import FinancialLedger
+                from core.billing import TenantRateLimiter
+            except ImportError:
+                from agent_workspace.core.ledger import FinancialLedger
+                from agent_workspace.core.billing import TenantRateLimiter
+
+            ledger = FinancialLedger(workspace_dir)
+            limiter = TenantRateLimiter(ledger)
+            limiter.check_rate_limit(tenant_id)
+
             try:
                 async for event in self.stream(system_prompt, messages, tool_schemas, config):
                     if event[0] == "error":

@@ -745,6 +745,10 @@
     }
 
     async function init() {
+      if (!checkLoginCredentials()) {
+        return;
+      }
+
       // Dynamic controls event listeners
       document.getElementById('nodesep-slider').addEventListener('input', (e) => {
         nodeSepVal = parseInt(e.target.value);
@@ -2391,6 +2395,63 @@
       window.location.reload();
     };
 
+    window.switchOverlayAuthType = function() {
+      const type = document.getElementById('overlay-auth-type').value;
+      if (type === 'api_key') {
+        document.getElementById('overlay-input-key-container').classList.remove('hidden');
+        document.getElementById('overlay-input-token-container').classList.add('hidden');
+      } else {
+        document.getElementById('overlay-input-key-container').classList.add('hidden');
+        document.getElementById('overlay-input-token-container').classList.remove('hidden');
+      }
+    };
+
+    window.saveOverlayAuthSettings = function() {
+      const type = document.getElementById('overlay-auth-type').value;
+      const apiKey = document.getElementById('overlay-api-key').value.trim();
+      const token = document.getElementById('overlay-jwt-token').value.trim();
+      const tenantId = document.getElementById('overlay-tenant-id').value.trim();
+      
+      if (type === 'api_key' && !apiKey) {
+        alert('API Key is required');
+        return;
+      }
+      if (type === 'jwt' && !token) {
+        alert('JWT Bearer Token is required');
+        return;
+      }
+      if (!tenantId) {
+        alert('Tenant ID is required');
+        return;
+      }
+
+      localStorage.setItem('las_auth_type', type);
+      localStorage.setItem('las_api_key', apiKey);
+      localStorage.setItem('las_jwt_token', token);
+      localStorage.setItem('las_tenant_id', tenantId);
+      
+      window.location.reload();
+    };
+
+    window.checkLoginCredentials = function() {
+      const authType = localStorage.getItem('las_auth_type');
+      const apiKey = localStorage.getItem('las_api_key');
+      const jwtToken = localStorage.getItem('las_jwt_token');
+      const tenantId = localStorage.getItem('las_tenant_id');
+      const hasCredentials = authType && tenantId && ((authType === 'api_key' && apiKey) || (authType === 'jwt' && jwtToken));
+      
+      if (!hasCredentials) {
+        document.getElementById('login-overlay').classList.remove('hidden');
+        if (authType) document.getElementById('overlay-auth-type').value = authType;
+        if (apiKey) document.getElementById('overlay-api-key').value = apiKey;
+        if (jwtToken) document.getElementById('overlay-jwt-token').value = jwtToken;
+        if (tenantId) document.getElementById('overlay-tenant-id').value = tenantId;
+        switchOverlayAuthType();
+        return false;
+      }
+      return true;
+    };
+
     // Run
     init();
   </script>
@@ -2437,6 +2498,50 @@
         <button onclick="clearAuthSettings()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 rounded text-xs font-bold transition">Clear</button>
         <button onclick="saveAuthSettings()" class="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-slate-950 rounded text-xs font-bold transition shadow-lg">Save Settings</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Premium visual login overlay if credentials are not set -->
+  <div id="login-overlay" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-xl">
+    <div class="glass-panel p-8 rounded-2xl border border-cyan-500/30 max-w-md w-full mx-4 shadow-2xl flex flex-col gap-6 relative overflow-hidden">
+      <!-- Decorative gradient glow -->
+      <div class="absolute -top-16 -left-16 w-32 h-32 bg-cyan-500/10 rounded-full blur-3xl"></div>
+      <div class="absolute -bottom-16 -right-16 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl"></div>
+
+      <div class="text-center">
+        <h1 class="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-cyan-400 to-emerald-400 tracking-tight">FindAi Studio</h1>
+        <div class="text-[10px] text-slate-500 uppercase tracking-widest font-bold mt-1">Tenant Portal Access</div>
+        <p class="text-xs text-slate-400 mt-3">Please configure your SaaS Tenant Authentication to unlock this workspace dashboard.</p>
+      </div>
+
+      <div class="flex flex-col gap-4">
+        <div>
+          <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500 block mb-1">Auth Type</label>
+          <select id="overlay-auth-type" onchange="switchOverlayAuthType()" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2.5 text-xs text-slate-300 focus:outline-none focus:border-cyan-500/50">
+            <option value="api_key">API Key</option>
+            <option value="jwt">JWT Bearer Token</option>
+          </select>
+        </div>
+        
+        <div id="overlay-input-key-container">
+          <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500 block mb-1">API Key</label>
+          <input type="text" id="overlay-api-key" placeholder="e.g. key-tenant-a" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2.5 text-xs text-slate-300 focus:outline-none focus:border-cyan-500/50" />
+        </div>
+        
+        <div id="overlay-input-token-container" class="hidden">
+          <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500 block mb-1">JWT Bearer Token</label>
+          <textarea id="overlay-jwt-token" rows="3" placeholder="Paste your JWT access token here..." class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2.5 text-xs text-slate-300 focus:outline-none focus:border-cyan-500/50 font-mono"></textarea>
+        </div>
+        
+        <div>
+          <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500 block mb-1">Tenant ID</label>
+          <input type="text" id="overlay-tenant-id" placeholder="e.g. tenant_a" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2.5 text-xs text-slate-300 focus:outline-none focus:border-cyan-500/50" />
+        </div>
+      </div>
+
+      <button onclick="saveOverlayAuthSettings()" class="w-full py-2.5 bg-gradient-to-r from-blue-500 via-cyan-500 to-emerald-500 text-slate-950 rounded-xl text-xs font-bold transition duration-300 transform hover:scale-[1.02] shadow-lg shadow-cyan-500/25">
+        Authenticate & Connect
+      </button>
     </div>
   </div>
 </body>

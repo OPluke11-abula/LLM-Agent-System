@@ -1,6 +1,8 @@
 import threading
 import uuid
 import logging
+import asyncio
+import json
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger("AgentCrew")
@@ -121,6 +123,51 @@ class AgentCrew:
         self.session_id = session_id or f"crew-session-{uuid.uuid4()}"
         logger.info(f"Initialized AgentCrew with session_id: {self.session_id}")
 
+    async def _async_dispatch_to_role(
+        self,
+        broker,
+        node_id: str,
+        role: str,
+        task_instructions: str,
+        parent_node_id: Optional[str],
+        input_parameters: Optional[Dict[str, Any]],
+        security_restrictions: Optional[Dict[str, Any]],
+        mock_directives: Optional[Dict[str, Any]],
+        validation_assertions: Optional[List[str]],
+    ) -> Dict[str, Any]:
+        response_channel = f"swarm:task:{node_id}:response"
+        
+        loop = asyncio.get_running_loop()
+        future = loop.create_future()
+        
+        async def on_response(msg: dict):
+            if not future.done():
+                future.set_result(msg)
+                
+        await broker.subscribe(response_channel, on_response)
+        
+        try:
+            # Publish request
+            request_msg = {
+                "type": "task_request",
+                "session_id": self.session_id,
+                "node_id": node_id,
+                "role": role,
+                "task_instructions": task_instructions,
+                "parent_node_id": parent_node_id,
+                "input_parameters": input_parameters,
+                "security_restrictions": security_restrictions,
+                "mock_directives": mock_directives,
+                "validation_assertions": validation_assertions
+            }
+            await broker.publish(f"swarm:role:{role.lower()}", request_msg)
+            
+            # Wait for response with timeout (5.0 seconds)
+            response = await asyncio.wait_for(future, timeout=5.0)
+            return response
+        finally:
+            await broker.unsubscribe(response_channel)
+
     def dispatch_to_role(
         self,
         role: str,
@@ -174,6 +221,46 @@ class AgentCrew:
 
         # 2. Transition to running
         CrewRegistry.update_node_status(self.session_id, node_id, "running")
+
+        # Check for distributed broker delegation
+        try:
+            from core.broker import get_broker, RedisSwarmBroker
+        except ImportError:
+            from agent_workspace.core.broker import get_broker, RedisSwarmBroker
+            
+        broker = get_broker()
+        if isinstance(broker, RedisSwarmBroker):
+            try:
+                async def run_dispatch():
+                    return await self._async_dispatch_to_role(
+                        broker=broker,
+                        node_id=node_id,
+                        role=matched_role,
+                        task_instructions=task_instructions,
+                        parent_node_id=parent_node_id,
+                        input_parameters=input_parameters,
+                        security_restrictions=security_restrictions,
+                        mock_directives=mock_directives,
+                        validation_assertions=validation_assertions
+                    )
+                
+                try:
+                    loop = asyncio.get_running_loop()
+                    if loop.is_running():
+                        import concurrent.futures
+                        with concurrent.futures.ThreadPoolExecutor() as executor:
+                            future = executor.submit(lambda: asyncio.run(run_dispatch()))
+                            res = future.result()
+                    else:
+                        res = loop.run_until_complete(run_dispatch())
+                except RuntimeError:
+                    res = asyncio.run(run_dispatch())
+                
+                if res and res.get("status") in ("completed", "error"):
+                    CrewRegistry.update_node_status(self.session_id, node_id, res["status"])
+                    return res
+            except Exception as e:
+                logger.warning(f"Failed to delegate task to microservice: {e}. Falling back to local execution.")
 
         try:
             # Check security restrictions mock check

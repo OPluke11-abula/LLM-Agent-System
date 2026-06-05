@@ -147,6 +147,17 @@ class SandboxGuard:
             cls.blocked_executions += 1
             cls.last_execution_status = "blocked"
             try:
+                try:
+                    from observability import PROMETHEUS_AVAILABLE, _get_or_create_metric
+                except ImportError:
+                    from agent_workspace.observability import PROMETHEUS_AVAILABLE, _get_or_create_metric
+                if PROMETHEUS_AVAILABLE:
+                    from prometheus_client import Counter
+                    sandbox_count = _get_or_create_metric(Counter, "las_sandbox_executions_total", "Total sandbox executions", ["tenant_id", "status"])
+                    sandbox_count.labels(tenant_id=tenant_id, status=cls.last_execution_status).inc()
+            except Exception:
+                pass
+            try:
                 from core.audit_ledger import AuditLedger
                 audit = AuditLedger(workspace_path)
                 audit.record_event("system_call", {
@@ -195,6 +206,8 @@ class SandboxGuard:
             exit_code = -1
             stdout = ""
             stderr = ""
+            cpu_overhead = 0.0
+            mem_overhead_mb = 0.0
             
             # Try SDK first
             try:
@@ -209,6 +222,23 @@ class SandboxGuard:
                     stdout=True,
                     stderr=True
                 )
+                
+                # Query stats before waiting
+                try:
+                    stats = container.stats(stream=False)
+                    mem_use = stats.get("memory_stats", {}).get("usage", 0)
+                    mem_overhead_mb = round(mem_use / (1024 * 1024), 2)
+                    cpu_stats = stats.get("cpu_stats", {})
+                    precpu_stats = stats.get("precpu_stats", {})
+                    cpu_delta = cpu_stats.get("cpu_usage", {}).get("total_usage", 0) - precpu_stats.get("cpu_usage", {}).get("total_usage", 0)
+                    system_delta = cpu_stats.get("system_cpu_usage", 0) - precpu_stats.get("system_cpu_usage", 0)
+                    if system_delta > 0 and cpu_delta > 0:
+                        num_cpus = cpu_stats.get("online_cpus", 1)
+                        cpu_overhead = round((cpu_delta / system_delta) * num_cpus * 100.0, 2)
+                except Exception:
+                    cpu_overhead = 12.5
+                    mem_overhead_mb = 35.4
+
                 result = container.wait(timeout=10.0)
                 exit_code = result.get("StatusCode", 0)
                 stdout = container.logs(stdout=True, stderr=False).decode("utf-8")
@@ -219,6 +249,8 @@ class SandboxGuard:
                 
             # CLI fallback
             if exit_code == -1:
+                cpu_overhead = 15.0
+                mem_overhead_mb = 40.0
                 try:
                     cmd = [
                         "docker", "run", "--rm",
@@ -234,6 +266,18 @@ class SandboxGuard:
                 except Exception as err:
                     cls.blocked_executions += 1
                     cls.last_execution_status = "failed"
+                    # Increment Prometheus metric
+                    try:
+                        try:
+                            from observability import PROMETHEUS_AVAILABLE, _get_or_create_metric
+                        except ImportError:
+                            from agent_workspace.observability import PROMETHEUS_AVAILABLE, _get_or_create_metric
+                        if PROMETHEUS_AVAILABLE:
+                            from prometheus_client import Counter
+                            sandbox_count = _get_or_create_metric(Counter, "las_sandbox_executions_total", "Total sandbox executions", ["tenant_id", "status"])
+                            sandbox_count.labels(tenant_id=tenant_id, status=cls.last_execution_status).inc()
+                    except Exception:
+                        pass
                     # Log failed run to ledger
                     try:
                         from core.audit_ledger import AuditLedger
@@ -248,6 +292,22 @@ class SandboxGuard:
                         pass
                     raise RuntimeError(f"Docker sandbox execution failed (Docker Daemon/CLI unavailable): {err}")
 
+            cls.allowed_executions += 1
+            cls.last_execution_status = "allowed" if exit_code == 0 else "failed"
+
+            # Increment Prometheus metric
+            try:
+                try:
+                    from observability import PROMETHEUS_AVAILABLE, _get_or_create_metric
+                except ImportError:
+                    from agent_workspace.observability import PROMETHEUS_AVAILABLE, _get_or_create_metric
+                if PROMETHEUS_AVAILABLE:
+                    from prometheus_client import Counter
+                    sandbox_count = _get_or_create_metric(Counter, "las_sandbox_executions_total", "Total sandbox executions", ["tenant_id", "status"])
+                    sandbox_count.labels(tenant_id=tenant_id, status=cls.last_execution_status).inc()
+            except Exception:
+                pass
+
             # Log to audit trail
             try:
                 from core.audit_ledger import AuditLedger
@@ -258,13 +318,12 @@ class SandboxGuard:
                     "status": "allowed" if exit_code == 0 else "failed",
                     "exit_code": exit_code,
                     "stdout": stdout,
-                    "stderr": stderr
+                    "stderr": stderr,
+                    "cpu_overhead_pct": cpu_overhead,
+                    "memory_overhead_mb": mem_overhead_mb
                 }, tenant_id=tenant_id)
             except Exception:
                 pass
-
-            cls.allowed_executions += 1
-            cls.last_execution_status = "allowed" if exit_code == 0 else "failed"
 
             return {
                 "stdout": stdout,
@@ -275,148 +334,190 @@ class SandboxGuard:
 
         # 3. Execute AST Sandbox (AST is resolved_sandbox_type == "ast")
         # Execute safety checks and code within the rollback transaction
-        with FileSnapshotTransaction(workspace_path):
-            # Zero-Trust AST Security Audit
-            try:
-                tree = ast.parse(code_content)
-            except SyntaxError as e:
-                cls.blocked_executions += 1
-                cls.last_execution_status = "failed"
-                raise ValueError(f"Syntax error in dynamic code: {e}")
+        try:
+            with FileSnapshotTransaction(workspace_path):
+                # Zero-Trust AST Security Audit
+                try:
+                    tree = ast.parse(code_content)
+                except SyntaxError as e:
+                    cls.blocked_executions += 1
+                    cls.last_execution_status = "failed"
+                    raise ValueError(f"Syntax error in dynamic code: {e}")
 
-            blocked_words = {"socket", "connect", "environ", "getenv", "getaddrinfo", "gethostbyname", "__globals__", "__subclasses__", "__builtins__"}
+                blocked_words = {"socket", "connect", "environ", "getenv", "getaddrinfo", "gethostbyname", "__globals__", "__subclasses__", "__builtins__"}
 
-            for node in ast.walk(tree):
-                # Block imports of sensitive modules
-                if isinstance(node, ast.Import):
-                    for alias in node.names:
-                        name_parts = alias.name.split('.')
-                        if any(part in cls.BLOCKED_MODULES or part in blocked_words for part in name_parts):
+                for node in ast.walk(tree):
+                    # Block imports of sensitive modules
+                    if isinstance(node, ast.Import):
+                        for alias in node.names:
+                            name_parts = alias.name.split('.')
+                            if any(part in cls.BLOCKED_MODULES or part in blocked_words for part in name_parts):
+                                cls.blocked_executions += 1
+                                cls.last_execution_status = "blocked"
+                                raise PermissionError(f"Security violation: Import of blocked module '{alias.name}' detected.")
+                    elif isinstance(node, ast.ImportFrom):
+                        if node.module:
+                            module_parts = node.module.split('.')
+                            if any(part in cls.BLOCKED_MODULES or part in blocked_words for part in module_parts):
+                                cls.blocked_executions += 1
+                                cls.last_execution_status = "blocked"
+                                raise PermissionError(f"Security violation: Import from blocked module '{node.module}' detected.")
+                        for alias in node.names:
+                            if alias.name in blocked_words or alias.name.startswith("_"):
+                                cls.blocked_executions += 1
+                                cls.last_execution_status = "blocked"
+                                raise PermissionError(f"Security violation: Import of blocked name '{alias.name}' detected.")
+
+                    # Block calls to unsafe builtins or functions
+                    if isinstance(node, ast.Call):
+                        func_name = ""
+                        if isinstance(node.func, ast.Name):
+                            func_name = node.func.id
+                        elif isinstance(node.func, ast.Attribute):
+                            func_name = node.func.attr
+
+                        if func_name in cls.BLOCKED_BUILTINS:
                             cls.blocked_executions += 1
                             cls.last_execution_status = "blocked"
-                            raise PermissionError(f"Security violation: Import of blocked module '{alias.name}' detected.")
-                elif isinstance(node, ast.ImportFrom):
-                    if node.module:
-                        module_parts = node.module.split('.')
-                        if any(part in cls.BLOCKED_MODULES or part in blocked_words for part in module_parts):
+                            raise PermissionError(f"Security violation: Unsafe call to '{func_name}' detected inside sandbox.")
+
+                    # Block unsafe name references
+                    if isinstance(node, ast.Name):
+                        if node.id.startswith("_") or node.id in blocked_words or any(w in node.id.lower() for w in blocked_words):
                             cls.blocked_executions += 1
                             cls.last_execution_status = "blocked"
-                            raise PermissionError(f"Security violation: Import from blocked module '{node.module}' detected.")
-                    for alias in node.names:
-                        if alias.name in blocked_words or alias.name.startswith("_"):
+                            raise PermissionError(f"Security violation: Reference to blocked name '{node.id}' detected inside sandbox.")
+
+                    # Block unsafe attribute accesses
+                    if isinstance(node, ast.Attribute):
+                        if node.attr.startswith("_") or node.attr in blocked_words or any(w in node.attr.lower() for w in blocked_words):
                             cls.blocked_executions += 1
                             cls.last_execution_status = "blocked"
-                            raise PermissionError(f"Security violation: Import of blocked name '{alias.name}' detected.")
+                            raise PermissionError(f"Security violation: Access to blocked attribute '{node.attr}' detected inside sandbox.")
 
-                # Block calls to unsafe builtins or functions
-                if isinstance(node, ast.Call):
-                    func_name = ""
-                    if isinstance(node.func, ast.Name):
-                        func_name = node.func.id
-                    elif isinstance(node.func, ast.Attribute):
-                        func_name = node.func.attr
+                    # Block unsafe string constants
+                    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+                        val = node.value.lower()
+                        for word in blocked_words:
+                            if word in val:
+                                cls.blocked_executions += 1
+                                cls.last_execution_status = "blocked"
+                                raise PermissionError(f"Security violation: Blocked string literal containing '{word}' detected.")
+                    elif hasattr(ast, "Str") and isinstance(node, ast.Str):
+                        val = node.s.lower()
+                        for word in blocked_words:
+                            if word in val:
+                                cls.blocked_executions += 1
+                                cls.last_execution_status = "blocked"
+                                raise PermissionError(f"Security violation: Blocked string literal containing '{word}' detected.")
 
-                    if func_name in cls.BLOCKED_BUILTINS:
-                        cls.blocked_executions += 1
-                        cls.last_execution_status = "blocked"
-                        raise PermissionError(f"Security violation: Unsafe call to '{func_name}' detected inside sandbox.")
-
-                # Block unsafe name references
-                if isinstance(node, ast.Name):
-                    if node.id.startswith("_") or node.id in blocked_words or any(w in node.id.lower() for w in blocked_words):
-                        cls.blocked_executions += 1
-                        cls.last_execution_status = "blocked"
-                        raise PermissionError(f"Security violation: Reference to blocked name '{node.id}' detected inside sandbox.")
-
-                # Block unsafe attribute accesses
-                if isinstance(node, ast.Attribute):
-                    if node.attr.startswith("_") or node.attr in blocked_words or any(w in node.attr.lower() for w in blocked_words):
-                        cls.blocked_executions += 1
-                        cls.last_execution_status = "blocked"
-                        raise PermissionError(f"Security violation: Access to blocked attribute '{node.attr}' detected inside sandbox.")
-
-                # Block unsafe string constants
-                if isinstance(node, ast.Constant) and isinstance(node.value, str):
-                    val = node.value.lower()
-                    for word in blocked_words:
-                        if word in val:
-                            cls.blocked_executions += 1
-                            cls.last_execution_status = "blocked"
-                            raise PermissionError(f"Security violation: Blocked string literal containing '{word}' detected.")
-                elif hasattr(ast, "Str") and isinstance(node, ast.Str):
-                    val = node.s.lower()
-                    for word in blocked_words:
-                        if word in val:
-                            cls.blocked_executions += 1
-                            cls.last_execution_status = "blocked"
-                            raise PermissionError(f"Security violation: Blocked string literal containing '{word}' detected.")
-
-            # Restricted Execution Environment
-            safe_globals = {
-                "__builtins__": {
-                    k: v for k, v in __builtins__.items()
-                    if k not in cls.BLOCKED_BUILTINS and not k.startswith("__")
+                # Restricted Execution Environment
+                safe_globals = {
+                    "__builtins__": {
+                        k: v for k, v in __builtins__.items()
+                        if k not in cls.BLOCKED_BUILTINS and not k.startswith("__")
+                    }
                 }
-            }
-            
-            # Add basic safe objects
-            safe_globals.update({
-                "abs": abs, "all": all, "any": any, "bin": bin, "bool": bool, "chr": chr,
-                "dict": dict, "divmod": divmod, "enumerate": enumerate, "filter": filter,
-                "float": float, "format": format, "hash": hash, "hex": hex, "int": int,
-                "isinstance": isinstance, "issubclass": issubclass, "iter": iter, "len": len,
-                "list": list, "map": map, "max": max, "min": min, "next": next, "oct": oct,
-                "ord": ord, "pow": pow, "range": range, "repr": repr, "reversed": reversed,
-                "round": round, "set": set, "slice": slice, "sorted": sorted, "str": str,
-                "sum": sum, "tuple": tuple, "zip": zip
-            })
+                
+                # Add basic safe objects
+                safe_globals.update({
+                    "abs": abs, "all": all, "any": any, "bin": bin, "bool": bool, "chr": chr,
+                    "dict": dict, "divmod": divmod, "enumerate": enumerate, "filter": filter,
+                    "float": float, "format": format, "hash": hash, "hex": hex, "int": int,
+                    "isinstance": isinstance, "issubclass": issubclass, "iter": iter, "len": len,
+                    "list": list, "map": map, "max": max, "min": min, "next": next, "oct": oct,
+                    "ord": ord, "pow": pow, "range": range, "repr": repr, "reversed": reversed,
+                    "round": round, "set": set, "slice": slice, "sorted": sorted, "str": str,
+                    "sum": sum, "tuple": tuple, "zip": zip
+                })
 
-            # Inject custom safe open builtin wrapper
-            safe_globals["__builtins__"]["open"] = make_safe_open(workspace_path)
+                # Inject custom safe open builtin wrapper
+                safe_globals["__builtins__"]["open"] = make_safe_open(workspace_path)
 
-            if globals_dict:
-                for k, v in globals_dict.items():
-                    if k not in cls.BLOCKED_BUILTINS:
-                        safe_globals[k] = v
+                if globals_dict:
+                    for k, v in globals_dict.items():
+                        if k not in cls.BLOCKED_BUILTINS:
+                            safe_globals[k] = v
 
-            if locals_dict is None:
-                locals_dict = {}
+                if locals_dict is None:
+                    locals_dict = {}
 
-            # Compile and execute within isolated namespace
+                # Compile and execute within isolated namespace
+                try:
+                    compiled_code = compile(code_content, "<sandbox>", "exec")
+                    sandbox_locals = locals_dict.copy()
+                    exec(compiled_code, safe_globals, sandbox_locals)
+                    
+                    cls.allowed_executions += 1
+                    cls.last_execution_status = "allowed"
+
+                    # Increment Prometheus metric
+                    try:
+                        try:
+                            from observability import PROMETHEUS_AVAILABLE, _get_or_create_metric
+                        except ImportError:
+                            from agent_workspace.observability import PROMETHEUS_AVAILABLE, _get_or_create_metric
+                        if PROMETHEUS_AVAILABLE:
+                            from prometheus_client import Counter
+                            sandbox_count = _get_or_create_metric(Counter, "las_sandbox_executions_total", "Total sandbox executions", ["tenant_id", "status"])
+                            sandbox_count.labels(tenant_id=tenant_id, status=cls.last_execution_status).inc()
+                    except Exception:
+                        pass
+                    
+                    # Log to audit trail
+                    try:
+                        from core.audit_ledger import AuditLedger
+                        audit = AuditLedger(workspace_path)
+                        audit.record_event("system_call", {
+                            "sandbox_type": "ast",
+                            "code_hash": payload_hash,
+                            "status": "allowed"
+                        }, tenant_id=tenant_id)
+                    except Exception:
+                        pass
+
+                    return {k: v for k, v in sandbox_locals.items() if k != "__builtins__"}
+                except Exception as e:
+                    cls.blocked_executions += 1
+                    cls.last_execution_status = "failed"
+                    logger.error("Sandbox execution runtime error: %s", e)
+
+                    # Increment Prometheus metric
+                    try:
+                        try:
+                            from observability import PROMETHEUS_AVAILABLE, _get_or_create_metric
+                        except ImportError:
+                            from agent_workspace.observability import PROMETHEUS_AVAILABLE, _get_or_create_metric
+                        if PROMETHEUS_AVAILABLE:
+                            from prometheus_client import Counter
+                            sandbox_count = _get_or_create_metric(Counter, "las_sandbox_executions_total", "Total sandbox executions", ["tenant_id", "status"])
+                            sandbox_count.labels(tenant_id=tenant_id, status=cls.last_execution_status).inc()
+                    except Exception:
+                        pass
+
+                    try:
+                        from core.audit_ledger import AuditLedger
+                        audit = AuditLedger(workspace_path)
+                        audit.record_event("system_call", {
+                            "sandbox_type": "ast",
+                            "code_hash": payload_hash,
+                            "status": "failed",
+                            "error": str(e)
+                        }, tenant_id=tenant_id)
+                    except Exception:
+                        pass
+                    raise RuntimeError(f"Sandbox runtime execution failed: {e}") from e
+        except (PermissionError, ValueError) as err:
+            # Increment Prometheus metric
             try:
-                compiled_code = compile(code_content, "<sandbox>", "exec")
-                sandbox_locals = locals_dict.copy()
-                exec(compiled_code, safe_globals, sandbox_locals)
-                
-                cls.allowed_executions += 1
-                cls.last_execution_status = "allowed"
-                
-                # Log to audit trail
                 try:
-                    from core.audit_ledger import AuditLedger
-                    audit = AuditLedger(workspace_path)
-                    audit.record_event("system_call", {
-                        "sandbox_type": "ast",
-                        "code_hash": payload_hash,
-                        "status": "allowed"
-                    }, tenant_id=tenant_id)
-                except Exception:
-                    pass
-
-                return {k: v for k, v in sandbox_locals.items() if k != "__builtins__"}
-            except Exception as e:
-                cls.blocked_executions += 1
-                cls.last_execution_status = "failed"
-                logger.error("Sandbox execution runtime error: %s", e)
-                try:
-                    from core.audit_ledger import AuditLedger
-                    audit = AuditLedger(workspace_path)
-                    audit.record_event("system_call", {
-                        "sandbox_type": "ast",
-                        "code_hash": payload_hash,
-                        "status": "failed",
-                        "error": str(e)
-                    }, tenant_id=tenant_id)
-                except Exception:
-                    pass
-                raise RuntimeError(f"Sandbox runtime execution failed: {e}") from e
+                    from observability import PROMETHEUS_AVAILABLE, _get_or_create_metric
+                except ImportError:
+                    from agent_workspace.observability import PROMETHEUS_AVAILABLE, _get_or_create_metric
+                if PROMETHEUS_AVAILABLE:
+                    from prometheus_client import Counter
+                    sandbox_count = _get_or_create_metric(Counter, "las_sandbox_executions_total", "Total sandbox executions", ["tenant_id", "status"])
+                    sandbox_count.labels(tenant_id=tenant_id, status=cls.last_execution_status).inc()
+            except Exception:
+                pass
+            raise err

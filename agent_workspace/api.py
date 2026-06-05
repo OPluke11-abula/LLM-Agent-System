@@ -165,16 +165,47 @@ async def metrics_middleware(request: Request, call_next):
     """Record request count, latency, and errors for every endpoint."""
     endpoint = request.url.path
     start = time.perf_counter()
+    
+    tenant_id = "default_tenant"
+    try:
+        x_api_key = request.headers.get("x-api-key")
+        authorization = request.headers.get("authorization")
+        if x_api_key and x_api_key in API_KEYS:
+            tenant_id = API_KEYS[x_api_key]
+        elif authorization and authorization.startswith("Bearer "):
+            token = authorization[7:]
+            payload = verify_jwt(token)
+            if payload and "tenant_id" in payload:
+                tenant_id = payload["tenant_id"]
+    except Exception:
+        pass
+
     try:
         response = await call_next(request)
         elapsed = time.perf_counter() - start
         REQUEST_LATENCY.labels(endpoint=endpoint).observe(elapsed)
         REQUEST_COUNT.labels(endpoint=endpoint, session_id="").inc()
+        if PROMETHEUS_AVAILABLE:
+            try:
+                from observability import _get_or_create_metric
+                from prometheus_client import Histogram
+                api_latency = _get_or_create_metric(Histogram, "las_api_response_latency_seconds", "API response latency in seconds", ["endpoint", "tenant_id"])
+                api_latency.labels(endpoint=endpoint, tenant_id=tenant_id).observe(elapsed)
+            except Exception:
+                pass
         return response
     except Exception as exc:
         elapsed = time.perf_counter() - start
         REQUEST_LATENCY.labels(endpoint=endpoint).observe(elapsed)
         REQUEST_ERRORS.labels(endpoint=endpoint, error_type=type(exc).__name__).inc()
+        if PROMETHEUS_AVAILABLE:
+            try:
+                from observability import _get_or_create_metric
+                from prometheus_client import Histogram
+                api_latency = _get_or_create_metric(Histogram, "las_api_response_latency_seconds", "API response latency in seconds", ["endpoint", "tenant_id"])
+                api_latency.labels(endpoint=endpoint, tenant_id=tenant_id).observe(elapsed)
+            except Exception:
+                pass
         raise
 
 @app.middleware("http")
@@ -288,20 +319,43 @@ def get_tenant_context(
     x_api_key: str | None = Header(None),
     x_enforce_auth: str | None = Header(None)
 ) -> str:
+    tenant_id = None
     if x_api_key:
         if x_api_key in API_KEYS:
-            return API_KEYS[x_api_key]
-        raise HTTPException(status_code=401, detail="Invalid API Key")
-    if authorization:
+            tenant_id = API_KEYS[x_api_key]
+        else:
+            raise HTTPException(status_code=401, detail="Invalid API Key")
+    elif authorization:
         if authorization.startswith("Bearer "):
             token = authorization[7:]
             payload = verify_jwt(token)
             if payload and "tenant_id" in payload:
-                return payload["tenant_id"]
-        raise HTTPException(status_code=401, detail="Invalid Authorization token")
-    if "pytest" in sys.modules and not x_enforce_auth:
-        return "default_tenant"
-    raise HTTPException(status_code=401, detail="Missing Authentication Credentials")
+                tenant_id = payload["tenant_id"]
+        if not tenant_id:
+            raise HTTPException(status_code=401, detail="Invalid Authorization token")
+    elif "pytest" in sys.modules and not x_enforce_auth:
+        tenant_id = "default_tenant"
+    else:
+        raise HTTPException(status_code=401, detail="Missing Authentication Credentials")
+
+    # Enforce rate-limiting and status checks
+    try:
+        from core.ledger import FinancialLedger
+        from core.billing import TenantRateLimiter, TenantRateLimitError, TenantSubscriptionInactiveError
+    except ImportError:
+        from agent_workspace.core.ledger import FinancialLedger
+        from agent_workspace.core.billing import TenantRateLimiter, TenantRateLimitError, TenantSubscriptionInactiveError
+
+    ledger = FinancialLedger(workspace)
+    limiter = TenantRateLimiter(ledger)
+    try:
+        limiter.check_rate_limit(tenant_id)
+    except TenantSubscriptionInactiveError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    except TenantRateLimitError as e:
+        raise HTTPException(status_code=429, detail=str(e))
+
+    return tenant_id
 
 
 def get_engine() -> AgentEngine:
@@ -409,6 +463,7 @@ async def health() -> dict[str, Any]:
     }
 
 
+@app.get("/metrics")
 @app.get("/v1/metrics")
 async def metrics():
     """Prometheus-compatible metrics endpoint."""
@@ -522,6 +577,27 @@ class MultiChannelPubSubManager:
         self.session_keys: dict[WebSocket, bytes] = {}
         self.websocket_tenants: dict[WebSocket, str] = {}
 
+    async def start_redis_listener(self):
+        try:
+            from core.broker import get_broker, RedisSwarmBroker
+        except ImportError:
+            from agent_workspace.core.broker import get_broker, RedisSwarmBroker
+            
+        broker = get_broker(workspace_path=workspace)
+        if isinstance(broker, RedisSwarmBroker):
+            logger.info("Starting MultiChannelPubSubManager Redis subscription listener...")
+            for ch in list(self.channels.keys()):
+                redis_ch = f"swarm:pubsub:{ch}"
+                await broker.subscribe(redis_ch, self._make_redis_callback(ch))
+
+    def _make_redis_callback(self, channel: str):
+        async def callback(msg: dict):
+            session_id = msg.get("session_id")
+            data = msg.get("data")
+            publisher_tenant = msg.get("publisher_tenant", "default_tenant")
+            await self._local_publish(channel, session_id, data, publisher_tenant)
+        return callback
+
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
         self.active_sockets.add(websocket)
@@ -548,10 +624,29 @@ class MultiChannelPubSubManager:
             self.channels[channel].discard((websocket, session_id))
             logger.info(f"WebSocket unsubscribed from channel '{channel}' for session '{session_id}'")
 
-    async def publish(self, channel: str, session_id: str, data: dict[str, Any], publisher_tenant: str = "default_tenant"):
+    async def publish(self, channel: str, session_id: str, data: dict[str, Any], publisher_tenant: str = "default_tenant", from_redis: bool = False):
         if channel not in self.channels:
             return
         
+        # Propagate to Redis pubsub if published locally
+        if not from_redis:
+            try:
+                from core.broker import get_broker, RedisSwarmBroker
+            except ImportError:
+                from agent_workspace.core.broker import get_broker, RedisSwarmBroker
+            
+            broker = get_broker(workspace_path=workspace)
+            if isinstance(broker, RedisSwarmBroker):
+                redis_msg = {
+                    "session_id": session_id,
+                    "data": data,
+                    "publisher_tenant": publisher_tenant
+                }
+                asyncio.create_task(broker.publish(f"swarm:pubsub:{channel}", redis_msg))
+
+        await self._local_publish(channel, session_id, data, publisher_tenant)
+
+    async def _local_publish(self, channel: str, session_id: str, data: dict[str, Any], publisher_tenant: str = "default_tenant"):
         # Broadcast to all connections subscribed to this channel for this session or "global"
         for ws, s_id in list(self.channels[channel]):
             ws_tenant = self.websocket_tenants.get(ws, "default_tenant")
@@ -691,6 +786,26 @@ async def collaboration_endpoint(websocket: WebSocket, session_id: str):
     if not tenant_id:
         await websocket.accept()
         await websocket.close(code=4001, reason="Unauthorized Tenant")
+        return
+
+    try:
+        from core.ledger import FinancialLedger
+        from core.billing import TenantRateLimiter, TenantRateLimitError, TenantSubscriptionInactiveError
+    except ImportError:
+        from agent_workspace.core.ledger import FinancialLedger
+        from agent_workspace.core.billing import TenantRateLimiter, TenantRateLimitError, TenantSubscriptionInactiveError
+
+    ledger = FinancialLedger(workspace)
+    limiter = TenantRateLimiter(ledger)
+    try:
+        limiter.check_rate_limit(tenant_id)
+    except TenantSubscriptionInactiveError as e:
+        await websocket.accept()
+        await websocket.close(code=4003, reason=str(e))
+        return
+    except TenantRateLimitError as e:
+        await websocket.accept()
+        await websocket.close(code=4029, reason=str(e))
         return
 
     # 1. Connection Guard: Validate connection against swarm consensus registry
@@ -834,6 +949,26 @@ async def dashboard_stream(websocket: WebSocket, session_id: str, role: str):
         await websocket.close(code=4001, reason="Unauthorized Tenant")
         return
 
+    try:
+        from core.ledger import FinancialLedger
+        from core.billing import TenantRateLimiter, TenantRateLimitError, TenantSubscriptionInactiveError
+    except ImportError:
+        from agent_workspace.core.ledger import FinancialLedger
+        from agent_workspace.core.billing import TenantRateLimiter, TenantRateLimitError, TenantSubscriptionInactiveError
+
+    ledger = FinancialLedger(workspace)
+    limiter = TenantRateLimiter(ledger)
+    try:
+        limiter.check_rate_limit(tenant_id)
+    except TenantSubscriptionInactiveError as e:
+        await websocket.accept()
+        await websocket.close(code=4003, reason=str(e))
+        return
+    except TenantRateLimitError as e:
+        await websocket.accept()
+        await websocket.close(code=4029, reason=str(e))
+        return
+
     # Check session tenancy context
     existing_tenant = AccountManager.get_session_tenant(session_id)
     if existing_tenant and existing_tenant != tenant_id:
@@ -881,6 +1016,26 @@ async def stream_ws(websocket: WebSocket):
     if not tenant_id:
         await websocket.accept()
         await websocket.close(code=4001, reason="Unauthorized Tenant")
+        return
+
+    try:
+        from core.ledger import FinancialLedger
+        from core.billing import TenantRateLimiter, TenantRateLimitError, TenantSubscriptionInactiveError
+    except ImportError:
+        from agent_workspace.core.ledger import FinancialLedger
+        from agent_workspace.core.billing import TenantRateLimiter, TenantRateLimitError, TenantSubscriptionInactiveError
+
+    ledger = FinancialLedger(workspace)
+    limiter = TenantRateLimiter(ledger)
+    try:
+        limiter.check_rate_limit(tenant_id)
+    except TenantSubscriptionInactiveError as e:
+        await websocket.accept()
+        await websocket.close(code=4003, reason=str(e))
+        return
+    except TenantRateLimitError as e:
+        await websocket.accept()
+        await websocket.close(code=4029, reason=str(e))
         return
 
     await websocket.accept()
@@ -950,6 +1105,26 @@ async def websocket_stream(websocket: WebSocket):
     if not tenant_id:
         await websocket.accept()
         await websocket.close(code=4001, reason="Unauthorized Tenant")
+        return
+
+    try:
+        from core.ledger import FinancialLedger
+        from core.billing import TenantRateLimiter, TenantRateLimitError, TenantSubscriptionInactiveError
+    except ImportError:
+        from agent_workspace.core.ledger import FinancialLedger
+        from agent_workspace.core.billing import TenantRateLimiter, TenantRateLimitError, TenantSubscriptionInactiveError
+
+    ledger = FinancialLedger(workspace)
+    limiter = TenantRateLimiter(ledger)
+    try:
+        limiter.check_rate_limit(tenant_id)
+    except TenantSubscriptionInactiveError as e:
+        await websocket.accept()
+        await websocket.close(code=4003, reason=str(e))
+        return
+    except TenantRateLimitError as e:
+        await websocket.accept()
+        await websocket.close(code=4029, reason=str(e))
         return
 
     await websocket.accept()
@@ -1745,8 +1920,52 @@ crew_sync_manager = CrewSyncManager()
 
 @app.websocket("/v1/crew/sync/{session_id}")
 async def crew_sync_endpoint(websocket: WebSocket, session_id: str):
-    await websocket.accept()
+    params = websocket.query_params
+    token = params.get("token")
+    api_key = params.get("api_key")
+    enforce_auth = params.get("enforce_auth")
     
+    tenant_id = None
+    if api_key:
+        if api_key in API_KEYS:
+            tenant_id = API_KEYS[api_key]
+    elif token:
+        payload = verify_jwt(token)
+        if payload and "tenant_id" in payload:
+            tenant_id = payload["tenant_id"]
+            
+    if not tenant_id:
+        tenant_id = AccountManager.get_session_tenant(session_id)
+        
+    if not tenant_id and "pytest" in sys.modules and not enforce_auth:
+        tenant_id = "default_tenant"
+        
+    if not tenant_id:
+        await websocket.accept()
+        await websocket.close(code=4001, reason="Unauthorized Tenant")
+        return
+
+    try:
+        from core.ledger import FinancialLedger
+        from core.billing import TenantRateLimiter, TenantRateLimitError, TenantSubscriptionInactiveError
+    except ImportError:
+        from agent_workspace.core.ledger import FinancialLedger
+        from agent_workspace.core.billing import TenantRateLimiter, TenantRateLimitError, TenantSubscriptionInactiveError
+
+    ledger = FinancialLedger(workspace)
+    limiter = TenantRateLimiter(ledger)
+    try:
+        limiter.check_rate_limit(tenant_id)
+    except TenantSubscriptionInactiveError as e:
+        await websocket.accept()
+        await websocket.close(code=4003, reason=str(e))
+        return
+    except TenantRateLimitError as e:
+        await websocket.accept()
+        await websocket.close(code=4029, reason=str(e))
+        return
+
+    await websocket.accept()
     server_crypto = SwarmP2PCrypto()
     try:
         # 1. Send Server Hello
@@ -2016,6 +2235,85 @@ async def stripe_webhook(request: Request):
         "payload": event
     }, tenant_id="admin_tenant")
     
+    # Process subscription lifecycle events
+    data_obj = event.get("data", {}).get("object", {})
+    stripe_customer_id = data_obj.get("customer")
+    stripe_subscription_id = data_obj.get("id") if event_type.startswith("customer.subscription.") else data_obj.get("subscription")
+    
+    # Resolve tenant_id
+    tenant_id = data_obj.get("metadata", {}).get("tenant_id")
+    
+    try:
+        from core.ledger import FinancialLedger
+        from core.billing import TenantStatusManager
+    except ImportError:
+        from agent_workspace.core.ledger import FinancialLedger
+        from agent_workspace.core.billing import TenantStatusManager
+        
+    ledger = FinancialLedger(workspace)
+    status_mgr = TenantStatusManager(ledger)
+    
+    if not tenant_id and stripe_subscription_id:
+        tenant_id = status_mgr.get_tenant_by_stripe_subscription(stripe_subscription_id)
+    if not tenant_id and stripe_customer_id:
+        tenant_id = status_mgr.get_tenant_by_stripe_customer(stripe_customer_id)
+        
+    if not tenant_id:
+        if stripe_customer_id:
+            if "tenant_a" in stripe_customer_id:
+                tenant_id = "tenant_a"
+            elif "tenant_b" in stripe_customer_id:
+                tenant_id = "tenant_b"
+            else:
+                tenant_id = stripe_customer_id
+        elif stripe_subscription_id:
+            if "tenant_a" in stripe_subscription_id:
+                tenant_id = "tenant_a"
+            elif "tenant_b" in stripe_subscription_id:
+                tenant_id = "tenant_b"
+            else:
+                tenant_id = stripe_subscription_id
+        else:
+            tenant_id = "default_tenant"
+            
+    if event_type == "customer.subscription.created":
+        status_mgr.update_tenant_status(
+            tenant_id=tenant_id,
+            status="active",
+            stripe_customer_id=stripe_customer_id,
+            stripe_subscription_id=stripe_subscription_id
+        )
+    elif event_type == "customer.subscription.deleted":
+        status_mgr.update_tenant_status(
+            tenant_id=tenant_id,
+            status="canceled",
+            stripe_customer_id=stripe_customer_id,
+            stripe_subscription_id=stripe_subscription_id
+        )
+    elif event_type == "customer.subscription.updated":
+        stripe_status = data_obj.get("status")
+        if stripe_status in ("active", "trialing"):
+            status = "active"
+        elif stripe_status in ("past_due", "unpaid", "paused"):
+            status = "frozen"
+        elif stripe_status in ("canceled", "incomplete_expired"):
+            status = "canceled"
+        else:
+            status = "frozen"
+        status_mgr.update_tenant_status(
+            tenant_id=tenant_id,
+            status=status,
+            stripe_customer_id=stripe_customer_id,
+            stripe_subscription_id=stripe_subscription_id
+        )
+    elif event_type == "invoice.payment_failed":
+        status_mgr.update_tenant_status(
+            tenant_id=tenant_id,
+            status="frozen",
+            stripe_customer_id=stripe_customer_id,
+            stripe_subscription_id=stripe_subscription_id
+        )
+        
     return {"status": "success", "event": event_type}
 
 
@@ -2372,3 +2670,19 @@ async def line_webhook(request: Request):
 @app.on_event("startup")
 async def startup_event():
     asyncio.create_task(start_stripe_billing_scheduler())
+    try:
+        from core.broker import get_broker
+    except ImportError:
+        from agent_workspace.core.broker import get_broker
+    broker = get_broker(workspace_path=workspace)
+    asyncio.create_task(collab_manager.start_redis_listener())
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    try:
+        from core.broker import get_broker
+    except ImportError:
+        from agent_workspace.core.broker import get_broker
+    broker = get_broker(workspace_path=workspace)
+    await broker.stop()

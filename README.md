@@ -148,6 +148,16 @@ LAS features built-in multi-tenant isolation, secure webhooks, and automated usa
 * **Slack & LINE Production Webhook Adapters**: Direct POST webhook routes with cryptographic signature checking (HMAC-SHA256 of `x-slack-signature` and `x-line-signature` / base64 hashing), protecting workspaces against replay attacks.
 * **WebSocket Room Isolation**: Automatically verifies authentication tokens and api keys on collaboration WebSocket handshakes, restricting broadcasts strictly to users within the same tenant.
 * **Stripe Metered Billing & SLA Audited Failovers**: Periodically aggregates token usage from `FinancialLedger` and pushes increments to Stripe's Usage Record API via an asynchronous background scheduler, verifies incoming Stripe webhooks timing-safe, and automatically routes model provider failovers to fallback accounts under a custom 1.8x markup registered in `AuditLedger`.
+* **Stripe Subscription Lifecycle & Access Control Gating**: Updates subscription status (`active`, `frozen`, `canceled`) inside SQLite from Stripe webhook events. Secures REST/WebSocket endpoints with custom close code `4003` for inactive accounts and `4029` for token rate-limit violations (capped at 5,000 tokens/minute), bypassing the failover mechanism for rate-limit blocks.
+
+---
+
+### 📡 Distributed Redis Broker & Swarm Microservices
+LAS supports highly scalable, distributed execution of agent swarms:
+* **Pluggable Redis Message Broker**: Replaces local in-memory queues with a `RedisSwarmBroker` using Redis Pub/Sub channels (`swarm:debate:{role}` and `swarm:role:{role}`) for consensus debates and task dispatches. Includes silent dynamic fallback to `InMemorySwarmBroker` if Redis is offline.
+* **Microservices & Orchestration**: Packages individual agent roles (CEO, Dev, QA, CFO) into separate system processes/nodes managed by `docker-compose.microservices.yml`. Dynamically joins workspace sessions via a Redis-based peer discovery ping-pong protocol and periodic heartbeats.
+* **Prometheus Telemetry**: Exposes `/metrics` and `/v1/metrics` endpoints tracking tenant token metrics (`las_tenant_tokens_total`), sandbox execution statistics (`las_sandbox_executions_total`), and HTTP request latencies (`las_api_response_latency_seconds`).
+* **Real-time Resource Monitoring**: Dynamically collects Docker sandbox memory (MB) and CPU usage percentage from container stats, logging the execution overhead real-time to the immutable `AuditLedger`.
 
 ---
 
@@ -277,6 +287,16 @@ LAS 提供原生多租戶 SaaS 架構與安全的通訊管道轉接器：
 * **Slack 與 LINE 生產級 Webhook 轉接器**: 提供專屬 POST Webhook 路由，內建 HMAC-SHA256 簽章校驗機制（比對 `x-slack-signature` 與 `x-line-signature`），防範重放攻擊 (Replay Attacks)。
 * **WebSocket 租戶房間隔離**: 在 `/v1/collaboration/{session_id}` 握手時自動校驗 JWT 與金鑰，限制廣播訊息僅在相同租戶 ID 的成員之間流通，防止跨租戶資料外洩。
 * **Stripe 計量計費與 SLA 智能避障**: 透過背景工作排程器定期彙整 `FinancialLedger` 中的 Token 消耗，並以增量方式呼叫 Stripe 的 Usage Record API。Webhook 接收端點具備時間安全的 HMAC 簽章驗證，防護重放攻擊。當主模型供應商發生故障時，自動路由避障至備用帳戶，並自動套用 1.8 倍加成費率且寫入 SOC2 審計軌跡 `AuditLedger`。
+* **Stripe 訂閱生命週期與訪問控制門禁**: 基於 Stripe Webhook 事件實時更新 SQLite 中的訂閱狀態（`active`、`frozen`、`canceled`）。透過 REST 攔截與 WebSocket 自定義關閉代碼（停權/取消為 `4003`，超出 Token 速率限制為 `4029`）進行訪問阻斷，Token 消耗限制為每分鐘 5,000 tokens，且此速率限制阻斷會直接繞過 SLA 故障轉移機制。
+
+---
+
+### 📡 分散式 Redis 訊息代理與 Swarm 微服務
+LAS 支援高可擴充性的分散式智慧體群體執行架構：
+* **可插拔式 Redis 訊息代理**: 透過 `RedisSwarmBroker` 以 Redis 發佈/訂閱頻道（`swarm:debate:{role}` 與 `swarm:role:{role}`）進行群體共識辯論與任務指派。若 Redis 離線，系統會自動且無感地回退至 `InMemorySwarmBroker` 本地佇列。
+* **微服務與容器編排**: 將各智慧體角色（CEO、Dev、QA、CFO）打包為獨立的系統程序/節點，由 `docker-compose.microservices.yml` 統一編排。透過 Redis 進行對等點發現（Peer Discovery） ping-pong 協議與定期心跳，動態加入活躍的工作區會議。
+* **Prometheus 指標觀測**: 曝露 `/metrics` 與 `/v1/metrics` 端點，以匯出租戶 Token 統計 (`las_tenant_tokens_total`)、沙箱執行次數 (`las_sandbox_executions_total`) 與 API 響應延遲時間 (`las_api_response_latency_seconds`) 等指標。
+* **實時沙箱資源監控**: 動態擷取 Docker 安全沙箱容器 stats 中的 CPU 百分比與記憶體（MB）開銷，並將實時運行開銷登載至不可篡改的 `AuditLedger` 審計軌跡中。
 
 ---
 

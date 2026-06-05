@@ -260,6 +260,50 @@ class DiscussionRoom:
             pass
         return params
 
+    async def _delegate_turn_to_microservice(
+        self,
+        broker,
+        session_id: str,
+        agent_name: str,
+        role: str,
+        topic: str,
+        system_prompt: str,
+        user_content: str,
+        account_id: Optional[str]
+    ) -> Optional[dict[str, Any]]:
+        # We subscribe to response channel
+        response_channel = f"swarm:debate:{session_id}:{role.lower()}:response"
+        
+        loop = asyncio.get_running_loop()
+        future = loop.create_future()
+        
+        async def on_response(msg: dict):
+            if not future.done():
+                future.set_result(msg)
+                
+        await broker.subscribe(response_channel, on_response)
+        
+        try:
+            # Publish request
+            request_msg = {
+                "type": "turn_request",
+                "session_id": session_id,
+                "agent_name": agent_name,
+                "role": role.lower(),
+                "topic": topic,
+                "system_prompt": system_prompt,
+                "user_content": user_content,
+                "account_id": account_id
+            }
+            # Publish to role debate channel
+            await broker.publish(f"swarm:debate:{role.lower()}", request_msg)
+            
+            # Wait for response with timeout
+            response = await asyncio.wait_for(future, timeout=5.0)
+            return response
+        finally:
+            await broker.unsubscribe(response_channel)
+
     async def run(
         self,
         topic: str,
@@ -361,69 +405,105 @@ class DiscussionRoom:
 It is now your turn, {p['name']}. Please respond to the topic or build on top of previous points in a constructive manner. Keep your response brief, precise, and focused on driving consensus."""
 
                 start_time = time.perf_counter()
-                contribution = f"[Silent / Connection Error]"
-                resolved_acc_id = "default-account"
+                contribution = None
+                resolved_acc_id = p["account_id"] or "default-account"
                 
-                # Dynamic Account Swapping & Error Self-Healing Retry Loop
-                max_attempts = 3
-                for attempt in range(1, max_attempts + 2):
+                # Check for distributed broker delegation
+                try:
+                    from core.broker import get_broker, RedisSwarmBroker
+                except ImportError:
+                    from agent_workspace.core.broker import get_broker, RedisSwarmBroker
+                
+                broker = get_broker(workspace_path=self.workspace_path)
+                if isinstance(broker, RedisSwarmBroker):
                     try:
-                        prompt_len = len(system_prompt + user_content) // 4
-                        provider, config, resolved_acc_id = self._resolve_agent_provider(
-                            account_id=p["account_id"],
-                            prompt_len=prompt_len,
-                            topic=topic
-                        )
-                        messages = [{"role": "user", "content": user_content}]
-
-                        response_type, response_data = await provider.complete(
+                        delegated_resp = await self._delegate_turn_to_microservice(
+                            broker=broker,
+                            session_id=session_id,
+                            agent_name=p["name"],
+                            role=p["role"],
+                            topic=topic,
                             system_prompt=system_prompt,
-                            messages=messages,
-                            tool_schemas=[],
-                            config=config
+                            user_content=user_content,
+                            account_id=p["account_id"]
                         )
-
-                        is_rate_limit = False
-                        if response_type == "error":
-                            err_str = str(response_data).lower()
-                            if "429" in err_str or "rate limit" in err_str or "quota" in err_str:
-                                is_rate_limit = True
-
-                        if is_rate_limit:
-                            logger.info("Rate limit (HTTP 429) detected on account '%s'. Swapping to fallback...", resolved_acc_id)
-                            if self.account_manager.swap_to_fallback():
-                                continue
-                            else:
-                                raise RuntimeError(f"Rate limited and no fallback accounts available: {response_data}")
-
-                        if response_type == "error":
-                            raise RuntimeError(f"LLM call returned error: {response_data}")
-
-                        contribution = str(response_data).strip()
-                        prompt_tokens = len(system_prompt + user_content) // 4
-                        completion_tokens = len(contribution) // 4
-                        self.account_manager.record_usage(resolved_acc_id, prompt_tokens, completion_tokens)
-                        
-                        model_used = config.get("model", "gemini-2.5-flash")
-                        models_used.add(model_used)
-                        call_cost = estimate_cost(model_used, prompt_tokens, completion_tokens)
-                        total_prompt_tokens += prompt_tokens
-                        total_completion_tokens += completion_tokens
-                        total_estimated_cost += call_cost
-                        break
-                    except Exception as e:
-                        error_msg = str(e)
-                        logger.error("Failed to generate contribution for agent %s on attempt %d: %s", p["name"], attempt, error_msg)
-                        if attempt <= max_attempts:
-                            logger.info("Attempting self-healing correction for debate participant...")
-                            healed_data = await self._invoke_llm_healing("discussion_room_llm", {"system_prompt": system_prompt, "user_content": user_content}, error_msg)
-                            system_prompt = healed_data.get("system_prompt", system_prompt)
-                            user_content = healed_data.get("user_content", user_content)
+                        if delegated_resp and delegated_resp.get("status") == "success":
+                            contribution = delegated_resp.get("contribution")
+                            p_tok = delegated_resp.get("prompt_tokens", 0)
+                            c_tok = delegated_resp.get("completion_tokens", 0)
+                            self.account_manager.record_usage(resolved_acc_id, p_tok, c_tok)
                             
-                            if "429" in error_msg.lower() or "rate limit" in error_msg.lower():
-                                self.account_manager.swap_to_fallback()
-                        else:
-                            contribution = f"[Silent / Connection Error: {e}]"
+                            model_used = delegated_resp.get("model", "gemini-2.5-flash")
+                            models_used.add(model_used)
+                            call_cost = estimate_cost(model_used, p_tok, c_tok)
+                            total_prompt_tokens += p_tok
+                            total_completion_tokens += c_tok
+                            total_estimated_cost += call_cost
+                    except Exception as e:
+                        logger.warning(f"Failed to delegate debate turn to microservice: {e}. Falling back to in-process execution.")
+
+                if contribution is None:
+                    contribution = f"[Silent / Connection Error]"
+                    # Dynamic Account Swapping & Error Self-Healing Retry Loop
+                    max_attempts = 3
+                    for attempt in range(1, max_attempts + 2):
+                        try:
+                            prompt_len = len(system_prompt + user_content) // 4
+                            provider, config, resolved_acc_id = self._resolve_agent_provider(
+                                account_id=p["account_id"],
+                                prompt_len=prompt_len,
+                                topic=topic
+                            )
+                            messages = [{"role": "user", "content": user_content}]
+
+                            response_type, response_data = await provider.complete(
+                                system_prompt=system_prompt,
+                                messages=messages,
+                                tool_schemas=[],
+                                config=config
+                            )
+
+                            is_rate_limit = False
+                            if response_type == "error":
+                                err_str = str(response_data).lower()
+                                if "429" in err_str or "rate limit" in err_str or "quota" in err_str:
+                                    is_rate_limit = True
+
+                            if is_rate_limit:
+                                logger.info("Rate limit (HTTP 429) detected on account '%s'. Swapping to fallback...", resolved_acc_id)
+                                if self.account_manager.swap_to_fallback():
+                                    continue
+                                else:
+                                    raise RuntimeError(f"Rate limited and no fallback accounts available: {response_data}")
+
+                            if response_type == "error":
+                                raise RuntimeError(f"LLM call returned error: {response_data}")
+
+                            contribution = str(response_data).strip()
+                            prompt_tokens = len(system_prompt + user_content) // 4
+                            completion_tokens = len(contribution) // 4
+                            self.account_manager.record_usage(resolved_acc_id, prompt_tokens, completion_tokens)
+                            
+                            model_used = config.get("model", "gemini-2.5-flash")
+                            models_used.add(model_used)
+                            call_cost = estimate_cost(model_used, prompt_tokens, completion_tokens)
+                            total_prompt_tokens += prompt_tokens
+                            total_completion_tokens += completion_tokens
+                            total_estimated_cost += call_cost
+                            break
+                        except Exception as e:
+                            error_msg = str(e)
+                            logger.error("Failed to generate contribution for agent %s on attempt %d: %s", p["name"], attempt, error_msg)
+                            if attempt <= max_attempts:
+                                logger.info("Attempting self-healing correction for debate participant...")
+                                healed_data = await self._invoke_llm_healing("discussion_room_llm", {"system_prompt": system_prompt, "user_content": user_content}, error_msg)
+                                system_prompt = healed_data.get("system_prompt", system_prompt)
+                                user_content = healed_data.get("user_content", user_content)
+                                
+                                if "429" in error_msg.lower() or "rate limit" in error_msg.lower():
+                                    self.account_manager.swap_to_fallback()
+                            else:
+                                contribution = f"[Silent / Connection Error: {e}]"
 
                 duration_ms = int((time.perf_counter() - start_time) * 1000)
                 

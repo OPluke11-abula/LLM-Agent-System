@@ -1,0 +1,110 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:alpine
+    container_name: las-redis
+    ports:
+      - "6379:6379"
+    restart: always
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: las-backend-swarm
+    ports:
+      - "8000:8000"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    volumes:
+      - agent_data:/app/.agent
+      - memory_data:/app/agent_workspace/memory
+      - workspace_data:/app/workspace
+    depends_on:
+      - redis
+    restart: always
+
+  agent-ceo:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: las-agent-ceo
+    command: python agent_workspace/service.py --role ceo --redis-url redis://redis:6379
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    volumes:
+      - agent_data:/app/.agent
+      - memory_data:/app/agent_workspace/memory
+      - workspace_data:/app/workspace
+    depends_on:
+      - redis
+    restart: always
+
+  agent-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: las-agent-dev
+    command: python agent_workspace/service.py --role dev --redis-url redis://redis:6379
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    volumes:
+      - agent_data:/app/.agent
+      - memory_data:/app/agent_workspace/memory
+      - workspace_data:/app/workspace
+    depends_on:
+      - redis
+    restart: always
+
+  agent-qa:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: las-agent-qa
+    command: python agent_workspace/service.py --role qa --redis-url redis://redis:6379
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    volumes:
+      - agent_data:/app/.agent
+      - memory_data:/app/agent_workspace/memory
+      - workspace_data:/app/workspace
+    depends_on:
+      - redis
+    restart: always
+
+  agent-cfo:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: las-agent-cfo
+    command: python agent_workspace/service.py --role cfo --redis-url redis://redis:6379
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    volumes:
+      - agent_data:/app/.agent
+      - memory_data:/app/agent_workspace/memory
+      - workspace_data:/app/workspace
+    depends_on:
+      - redis
+    restart: always
+
+volumes:
+  agent_data:
+  memory_data:
+  workspace_data:
