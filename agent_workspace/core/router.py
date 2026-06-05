@@ -258,6 +258,21 @@ class TemplateWatcher:
 class AgentRouter:
     """Route one session through intent classification, LLM calls, tools, and memory."""
 
+    PAUSED_SESSIONS: set[str] = set()
+
+    @classmethod
+    def pause_session(cls, session_id: str):
+        cls.PAUSED_SESSIONS.add(session_id)
+
+    @classmethod
+    def resume_session(cls, session_id: str):
+        cls.PAUSED_SESSIONS.discard(session_id)
+
+    @classmethod
+    def is_paused(cls, session_id: str) -> bool:
+        return session_id in cls.PAUSED_SESSIONS
+
+
     def __init__(self, engine: AgentEngine, session_id: str = "default", agent_name: str = "default"):
         self.engine = engine
         self.session_id = session_id
@@ -421,6 +436,8 @@ class AgentRouter:
 
         if is_sensitive or auth_level == "interactive-approval":
             approved = await self._wait_for_approval(tool_name, tool_args)
+            if isinstance(approved, dict) and approved.get("hijacked"):
+                return approved.get("hijack_value")
             if not approved:
                 raise ApprovalDeniedError(f"Human approval denied for tool '{tool_name}'")
 
@@ -808,6 +825,8 @@ class AgentRouter:
                 logger.debug("Message history length: %s", len(messages))
 
                 while iteration < self.max_iterations:
+                    while self.is_paused(self.session_id):
+                        await asyncio.sleep(0.2)
                     iteration += 1
                     logger.info("[Iteration %s/%s]", iteration, self.max_iterations)
 
@@ -1057,6 +1076,8 @@ class AgentRouter:
                 messages = self._build_message_history(user_input)
 
                 while iteration < self.max_iterations:
+                    while self.is_paused(self.session_id):
+                        await asyncio.sleep(0.2)
                     iteration += 1
                     llm_config = self._config.get("llm", {}).copy()
                     llm_config["model"] = self._resolved_account.get("model", llm_config.get("model"))

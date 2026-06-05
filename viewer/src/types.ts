@@ -167,6 +167,15 @@ export type TranslationMessages = {
   saveConfigBtn: string;
   configSavedToast: string;
   relaunchTutorialBtn: string;
+  adminConsole: string;
+  billingPlans: string;
+  apiKeyRotation: string;
+  realTimeUsage: string;
+  liveInterceptor: string;
+  ledgerVisualizer: string;
+  pauseSwarm: string;
+  resumeSwarm: string;
+  hijackInput: string;
 };
 
 export type SkillDefinition = {

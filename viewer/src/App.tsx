@@ -14,6 +14,7 @@ import { OnboardingWizard } from "./components/OnboardingWizard";
 import { RulesView } from "./components/RulesView";
 import { SettingsView } from "./components/SettingsView";
 import { Sidebar } from "./components/Sidebar";
+import { AdminDashboardView } from "./components/AdminDashboardView";
 import { TaskFlowView } from "./components/TaskFlowView";
 import { TopologyView } from "./components/TopologyView";
 import { useActivityLog } from "./hooks/useActivityLog";
@@ -191,6 +192,15 @@ export default function App() {
                   setWorkspaces={setWorkspaces}
                   t={t}
                   relaunchOnboarding={() => setHasOnboarded(false)}
+                />
+              }
+            />
+            <Route
+              path="/admin"
+              element={
+                <AdminDashboardView
+                  theme={theme}
+                  t={t}
                 />
               }
             />

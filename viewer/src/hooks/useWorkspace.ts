@@ -87,7 +87,10 @@ function deleteTaskById(tasks: AgentTask[], taskId: string): string[] {
 
 function stripDependencies(tasks: AgentTask[], removedIds: Set<string>) {
   for (const task of tasks) {
-    task.dependencies = (task.dependencies ?? []).filter((dependency) => !removedIds.has(dependency));
+    task.dependencies = (task.dependencies ?? []).filter((dependency) => {
+      const depId = typeof dependency === "string" ? dependency : dependency.id;
+      return !removedIds.has(depId);
+    });
     stripDependencies(task.tasks ?? [], removedIds);
   }
 }

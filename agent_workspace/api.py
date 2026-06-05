@@ -808,20 +808,22 @@ async def collaboration_endpoint(websocket: WebSocket, session_id: str):
         await websocket.close(code=4029, reason=str(e))
         return
 
-    # 1. Connection Guard: Validate connection against swarm consensus registry
-    role = params.get("role")
-    payload_hash = params.get("payload_hash")
-    signature = params.get("signature")
+    # 1. Connection Guard: Validate connection against swarm consensus registry (bypassed for admin)
+    is_admin = (tenant_id == "admin_tenant")
+    if not is_admin:
+        role = params.get("role")
+        payload_hash = params.get("payload_hash")
+        signature = params.get("signature")
 
-    from core.discussion_room import ProofOfConsensus
-    if not (role and payload_hash and signature and 
-            ProofOfConsensus.is_consensus_approved(workspace, payload_hash) and
-            signature == ProofOfConsensus.generate_member_signature(role, payload_hash)):
-        await websocket.accept()
-        await websocket.close(code=4003, reason="Unauthorized Swarm Handshake")
-        return
+        from core.discussion_room import ProofOfConsensus
+        if not (role and payload_hash and signature and 
+                ProofOfConsensus.is_consensus_approved(workspace, payload_hash) and
+                signature == ProofOfConsensus.generate_member_signature(role, payload_hash)):
+            await websocket.accept()
+            await websocket.close(code=4003, reason="Unauthorized Swarm Handshake")
+            return
 
-    # 2. Accept and execute ECDH session key exchange
+    # 2. Accept and execute ECDH session key exchange or bypass for admin
     await websocket.accept()
     collab_manager.active_sockets.add(websocket)
     collab_manager.websocket_tenants[websocket] = tenant_id
@@ -833,15 +835,17 @@ async def collaboration_endpoint(websocket: WebSocket, session_id: str):
             "handshake": "server_hello",
             "public_key": server_crypto.get_public_bytes()
         })
-        # Receive Client Hello with client public key
+        # Receive Client Hello
         client_hello = await websocket.receive_json()
-        if client_hello.get("handshake") != "client_hello" or "public_key" not in client_hello:
+        if client_hello.get("handshake") == "bypass" and is_admin:
+            logger.info("Admin bypassed ECDH key exchange")
+        elif client_hello.get("handshake") != "client_hello" or "public_key" not in client_hello:
             await websocket.close(code=4002, reason="Invalid Handshake Protocol")
             collab_manager.disconnect(websocket)
             return
-            
-        session_key = server_crypto.compute_shared_key(client_hello["public_key"])
-        collab_manager.register_key(websocket, session_key)
+        else:
+            session_key = server_crypto.compute_shared_key(client_hello["public_key"])
+            collab_manager.register_key(websocket, session_key)
     except Exception as e:
         logger.error(f"P2P Key Exchange failed: {e}")
         await websocket.close(code=4002, reason="Key Exchange Failure")
@@ -2728,6 +2732,184 @@ async def startup_event():
     ledger = AuditLedger(workspace)
     _audit_daemon = AuditConsensusDaemon(ledger, node_id=f"node-backend-{os.getpid()}")
     asyncio.create_task(_audit_daemon.start())
+
+
+class RotateKeyRequest(BaseModel):
+    tenant_id: str
+
+class UpdateSubRequest(BaseModel):
+    tenant_id: str
+    status: str
+
+class HijackRequest(BaseModel):
+    hijack_value: str
+
+@app.get("/v1/admin/tenants")
+async def admin_get_tenants(tenant_id: str = Depends(get_tenant_context)):
+    if tenant_id != "admin_tenant":
+        raise HTTPException(status_code=403, detail="Forbidden: Admin access required.")
+    
+    try:
+        from core.ledger import FinancialLedger
+    except ImportError:
+        from agent_workspace.core.ledger import FinancialLedger
+        
+    ledger = FinancialLedger(workspace)
+    
+    import sqlite3
+    conn = sqlite3.connect(str(ledger.db_path))
+    conn.row_factory = sqlite3.Row
+    db_tenants = {}
+    try:
+        cursor = conn.execute("SELECT * FROM tenant_subscription_status")
+        for row in cursor.fetchall():
+            db_tenants[row["tenant_id"]] = {
+                "tenant_id": row["tenant_id"],
+                "status": row["status"],
+                "stripe_customer_id": row["stripe_customer_id"],
+                "stripe_subscription_id": row["stripe_subscription_id"],
+                "last_updated": row["last_updated"]
+            }
+    except Exception as e:
+        logger.error(f"Error querying tenant status: {e}")
+    finally:
+        conn.close()
+
+    all_tenants = []
+    seen_tenants = set()
+    for key, t_id in API_KEYS.items():
+        if t_id in seen_tenants:
+            continue
+        seen_tenants.add(t_id)
+        
+        total_tokens = 0
+        total_cost = 0.0
+        try:
+            conn = sqlite3.connect(str(ledger.db_path))
+            cursor = conn.execute("SELECT SUM(total_tokens), SUM(cost) FROM financial_ledger WHERE tenant_id = ?", (t_id,))
+            row = cursor.fetchone()
+            if row:
+                total_tokens = row[0] if row[0] is not None else 0
+                total_cost = row[1] if row[1] is not None else 0.0
+        except Exception:
+            pass
+        finally:
+            conn.close()
+
+        tokens_last_min = 0
+        try:
+            from datetime import datetime, timezone, timedelta
+            now = datetime.now(timezone.utc)
+            one_minute_ago = (now - timedelta(seconds=60)).isoformat()
+            conn = sqlite3.connect(str(ledger.db_path))
+            cursor = conn.execute("SELECT SUM(total_tokens) FROM financial_ledger WHERE tenant_id = ? AND timestamp >= ?", (t_id, one_minute_ago))
+            row = cursor.fetchone()
+            if row and row[0] is not None:
+                tokens_last_min = row[0]
+        except Exception:
+            pass
+        finally:
+            conn.close()
+
+        status_info = db_tenants.get(t_id, {
+            "tenant_id": t_id,
+            "status": "active",
+            "stripe_customer_id": "mock_customer_id" if t_id != "admin_tenant" else None,
+            "stripe_subscription_id": "mock_sub_id" if t_id != "admin_tenant" else None,
+            "last_updated": datetime.now(timezone.utc).isoformat()
+        })
+
+        all_tenants.append({
+            **status_info,
+            "api_key": key,
+            "total_tokens": total_tokens,
+            "total_cost_usd": total_cost,
+            "tokens_last_minute": tokens_last_min
+        })
+
+    return {"status": "success", "tenants": all_tenants}
+
+@app.post("/v1/admin/tenants/rotate-key")
+async def admin_rotate_key(req: RotateKeyRequest, tenant_id: str = Depends(get_tenant_context)):
+    if tenant_id != "admin_tenant":
+        raise HTTPException(status_code=403, detail="Forbidden: Admin access required.")
+    
+    import secrets
+    new_key = f"key-{req.tenant_id}-{secrets.token_hex(4)}"
+    
+    keys_to_delete = [k for k, v in API_KEYS.items() if v == req.tenant_id]
+    for k in keys_to_delete:
+        del API_KEYS[k]
+    
+    API_KEYS[new_key] = req.tenant_id
+    return {"status": "success", "tenant_id": req.tenant_id, "api_key": new_key}
+
+@app.post("/v1/admin/tenants/update-subscription")
+async def admin_update_subscription(req: UpdateSubRequest, tenant_id: str = Depends(get_tenant_context)):
+    if tenant_id != "admin_tenant":
+        raise HTTPException(status_code=403, detail="Forbidden: Admin access required.")
+    
+    try:
+        from core.ledger import FinancialLedger
+        from core.billing import TenantStatusManager
+    except ImportError:
+        from agent_workspace.core.ledger import FinancialLedger
+        from agent_workspace.core.billing import TenantStatusManager
+        
+    ledger = FinancialLedger(workspace)
+    status_mgr = TenantStatusManager(ledger)
+    
+    status_mgr.update_tenant_status(
+        tenant_id=req.tenant_id,
+        status=req.status,
+        stripe_customer_id=f"cust-{req.tenant_id}",
+        stripe_subscription_id=f"sub-{req.tenant_id}"
+    )
+    return {"status": "success", "tenant_id": req.tenant_id, "status": req.status}
+
+@app.post("/v1/sessions/{session_id}/pause")
+@app.post("/v1/session/{session_id}/pause")
+async def pause_session_endpoint(session_id: str, tenant_id: str = Depends(get_tenant_context)):
+    if tenant_id != "admin_tenant":
+        raise HTTPException(status_code=403, detail="Forbidden: Admin access required.")
+    try:
+        from core.router import AgentRouter
+    except ImportError:
+        from agent_workspace.core.router import AgentRouter
+    AgentRouter.pause_session(session_id)
+    return {"status": "success", "session_id": session_id, "swarm_status": "paused"}
+
+@app.post("/v1/sessions/{session_id}/resume")
+@app.post("/v1/session/{session_id}/resume")
+async def resume_session_endpoint(session_id: str, tenant_id: str = Depends(get_tenant_context)):
+    if tenant_id != "admin_tenant":
+        raise HTTPException(status_code=403, detail="Forbidden: Admin access required.")
+    try:
+        from core.router import AgentRouter
+    except ImportError:
+        from agent_workspace.core.router import AgentRouter
+    AgentRouter.resume_session(session_id)
+    return {"status": "success", "session_id": session_id, "swarm_status": "running"}
+
+@app.post("/v1/sessions/{session_id}/hijack")
+@app.post("/v1/session/{session_id}/hijack")
+async def hijack_session_endpoint(session_id: str, req: HijackRequest, tenant_id: str = Depends(get_tenant_context)):
+    if tenant_id != "admin_tenant":
+        raise HTTPException(status_code=403, detail="Forbidden: Admin access required.")
+    try:
+        from core.router import ACTIVE_APPROVALS
+    except ImportError:
+        from agent_workspace.core.router import ACTIVE_APPROVALS
+        
+    approval_req = ACTIVE_APPROVALS.get(session_id)
+    if not approval_req:
+        raise HTTPException(status_code=404, detail=f"No pending HITL gate for session '{session_id}' to hijack.")
+    
+    future = approval_req["future"]
+    if not future.done():
+        future.set_result({"hijacked": True, "hijack_value": req.hijack_value})
+        return {"status": "success", "session_id": session_id, "hijack_value": req.hijack_value}
+    return {"status": "already_resolved", "session_id": session_id}
 
 
 @app.on_event("shutdown")

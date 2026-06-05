@@ -28,5 +28,20 @@
     },
     "consensus_signature": "ff2ba406da1415db96271191e19dec3406230a9a3a3648c357c5057a1baf2085",
     "timestamp": "2026-06-04T14:16:51.630431+00:00"
+  },
+  "p2p-test-encryption-payload-hash": {
+    "payload_hash": "p2p-test-encryption-payload-hash",
+    "approvals": [
+      "ceo",
+      "cto",
+      "dev"
+    ],
+    "signatures": {
+      "ceo": "112521ea8766816e34bba3ec2d6e96e0289de7484fb74d371bef3e5d51d88918",
+      "cto": "ed78a1648699e4b72c9294607ed4d0e931627cdec79697b4e8175162b5d4f3db",
+      "dev": "9add7910b28739a96112301e59bb808db27451819ca17d5271126808b5e79b2d"
+    },
+    "consensus_signature": "d84a5836756b5a5f6b010148bbb89c7f006dfa962e86d39467efd603f36b7fc9",
+    "timestamp": "2026-06-05T13:22:59.850651+00:00"
   }
 }

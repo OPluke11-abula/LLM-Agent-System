@@ -13,6 +13,7 @@ export function Sidebar({ t, relaunchOnboarding }: SidebarProps) {
     { label: t.rules, to: "/rules" },
     { label: t.mods, to: "/mods" },
     { label: t.settings, to: "/settings" },
+    { label: t.adminConsole, to: "/admin" },
   ];
 
   return (
