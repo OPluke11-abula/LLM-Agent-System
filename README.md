@@ -4,8 +4,8 @@
 
 ![GitHub License](https://img.shields.io/badge/license-Elastic%202.0-blueviolet?style=for-the-badge)
 ![Python Version](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.14-blue?style=for-the-badge)
-![Framework Protocol](https://img.shields.io/badge/protocol-PAP%20v0.1.0-orange?style=for-the-badge)
-![Build Status](https://img.shields.io/badge/tests-198%20passed%20%2F%20100%25%20green-success?style=for-the-badge)
+![Framework Protocol](https://img.shields.io/badge/protocol-PAP%20v0.2.0-orange?style=for-the-badge)
+![Build Status](https://img.shields.io/badge/tests-263%20passed%20%2F%20100%25%20green-success?style=for-the-badge)
 
 ### [English](#-english) | [繁體中文](#-繁體中文)
 
@@ -164,6 +164,15 @@ LAS supports highly scalable, distributed execution of agent swarms:
 
 ---
 
+### 🔏 Portable Agent Protocol (PAP) v0.2.0 Alignment
+LAS is fully aligned with the latest PAP v0.2.0 reference specification:
+* **Strict JSON Schema Validation**: Natively validates `.agent/agent.md` manifest frontmatter against `spec/agent-schema.json` using the `jsonschema` library, catching layout mismatches and missing keys.
+* **Bootstrapping Onboarding State Machine**: Enforces a strict onboarding guard that blocks tool executions until the agent has read `agent.md`, `skills.md`, `agent_tasks.md`, and `handoff_guide.md` in order.
+* **Turn & Context Limit Exceeded Handoffs**: Automatically exports session handoffs and raises `HandoffRequired` (Exit Code `42`) to gracefully trigger host-level execution restarts.
+* **Automated Registry Sync**: Supports `cli.py --sync-pap` to validate local workspaces and synchronize standard skill definitions or templates automatically.
+
+---
+
 ## 🌐 繁體中文
 
 > ### 🧠 **首個讓 AI 幫你客製化與重構 AI 的框架**
@@ -303,6 +312,15 @@ LAS 支援高可擴充性的分散式智慧體群體執行架構：
 * **密碼學共識審計**: 批次審計事件日誌並構建確定性 Merkle Tree (`core/merkle.py`)，驗證跨節點的區塊狀態一致性，並提供 `/v1/audit/status` 與 `/v1/audit/sync` API 端點。
 * **自癒與複製同步**: 透過非同步共識守護程序 (`AuditConsensusDaemon` 於 `core/audit_ledger.py`) 在 Redis 上定期廣播 Merkle Root 與計數。落後節點會自動請求缺失日誌、驗證簽章並進行自癒。
 * **篡改與分叉檢測**: 自動偵測無法解決的分叉和無效日誌，同步拋出安全性警報並寫入 `SOC2_VIOLATION` 審計記錄。
+
+---
+
+### 🔏 Portable Agent Protocol (PAP) v0.2.0 協議對齊
+LAS 完整對齊了最新版的 PAP v0.2.0 參考實作：
+* **嚴格的 JSON Schema 靜態校驗**：利用 `jsonschema` 庫對 `.agent/agent.md` 屬性宣告進行 Schema 格式驗證，確保屬性宣告沒有拼寫錯誤。
+* **引導順序防禦狀態機**：強制要求智慧體在執行工具前，必須依序讀取 `agent.md` -> `skills.md` -> `agent_tasks.md` -> `handoff_guide.md` 才能解鎖工具。
+* **超限自動 Handoff 重啟**：當對話輪次或 context 字數超限時，自動導出 Handoff 封包並拋出 `HandoffRequired` 異常以 Exit Code `42` 退出，通知宿主重啟執行執行緒。
+* **自動化協定同步 CLI**：支援 `cli.py --sync-pap` 一鍵校驗本地工作區合約並自動對齊與引進標準 Skill 合約範本。
 
 ---
 
