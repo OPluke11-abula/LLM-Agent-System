@@ -1,5 +1,6 @@
 ---
 id: topological_workspace
+name: topological_workspace
 description: '建立並維護拓撲式視覺工作區。將多個 AI Agent 的任務節點 以有向圖（DAG）形式組織，並輸出可讀的 Markdown 或 JSON。
   當使用者要求「建立任務圖」、「更新節點狀態」、「串接 Agent」時觸發。
 
@@ -12,8 +13,12 @@ inputs:
     required: false
     description: The specific intent or question when invoking this skill.
 outputs:
-  success: Plain text result string.
-  error: String prefixed with Error:.
+  success:
+    type: string
+    description: Plain text result string.
+  error:
+    type: string
+    description: String prefixed with Error:.
 safety_notes:
 - This contract is generated from runtime Pydantic reflection.
 - Review and harden safety notes before production use.

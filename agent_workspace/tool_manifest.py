@@ -364,8 +364,14 @@ def sync_pap_contracts(manifest: ToolManifest, project_root: Path) -> list[str]:
             }
 
         outputs_dict = {
-            "success": "Plain text result string.",
-            "error": "String prefixed with Error:."
+            "success": {
+                "type": "string",
+                "description": "Plain text result string."
+            },
+            "error": {
+                "type": "string",
+                "description": "String prefixed with Error:."
+            }
         }
 
         # Check existing safety notes
@@ -384,6 +390,7 @@ def sync_pap_contracts(manifest: ToolManifest, project_root: Path) -> list[str]:
 
         frontmatter = {
             "id": tool.name,
+            "name": tool.name,
             "description": tool.description,
             "version": "1.0.0",
             "inputs": inputs_dict,
@@ -550,7 +557,7 @@ def validate(manifest: ToolManifest, project_root: Path) -> list[str]:
                 continue
 
             # Check required keys
-            required_keys = ["id", "description", "inputs", "outputs", "safety_notes", "version"]
+            required_keys = ["id", "name", "description", "inputs", "outputs", "safety_notes", "version"]
             missing_keys = [k for k in required_keys if k not in fm]
             if missing_keys:
                 warnings.append(f"MISSING_KEYS: .agent/skills/{tool.name}.md front matter is missing required keys: {', '.join(missing_keys)}")
@@ -559,6 +566,10 @@ def validate(manifest: ToolManifest, project_root: Path) -> list[str]:
             # Validate ID
             if fm["id"] != tool.name:
                 warnings.append(f"INVALID_ID: .agent/skills/{tool.name}.md front matter 'id' must be '{tool.name}', got '{fm['id']}'")
+
+            # Validate name
+            if fm["name"] != tool.name:
+                warnings.append(f"INVALID_NAME: .agent/skills/{tool.name}.md front matter 'name' must be '{tool.name}', got '{fm['name']}'")
 
             # Validate version
             if not isinstance(fm["version"], str) or not fm["version"].strip():
@@ -591,8 +602,16 @@ def validate(manifest: ToolManifest, project_root: Path) -> list[str]:
                 for ok in ["success", "error"]:
                     if ok not in fm["outputs"]:
                         warnings.append(f"MISSING_OUTPUT_KEY: .agent/skills/{tool.name}.md front matter 'outputs' is missing '{ok}'")
-                    elif not isinstance(fm["outputs"][ok], str) or not fm["outputs"][ok].strip():
-                        warnings.append(f"INVALID_OUTPUT_TYPE: .agent/skills/{tool.name}.md front matter 'outputs.{ok}' must be a non-empty string")
+                    else:
+                        out_info = fm["outputs"][ok]
+                        if not isinstance(out_info, dict):
+                            warnings.append(f"INVALID_OUTPUT_TYPE: .agent/skills/{tool.name}.md front matter 'outputs.{ok}' must be a dictionary")
+                        else:
+                            for sub_k in ["type", "description"]:
+                                if sub_k not in out_info:
+                                    warnings.append(f"MISSING_OUTPUT_PARAM_KEY: .agent/skills/{tool.name}.md front matter 'outputs.{ok}' is missing required key '{sub_k}'")
+                                elif not isinstance(out_info[sub_k], str) or not out_info[sub_k].strip():
+                                    warnings.append(f"INVALID_OUTPUT_PARAM_TYPE: .agent/skills/{tool.name}.md front matter 'outputs.{ok}.{sub_k}' must be a non-empty string")
 
             if not isinstance(fm["safety_notes"], list):
                 warnings.append(f"INVALID_SAFETY_NOTES: .agent/skills/{tool.name}.md front matter 'safety_notes' must be a list of strings")

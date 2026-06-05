@@ -1,62 +1,70 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "WorkflowSchema",
-  "description": "JSON Schema defining canonical structure for Portable Agent Protocol (PAP) workflows.",
+  "$id": "https://raw.githubusercontent.com/OPluke11-abula/Portable-Agent-Protocol/main/spec/workflow.schema.json",
+  "title": "Portable Agent Protocol Workflow Schema",
+  "description": "JSON Schema for validating the YAML front-matter of .agent/workflows/*.md",
   "type": "object",
+  "required": [
+    "name",
+    "steps"
+  ],
   "properties": {
-    "id": {
-      "type": "string",
-      "description": "Unique identifier of the workflow."
-    },
     "name": {
       "type": "string",
-      "description": "Human-readable name of the workflow."
-    },
-    "description": {
-      "type": "string",
-      "description": "Description of the workflow goal and process."
-    },
-    "version": {
-      "type": "string",
-      "description": "Semantic version of the workflow definition."
+      "description": "Unique, machine-readable name of this workflow.",
+      "pattern": "^[a-zA-Z0-9_-]+$"
     },
     "steps": {
       "type": "array",
+      "description": "List of execution steps forming the Directed Acyclic Graph (DAG).",
       "items": {
-        "type": "object",
-        "properties": {
-          "step_id": {
-            "type": "string",
-            "description": "Unique identifier for this step within the workflow."
-          },
-          "skill_id": {
-            "type": "string",
-            "description": "The skill called during this step."
-          },
-          "params": {
-            "type": "object",
-            "description": "Hardcoded or dynamically mapped parameters to pass to the skill."
-          },
-          "next_step": {
-            "type": ["string", "null"],
-            "description": "The ID of the step to execute next (null for end of workflow)."
-          },
-          "on_failure": {
-            "type": "string",
-            "enum": ["fail", "skip", "retry", "fallback"],
-            "description": "Strategy when step execution encounters an error."
-          }
-        },
-        "required": ["step_id", "skill_id", "params"]
+        "$ref": "#/$defs/workflow_step"
       },
-      "description": "Ordered sequence of steps to run."
+      "minItems": 1
     }
   },
-  "required": [
-    "id",
-    "name",
-    "description",
-    "version",
-    "steps"
-  ]
+  "$defs": {
+    "workflow_step": {
+      "type": "object",
+      "required": ["id"],
+      "oneOf": [
+        {
+          "required": ["tool"],
+          "not": { "required": ["action"] }
+        },
+        {
+          "required": ["action"],
+          "not": { "required": ["tool"] }
+        }
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique, machine-readable identifier of this workflow step.",
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "tool": {
+          "type": "string",
+          "description": "The name of the PAP skill/tool to execute for this step."
+        },
+        "action": {
+          "type": "string",
+          "description": "The name of the built-in runtime action to execute (e.g., 'remember', 'respond').",
+          "enum": ["remember", "respond"]
+        },
+        "depends_on": {
+          "type": "array",
+          "description": "Step IDs that this step directly depends on and must wait for.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "params": {
+          "type": "object",
+          "description": "Arbitrary key-value parameters passed to the tool or action. Supports jinja-like string interpolation.",
+          "additionalProperties": true
+        }
+      }
+    }
+  }
 }

@@ -1,5 +1,6 @@
 ---
 id: workspace_link_tasks
+name: workspace_link_tasks
 description: Link two tasks, establishing a dependency relationship in the DAG.
 version: 1.0.0
 inputs:
@@ -11,9 +12,17 @@ inputs:
     type: string
     required: true
     description: The task that waits for from_task_id (dependent).
+  category:
+    type: string
+    required: false
+    description: 'The link category: dependency, data_flow, feedback_loop, parallel_trigger.'
 outputs:
-  success: Plain text result string.
-  error: String prefixed with Error:.
+  success:
+    type: string
+    description: Plain text result string.
+  error:
+    type: string
+    description: String prefixed with Error:.
 safety_notes:
 - This contract is generated from runtime Pydantic reflection.
 - Review and harden safety notes before production use.
@@ -32,6 +41,7 @@ Link two tasks, establishing a dependency relationship in the DAG.
 
 - `from_task_id` (string, **Required**): The task that needs to be done first (dependency).
 - `to_task_id` (string, **Required**): The task that waits for from_task_id (dependent).
+- `category` (any, Optional): The link category: dependency, data_flow, feedback_loop, parallel_trigger.
 
 ## 3. Expected Outputs
 

@@ -1,5 +1,6 @@
 ---
 id: log_archive_month
+name: log_archive_month
 description: 'Archive a specific month''s log entries into workspace/logs/YYYY-MM.md.
 
 
@@ -18,8 +19,12 @@ inputs:
     required: true
     description: Month to archive in YYYY-MM format (e.g. 2026-05).
 outputs:
-  success: Plain text result string.
-  error: String prefixed with Error:.
+  success:
+    type: string
+    description: Plain text result string.
+  error:
+    type: string
+    description: String prefixed with Error:.
 safety_notes:
 - This contract is generated from runtime Pydantic reflection.
 - Review and harden safety notes before production use.

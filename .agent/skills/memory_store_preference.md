@@ -1,5 +1,6 @@
 ---
 id: memory_store_preference
+name: memory_store_preference
 description: Store a specific user preference.
 version: 1.0.0
 inputs:
@@ -8,8 +9,12 @@ inputs:
     required: true
     description: The user preference to store.
 outputs:
-  success: Plain text result string.
-  error: String prefixed with Error:.
+  success:
+    type: string
+    description: Plain text result string.
+  error:
+    type: string
+    description: String prefixed with Error:.
 safety_notes:
 - This contract is generated from runtime Pydantic reflection.
 - Review and harden safety notes before production use.

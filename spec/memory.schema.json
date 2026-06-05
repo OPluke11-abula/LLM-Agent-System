@@ -1,91 +1,108 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "LongTermMemoryRecord",
-  "description": "JSON Schema defining canonical structure for LLM Agent System (LAS) memory records.",
+  "$id": "https://raw.githubusercontent.com/OPluke11-abula/Portable-Agent-Protocol/main/spec/memory.schema.json",
+  "title": "Portable Agent Protocol Memory Schema",
+  "description": "JSON Schema for validating episodic history entries, semantic records, and handoff packets.",
   "type": "object",
   "properties": {
-    "id": {
-      "type": "string",
-      "description": "Unique identifier of the memory record, typically hashed or prefixed."
+    "episodic": {
+      "$ref": "#/$defs/episodic_entry"
     },
-    "session_id": {
-      "type": "string",
-      "description": "Identifier of the conversation or project session that generated the memory."
+    "semantic": {
+      "$ref": "#/$defs/semantic_record"
     },
-    "created_at": {
-      "type": "string",
-      "format": "date-time",
-      "description": "ISO 8601 formatted UTC timestamp of memory creation."
-    },
-    "source": {
-      "type": "string",
-      "description": "The generator or module that authored the memory (e.g. 'memory_limit_hook', 'semantic_extraction')."
-    },
-    "source_hash": {
-      "type": "string",
-      "description": "SHA-256 hash of the source data used for deduplication."
-    },
-    "summary": {
-      "type": "string",
-      "description": "The human-readable summary, fact description, or user preference."
-    },
-    "keywords": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      },
-      "description": "Searchable keywords extracted from the memory content."
-    },
-    "message_count": {
-      "type": "integer",
-      "minimum": 0,
-      "description": "Number of conversation messages summarized in this memory (0 for semantic/preference/handoff)."
-    },
-    "payload": {
-      "type": "object",
-      "description": "Detailed payload containing raw message chunks, structured task graphs, or state metadata."
-    },
-    "domain": {
-      "type": "string",
-      "enum": ["episodic", "semantic", "preference", "handoff"],
-      "description": "The taxonomy domain of the memory."
-    },
-    "confidence": {
-      "type": "number",
-      "minimum": 0.0,
-      "maximum": 1.0,
-      "description": "Factual reliability/confidence score of the memory record."
-    },
-    "citations": {
-      "type": ["array", "null"],
-      "items": {
-        "type": "string"
-      },
-      "description": "Task IDs, URLs, or file path references citing the source of the memory."
-    },
-    "expires_at": {
-      "type": ["string", "null"],
-      "format": "date-time",
-      "description": "Optional ISO 8601 UTC timestamp of memory expiration."
-    },
-    "privacy_level": {
-      "type": "string",
-      "enum": ["session", "project", "user", "deployment"],
-      "description": "Privacy scope defining visibility of this memory."
+    "handoff": {
+      "$ref": "#/$defs/handoff_packet"
     }
   },
-  "required": [
-    "id",
-    "session_id",
-    "created_at",
-    "source",
-    "source_hash",
-    "summary",
-    "keywords",
-    "message_count",
-    "payload",
-    "domain",
-    "confidence",
-    "privacy_level"
-  ]
+  "$defs": {
+    "episodic_entry": {
+      "type": "object",
+      "required": [
+        "id",
+        "timestamp",
+        "role",
+        "content"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier (UUID v4) for the interaction turn.",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "ISO-8601 formatted timestamp of the turn.",
+          "format": "date-time"
+        },
+        "role": {
+          "type": "string",
+          "description": "Role of the participant in this turn.",
+          "enum": ["user", "agent"]
+        },
+        "content": {
+          "type": "string",
+          "description": "Text payload of the turn or serialized tool result."
+        },
+        "tool": {
+          "type": ["string", "null"],
+          "description": "Name of the tool executed in this turn, if applicable."
+        }
+      }
+    },
+    "semantic_record": {
+      "type": "object",
+      "required": [
+        "key",
+        "value"
+      ],
+      "properties": {
+        "key": {
+          "type": "string",
+          "description": "A unique identifier for the long-term knowledge concept.",
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "value": {
+          "description": "The payload of the stored concept (can be primitive or complex)."
+        },
+        "metadata": {
+          "type": "object",
+          "properties": {
+            "created_at": { "type": "string", "format": "date-time" },
+            "updated_at": { "type": "string", "format": "date-time" },
+            "tags": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      }
+    },
+    "handoff_packet": {
+      "type": "object",
+      "required": [
+        "task_state",
+        "pending_steps",
+        "context_summary",
+        "memory_snapshot"
+      ],
+      "properties": {
+        "task_state": {
+          "type": "string",
+          "description": "Brief description of the current task state."
+        },
+        "pending_steps": {
+          "type": "array",
+          "description": "Array of remaining task checklist items.",
+          "items": { "type": "string" }
+        },
+        "context_summary": {
+          "type": "string",
+          "description": "High-level summary of context, goals, and history for the next agent."
+        },
+        "memory_snapshot": {
+          "type": "object",
+          "description": "A dictionary snapshot of important key-value pairs from short/long-term memory.",
+          "additionalProperties": true
+        }
+      }
+    }
+  }
 }

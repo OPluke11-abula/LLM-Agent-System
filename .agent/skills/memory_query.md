@@ -1,5 +1,6 @@
 ---
 id: memory_query
+name: memory_query
 description: Search long-term memory for records matching the query.
 version: 1.0.0
 inputs:
@@ -17,8 +18,12 @@ inputs:
     required: false
     description: Maximum number of records to return.
 outputs:
-  success: Plain text result string.
-  error: String prefixed with Error:.
+  success:
+    type: string
+    description: Plain text result string.
+  error:
+    type: string
+    description: String prefixed with Error:.
 safety_notes:
 - This contract is generated from runtime Pydantic reflection.
 - Review and harden safety notes before production use.

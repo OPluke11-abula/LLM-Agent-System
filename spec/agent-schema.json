@@ -1,86 +1,9 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "AgentManifestSchema",
-  "description": "JSON Schema defining canonical structure for the .agent/agent.md YAML front matter.",
+  "$id": "https://raw.githubusercontent.com/OPluke11-abula/Portable-Agent-Protocol/main/spec/agent-schema.json",
+  "title": "Portable Agent Protocol Manifest Schema",
+  "description": "JSON Schema for validating the YAML front-matter of .agent/agent.md",
   "type": "object",
-  "properties": {
-    "protocol_version": {
-      "type": "string",
-      "description": "Version of the Portable Agent Protocol (PAP) used by this agent."
-    },
-    "min_runtime_version": {
-      "type": "string",
-      "description": "Minimum required version of the runtime engine to execute this agent."
-    },
-    "name": {
-      "type": "string",
-      "description": "Unique identifier/name of the agent."
-    },
-    "version": {
-      "type": "string",
-      "description": "Semantic version of the agent configuration."
-    },
-    "purpose": {
-      "type": "string",
-      "description": "High-level goal or role description of the agent."
-    },
-    "description": {
-      "type": "string",
-      "description": "Detailed explanation of the agent's responsibilities and behavior."
-    },
-    "language": {
-      "type": "string",
-      "description": "Primary language of interaction and logs (e.g., 'zh-TW', 'en')."
-    },
-    "authorization_level": {
-      "type": "string",
-      "enum": ["read-only", "interactive-approval", "autonomous"],
-      "description": "Security permission level required for execution."
-    },
-    "use_case_tags": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      },
-      "description": "Semantic tags describing target applications and use-cases."
-    },
-    "tools": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      },
-      "description": "Manifest declaring list of tools accessible to this agent."
-    },
-    "protocol": {
-      "type": "object",
-      "properties": {
-        "root": { "type": "string" },
-        "manifest": { "type": "string" },
-        "entrypoints": { "type": "object" },
-        "directories": { "type": "object" }
-      },
-      "required": ["root", "manifest"]
-    },
-    "memory": {
-      "type": "object",
-      "properties": {
-        "backend": { "type": "string" },
-        "path": { "type": "string" }
-      }
-    },
-    "prompts": {
-      "type": "object",
-      "properties": {
-        "path": { "type": "string" }
-      }
-    },
-    "workflows": {
-      "type": "object",
-      "properties": {
-        "path": { "type": "string" }
-      }
-    }
-  },
   "required": [
     "protocol_version",
     "min_runtime_version",
@@ -91,5 +14,124 @@
     "authorization_level",
     "use_case_tags",
     "tools"
-  ]
+  ],
+  "properties": {
+    "protocol_version": {
+      "type": "string",
+      "description": "The version of the Portable Agent Protocol schema.",
+      "pattern": "^v?\\d+\\.\\d+\\.\\d+$",
+      "default": "1.0.0"
+    },
+    "min_runtime_version": {
+      "type": "string",
+      "description": "The minimum agent runtime version required.",
+      "default": "0.1.0"
+    },
+    "name": {
+      "type": "string",
+      "description": "The unique name of this agent workspace.",
+      "pattern": "^[a-zA-Z0-9_-]+$"
+    },
+    "version": {
+      "type": "string",
+      "description": "The version of the agent workspace configuration.",
+      "default": "0.1.0"
+    },
+    "purpose": {
+      "type": "string",
+      "description": "A clear, concise statement of what this agent is built to achieve. This guides the AI in generating persona and making decisions."
+    },
+    "description": {
+      "type": "string",
+      "description": "Optional longer description of the agent's capabilities and background."
+    },
+    "language": {
+      "type": "string",
+      "description": "Primary language for the agent's internal reasoning and user interaction (e.g., 'zh-TW', 'en-US')."
+    },
+    "authorization_level": {
+      "type": "string",
+      "description": "The level of autonomy granted to this agent.",
+      "enum": [
+        "read-only",
+        "interactive-approval",
+        "autonomous"
+      ]
+    },
+    "use_case_tags": {
+      "type": "array",
+      "description": "Tags categorizing the agent's domains (e.g., ['code-review', 'python', 'security']). Used to narrow down tool selection and persona generation.",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "tools": {
+      "type": "array",
+      "description": "List of PAP skill names enabled for this agent. Each must have a corresponding .agent/skills/<tool>.md contract.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "schema_evolution": {
+      "type": "object",
+      "description": "Rules governing how the agent can mutate its own configuration (e.g., skills, workflows) to ensure stability in a multi-agent environment.",
+      "properties": {
+        "allow_self_evolution": { "type": "boolean", "default": false },
+        "strict_forward_compatibility": { "type": "boolean", "description": "If true, skill mutations must be forward-compatible to prevent breaking dependent agents.", "default": true }
+      }
+    },
+    "mcp_servers": {
+      "type": "object",
+      "description": "Optional: Model Context Protocol (MCP) servers to mount into this workspace.",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "command": { "type": "string" },
+          "args": { "type": "array", "items": { "type": "string" } },
+          "env": { "type": "object" }
+        },
+        "required": ["command"]
+      }
+    },
+    "protocol": {
+      "type": "object",
+      "description": "Paths defining the structure of the Portable Agent Protocol workspace.",
+      "properties": {
+        "root": { "type": "string", "default": ".agent/" },
+        "manifest": { "type": "string", "default": ".agent/agent.md" },
+        "entrypoints": { "type": "object" },
+        "directories": { "type": "object" }
+      }
+    },
+    "memory": {
+      "type": "object",
+      "description": "Memory architecture configuration, supporting tiered memory for formal execution semantics.",
+      "properties": {
+        "tiers": {
+          "type": "object",
+          "description": "Definition of memory tiers: ephemeral, session, persistent, and shared.",
+          "properties": {
+            "ephemeral": { "type": "string", "description": "Short-term, non-persisted memory.", "enum": ["in_memory", "none"], "default": "in_memory" },
+            "session": { "type": "string", "description": "Memory tied to the current execution session.", "enum": ["in_memory", "local", "redis"], "default": "in_memory" },
+            "persistent": { "type": "string", "description": "Long-term durable memory.", "enum": ["local", "json", "sqlite", "vector"], "default": "local" },
+            "shared": { "type": "string", "description": "Memory shared across multiple agents for handoff and broadcast.", "enum": ["none", "sqlite", "postgres", "redis"], "default": "none" }
+          }
+        },
+        "path": { "type": "string", "default": ".agent/memory/" }
+      }
+    },
+    "prompts": {
+      "type": "object",
+      "properties": {
+        "path": { "type": "string", "default": ".agent/prompts.md" }
+      }
+    },
+    "workflows": {
+      "type": "object",
+      "properties": {
+        "path": { "type": "string", "default": ".agent/workflows.md" }
+      }
+    }
+  }
 }

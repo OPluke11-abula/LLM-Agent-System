@@ -19,12 +19,17 @@ class InputParam(BaseModel):
     required: bool
     description: str
 
+class OutputParam(BaseModel):
+    type: str
+    description: str
+
 class Outputs(BaseModel):
-    success: str
-    error: str
+    success: OutputParam
+    error: OutputParam
 
 class SkillContractFrontMatter(BaseModel):
     id: str
+    name: str
     description: str
     version: str
     inputs: Dict[str, InputParam]

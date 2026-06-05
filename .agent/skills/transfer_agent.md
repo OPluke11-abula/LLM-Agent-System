@@ -1,5 +1,6 @@
 ---
 id: transfer_agent
+name: transfer_agent
 description: '[System Tool] Transfer the current session to a different Agent.
 
   Call this tool ONLY when the user''s request requires a different specialized agent.'
@@ -15,8 +16,12 @@ inputs:
     required: true
     description: The reason for the handoff, summarizing what needs to be done next.
 outputs:
-  success: Plain text result string.
-  error: String prefixed with Error:.
+  success:
+    type: string
+    description: Plain text result string.
+  error:
+    type: string
+    description: String prefixed with Error:.
 safety_notes:
 - This skill does not execute the target agent by itself.
 - Downstream routing and authorization remain runtime responsibilities.

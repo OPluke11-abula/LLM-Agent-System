@@ -1,5 +1,6 @@
 ---
 id: log_compress_done
+name: log_compress_done
 description: 'Compress all Done tasks'' logs to ≤3 lines.
 
 
@@ -14,8 +15,12 @@ description: 'Compress all Done tasks'' logs to ≤3 lines.
 version: 1.0.0
 inputs: {}
 outputs:
-  success: Plain text result string.
-  error: String prefixed with Error:.
+  success:
+    type: string
+    description: Plain text result string.
+  error:
+    type: string
+    description: String prefixed with Error:.
 safety_notes:
 - This contract is generated from runtime Pydantic reflection.
 - Review and harden safety notes before production use.

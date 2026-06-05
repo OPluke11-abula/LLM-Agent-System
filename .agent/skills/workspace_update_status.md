@@ -1,5 +1,6 @@
 ---
 id: workspace_update_status
+name: workspace_update_status
 description: Update task status and append to log.
 version: 1.0.0
 inputs:
@@ -16,8 +17,12 @@ inputs:
     required: false
     description: Optional log message to append.
 outputs:
-  success: Plain text result string.
-  error: String prefixed with Error:.
+  success:
+    type: string
+    description: Plain text result string.
+  error:
+    type: string
+    description: String prefixed with Error:.
 safety_notes:
 - This contract is generated from runtime Pydantic reflection.
 - Review and harden safety notes before production use.

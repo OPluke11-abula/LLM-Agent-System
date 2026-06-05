@@ -1,11 +1,16 @@
 ---
 id: workspace_render_topology
+name: workspace_render_topology
 description: Render and return the current topological ASCII graph.
 version: 1.0.0
 inputs: {}
 outputs:
-  success: Plain text result string.
-  error: String prefixed with Error:.
+  success:
+    type: string
+    description: Plain text result string.
+  error:
+    type: string
+    description: String prefixed with Error:.
 safety_notes:
 - This contract is generated from runtime Pydantic reflection.
 - Review and harden safety notes before production use.

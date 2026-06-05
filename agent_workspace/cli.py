@@ -566,6 +566,35 @@ def handle_stream(args):
         router.close()
 
 
+def handle_sync_pap(args):
+    """Validate schemas and automatically synchronize/bootstrap default skill templates."""
+    project_root = Path(workspace).parent
+    print("Running PAP v0.2.0 schema validation...")
+    try:
+        run_pap_validate(project_root)
+    except Exception as e:
+        print(f"Validation warning/error encountered: {e}")
+
+    print("Synchronizing and bootstrapping PAP workspace contracts...")
+    try:
+        import tool_manifest
+        engine = AgentEngine(workspace_path=str(project_root / "agent_workspace"), bypass_onboarding=True)
+        manifest = tool_manifest.ToolManifest.from_engine(engine)
+        written = tool_manifest.sync_pap_contracts(manifest, project_root)
+        tool_manifest.sync_skills_md(manifest, project_root)
+        tool_manifest.sync_agent_md_tools(manifest, project_root)
+        if written:
+            print(f"Synchronized: Scaffolded {len(written)} missing skill contract(s).")
+            for w in written:
+                print(f"  + {w}")
+        else:
+            print("All skill contracts are up-to-date.")
+        print("Workspace synchronization completed successfully.")
+    except Exception as err:
+        print(f"Error during synchronization: {err}", file=sys.stderr)
+        sys.exit(1)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Unified Operations Developer CLI toolbelt for LAS.")
     
@@ -588,6 +617,7 @@ def main() -> None:
     group.add_argument("--run-debate", action="store_true", help="Orchestrate a multi-agent debate and consensus loop.")
     group.add_argument("--chat", action="store_true", help="Run an interactive, closed-loop chat session with the agent.")
     group.add_argument("--stream", type=str, metavar="MESSAGE", help="Stream a single agent run execution for a message.")
+    group.add_argument("--sync-pap", action="store_true", help="Validate local schemas and automatically synchronize or bootstrap default skill templates in the workspace.")
     
     parser.add_argument("--resume", action="store_true", help="Resume workflow execution from last failed step.")
     parser.add_argument("--dry-run", action="store_true", help="Simulate init subcommand without creating files.")
@@ -616,6 +646,9 @@ def main() -> None:
     elif "stream" in sys_args:
         idx = sys_args.index("stream")
         sys_args[idx] = "--stream"
+    elif "sync-pap" in sys_args:
+        idx = sys_args.index("sync-pap")
+        sys_args[idx] = "--sync-pap"
         
     args = parser.parse_args(sys_args)
     
@@ -641,6 +674,15 @@ def main() -> None:
         handle_chat(args)
     elif args.stream:
         handle_stream(args)
+    elif args.sync_pap:
+        handle_sync_pap(args)
  
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        if hasattr(e, "HANDOFF_EXIT_CODE"):
+            sys.exit(e.HANDOFF_EXIT_CODE)
+        if e.__class__.__name__ == "HandoffRequired":
+            sys.exit(42)
+        raise e

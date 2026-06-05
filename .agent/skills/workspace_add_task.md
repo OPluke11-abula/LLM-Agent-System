@@ -1,5 +1,6 @@
 ---
 id: workspace_add_task
+name: workspace_add_task
 description: Add a new task node to the topological workspace.
 version: 1.0.0
 inputs:
@@ -22,10 +23,14 @@ inputs:
   depends_on:
     type: array
     required: false
-    description: List of task IDs this task depends on.
+    description: List of task IDs or structured dependency objects.
 outputs:
-  success: Plain text result string.
-  error: String prefixed with Error:.
+  success:
+    type: string
+    description: Plain text result string.
+  error:
+    type: string
+    description: String prefixed with Error:.
 safety_notes:
 - This contract is generated from runtime Pydantic reflection.
 - Review and harden safety notes before production use.
@@ -46,7 +51,7 @@ Add a new task node to the topological workspace.
 - `title` (string, **Required**): Task title.
 - `agent` (string, Optional): Assigned Agent.
 - `description` (string, Optional): Task description.
-- `depends_on` (array, Optional): List of task IDs this task depends on.
+- `depends_on` (array, Optional): List of task IDs or structured dependency objects.
 
 ## 3. Expected Outputs
 

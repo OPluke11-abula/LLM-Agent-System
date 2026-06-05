@@ -1,5 +1,6 @@
 ---
 id: workspace_cancel_task
+name: workspace_cancel_task
 description: Mark a task and all of its recursive descendants as Cancelled in the
   workspace DAG.
 version: 1.0.0
@@ -9,8 +10,12 @@ inputs:
     required: true
     description: The ID of the task to cancel recursively.
 outputs:
-  success: Plain text result string.
-  error: String prefixed with Error:.
+  success:
+    type: string
+    description: Plain text result string.
+  error:
+    type: string
+    description: String prefixed with Error:.
 safety_notes:
 - This contract is generated from runtime Pydantic reflection.
 - Review and harden safety notes before production use.

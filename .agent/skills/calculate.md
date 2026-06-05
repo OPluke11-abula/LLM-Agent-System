@@ -1,5 +1,6 @@
 ---
 id: calculate
+name: calculate
 description: 'Perform a basic arithmetic calculation.
 
   Supports: add, subtract, multiply, divide.'
@@ -19,8 +20,12 @@ inputs:
     required: true
     description: The second number.
 outputs:
-  success: Plain text result string.
-  error: String prefixed with Error:.
+  success:
+    type: string
+    description: Plain text result string.
+  error:
+    type: string
+    description: String prefixed with Error:.
 safety_notes:
 - Division by zero returns an error string.
 - This skill is deterministic and does not access external systems.

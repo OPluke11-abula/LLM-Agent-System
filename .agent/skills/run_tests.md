@@ -1,5 +1,6 @@
 ---
 id: run_tests
+name: run_tests
 description: Execute the pytest unit test suite and return stdout, stderr, and exit
   code.
 version: 1.0.0
@@ -9,8 +10,12 @@ inputs:
     required: false
     description: Whether to run tests in verbose mode.
 outputs:
-  success: Plain text result string.
-  error: String prefixed with Error:.
+  success:
+    type: string
+    description: Plain text result string.
+  error:
+    type: string
+    description: String prefixed with Error:.
 safety_notes:
 - This contract is generated from runtime Pydantic reflection.
 - Review and harden safety notes before production use.

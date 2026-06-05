@@ -1,5 +1,6 @@
 ---
 id: memory_store_knowledge
+name: memory_store_knowledge
 description: Store valuable experience or facts as semantic knowledge.
 version: 1.0.0
 inputs:
@@ -13,8 +14,12 @@ inputs:
     description: List of task IDs, URLs, or file paths referencing where this knowledge
       came from.
 outputs:
-  success: Plain text result string.
-  error: String prefixed with Error:.
+  success:
+    type: string
+    description: Plain text result string.
+  error:
+    type: string
+    description: String prefixed with Error:.
 safety_notes:
 - This contract is generated from runtime Pydantic reflection.
 - Review and harden safety notes before production use.

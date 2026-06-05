@@ -63,6 +63,7 @@ def test_dynamic_skill_discovery_and_verification(temp_workspace):
     # 1. Valid Skill Contract YAML
     valid_yaml = """
     id: "add_numbers"
+    name: "add_numbers"
     description: "Add two numbers together."
     version: "1.0.0"
     inputs:
@@ -75,8 +76,12 @@ def test_dynamic_skill_discovery_and_verification(temp_workspace):
         required: true
         description: "The second number"
     outputs:
-      success: "Plain text sum"
-      error: "String prefixed with Error:"
+      success:
+        type: "string"
+        description: "Plain text sum"
+      error:
+        type: "string"
+        description: "String prefixed with Error:"
     safety_notes:
       - "No dangerous system command execution."
     author: "Decentralized Swarm Team"
@@ -116,14 +121,19 @@ def test_invalid_skill_contract_rejection(temp_workspace):
     # Incomplete Contract (missing required keys: description and version)
     invalid_yaml = """
     id: "invalid_tool"
+    name: "invalid_tool"
     inputs:
       param1:
         type: "string"
         required: false
         description: "A string"
     outputs:
-      success: "Success format"
-      error: "Error format"
+      success:
+        type: "string"
+        description: "Success format"
+      error:
+        type: "string"
+        description: "Error format"
     safety_notes:
       - "No notes"
     """
@@ -145,6 +155,7 @@ def test_skill_discovery_stream_chunk_parsing(temp_workspace):
     
     contract_dict = {
         "id": "say_hello",
+        "name": "say_hello",
         "description": "Greet a user.",
         "version": "1.0.0",
         "inputs": {
@@ -155,8 +166,14 @@ def test_skill_discovery_stream_chunk_parsing(temp_workspace):
             }
         },
         "outputs": {
-            "success": "Greeting string",
-            "error": "Error greeting"
+            "success": {
+                "type": "string",
+                "description": "Greeting string"
+            },
+            "error": {
+                "type": "string",
+                "description": "Error greeting"
+            }
         },
         "safety_notes": ["Always polite."],
         "author": "Stream Discovery"

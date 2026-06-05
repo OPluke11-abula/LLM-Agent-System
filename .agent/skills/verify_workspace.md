@@ -1,5 +1,6 @@
 ---
 id: verify_workspace
+name: verify_workspace
 description: Verify contracts, lints, and schemas within the active workspace.
 version: 1.0.0
 inputs:
@@ -8,8 +9,12 @@ inputs:
     required: false
     description: Whether to sync tool manifests before validation.
 outputs:
-  success: Plain text result string.
-  error: String prefixed with Error:.
+  success:
+    type: string
+    description: Plain text result string.
+  error:
+    type: string
+    description: String prefixed with Error:.
 safety_notes:
 - This contract is generated from runtime Pydantic reflection.
 - Review and harden safety notes before production use.

@@ -1,5 +1,6 @@
 ---
 id: delegate_task
+name: delegate_task
 description: '[Supervisor Tool] Delegate a complex sub-task to a specialized worker
   agent.
 
@@ -15,9 +16,29 @@ inputs:
     type: string
     required: true
     description: Detailed instructions for what the worker needs to accomplish.
+  input_parameters:
+    type: object
+    required: true
+    description: Precise input parameters for the task.
+  security_restrictions:
+    type: object
+    required: true
+    description: Security constraints and execution limits.
+  mock_directives:
+    type: object
+    required: true
+    description: Directives for mocking external systems or resources.
+  validation_assertions:
+    type: array
+    required: true
+    description: List of verification assertions that must pass for completion.
 outputs:
-  success: Plain text result string.
-  error: String prefixed with Error:.
+  success:
+    type: string
+    description: Plain text result string.
+  error:
+    type: string
+    description: String prefixed with Error:.
 safety_notes:
 - The supervisor remains responsible for deciding whether delegation is allowed.
 - Worker execution must remain traceable by session ID.
@@ -38,6 +59,10 @@ The worker will run autonomously and return its final response.
 
 - `worker_name` (string, **Required**): The name of the specialized worker agent to delegate to (e.g. 'math_expert', 'researcher').
 - `task_instructions` (string, **Required**): Detailed instructions for what the worker needs to accomplish.
+- `input_parameters` (object, **Required**): Precise input parameters for the task.
+- `security_restrictions` (object, **Required**): Security constraints and execution limits.
+- `mock_directives` (object, **Required**): Directives for mocking external systems or resources.
+- `validation_assertions` (array, **Required**): List of verification assertions that must pass for completion.
 
 ## 3. Expected Outputs
 

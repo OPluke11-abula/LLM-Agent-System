@@ -1,5 +1,6 @@
 ---
 id: governed_memory
+name: governed_memory
 description: Markdown skill for governed_memory
 version: 1.0.0
 inputs:
@@ -8,8 +9,12 @@ inputs:
     required: false
     description: The specific intent or question when invoking this skill.
 outputs:
-  success: Plain text result string.
-  error: String prefixed with Error:.
+  success:
+    type: string
+    description: Plain text result string.
+  error:
+    type: string
+    description: String prefixed with Error:.
 safety_notes:
 - This contract is generated from runtime Pydantic reflection.
 - Review and harden safety notes before production use.

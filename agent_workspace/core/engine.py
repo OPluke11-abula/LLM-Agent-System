@@ -47,14 +47,42 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
+class HandoffRequired(RuntimeError):
+    """Raised when a thread handoff is required due to context/turn limits."""
+
+    HANDOFF_EXIT_CODE = 42
+
+    def __init__(self, handoff_id: str, reason: str) -> None:
+        self.handoff_id = handoff_id
+        self.reason = reason
+        super().__init__(
+            f"Handoff required ({reason}). Handoff packet exported as '{handoff_id}'."
+        )
+
+
 class AgentEngine:
     """Runtime owner for prompt rendering and reflected tool execution."""
 
     PROTOCOL_VERSION = "1.0.0"
     RUNTIME_VERSION = "0.5.0"
 
-    def __init__(self, workspace_path: str = "."):
+    def __init__(self, workspace_path: str = ".", bypass_onboarding: bool = False, enforce_onboarding: bool | None = None):
         self.workspace_path = os.path.abspath(workspace_path)
+
+        # Load agent config YAML frontmatter if it exists
+        self.config = {}
+        agent_md = os.path.join(self.workspace_path, ".agent", "agent.md")
+        if os.path.isfile(agent_md):
+            try:
+                with open(agent_md, "r", encoding="utf-8") as f:
+                    raw_agent = f.read()
+                self.config, _ = self._split_frontmatter(raw_agent)
+            except Exception:
+                pass
+
+        # Check version compatibility at startup
+        self._check_version_compat()
+
         self.jinja_env = (
             Environment(loader=FileSystemLoader(self.workspace_path))
             if Environment is not None and FileSystemLoader is not None
@@ -80,6 +108,116 @@ class AgentEngine:
                     self.handoff_threshold = cfg.get("agent", {}).get("handoff_threshold", 5)
             except Exception:
                 pass
+
+        # Onboarding Sequence Configuration
+        self.onboarding_sequence = ["agent.md", "skills.md", "agent_tasks.md", "handoff_guide.md"]
+        self._onboarding_read: list[str] = []
+        env_bypass = os.environ.get("PAP_BYPASS_ONBOARDING", "").strip().lower() in ("1", "true", "yes", "on")
+        self._bypass_onboarding = bypass_onboarding or env_bypass
+
+        # Determine if onboarding is required
+        if enforce_onboarding is not None:
+            self._onboarding_required = enforce_onboarding
+        else:
+            self._onboarding_required = self._resolve_onboarding_required()
+
+
+
+        # Auto-handoff limits
+        auto_handoff_cfg = self.config.get("auto_handoff", {}) or {}
+        self._max_turns = int(auto_handoff_cfg.get("max_turns", 0))
+        self._max_context_chars = int(auto_handoff_cfg.get("max_context_chars", 0))
+        self._turn_count = 0
+        self._context_chars = 0
+
+    def _resolve_onboarding_required(self) -> bool:
+        """Resolve whether all onboarding sequence files are present and declared."""
+        paths_map = {
+            "agent.md": os.path.join(self.workspace_path, ".agent", "agent.md"),
+            "skills.md": os.path.join(self.workspace_path, ".agent", "skills.md"),
+            "agent_tasks.md": os.path.join(self.workspace_path, "agent_tasks.md") if os.path.isfile(os.path.join(self.workspace_path, "agent_tasks.md")) else os.path.join(self.workspace_path, ".agent", "agent_tasks.md"),
+            "handoff_guide.md": os.path.join(self.workspace_path, ".agent", "handoff_guide.md"),
+        }
+        for label, path in paths_map.items():
+            if not os.path.isfile(path):
+                return False
+
+        protocol = self.config.get("protocol")
+        if not isinstance(protocol, dict):
+            return False
+        entrypoints = protocol.get("entrypoints")
+        if not isinstance(entrypoints, dict):
+            return False
+        return all(k in entrypoints for k in ("skills", "tasks", "handoff"))
+
+    def _check_version_compat(self) -> None:
+        """Verify protocol version compatibility and min runtime version requirement."""
+        protocol_ver = self.config.get("protocol_version")
+        min_runtime_ver = self.config.get("min_runtime_version")
+
+        if protocol_ver:
+            parsed_manifest_proto = self._parse_version(str(protocol_ver))
+            parsed_engine_proto = self._parse_version(self.PROTOCOL_VERSION)
+            if len(parsed_manifest_proto) > 0 and len(parsed_engine_proto) > 0:
+                if parsed_manifest_proto[0] != parsed_engine_proto[0]:
+                    import warnings
+                    msg = f"Protocol version mismatch: manifest protocol version '{protocol_ver}' is incompatible with engine protocol version '{self.PROTOCOL_VERSION}'"
+                    warnings.warn(msg, UserWarning)
+                    logger.warning(msg)
+
+        if min_runtime_ver:
+            parsed_min_runtime = self._parse_version(str(min_runtime_ver))
+            parsed_engine_runtime = self._parse_version(self.RUNTIME_VERSION)
+            if parsed_min_runtime > parsed_engine_runtime:
+                import warnings
+                msg = f"Runtime version mismatch: manifest requires min_runtime_version '{min_runtime_ver}' but engine runtime version is '{self.RUNTIME_VERSION}'"
+                warnings.warn(msg, UserWarning)
+                logger.warning(msg)
+
+    def is_onboarding_complete(self) -> bool:
+        """Check if the strict onboarding sequence has been completed."""
+        if self._bypass_onboarding or not self._onboarding_required:
+            return True
+        return len(self._onboarding_read) >= len(self.onboarding_sequence)
+
+    def read_onboarding_file(self, filename: str) -> str:
+        """Read an onboarding document in strict sequence order."""
+        basename = os.path.basename(filename)
+        if basename not in self.onboarding_sequence:
+            raise ValueError(f"File '{filename}' is not part of the onboarding sequence.")
+
+        paths_map = {
+            "agent.md": os.path.join(self.workspace_path, ".agent", "agent.md"),
+            "skills.md": os.path.join(self.workspace_path, ".agent", "skills.md"),
+            "agent_tasks.md": os.path.join(self.workspace_path, "agent_tasks.md") if os.path.isfile(os.path.join(self.workspace_path, "agent_tasks.md")) else os.path.join(self.workspace_path, ".agent", "agent_tasks.md"),
+            "handoff_guide.md": os.path.join(self.workspace_path, ".agent", "handoff_guide.md"),
+        }
+        target_path = paths_map[basename]
+        if not os.path.isfile(target_path):
+            raise FileNotFoundError(f"Onboarding file '{basename}' missing at '{target_path}'.")
+
+        with open(target_path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        if self._bypass_onboarding or not self._onboarding_required:
+            return content
+
+        if basename in self._onboarding_read:
+            return content
+
+        expected = self.onboarding_sequence[len(self._onboarding_read)]
+        if basename != expected:
+            raise PermissionError(
+                f"Onboarding sequence out of order. Expected {expected}, got {basename}. "
+                f"Must read agent.md -> skills.md -> agent_tasks.md -> handoff_guide.md before calling tools."
+            )
+
+        self._onboarding_read.append(basename)
+        return content
+
+    def complete_onboarding(self) -> None:
+        """Mark onboarding sequence as completed."""
+        self._onboarding_read = list(self.onboarding_sequence)
 
     def render_prompt(self, runtime_context: dict, agent_name: str = "default") -> str:
         """Render the default or named-agent Jinja2 prompt."""
@@ -139,6 +277,29 @@ class AgentEngine:
         context: dict[str, Any] | None = None,
     ) -> str:
         """Validate arguments and execute a reflected tool."""
+        # Onboarding guard check
+        if not self.is_onboarding_complete():
+            expected = self.onboarding_sequence[len(self._onboarding_read)]
+            raise PermissionError(
+                f"Onboarding sequence incomplete. Must read agent.md -> skills.md -> "
+                f"agent_tasks.md -> handoff_guide.md before calling tools. Next required file: {expected}."
+            )
+
+        # Auto-handoff limits tracking & triggers
+        self._turn_count += 1
+        self._context_chars += len(str(arguments))
+
+        reason = None
+        if self._max_turns > 0 and self._turn_count > self._max_turns:
+            reason = f"Turn count {self._turn_count} exceeds max_turns {self._max_turns}"
+        elif self._max_context_chars > 0 and self._context_chars > self._max_context_chars:
+            reason = f"Context length {self._context_chars} chars exceeds max_context_chars {self._max_context_chars}"
+
+        if reason:
+            session_id = (context or {}).get("session_id", "default_session") if context else "default_session"
+            handoff_id = self.export_handoff(session_id, f"Auto-handoff: {reason}")
+            raise HandoffRequired(handoff_id=handoff_id, reason=reason)
+
         if allowed_tools is not None and tool_name not in allowed_tools:
             raise PermissionError(f"Tool '{tool_name}' is not allowed for this request.")
 
