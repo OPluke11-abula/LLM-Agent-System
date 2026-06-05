@@ -158,6 +158,9 @@ LAS supports highly scalable, distributed execution of agent swarms:
 * **Microservices & Orchestration**: Packages individual agent roles (CEO, Dev, QA, CFO) into separate system processes/nodes managed by `docker-compose.microservices.yml`. Dynamically joins workspace sessions via a Redis-based peer discovery ping-pong protocol and periodic heartbeats.
 * **Prometheus Telemetry**: Exposes `/metrics` and `/v1/metrics` endpoints tracking tenant token metrics (`las_tenant_tokens_total`), sandbox execution statistics (`las_sandbox_executions_total`), and HTTP request latencies (`las_api_response_latency_seconds`).
 * **Real-time Resource Monitoring**: Dynamically collects Docker sandbox memory (MB) and CPU usage percentage from container stats, logging the execution overhead real-time to the immutable `AuditLedger`.
+* **Cryptographic Consensus Auditing**: Batch audits event logs and builds a deterministic Merkle Tree (`core/merkle.py`) to verify block-state consistency across nodes. Exposes `/v1/audit/status` and `/v1/audit/sync` endpoints.
+* **Self-Healing & Replication Sync**: An asynchronous consensus daemon (`AuditConsensusDaemon` in `core/audit_ledger.py`) broadcasts roots and event counts over Redis. Lagging nodes automatically request missing logs, verify signatures, and self-heal.
+* **Tamper & Fork Detection**: Detects unresolvable forks and invalid logs, automatically generating alerts and logging `SOC2_VIOLATION` records.
 
 ---
 
@@ -297,6 +300,9 @@ LAS 支援高可擴充性的分散式智慧體群體執行架構：
 * **微服務與容器編排**: 將各智慧體角色（CEO、Dev、QA、CFO）打包為獨立的系統程序/節點，由 `docker-compose.microservices.yml` 統一編排。透過 Redis 進行對等點發現（Peer Discovery） ping-pong 協議與定期心跳，動態加入活躍的工作區會議。
 * **Prometheus 指標觀測**: 曝露 `/metrics` 與 `/v1/metrics` 端點，以匯出租戶 Token 統計 (`las_tenant_tokens_total`)、沙箱執行次數 (`las_sandbox_executions_total`) 與 API 響應延遲時間 (`las_api_response_latency_seconds`) 等指標。
 * **實時沙箱資源監控**: 動態擷取 Docker 安全沙箱容器 stats 中的 CPU 百分比與記憶體（MB）開銷，並將實時運行開銷登載至不可篡改的 `AuditLedger` 審計軌跡中。
+* **密碼學共識審計**: 批次審計事件日誌並構建確定性 Merkle Tree (`core/merkle.py`)，驗證跨節點的區塊狀態一致性，並提供 `/v1/audit/status` 與 `/v1/audit/sync` API 端點。
+* **自癒與複製同步**: 透過非同步共識守護程序 (`AuditConsensusDaemon` 於 `core/audit_ledger.py`) 在 Redis 上定期廣播 Merkle Root 與計數。落後節點會自動請求缺失日誌、驗證簽章並進行自癒。
+* **篡改與分叉檢測**: 自動偵測無法解決的分叉和無效日誌，同步拋出安全性警報並寫入 `SOC2_VIOLATION` 審計記錄。
 
 ---
 

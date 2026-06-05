@@ -4,9 +4,20 @@ import json
 import hashlib
 import logging
 import threading
+import asyncio
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+try:
+    from core.merkle import MerkleTree
+except ImportError:
+    from agent_workspace.core.merkle import MerkleTree
+
+try:
+    from core.broker import get_broker, RedisSwarmBroker
+except ImportError:
+    from agent_workspace.core.broker import get_broker, RedisSwarmBroker
 
 logger = logging.getLogger("AuditLedger")
 
@@ -107,6 +118,7 @@ class AuditLedger:
                 conn.close()
 
         expected_previous_hash = "0" * 64
+        current_hashes = []
         for row in rows:
             row_id = row["id"]
             stored_previous_hash = row["previous_hash"]
@@ -117,7 +129,7 @@ class AuditLedger:
             # 1. Assert previous hash match
             if stored_previous_hash != expected_previous_hash:
                 logger.error(f"[AuditLedger] Chain broken at ID {row_id}: previous_hash mismatch.")
-                return {"valid": False, "tampered_id": row_id, "error": "previous_hash mismatch"}
+                return {"valid": False, "tampered_id": row_id, "error": "previous_hash mismatch", "merkle_root": "0" * 64}
 
             # 2. Re-compute and assert current hash
             # Reconstruct payload sorting keys to ensure deterministic serialization
@@ -133,11 +145,13 @@ class AuditLedger:
 
             if stored_current_hash != recalculated_hash:
                 logger.error(f"[AuditLedger] Hash verification failed at ID {row_id}: content hash mismatch.")
-                return {"valid": False, "tampered_id": row_id, "error": "current_hash mismatch"}
+                return {"valid": False, "tampered_id": row_id, "error": "current_hash mismatch", "merkle_root": "0" * 64}
 
             expected_previous_hash = stored_current_hash
+            current_hashes.append(stored_current_hash)
 
-        return {"valid": True, "tampered_id": None}
+        merkle_root = MerkleTree(current_hashes).root
+        return {"valid": True, "tampered_id": None, "merkle_root": merkle_root}
 
     def get_logs(self, event_type: Optional[str] = None, tenant_id: str = "default_tenant") -> List[Dict[str, Any]]:
         """Queries log entries, optionally filtered by event_type, isolated by tenant."""
@@ -173,3 +187,292 @@ class AuditLedger:
                 logger.info("[AuditLedger] Audit ledger cleared successfully.")
             finally:
                 conn.close()
+
+    def get_logs_after(self, after_id: int) -> List[Dict[str, Any]]:
+        """Queries local ledger logs where ID > after_id."""
+        with self._lock:
+            conn = self._get_conn()
+            try:
+                cursor = conn.execute("SELECT * FROM audit_ledger WHERE id > ? ORDER BY id ASC", (after_id,))
+                records = []
+                for row in cursor.fetchall():
+                    rec = dict(row)
+                    records.append(rec)
+                return records
+            finally:
+                conn.close()
+
+    def insert_raw_event(self, id: int, event_type: str, payload_str: str, previous_hash: str, current_hash: str, timestamp: str, tenant_id: str) -> None:
+        """Restores a raw event, manually specifying the ID and hashes to self-heal replicas."""
+        with self._lock:
+            conn = self._get_conn()
+            try:
+                conn.execute(
+                    """
+                    INSERT OR REPLACE INTO audit_ledger (id, event_type, payload, previous_hash, current_hash, timestamp, tenant_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (id, event_type, payload_str, previous_hash, current_hash, timestamp, tenant_id)
+                )
+                conn.commit()
+            finally:
+                conn.close()
+
+
+class AuditConsensusDaemon:
+    """
+    Background consensus daemon orchestrating cross-node audit log replication
+    and self-healing state verification over Redis.
+    """
+    def __init__(self, ledger: AuditLedger, node_id: str, sync_interval: float = 5.0):
+        self.ledger = ledger
+        self.node_id = node_id
+        self.sync_interval = sync_interval
+        self.peer_states: Dict[str, Dict[str, Any]] = {}
+        self._is_running = False
+        self._broadcast_task: Optional[asyncio.Task] = None
+        self._pending_requests: set[str] = set()
+
+    async def start(self) -> None:
+        if self._is_running:
+            return
+        self._is_running = True
+        
+        broker = get_broker()
+        # 1. Subscribe to pub/sub channels
+        await broker.subscribe("audit:sync:check", self._on_ping)
+        await broker.subscribe("audit:sync:request", self._on_request)
+        await broker.subscribe(f"audit:sync:response:{self.node_id}", self._on_response)
+        
+        # 2. Launch broadcast loop
+        self._broadcast_task = asyncio.create_task(self._broadcast_loop())
+        logger.info(f"AuditConsensusDaemon started for node '{self.node_id}'")
+
+    async def stop(self) -> None:
+        self._is_running = False
+        if self._broadcast_task:
+            self._broadcast_task.cancel()
+            try:
+                await self._broadcast_task
+            except asyncio.CancelledError:
+                pass
+            self._broadcast_task = None
+            
+        broker = get_broker()
+        await broker.unsubscribe("audit:sync:check")
+        await broker.unsubscribe("audit:sync:request")
+        await broker.unsubscribe(f"audit:sync:response:{self.node_id}")
+        logger.info(f"AuditConsensusDaemon stopped for node '{self.node_id}'")
+
+    async def _broadcast_loop(self) -> None:
+        while self._is_running:
+            try:
+                await self.broadcast_status()
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"Error in consensus daemon broadcast: {e}")
+            await asyncio.sleep(self.sync_interval)
+
+    async def broadcast_status(self) -> None:
+        status = self.ledger.verify_chain_integrity()
+        local_root = status.get("merkle_root", "0" * 64)
+        logs = self.ledger.get_logs()
+        local_count = len(logs)
+
+        msg = {
+            "type": "sync_ping",
+            "node_id": self.node_id,
+            "merkle_root": local_root,
+            "event_count": local_count
+        }
+        broker = get_broker()
+        await broker.publish("audit:sync:check", msg)
+
+    async def trigger_manual_sync(self) -> None:
+        """Triggers a manual consensus audit by querying all peer nodes."""
+        broker = get_broker()
+        # 1. Ask peers to broadcast their status immediately
+        await broker.publish("audit:sync:check", {"type": "sync_query", "sender_id": self.node_id})
+        # 2. Broadcast own status
+        await self.broadcast_status()
+
+    async def _on_ping(self, msg: dict) -> None:
+        await self.process_ping(msg)
+
+    async def _on_request(self, msg: dict) -> None:
+        await self.process_request(msg)
+
+    async def _on_response(self, msg: dict) -> None:
+        await self.process_response(msg)
+
+    async def process_ping(self, msg: dict) -> None:
+        msg_type = msg.get("type")
+        if msg_type == "sync_query":
+            # Immediately report status
+            await self.broadcast_status()
+        elif msg_type == "sync_ping":
+            peer_id = msg.get("node_id")
+            if not peer_id or peer_id == self.node_id:
+                return
+
+            peer_root = msg.get("merkle_root")
+            peer_count = msg.get("event_count")
+            
+            # Determine status
+            status = self.ledger.verify_chain_integrity()
+            local_root = status.get("merkle_root", "0" * 64)
+            local_count = len(self.ledger.get_logs())
+
+            if peer_count == local_count and peer_root == local_root:
+                peer_status = "synchronized"
+            elif local_count < peer_count:
+                peer_status = "peer_ahead"
+            else:
+                peer_status = "local_ahead"
+
+            self.peer_states[peer_id] = {
+                "last_seen": datetime.now(timezone.utc).isoformat(),
+                "event_count": peer_count,
+                "merkle_root": peer_root,
+                "status": peer_status
+            }
+
+            # If peer is ahead, request missing logs
+            if local_count < peer_count:
+                # Avoid redundant concurrent requests for the same peer range
+                req_key = f"{peer_id}:{local_count}"
+                if req_key not in self._pending_requests:
+                    self._pending_requests.add(req_key)
+                    req_msg = {
+                        "type": "logs_request",
+                        "requester_id": self.node_id,
+                        "provider_id": peer_id,
+                        "after_id": local_count
+                    }
+                    broker = get_broker()
+                    await broker.publish("audit:sync:request", req_msg)
+            
+            # Mismatch at same event count indicating unresolvable fork or tampering
+            elif peer_count == local_count and peer_root != local_root:
+                logger.error(f"[Consensus] Unresolvable fork / tampering detected between '{self.node_id}' and '{peer_id}'!")
+                self.ledger.record_event(
+                    event_type="SOC2_VIOLATION",
+                    payload={
+                        "error": "Merkle root mismatch with equal event count / unresolvable fork detected",
+                        "peer_node_id": peer_id,
+                        "local_root": local_root,
+                        "peer_root": peer_root,
+                        "event_count": local_count
+                    }
+                )
+
+    async def process_request(self, msg: dict) -> None:
+        if msg.get("type") != "logs_request":
+            return
+        
+        provider_id = msg.get("provider_id")
+        if provider_id != self.node_id:
+            return
+
+        requester_id = msg.get("requester_id")
+        after_id = msg.get("after_id", 0)
+        
+        # Fetch logs after after_id
+        logs = self.ledger.get_logs_after(after_id)
+        
+        resp = {
+            "type": "logs_response",
+            "provider_id": self.node_id,
+            "logs": logs
+        }
+        broker = get_broker()
+        await broker.publish(f"audit:sync:response:{requester_id}", resp)
+
+    async def process_response(self, msg: dict) -> None:
+        if msg.get("type") != "logs_response":
+            return
+
+        provider_id = msg.get("provider_id")
+        incoming_logs = msg.get("logs", [])
+        if not incoming_logs:
+            return
+
+        # Verification of incoming logs
+        # 1. Fetch current local state
+        local_logs = self.ledger.get_logs()
+        local_count = len(local_logs)
+        last_hash = local_logs[-1]["current_hash"] if local_logs else "0" * 64
+
+        # Validate incoming logs link correctly to last local hash and chain internally
+        expected_prev_hash = last_hash
+        verification_failed = False
+        
+        for log in incoming_logs:
+            log_id = log.get("id")
+            event_type = log.get("event_type")
+            stored_payload_str = log.get("payload")
+            stored_prev_hash = log.get("previous_hash")
+            stored_curr_hash = log.get("current_hash")
+            stored_timestamp = log.get("timestamp")
+            
+            # Check linking
+            if stored_prev_hash != expected_prev_hash:
+                logger.error(f"[Consensus] Verification failure: log ID {log_id} previous_hash mismatch.")
+                verification_failed = True
+                break
+                
+            # Check content hash
+            try:
+                payload = json.loads(stored_payload_str)
+                payload_str = json.dumps(payload, sort_keys=True)
+            except Exception:
+                payload_str = stored_payload_str
+
+            hash_input = f"{stored_prev_hash}{payload_str}{stored_timestamp}"
+            computed_hash = hashlib.sha256(hash_input.encode("utf-8")).hexdigest()
+            if computed_hash != stored_curr_hash:
+                logger.error(f"[Consensus] Verification failure: log ID {log_id} content hash mismatch.")
+                verification_failed = True
+                break
+                
+            expected_prev_hash = stored_curr_hash
+
+        if verification_failed:
+            logger.error(f"[Consensus] Replicated logs from '{provider_id}' failed verification! Rejecting.")
+            self.ledger.record_event(
+                event_type="SOC2_VIOLATION",
+                payload={
+                    "error": "Replicated logs failed cryptographic verification",
+                    "provider_node_id": provider_id,
+                    "first_incoming_id": incoming_logs[0].get("id") if incoming_logs else None
+                }
+            )
+            return
+
+        # Self-heal replica: insert all verified logs
+        for log in incoming_logs:
+            self.ledger.insert_raw_event(
+                id=log["id"],
+                event_type=log["event_type"],
+                payload_str=log["payload"],
+                previous_hash=log["previous_hash"],
+                current_hash=log["current_hash"],
+                timestamp=log["timestamp"],
+                tenant_id=log.get("tenant_id", "default_tenant")
+            )
+
+        # Clear pending request entry
+        req_key = f"{provider_id}:{local_count}"
+        self._pending_requests.discard(req_key)
+
+        logger.info(f"[Consensus] Self-healed replica successfully with {len(incoming_logs)} logs from '{provider_id}'")
+        # Record self-healing event
+        self.ledger.record_event(
+            event_type="CONSENSUS_RECOVERY",
+            payload={
+                "message": "Self-healing replication completed successfully",
+                "logs_restored": len(incoming_logs),
+                "provider_node_id": provider_id
+            }
+        )

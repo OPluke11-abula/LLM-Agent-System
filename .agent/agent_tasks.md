@@ -73,6 +73,7 @@
 - [x] **PHASE 38 — React Flow UI Tenant Auth, Stripe Metered Billing & SLA Audited Failovers**: Premium Auth panel in UI, workspace configuration filtering, Stripe webhook signature HMAC check and usage records worker synchronization, model failover guard with SLA recovery Audit logging and custom 1.8x transaction markup pricing.
 - [x] **PHASE 39 — Stripe Subscription Webhook Actions, Access Controls & Rate-Limiting**: Stripe subscription lifecycle webhook processing, TenantStatusManager status updates (active, frozen, canceled) in SQLite, get_tenant_context() and WebSocket connections access blocking (HTTP 403 / close code 4003) for frozen/canceled status, 5k tokens/min sliding-window token rate limiting enforcement (HTTP 429 / close code 4029), and direct LLM provider bypass blocking.
 - [x] **PHASE 40 — Distributed Redis Message Broker & Swarm Microservices Deployment**: RedisSwarmBroker pluggable messaging adapter with InMemorySwarmBroker fallback, standalone microservices daemon with peer discovery heartbeats, docker-compose orchestration, metrics FastAPI endpoint with Prometheus telemetry and real-time container resource utilization logging.
+- [x] **PHASE 41 — Distributed Cryptographic Consensus Auditing & Multi-Region Recovery**: Deterministic binary Merkle Tree auditing (`core/merkle.py`), get_logs_after and insert_raw_event queries, AuditConsensusDaemon background consensus daemon over Redis pub/sub (`audit:sync:check`), self-healing log replication recovery, fork and tampering detection logging SOC2_VIOLATION events, and FastAPI /v1/audit/status & /v1/audit/sync endpoints.
 
 ---
 
@@ -87,5 +88,6 @@
 | **Phase 38** | 5 tasks | 5 tasks | 100% Done |
 | **Phase 39** | 4 tasks | 4 tasks | 100% Done |
 | **Phase 40** | 5 tasks | 5 tasks | 100% Done |
+| **Phase 41** | 5 tasks | 5 tasks | 100% Done |
 
 *This queue is managed dynamically by the active LAS Developer Agent. All task updates, outcome logs, and progress status updates are written directly to this file before turn conclusion.*

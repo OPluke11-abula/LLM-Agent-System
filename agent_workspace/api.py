@@ -2509,6 +2509,45 @@ async def verify_audit_chain(tenant_id: str = Depends(get_tenant_context)):
     return {"status": "success", **verification}
 
 
+@app.get("/v1/audit/status")
+async def get_audit_status(tenant_id: str = Depends(get_tenant_context)):
+    try:
+        from core.audit_ledger import AuditLedger
+    except ImportError:
+        from agent_workspace.core.audit_ledger import AuditLedger
+
+    ledger = AuditLedger(workspace)
+    verification = ledger.verify_chain_integrity()
+    logs = ledger.get_logs(tenant_id=tenant_id)
+    
+    peers = {}
+    if _audit_daemon:
+        peers = _audit_daemon.peer_states
+        
+    return {
+        "status": "success",
+        "valid": verification.get("valid", False),
+        "tampered_id": verification.get("tampered_id"),
+        "merkle_root": verification.get("merkle_root", "0" * 64),
+        "event_count": len(logs),
+        "peers": peers
+    }
+
+
+@app.post("/v1/audit/sync")
+async def trigger_audit_sync(tenant_id: str = Depends(get_tenant_context)):
+    if _audit_daemon:
+        await _audit_daemon.trigger_manual_sync()
+        peers_queried = len(_audit_daemon.peer_states)
+    else:
+        peers_queried = 0
+    return {
+        "status": "success",
+        "message": "Consensus audit triggered",
+        "peers_queried": peers_queried
+    }
+
+
 # Slack & LINE Production Webhook Adapters
 
 SLACK_SIGNING_SECRET = os.getenv("SLACK_SIGNING_SECRET", "mock_slack_secret_12345")
@@ -2667,8 +2706,12 @@ async def line_webhook(request: Request):
     return {"status": "accepted"}
 
 
+_audit_daemon = None
+
+
 @app.on_event("startup")
 async def startup_event():
+    global _audit_daemon
     asyncio.create_task(start_stripe_billing_scheduler())
     try:
         from core.broker import get_broker
@@ -2676,10 +2719,24 @@ async def startup_event():
         from agent_workspace.core.broker import get_broker
     broker = get_broker(workspace_path=workspace)
     asyncio.create_task(collab_manager.start_redis_listener())
+    
+    try:
+        from core.audit_ledger import AuditConsensusDaemon, AuditLedger
+    except ImportError:
+        from agent_workspace.core.audit_ledger import AuditConsensusDaemon, AuditLedger
+        
+    ledger = AuditLedger(workspace)
+    _audit_daemon = AuditConsensusDaemon(ledger, node_id=f"node-backend-{os.getpid()}")
+    asyncio.create_task(_audit_daemon.start())
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
+    global _audit_daemon
+    if _audit_daemon:
+        await _audit_daemon.stop()
+        _audit_daemon = None
+        
     try:
         from core.broker import get_broker
     except ImportError:
