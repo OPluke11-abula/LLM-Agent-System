@@ -108,7 +108,7 @@ uvicorn agent_workspace.api:app --host 0.0.0.0 --port 8000
   npm install
   npm run dev
   ```
-  *(To compile a standalone high-performance desktop `.exe` app, execute `npm run tauri build`)*
+  *(To download the pre-compiled standalone application directly, check the [releases/](releases/) directory. To compile it yourself, execute `npm run tauri build` inside the `viewer` directory.)*
 
 ---
 
@@ -259,7 +259,7 @@ uvicorn agent_workspace.api:app --host 0.0.0.0 --port 8000
   npm install
   npm run dev
   ```
-  *(若要編譯為免安裝單一執行檔 `.exe`，請執行 `npm run tauri build`)*
+  *(若您希望直接下載預先編譯好的免安裝執行檔，請前往 [releases/](releases/) 目錄取得。若要自行編譯，請在 `viewer` 目錄下執行 `npm run tauri build`)*
 
 ---
 
