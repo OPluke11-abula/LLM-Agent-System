@@ -1,0 +1,78 @@
+{
+  "id": "sem-frontend-ui-designer-2026-06-14",
+  "session_id": "codex-frontend-ui-designer-2026-06-14",
+  "summary": "Frontend/UI designer agent memory for LAS. This memory defines the product design stance for the React/Tauri viewer as a restrained local Agent Runtime visual control plane, not a generic AI dashboard. The preferred visual language is Stripe-like and Apple-level in craft: low-saturation dark/light themes, precise 1px borders, subtle shadows, stable responsive dimensions, clear typography hierarchy, non-decorative status chips, and calm micro-interactions. Avoid neon purple/blue gradients, excessive glassmorphism, emoji-led controls, canned AI icons, decorative glows, and fragile one-off Tailwind color classes. Preserve engine/runtime boundaries and keep presentation work inside viewer/ or adapter surfaces.",
+  "keywords": [
+    "frontend",
+    "ui",
+    "ux",
+    "designer",
+    "viewer",
+    "React",
+    "Tauri",
+    "React Flow",
+    "visual control plane",
+    "Agent Runtime",
+    "Stripe-like",
+    "low-saturation",
+    "design primitives",
+    "responsive",
+    "verification"
+  ],
+  "citations": [
+    ".agent/agent.md",
+    ".agent/agent_tasks.md",
+    "viewer/src/components/ui/primitives.tsx",
+    "viewer/src/index.css",
+    "viewer/scripts/verify-ui.mjs",
+    "README.md"
+  ],
+  "confidence": 0.96,
+  "domain": "semantic",
+  "privacy_level": "project",
+  "role_profile": {
+    "name": "frontend-ui-designer-agent",
+    "purpose": "Maintain and evolve LAS viewer UI/UX as a premium developer-facing control plane for vibe coders and software developers.",
+    "audience": [
+      "vibe coders",
+      "software developers",
+      "agent-system operators"
+    ],
+    "primary_surface": "viewer/",
+    "secondary_surfaces": [
+      "README.md",
+      ".agent/agent.md",
+      ".agent/agent_tasks.md"
+    ]
+  },
+  "design_principles": [
+    "Content and operational clarity first; components serve workflow, not decoration.",
+    "Use shared UI primitives before introducing new visual patterns.",
+    "Prefer tokenized CSS variables over hard-coded Tailwind color families.",
+    "Use calm status dots/chips/progress bars instead of glow, pulse, or emoji-heavy signaling.",
+    "Keep dashboard density practical for repeated developer use across desktop and mobile.",
+    "Respect reduced-motion users and avoid layout shifts in React Flow canvases."
+  ],
+  "implementation_rules": [
+    "Use viewer/src/components/ui/primitives.tsx for Surface, Button, StatusBadge, MetricTile, ProgressBar, and Tooltip.",
+    "Keep new visual tokens in viewer/src/index.css and reuse existing variables such as --bg-panel, --bg-card, --border-c, --accent, --success, --warning, and --danger.",
+    "Use route-level lazy loading for heavy pages so the production bundle stays under the 500 kB chunk gate.",
+    "When adding pages or major panels, verify desktop and mobile overflow behavior.",
+    "Do not modify agent_workspace/core/ for UI work; keep runtime and presentation separated."
+  ],
+  "verification_gates": [
+    "npm.cmd run build from viewer/",
+    "npm.cmd run verify:ui from viewer/",
+    "C:\\Users\\luke2\\AppData\\Local\\Programs\\Python\\Python314\\python.exe -m pytest from repo root when task scope requires full repo validation",
+    "C:\\Users\\luke2\\AppData\\Local\\Programs\\Python\\Python314\\python.exe agent_workspace\\tool_manifest.py validate from repo root when .agent or skill contracts are touched"
+  ],
+  "anti_patterns": [
+    "Neon purple/cyan gradients as default dashboard language",
+    "Decorative glassmorphism that does not improve hierarchy",
+    "Emoji prefixes in core navigation, tabs, controls, or guide titles",
+    "Canned AI imagery such as robots, glowing brains, or generic 3D tech motifs",
+    "One-off bg-slate/bg-cyan/bg-emerald Tailwind classes inside premium surfaces",
+    "Large JS chunks caused by eagerly importing heavy route views"
+  ],
+  "handoff_note": "When future agents work on LAS frontend/UI, start by reading this memory, .agent/agent.md, viewer/src/components/ui/primitives.tsx, and viewer/src/index.css. Continue the restrained visual control-plane direction unless the user explicitly changes the product style."
+}
