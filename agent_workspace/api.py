@@ -2552,6 +2552,49 @@ async def trigger_audit_sync(tenant_id: str = Depends(get_tenant_context)):
     }
 
 
+class ScaleRequest(BaseModel):
+    role: str
+    direction: str
+
+
+@app.get("/v1/swarm/nodes")
+async def get_swarm_nodes(tenant_id: str = Depends(get_tenant_context)):
+    try:
+        from core.swarm_coordinator import SwarmCoordinator
+    except ImportError:
+        from agent_workspace.core.swarm_coordinator import SwarmCoordinator
+    return {"status": "success", "nodes": SwarmCoordinator.get_active_nodes()}
+
+
+@app.post("/v1/swarm/scale")
+async def scale_swarm(req: ScaleRequest, tenant_id: str = Depends(get_tenant_context)):
+    try:
+        from core.swarm_coordinator import SwarmCoordinator
+    except ImportError:
+        from agent_workspace.core.swarm_coordinator import SwarmCoordinator
+    res = SwarmCoordinator.simulate_scaling(req.role, req.direction)
+    return res
+
+
+@app.get("/v1/swarm/health")
+async def get_swarm_health(tenant_id: str = Depends(get_tenant_context)):
+    try:
+        from core.swarm_coordinator import SwarmCoordinator
+    except ImportError:
+        from agent_workspace.core.swarm_coordinator import SwarmCoordinator
+    nodes = SwarmCoordinator.get_active_nodes()
+    failures = SwarmCoordinator.get_failure_logs()
+    active_roles = list(set(n["role"] for n in nodes))
+    return {
+        "status": "success",
+        "healthy": len(nodes) > 0 or len(failures) == 0,
+        "active_nodes_count": len(nodes),
+        "active_roles": active_roles,
+        "failures_count": len(failures),
+        "failure_logs": failures
+    }
+
+
 # Slack & LINE Production Webhook Adapters
 
 SLACK_SIGNING_SECRET = os.getenv("SLACK_SIGNING_SECRET", "mock_slack_secret_12345")
@@ -2732,6 +2775,49 @@ async def startup_event():
     ledger = AuditLedger(workspace)
     _audit_daemon = AuditConsensusDaemon(ledger, node_id=f"node-backend-{os.getpid()}")
     asyncio.create_task(_audit_daemon.start())
+
+    # Initialize SwarmCoordinator heartbeat monitoring and dynamic redis discovery
+    try:
+        from core.swarm_coordinator import SwarmCoordinator
+    except ImportError:
+        from agent_workspace.core.swarm_coordinator import SwarmCoordinator
+
+    async def swarm_heartbeat_loop():
+        while True:
+            try:
+                SwarmCoordinator.check_heartbeats()
+            except Exception as e:
+                logger.error(f"Error in swarm heartbeat loop: {e}")
+            await asyncio.sleep(5.0)
+
+    async def listen_swarm_discovery():
+        try:
+            from core.broker import get_broker
+        except ImportError:
+            from agent_workspace.core.broker import get_broker
+        broker = get_broker(workspace_path=workspace)
+        
+        async def on_discovery(msg: dict):
+            try:
+                msg_type = msg.get("type")
+                if msg_type in ("join", "heartbeat"):
+                    SwarmCoordinator.register_or_update_node(
+                        role=msg["role"],
+                        node_id=msg["node_id"],
+                        status=msg.get("status", "idle")
+                    )
+                elif msg_type == "leave":
+                    SwarmCoordinator.mark_node_offline(
+                        node_id=msg["node_id"],
+                        reason="graceful_leave"
+                    )
+            except Exception as e:
+                logger.error(f"Error processing discovery message: {e}")
+
+        await broker.subscribe("swarm:discovery", on_discovery)
+
+    asyncio.create_task(swarm_heartbeat_loop())
+    asyncio.create_task(listen_swarm_discovery())
 
 
 class RotateKeyRequest(BaseModel):

@@ -102,6 +102,15 @@ class SwarmAgentService:
                     "status": self.status
                 }
                 await self.client.set(peer_key, json.dumps(peer_val), ex=10)
+                
+                # Publish heartbeat to swarm:discovery for active coordination tracking
+                hb_payload = {
+                    "type": "heartbeat",
+                    "role": self.role,
+                    "node_id": self.node_id,
+                    "status": self.status
+                }
+                await self.client.publish("swarm:discovery", json.dumps(hb_payload))
             except asyncio.CancelledError:
                 break
             except Exception as e:
@@ -219,6 +228,10 @@ class SwarmAgentService:
 
         # 3. Agent Crew Task Request
         elif channel == f"swarm:role:{self.role}" and msg.get("type") == "task_request":
+            target_node_id = msg.get("target_node_id")
+            if target_node_id and target_node_id != self.node_id:
+                return  # Skip, this task is meant for another node
+
             session_id = msg["session_id"]
             node_id = msg["node_id"]
             task_instructions = msg["task_instructions"]

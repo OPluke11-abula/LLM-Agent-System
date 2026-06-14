@@ -134,6 +134,7 @@ class AgentCrew:
         security_restrictions: Optional[Dict[str, Any]],
         mock_directives: Optional[Dict[str, Any]],
         validation_assertions: Optional[List[str]],
+        target_node_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         response_channel = f"swarm:task:{node_id}:response"
         
@@ -158,7 +159,8 @@ class AgentCrew:
                 "input_parameters": input_parameters,
                 "security_restrictions": security_restrictions,
                 "mock_directives": mock_directives,
-                "validation_assertions": validation_assertions
+                "validation_assertions": validation_assertions,
+                "target_node_id": target_node_id
             }
             await broker.publish(f"swarm:role:{role.lower()}", request_msg)
             
@@ -225,42 +227,73 @@ class AgentCrew:
         # Check for distributed broker delegation
         try:
             from core.broker import get_broker, RedisSwarmBroker
+            from core.swarm_coordinator import SwarmCoordinator
+            from core.sandbox import FileSnapshotTransaction
         except ImportError:
             from agent_workspace.core.broker import get_broker, RedisSwarmBroker
+            from agent_workspace.core.swarm_coordinator import SwarmCoordinator
+            from agent_workspace.core.sandbox import FileSnapshotTransaction
             
+        workspace_path = getattr(self, "workspace_path", ".")
         broker = get_broker()
         if isinstance(broker, RedisSwarmBroker):
-            try:
-                async def run_dispatch():
-                    return await self._async_dispatch_to_role(
-                        broker=broker,
-                        node_id=node_id,
-                        role=matched_role,
-                        task_instructions=task_instructions,
-                        parent_node_id=parent_node_id,
-                        input_parameters=input_parameters,
-                        security_restrictions=security_restrictions,
-                        mock_directives=mock_directives,
-                        validation_assertions=validation_assertions
-                    )
+            best_node_id = SwarmCoordinator.get_best_node(matched_role)
+            nodes_tracked = (best_node_id is not None)
+            max_attempts = 2 if nodes_tracked else 1
+            
+            for attempt in range(max_attempts):
+                if attempt > 0 and nodes_tracked:
+                    best_node_id = SwarmCoordinator.get_best_node(matched_role)
+                    if not best_node_id:
+                        break
                 
                 try:
-                    loop = asyncio.get_running_loop()
-                    if loop.is_running():
-                        import concurrent.futures
-                        with concurrent.futures.ThreadPoolExecutor() as executor:
-                            future = executor.submit(lambda: asyncio.run(run_dispatch()))
-                            res = future.result()
-                    else:
-                        res = loop.run_until_complete(run_dispatch())
-                except RuntimeError:
-                    res = asyncio.run(run_dispatch())
-                
-                if res and res.get("status") in ("completed", "error"):
-                    CrewRegistry.update_node_status(self.session_id, node_id, res["status"])
-                    return res
-            except Exception as e:
-                logger.warning(f"Failed to delegate task to microservice: {e}. Falling back to local execution.")
+                    async def run_dispatch():
+                        return await self._async_dispatch_to_role(
+                            broker=broker,
+                            node_id=node_id,
+                            role=matched_role,
+                            task_instructions=task_instructions,
+                            parent_node_id=parent_node_id,
+                            input_parameters=input_parameters,
+                            security_restrictions=security_restrictions,
+                            mock_directives=mock_directives,
+                            validation_assertions=validation_assertions,
+                            target_node_id=best_node_id
+                        )
+                    
+                    # Wrap dispatch in transactional workspace snapshot
+                    with FileSnapshotTransaction(workspace_path):
+                        try:
+                            loop = asyncio.get_running_loop()
+                            if loop.is_running():
+                                import concurrent.futures
+                                with concurrent.futures.ThreadPoolExecutor() as executor:
+                                    future = executor.submit(lambda: asyncio.run(run_dispatch()))
+                                    res = future.result()
+                            else:
+                                res = loop.run_until_complete(run_dispatch())
+                        except RuntimeError:
+                            res = asyncio.run(run_dispatch())
+                    
+                    if res and res.get("status") == "completed":
+                        CrewRegistry.update_node_status(self.session_id, node_id, "completed")
+                        if best_node_id:
+                            SwarmCoordinator.release_node_load(best_node_id)
+                        return res
+                    elif res and res.get("status") == "error":
+                        CrewRegistry.update_node_status(self.session_id, node_id, "error")
+                        if best_node_id:
+                            SwarmCoordinator.release_node_load(best_node_id)
+                        return res
+                except (asyncio.TimeoutError, Exception) as e:
+                    logger.warning(f"Swarm dispatch attempt {attempt + 1} failed for node '{best_node_id}': {e}")
+                    if best_node_id:
+                        SwarmCoordinator.mark_node_offline(best_node_id, reason="dispatch_timeout")
+                    if not nodes_tracked:
+                        break
+            
+            logger.info("All microservice dispatch attempts failed. Falling back to local execution.")
 
         try:
             # Check security restrictions mock check
