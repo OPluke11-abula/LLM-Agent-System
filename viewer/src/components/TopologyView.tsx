@@ -11,6 +11,7 @@ import {
 import { ActivityLog } from "./ActivityLog";
 import { TOPOLOGY_EDGE_TYPES } from "./edges";
 import { TOPOLOGY_NODE_TYPES } from "./nodes";
+import { Button, MetricTile, ProgressBar, StatusBadge, Surface, Tooltip } from "./ui/primitives";
 import { buildTopologyFlow, formatDuration, NODE_COLORS, summarizeTopology } from "../utils/topologyUtils";
 import type { ActivityLogEntry, Lang, TopologyEvent, TopologyNodeData, TopologyState } from "../types";
 
@@ -146,11 +147,11 @@ function SessionCanvas({ state, onOpenNode }: SessionCanvasProps) {
   return (
     <section
       ref={containerRef}
-      className="relative min-h-[360px] overflow-hidden rounded-xl border"
-      style={{ background: "var(--bg-card)", borderColor: "var(--border-c)" }}
+      className="flow-canvas relative min-h-[360px] overflow-hidden rounded-lg border"
+      style={{ borderColor: "var(--border-c)" }}
     >
-      <div className="absolute top-3 left-3 z-10 rounded-lg border px-3 py-2 shadow-xl panel-bg" style={{ borderColor: "var(--border-c)" }}>
-        <p className="text-xs font-black t1">{state.session_id}</p>
+      <div className="control-surface absolute top-3 left-3 z-10 px-3 py-2">
+        <p className="text-xs font-semibold t1">{state.session_id}</p>
         <p className="mt-0.5 text-[10px] font-mono t3">{state.stats.total_nodes} nodes / {state.stats.errors} errors</p>
       </div>
       <ReactFlow
@@ -174,8 +175,8 @@ function SessionCanvas({ state, onOpenNode }: SessionCanvasProps) {
             const event = (node.data as TopologyNodeData | undefined)?.event;
             return event ? NODE_COLORS[event.node_type] : "#64748b";
           }}
-          maskColor="rgba(2,8,23,0.62)"
-          style={{ background: "var(--bg-panel)", border: "1px solid var(--border-c)", borderRadius: 10 }}
+          maskColor="rgba(5,7,11,0.54)"
+          style={{ background: "var(--bg-panel)", border: "1px solid var(--border-c)", borderRadius: 8 }}
         />
       </ReactFlow>
     </section>
@@ -598,10 +599,10 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
   }, []);
 
   return (
-    <div className="grid h-full min-h-0 grid-cols-[260px_minmax(0,1fr)_320px] gap-3 overflow-hidden">
-      <aside className="panel-bg flex min-h-0 flex-col rounded-xl border shadow-xl" style={{ borderColor: "var(--border-c)" }}>
+    <div className="grid h-full min-h-0 grid-cols-[280px_minmax(0,1fr)_320px] gap-4 overflow-hidden">
+      <aside className="control-surface flex min-h-0 flex-col overflow-hidden">
         <div className="border-b p-4" style={{ borderColor: "var(--border-c)" }}>
-          <p className="text-sm font-black t1">{visibleSessions[0]?.project_name || copy.title}</p>
+          <p className="text-sm font-semibold t1">{visibleSessions[0]?.project_name || copy.title}</p>
           <p className="mt-1 text-xs leading-relaxed t3">{visibleSessions[0]?.summary || copy.subtitle}</p>
         </div>
         <div className="grid grid-cols-2 gap-2 p-3">
@@ -611,10 +612,7 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
             [copy.tokens, aggregate.tokens],
             [copy.completion, `${completionRate}%`],
           ].map(([label, value]) => (
-            <div key={label} className="rounded-lg border p-2" style={{ background: "var(--bg-card)", borderColor: "var(--border-c)" }}>
-              <p className="text-lg font-black" style={{ color: "var(--accent)" }}>{value}</p>
-              <p className="text-[10px] font-bold uppercase tracking-[0.14em] t3">{label}</p>
-            </div>
+            <MetricTile key={label} label={label} value={value} />
           ))}
         </div>
         
@@ -625,10 +623,10 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
                 type="button"
                 disabled={exporting}
                 onClick={handleHandoff}
-                className={`w-full py-2 px-3 rounded-lg border text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+                className={`w-full rounded-lg px-3 py-2 text-xs font-semibold transition-all flex items-center justify-center gap-2 ${
                   turnsInfo?.should_glow
-                    ? "glow-gold border-amber-500 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
-                    : "border-slate-700 bg-slate-800/40 text-slate-300 hover:bg-slate-800/80"
+                    ? "primary-button"
+                    : "quiet-button"
                 }`}
                 title={
                   lang === "zh"
@@ -637,28 +635,25 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
                 }
               >
                 {turnsInfo?.should_glow && (
-                  <svg className="h-4 w-4 animate-bounce text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
                 )}
                 {exporting ? "Compacting..." : `Compaction Handoff (${turnsInfo?.turns ?? 0}/${turnsInfo?.threshold ?? 5})`}
               </button>
-              <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 w-64 -translate-x-1/2 rounded bg-slate-950 px-3 py-2 text-center text-[10px] leading-normal text-slate-300 opacity-0 transition-opacity border border-slate-800 shadow-2xl group-hover:opacity-100">
+              <Tooltip>
                 {lang === "zh"
                   ? "點選以執行對話狀態匯出與壓縮。系統將產出包含 handoff_id 的交接提示詞並複製至剪貼簿，以加載全新 thread。"
                   : "Instructs the agent to compact active context and migrate threads. Copies pre-formatted English handoff prompt containing handoff_id to clipboard."}
-              </div>
+              </Tooltip>
             </div>
 
-            <div className="mx-3 mb-3 p-3 rounded-lg border flex flex-col gap-2 relative group/defrag" style={{ background: "var(--bg-card)", borderColor: "var(--border-c)" }}>
+            <Surface className="group/defrag relative mx-3 mb-3 flex flex-col gap-2 p-3">
               <div className="flex items-center justify-between">
                 <p className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: "var(--accent)" }}>
                   {lang === "zh" ? "自主記憶重整" : "Swarm Memory Control"}
                 </p>
-                <span className="flex h-2 w-2 relative">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                </span>
+                <StatusBadge tone="success">Ready</StatusBadge>
               </div>
               
               <div className="grid grid-cols-2 gap-2 my-1">
@@ -666,7 +661,7 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
                   <span className="text-[9px] font-bold uppercase tracking-[0.1em] t3">
                     {lang === "zh" ? "碎片率" : "Fragmentation"}
                   </span>
-                  <span className="text-sm font-black text-amber-500 font-mono">
+                  <span className="font-mono text-sm font-black" style={{ color: "var(--warning)" }}>
                     {defragMetrics ? `${Math.round(defragMetrics.fragmentation_rate * 100)}%` : "18%"}
                   </span>
                 </div>
@@ -674,7 +669,7 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
                   <span className="text-[9px] font-bold uppercase tracking-[0.1em] t3">
                     {lang === "zh" ? "協同效率" : "Efficiency"}
                   </span>
-                  <span className="text-sm font-black text-emerald-500 font-mono">
+                  <span className="font-mono text-sm font-black" style={{ color: "var(--success)" }}>
                     {defragMetrics ? `${Math.round(defragMetrics.reconciliation_efficiency * 100)}%` : "95%"}
                   </span>
                 </div>
@@ -696,7 +691,6 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
                     strokeWidth="2"
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    className="drop-shadow-[0_0_4px_var(--accent)]"
                   />
                   <path
                     d={`${generateSparklinePath(defragHistory, 200, 32)} L 200 40 L 0 40 Z`}
@@ -708,54 +702,48 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
                 </span>
               </div>
 
-              <button
+              <Button
                 type="button"
                 disabled={defragmenting}
                 onClick={handleDefragment}
-                className="w-full py-1.5 px-3 rounded-lg border border-slate-700 bg-slate-800/40 text-slate-300 hover:bg-slate-800/80 transition-all text-[11px] font-bold flex items-center justify-center gap-1.5 active:scale-95 duration-100"
+                className="flex w-full items-center justify-center gap-1.5 py-1.5 text-[11px]"
               >
-                <svg className={`h-3.5 w-3.5 text-slate-400 ${defragmenting ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <svg className={`h-3.5 w-3.5 t3 ${defragmenting ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 7.89M9 11l3-3 3 3m-3-3v12" />
                 </svg>
                 {defragmenting ? (lang === "zh" ? "重整中..." : "Sweeping...") : (lang === "zh" ? "記憶重整" : "Trigger Memory Sweep")}
-              </button>
+              </Button>
 
-              <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 w-64 -translate-x-1/2 rounded bg-slate-950 px-3 py-2 text-center text-[10px] leading-normal text-slate-300 opacity-0 transition-opacity border border-slate-800 shadow-2xl group-hover/defrag:opacity-100">
+              <Tooltip>
                 {lang === "zh"
                   ? "記憶重整：掃描 handoff json，清理冗餘，壓縮狀態並生成聯邦知識圖譜"
                   : "Memory Defrag: Sweeps handoffs, resolves duplicates, reconciles tasks, and merges into knowledge graph"}
-              </div>
-            </div>
+              </Tooltip>
+            </Surface>
 
-            <div className="mx-3 mb-3 p-3 rounded-lg border flex flex-col gap-2 relative group/cost" style={{ background: "var(--bg-card)", borderColor: "var(--border-c)" }}>
+            <Surface className="group/cost relative mx-3 mb-3 flex flex-col gap-2 p-3">
               <div className="flex items-center justify-between">
                 <p className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: "var(--accent)" }}>
                   {lang === "zh" ? "財務帳本與額度控管" : "Swarm Cost Balance & Ledger"}
                 </p>
-                <span className="text-[10px] font-mono font-bold text-slate-500">
-                  USD
-                </span>
+                <span className="font-mono text-[10px] font-bold t3">USD</span>
               </div>
               
               <div className="flex flex-col gap-1 my-1">
                 <div className="flex items-baseline justify-between">
-                  <span className="text-xl font-black text-emerald-400 font-mono">
+                  <span className="font-mono text-xl font-black" style={{ color: "var(--success)" }}>
                     ${ledgerData ? ledgerData.total_cost.toFixed(5) : "0.00000"}
                   </span>
-                  <span className="text-[9px] font-bold text-slate-500 font-mono">
+                  <span className="font-mono text-[9px] font-bold t3">
                     / ${ledgerData ? ledgerData.cost_threshold.toFixed(2) : "0.05"} Limit
                   </span>
                 </div>
                 
                 {/* Limit Progress Bar Gauge */}
-                <div className="w-full h-1.5 rounded-full bg-slate-850 overflow-hidden relative border border-slate-700">
-                  <div
-                    className="h-full rounded-full transition-all duration-500 bg-gradient-to-r from-emerald-500 to-amber-500"
-                    style={{
-                      width: `${Math.min(100, ((ledgerData?.total_cost ?? 0) / (ledgerData?.cost_threshold ?? 0.05)) * 100)}%`
-                    }}
-                  />
-                </div>
+                <ProgressBar
+                  value={((ledgerData?.total_cost ?? 0) / (ledgerData?.cost_threshold ?? 0.05)) * 100}
+                  tone={((ledgerData?.total_cost ?? 0) / (ledgerData?.cost_threshold ?? 0.05)) > 0.8 ? "warning" : "success"}
+                />
               </div>
 
               {/* Real-time scrolling Ledger Transactions List */}
@@ -766,116 +754,93 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
                 <div className="max-h-20 overflow-y-auto space-y-1 pr-1 font-mono text-[9px]">
                   {ledgerData && ledgerData.transactions.length > 0 ? (
                     ledgerData.transactions.slice().reverse().map((tx: any, idx: number) => (
-                      <div key={idx} className="flex justify-between items-center text-slate-400 hover:text-slate-200 transition-colors">
+                      <div key={idx} className="flex items-center justify-between transition-colors t3 hover:t2">
                         <span className="truncate max-w-[80px]" title={tx.model}>{tx.model.replace("gemini-2.5-", "")}</span>
-                        <span className="text-[8px] text-slate-500">{new Date(tx.timestamp).toLocaleTimeString()}</span>
-                        <span className="text-emerald-400 font-bold">${tx.cost.toFixed(5)}</span>
+                        <span className="text-[8px] t3">{new Date(tx.timestamp).toLocaleTimeString()}</span>
+                        <span className="font-bold" style={{ color: "var(--success)" }}>${tx.cost.toFixed(5)}</span>
                       </div>
                     ))
                   ) : (
-                    <div className="text-center text-slate-600 text-[8px] py-2">
+                    <div className="py-2 text-center text-[8px] t3">
                       {lang === "zh" ? "尚無交易記錄" : "No transactions logged"}
                     </div>
                   )}
                 </div>
               </div>
 
-              <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 w-64 -translate-x-1/2 rounded bg-slate-950 px-3 py-2 text-center text-[10px] leading-normal text-slate-300 opacity-0 transition-opacity border border-slate-800 shadow-2xl group-hover/cost:opacity-100">
+              <Tooltip>
                 {lang === "zh"
                   ? "財務審計：基於 SQLite 記錄的實時 API 消耗與 Token 計費帳本，額度超限將自動降級"
                   : "Financial Audit: SQLite-backed real-time API expense tracker. Auto-downscale triggers when limit is exceeded"}
-              </div>
-            </div>
+              </Tooltip>
+            </Surface>
 
-            <div className="mx-3 mb-3 p-3 rounded-lg border flex flex-col gap-2 relative group/sandbox" style={{ background: "var(--bg-card)", borderColor: "var(--border-c)" }}>
+            <Surface className="group/sandbox relative mx-3 mb-3 flex flex-col gap-2 p-3">
               <div className="flex items-center justify-between">
                 <p className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: "var(--accent)" }}>
                   {lang === "zh" ? "沙箱零信任防禦" : "Zero-Trust Sandbox Guard"}
                 </p>
-                <span className={`text-[8px] px-1.5 py-0.5 rounded font-mono font-bold ${sandboxStatus?.last_execution_status === "blocked" ? "bg-red-950 text-red-400 border border-red-800" : "bg-emerald-950 text-emerald-400 border border-emerald-800"}`}>
+                <StatusBadge tone={sandboxStatus?.last_execution_status === "blocked" ? "danger" : "success"} className="text-[8px]">
                   {sandboxStatus?.last_execution_status ? sandboxStatus.last_execution_status.toUpperCase() : "IDLE"}
-                </span>
+                </StatusBadge>
               </div>
               
               <div className="grid grid-cols-3 gap-1.5 text-center mt-1 font-mono">
-                <div className="p-1 rounded bg-slate-900 border border-slate-800">
-                  <span className="block text-[7px] text-slate-500">TOTAL</span>
-                  <span className="text-xs font-bold text-slate-300">{sandboxStatus?.total_executions ?? 0}</span>
-                </div>
-                <div className="p-1 rounded bg-slate-900 border border-slate-800">
-                  <span className="block text-[7px] text-red-500">BLOCKED</span>
-                  <span className="text-xs font-bold text-red-400">{sandboxStatus?.blocked_executions ?? 0}</span>
-                </div>
-                <div className="p-1 rounded bg-slate-900 border border-slate-800">
-                  <span className="block text-[7px] text-emerald-500">ALLOWED</span>
-                  <span className="text-xs font-bold text-emerald-400">{sandboxStatus?.allowed_executions ?? 0}</span>
-                </div>
+                <MetricTile label="Total" value={sandboxStatus?.total_executions ?? 0} className="p-1" />
+                <MetricTile label="Blocked" value={sandboxStatus?.blocked_executions ?? 0} tone="danger" className="p-1" />
+                <MetricTile label="Allowed" value={sandboxStatus?.allowed_executions ?? 0} tone="success" className="p-1" />
               </div>
 
-              <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 w-64 -translate-x-1/2 rounded bg-slate-950 px-3 py-2 text-center text-[10px] leading-normal text-slate-300 opacity-0 transition-opacity border border-slate-800 shadow-2xl group-hover/sandbox:opacity-100">
+              <Tooltip>
                 {lang === "zh"
                   ? "零信任沙箱防禦：驗證共識簽章並物理隔離動態代碼與自定義腳本的執行"
                   : "Zero-Trust Sandbox: Intercepts & executes dynamic code with cryptographic signature verification"}
-              </div>
-            </div>
+              </Tooltip>
+            </Surface>
 
-            <div className="mx-3 mb-3 p-3 rounded-lg border flex flex-col gap-2 relative group/telemetry" style={{ background: "var(--bg-card)", borderColor: "var(--border-c)" }}>
+            <Surface className="group/telemetry relative mx-3 mb-3 flex flex-col gap-2 p-3">
               <div className="flex items-center justify-between">
                 <p className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: "var(--accent)" }}>
                   {lang === "zh" ? "異步遙測與開銷路由" : "Telemetry & Cost Router"}
                 </p>
-                <span className="text-[8px] font-mono font-bold text-slate-500">
-                  ASYNC
-                </span>
+                <span className="font-mono text-[8px] font-bold t3">ASYNC</span>
               </div>
               
-              <div className="flex flex-col gap-2 mt-1 font-mono text-[9px] text-slate-400">
+              <div className="mt-1 flex flex-col gap-2 font-mono text-[9px] t3">
                 <div className="flex justify-between items-center">
                   <span>CPU Load</span>
-                  <span className="text-slate-200">{telemetryData?.metrics?.[0]?.cpu_percent ?? 15.4}%</span>
+                  <span className="t1">{telemetryData?.metrics?.[0]?.cpu_percent ?? 15.4}%</span>
                 </div>
-                <div className="w-full h-1 rounded-full bg-slate-850 overflow-hidden relative border border-slate-800">
-                  <div
-                    className="h-full rounded-full bg-indigo-500 transition-all duration-300"
-                    style={{ width: `${telemetryData?.metrics?.[0]?.cpu_percent ?? 15.4}%` }}
-                  />
-                </div>
+                <ProgressBar value={telemetryData?.metrics?.[0]?.cpu_percent ?? 15.4} tone="accent" />
                 
                 <div className="flex justify-between items-center">
                   <span>Memory RSS</span>
-                  <span className="text-slate-200">{telemetryData?.metrics?.[0]?.memory_mb ? telemetryData.metrics[0].memory_mb.toFixed(1) : "124.5"} MB</span>
+                  <span className="t1">{telemetryData?.metrics?.[0]?.memory_mb ? telemetryData.metrics[0].memory_mb.toFixed(1) : "124.5"} MB</span>
                 </div>
-                <div className="w-full h-1 rounded-full bg-slate-850 overflow-hidden relative border border-slate-800">
-                  <div
-                    className="h-full rounded-full bg-violet-500 transition-all duration-300"
-                    style={{ width: `${Math.min(100, ((telemetryData?.metrics?.[0]?.memory_mb ?? 124.5) / 512.0) * 100)}%` }}
-                  />
-                </div>
+                <ProgressBar value={Math.min(100, ((telemetryData?.metrics?.[0]?.memory_mb ?? 124.5) / 512.0) * 100)} tone="warning" />
 
-                <div className="flex justify-between items-center text-[8px] text-slate-500">
-                  <span>WS Latency: <span className="text-slate-300">{telemetryData?.metrics?.[0]?.ws_latency_ms ?? 8}ms</span></span>
-                  <span>Exec Latency: <span className="text-slate-300">{telemetryData?.metrics?.[0]?.latency_ms ?? 12.5}ms</span></span>
+                <div className="flex justify-between items-center text-[8px] t3">
+                  <span>WS Latency: <span className="t2">{telemetryData?.metrics?.[0]?.ws_latency_ms ?? 8}ms</span></span>
+                  <span>Exec Latency: <span className="t2">{telemetryData?.metrics?.[0]?.latency_ms ?? 12.5}ms</span></span>
                 </div>
               </div>
 
-              <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 w-64 -translate-x-1/2 rounded bg-slate-950 px-3 py-2 text-center text-[10px] leading-normal text-slate-300 opacity-0 transition-opacity border border-slate-800 shadow-2xl group-hover/telemetry:opacity-100">
+              <Tooltip>
                 {lang === "zh"
                   ? "遙測路由：非阻塞緩衝與轉發系統運行時之 CPU、記憶體佔用、 WebSocket 延遲與 SQLite 累積成本"
                   : "Telemetry Router: Non-blocking real-time routing of CPU, Memory, WS latency, and cumulative API USD cost metrics"}
-              </div>
-            </div>
+              </Tooltip>
+            </Surface>
 
-            <div className="mx-3 mb-3 p-3 rounded-lg border flex flex-col gap-2 relative group/router" style={{ background: "var(--bg-card)", borderColor: "var(--border-c)" }}>
+            <Surface className="group/router relative mx-3 mb-3 flex flex-col gap-2 p-3">
               <div className="flex items-center justify-between">
                 <p className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: "var(--accent)" }}>
                   {lang === "zh" ? "拓撲負載與路由優化" : "Topological Load & Route Map"}
                 </p>
-                <span className="text-[8px] font-mono font-bold text-slate-500">
-                  OPTIMIZING
-                </span>
+                <StatusBadge tone="warning" className="text-[8px]">Optimizing</StatusBadge>
               </div>
               
-              <div className="flex flex-col gap-2 mt-1 font-mono text-[9px] text-slate-400">
+              <div className="mt-1 flex flex-col gap-2 font-mono text-[9px] t3">
                 <span className="text-[8px] font-bold uppercase tracking-[0.15em] t3">
                   {lang === "zh" ? "活躍節點負載" : "Active Node Load"}
                 </span>
@@ -883,49 +848,40 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
                   routerStatus.routes.filter(r => r.status === "active").map((r) => {
                     const avgLat = r.latency_history.length > 0 ? (r.latency_history.reduce((a: number, b: number) => a + b, 0) / r.latency_history.length * 1000) : 0;
                     return (
-                      <div key={r.node_id} className="flex flex-col gap-1 border-t border-slate-800/40 pt-1.5 first:border-0 first:pt-0">
+                      <div key={r.node_id} className="flex flex-col gap-1 border-t pt-1.5 first:border-0 first:pt-0" style={{ borderColor: "var(--border-c)" }}>
                         <div className="flex justify-between items-center text-[8px]">
-                          <span className="font-bold text-slate-350">{r.node_id}</span>
-                          <span className="text-[8px] text-slate-500 font-bold">
+                          <span className="font-bold t2">{r.node_id}</span>
+                          <span className="text-[8px] font-bold t3">
                             {r.active_load} active / {Math.round(avgLat)}ms
                           </span>
                         </div>
-                        <div className="w-full h-1.5 rounded bg-slate-800 overflow-hidden relative border border-slate-700">
-                          <div
-                            className={`h-full rounded transition-all duration-300 ${
-                              r.active_load > 0 ? "bg-amber-500 animate-pulse" : "bg-emerald-500"
-                            }`}
-                            style={{
-                              width: `${Math.min(100, (r.active_load > 0 ? r.active_load * 25 : 10))}%`
-                            }}
-                          />
-                        </div>
+                        <ProgressBar value={Math.min(100, (r.active_load > 0 ? r.active_load * 25 : 10))} tone={r.active_load > 0 ? "warning" : "success"} />
                       </div>
                     );
                   })
                 ) : (
-                  <div className="text-center text-slate-650 text-[8px] py-1">
+                  <div className="py-1 text-center text-[8px] t3">
                     {lang === "zh" ? "無活躍節點負載" : "No active node dispatches"}
                   </div>
                 )}
 
                 <div className="mt-1 border-t pt-1.5 flex flex-col gap-1.5" style={{ borderColor: "var(--border-c)" }}>
-                  <span className="text-[8px] font-bold uppercase tracking-[0.15em] text-amber-500/80">
+                  <span className="text-[8px] font-bold uppercase tracking-[0.15em]" style={{ color: "var(--warning)" }}>
                     {lang === "zh" ? "被修剪路由路徑" : "Pruned Path History"}
                   </span>
                   <div className="max-h-20 overflow-y-auto space-y-1.5 font-mono text-[8px] scrollbar-thin">
                     {routerStatus && routerStatus.pruned_history && routerStatus.pruned_history.length > 0 ? (
                       routerStatus.pruned_history.slice().reverse().map((p: any, idx: number) => (
-                        <div key={idx} className="flex flex-col rounded p-1 bg-red-950/20 border border-red-950/40 text-slate-400">
+                        <div key={idx} className="flex flex-col rounded border p-1 t3" style={{ background: "var(--danger-bg)", borderColor: "color-mix(in srgb, var(--danger) 28%, transparent)" }}>
                           <div className="flex justify-between items-center text-[7px] font-bold">
-                            <span className="text-red-400">{p.node_id}</span>
-                            <span className="text-slate-500">{new Date(p.pruned_at).toLocaleTimeString()}</span>
+                            <span style={{ color: "var(--danger)" }}>{p.node_id}</span>
+                            <span className="t3">{new Date(p.pruned_at).toLocaleTimeString()}</span>
                           </div>
-                          <span className="text-[7.5px] leading-relaxed break-all mt-0.5 text-slate-350">{p.reason}</span>
+                          <span className="mt-0.5 break-all text-[7.5px] leading-relaxed t2">{p.reason}</span>
                         </div>
                       ))
                     ) : (
-                      <div className="text-center text-slate-650 text-[8px] py-1">
+                      <div className="py-1 text-center text-[8px] t3">
                         {lang === "zh" ? "無已修剪路徑" : "No paths pruned yet"}
                       </div>
                     )}
@@ -934,70 +890,69 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
               </div>
 
               <div className="flex gap-1.5 mt-1 border-t pt-2" style={{ borderColor: "var(--border-c)" }}>
-                <button
+                <Button
                   type="button"
                   disabled={pruning}
                   onClick={() => handlePrune(false)}
-                  className="flex-1 py-1 px-2 rounded border border-slate-700 bg-slate-800/40 text-slate-300 hover:bg-slate-800/80 transition-all text-[9px] font-bold flex items-center justify-center gap-1 active:scale-95 duration-100"
+                  className="flex flex-1 items-center justify-center gap-1 px-2 py-1 text-[9px]"
                 >
-                  <svg className={`h-2.5 w-2.5 text-slate-400 ${pruning ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <svg className={`h-2.5 w-2.5 t3 ${pruning ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
                   {pruning ? "..." : (lang === "zh" ? "清理過期" : "Prune Stale")}
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
                   disabled={pruning}
                   onClick={() => handlePrune(true)}
-                  className="flex-1 py-1 px-2 rounded border border-amber-800/40 bg-amber-950/10 text-amber-400 hover:bg-amber-950/30 transition-all text-[9px] font-bold flex items-center justify-center gap-1 active:scale-95 duration-100"
+                  variant="warning"
+                  className="flex-1 px-2 py-1 text-[9px]"
                 >
                   {lang === "zh" ? "強制修剪" : "Force Prune"}
-                </button>
+                </Button>
               </div>
 
-              <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 w-64 -translate-x-1/2 rounded bg-slate-950 px-3 py-2 text-center text-[10px] leading-normal text-slate-300 opacity-0 transition-opacity border border-slate-800 shadow-2xl group-hover/router:opacity-100">
+              <Tooltip>
                 {lang === "zh"
                   ? "拓撲路由優化：動態監控代理負載及響應時間，對低效或無響應的路由進行自動修剪，並可手動一鍵 sweeps 清理"
                   : "Topological Optimization: Measures node dispatch latencies & success rates, auto-prunes low-performance paths, and supports admin sweeps."}
-              </div>
-            </div>
+              </Tooltip>
+            </Surface>
 
-            <div className="mx-3 mb-3 p-3 rounded-lg border flex flex-col gap-2 relative group/collab" style={{ background: "var(--bg-card)", borderColor: "var(--border-c)" }}>
+            <Surface className="group/collab relative mx-3 mb-3 flex flex-col gap-2 p-3">
               <div className="flex items-center justify-between">
                 <p className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: "var(--accent)" }}>
                   {lang === "zh" ? "多通道實時協作" : "Live Swarm Collaboration"}
                 </p>
-                <span className={`text-[8px] px-1.5 py-0.5 rounded font-mono font-bold ${collabConnected ? "bg-emerald-950 text-emerald-400 border border-emerald-800" : "bg-red-950 text-red-400 border border-red-800"}`}>
+                <StatusBadge tone={collabConnected ? "success" : "danger"} className="text-[8px]">
                   {collabConnected ? "CONNECTED" : "OFFLINE"}
-                </span>
+                </StatusBadge>
               </div>
               
               <div className="flex flex-wrap gap-1 mt-1">
                 {subscribedChannels.map((ch) => (
-                  <span key={ch} className="text-[7px] font-mono font-black uppercase bg-slate-900 border border-slate-800 px-1 py-0.5 rounded text-slate-400">
+                  <span key={ch} className="rounded border px-1 py-0.5 font-mono text-[7px] font-black uppercase t3" style={{ background: "var(--bg-panel)", borderColor: "var(--border-c)" }}>
                     #{ch}
                   </span>
                 ))}
               </div>
 
-              <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 w-64 -translate-x-1/2 rounded bg-slate-950 px-3 py-2 text-center text-[10px] leading-normal text-slate-300 opacity-0 transition-opacity border border-slate-800 shadow-2xl group-hover/collab:opacity-100">
+              <Tooltip>
                 {lang === "zh"
                   ? "協作通道：提供跨代理/用戶之實時 Pub/Sub 廣播與多路訂閱路由服務"
                   : "Collaboration channels: Pub/Sub routing for dynamic swarm collaboration streams"}
-              </div>
-            </div>
+              </Tooltip>
+            </Surface>
 
-            <div className="mx-3 mb-3 p-3 rounded-lg border flex flex-col gap-2 relative group/activity" style={{ background: "var(--bg-card)", borderColor: "var(--border-c)" }}>
+            <Surface className="group/activity relative mx-3 mb-3 flex flex-col gap-2 p-3">
               <div className="flex items-center justify-between border-b pb-1" style={{ borderColor: "var(--border-c)" }}>
                 <p className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: "var(--accent)" }}>
                   {lang === "zh" ? "實時群落活動流" : "Live Activity Stream"}
                 </p>
-                <span className="text-[8px] font-mono font-bold text-slate-500">
-                  REAL-TIME
-                </span>
+                <span className="font-mono text-[8px] font-bold t3">REAL-TIME</span>
               </div>
               
-              <div className="max-h-24 overflow-y-auto space-y-1.5 pr-1 font-mono text-[9px] text-slate-400 scrollbar-thin">
+              <div className="max-h-24 space-y-1.5 overflow-y-auto pr-1 font-mono text-[9px] t3">
                 {activityStream.length > 0 ? (
                   activityStream.slice().reverse().map((act: any, idx: number) => {
                     const chLabel = act.channel || "logs";
@@ -1019,28 +974,28 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
                     }
 
                     return (
-                      <div key={idx} className="flex flex-col border-b border-slate-850 pb-1 last:border-b-0">
-                        <div className="flex justify-between text-[7px] text-slate-500 font-bold mb-0.5">
+                      <div key={idx} className="flex flex-col border-b pb-1 last:border-b-0" style={{ borderColor: "var(--border-c)" }}>
+                        <div className="mb-0.5 flex justify-between text-[7px] font-bold t3">
                           <span style={{ color: "var(--accent)" }}>#{chLabel}</span>
                           <span>{timestamp}</span>
                         </div>
-                        <span className="text-slate-300 break-all leading-tight">{displayMsg}</span>
+                        <span className="break-all leading-tight t2">{displayMsg}</span>
                       </div>
                     );
                   })
                 ) : (
-                  <div className="text-center text-slate-600 text-[8px] py-4">
+                  <div className="py-4 text-center text-[8px] t3">
                     {lang === "zh" ? "等待實時廣播活動中..." : "Awaiting collaboration streams..."}
                   </div>
                 )}
               </div>
 
-              <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 w-64 -translate-x-1/2 rounded bg-slate-950 px-3 py-2 text-center text-[10px] leading-normal text-slate-300 opacity-0 transition-opacity border border-slate-800 shadow-2xl group-hover/activity:opacity-100">
+              <Tooltip>
                 {lang === "zh"
                   ? "活動流：呈現當前 Session 發送至多通道之最新 logs、stdout 與 delta 狀態變化"
                   : "Activity stream: chronological live feed of multi-channel logs, stdout, and delta states"}
-              </div>
-            </div>
+              </Tooltip>
+            </Surface>
           </>
         )}
 
@@ -1086,7 +1041,7 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
       </main>
 
       <aside className="grid min-h-0 grid-rows-[minmax(0,1fr)_220px] gap-3">
-        <section className="panel-bg min-h-0 overflow-hidden rounded-xl border shadow-xl" style={{ borderColor: "var(--border-c)" }}>
+        <Surface as="section" elevated className="min-h-0 overflow-hidden">
           <div className="border-b p-4" style={{ borderColor: "var(--border-c)" }}>
             <p className="text-sm font-black t1">{copy.details}</p>
             <p className="mt-1 text-[10px] font-mono t3">{selectedNode?.node_id || copy.noNode}</p>
@@ -1097,9 +1052,9 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
                 <div className="flex items-center justify-between">
                   <p className="text-[10px] font-bold uppercase tracking-[0.2em] t3">{selectedNode.node_type}</p>
                   {selectedNode.assigned_agent && (
-                    <span className="rounded bg-blue-500/10 px-1.5 py-0.5 text-[9px] font-bold text-blue-500">
+                    <StatusBadge tone="accent" className="text-[9px]">
                       @{selectedNode.assigned_agent}
-                    </span>
+                    </StatusBadge>
                   )}
                 </div>
                 <h3 className="mt-1 text-lg font-black t1">{selectedNode.title || selectedNode.payload?.name || selectedNode.id || selectedNode.node_id}</h3>
@@ -1107,27 +1062,28 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
               </div>
               
               {(selectedNode.status === "awaiting_approval" || selectedNode.status === "review" || selectedNode.node_type === "hitl_gate") && (
-                <div className="rounded-lg border p-3 border-amber-500/20 bg-amber-500/5 space-y-3">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-500">Human-in-the-Loop Required</p>
+                <Surface className="space-y-3 p-3" style={{ borderColor: "color-mix(in srgb, var(--warning) 30%, transparent)", background: "var(--warning-bg)" }}>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: "var(--warning)" }}>Human-in-the-Loop Required</p>
                   <div className="flex gap-2">
-                    <button
+                    <Button
                       type="button"
                       disabled={resolving !== null}
                       onClick={() => handleResolveApproval(selectedNode.session_id, true)}
-                      className="flex-1 py-1.5 px-3 rounded bg-amber-500 text-slate-950 text-xs font-bold hover:bg-amber-600 disabled:opacity-50 transition-colors flex items-center justify-center gap-1"
+                      variant="warning"
+                      className="flex-1"
                     >
                       {resolving === "approving" ? "..." : "Approve"}
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
                       disabled={resolving !== null}
                       onClick={() => handleResolveApproval(selectedNode.session_id, false)}
-                      className="flex-1 py-1.5 px-3 rounded bg-slate-800 text-slate-200 border border-slate-700 text-xs font-bold hover:bg-slate-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-1"
+                      className="flex-1"
                     >
                       {resolving === "rejecting" ? "..." : "Reject"}
-                    </button>
+                    </Button>
                   </div>
-                </div>
+                </Surface>
               )}
 
               <div className="grid grid-cols-2 gap-2">
@@ -1143,7 +1099,7 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
               
               {(selectedNode.status === 'done' || selectedNode.status === 'completed') && selectedNode.result_summary && (
                 <div>
-                  <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-green-500">Result Summary</p>
+                  <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: "var(--success)" }}>Result Summary</p>
                   <p className="rounded-lg border p-3 text-xs t2" style={{ background: "var(--bg-card)", borderColor: "var(--border-c)" }}>
                     {selectedNode.result_summary}
                   </p>
@@ -1167,7 +1123,7 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
           ) : (
             <div className="flex h-64 items-center justify-center p-6 text-center text-xs font-semibold t3">{copy.noNode}</div>
           )}
-        </section>
+        </Surface>
         <ActivityLog entries={activityEntries} lang={lang} onClear={onClearActivityLog} />
       </aside>
     </div>

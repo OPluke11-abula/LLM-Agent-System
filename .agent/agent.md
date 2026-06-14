@@ -110,7 +110,7 @@ To optimize token efficiency and prevent tool retrieval noise, classify user inp
 
 ### E. Situation: UI/UX Layouts & Obsessed Frontends
 * **Primary Skills**: Global `web-artifacts-builder`, local `topological_workspace`.
-* **Action**: Inject beautiful typography, deep dark glassmorphism gradients, status indicators, and smooth node-edge paths in Tailwind CSS.
+* **Action**: Build restrained, production-grade control-plane interfaces with shared design primitives, low-saturation tokens, precise 1px borders, readable status indicators, and smooth node-edge paths in Tailwind CSS.
 
 ---
 
@@ -119,7 +119,7 @@ To optimize token efficiency and prevent tool retrieval noise, classify user inp
 LAS features a dual-plane observability control-plane. When styling or refining visual interfaces, strictly follow these core aesthetic rules:
 
 * **Zero-Build Lightweight Plane (`workspace/viewer.html`)**: Pure Vanilla JS, Tailwind CDN, and Dagre layouts. It must remain 100% standalone, reading directly from `workspace.json`, styled with an obsessed dark layout, transparent panels, and HSL node border colors based on active task status (`todo` / `in_process` / `review` / `done` / `error`).
-* **Heavyweight Professional Desktop Plane (`viewer/`)**: Vite + React + React Flow + Tauri client. All components under `viewer/src/` must adopt beautiful glassmorphism panel styles. Edge routes must be curved dynamically, and custom nodes must clearly render model tags (Gemini, Claude, GPT), latency graphs, and token usages.
+* **Heavyweight Professional Desktop Plane (`viewer/`)**: Vite + React + React Flow + Tauri client. All components under `viewer/src/` must use shared UI primitives, tokenized surfaces, low-saturation dark/light themes, subtle shadows, stable responsive dimensions, and clear non-decorative status chips. Edge routes must be curved dynamically, and custom nodes must clearly render model tags (Gemini, Claude, GPT), latency graphs, and token usages.
 
 ---
 

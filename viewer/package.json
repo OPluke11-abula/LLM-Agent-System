@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "verify:ui": "node scripts/verify-ui.mjs",
+    "verify:ui:screenshots": "node scripts/verify-ui.mjs --screenshots",
     "preview": "vite preview",
     "tauri": "tauri"
   },

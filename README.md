@@ -38,17 +38,17 @@ LAS is an extremely readable, maintainable, observable, and portable local Agent
  │            Moderator View: CEO Strategy Room           │
  └───────────────────────────┬────────────────────────────┘
                              │
-                             │ (Handoff Edge: glowing gold)
+                             │ (Handoff Edge: status-aware)
                              ▼
  ┌────────────────────────────────────────────────────────┐
  │            R&D Center: Developer Workspace             │
  └───────────────────────────┬────────────────────────────┘
                              ├─────────────────────────────┐
-                             │                             │ (Tool/API Edge: glowing blue)
+                             │                             │ (Tool/API Edge: typed route)
                              ▼                             ▼
  ┌───────────────────────────────────────┐     ┌───────────────────────────────────────┐
  │       Auditor: Telemetry & Billing    │     │       HITL Gate: Human Approval       │
- │   (Real-time Token & cost charts)     │     │      (goldPulse amber border)         │
+ │   (Real-time Token & cost charts)     │     │      (approval state badge)           │
  └───────────────────────────────────────┘     └───────────────────────────────────────┘
 ```
 
@@ -109,6 +109,15 @@ uvicorn agent_workspace.api:app --host 0.0.0.0 --port 8000
   npm run dev
   ```
   *(To download the pre-compiled standalone application directly, check the [releases/](releases/) directory. To compile it yourself, execute `npm run tauri build` inside the `viewer` directory.)*
+
+#### 4. Verify the React Control Plane
+```powershell
+cd viewer
+npm run build
+npm run verify:ui
+```
+
+The React/Tauri viewer is the product-grade visual control plane for the local Agent Runtime. It uses route-level code splitting, shared UI primitives, low-saturation design tokens, and repeatable bundle verification. `npm run verify:ui` checks the production bundle and enforces a sub-500 kB JavaScript chunk budget. `npm run verify:ui:screenshots` also attempts Edge headless screenshots into `viewer/output/ui-regression/`; set `UI_VERIFY_STRICT_SCREENSHOTS=1` when screenshot capture must be treated as a hard failure.
 
 ---
 
@@ -189,17 +198,17 @@ LAS is fully aligned with the latest PAP v0.2.0 reference specification:
  │             Moderator View: CEO 戰略指揮官視角          │
  └───────────────────────────┬────────────────────────────┘
                              │
-                             │ (Handoff 邊線：琥珀金粒子流)
+                             │ (Handoff 邊線：狀態化路徑)
                              ▼
  ┌────────────────────────────────────────────────────────┐
  │              R&D Center: 開發工程師畫布編輯器           │
  └───────────────────────────┬────────────────────────────┘
                              ├─────────────────────────────┐
-                             │                             │ (Tool/API 邊線：流動藍光)
+                             │                             │ (Tool/API 邊線：類型化路由)
                              ▼                             ▼
  ┌───────────────────────────────────────┐     ┌───────────────────────────────────────┐
  │         Auditor: 財務計費與統計儀表板  │     │        HITL Gate: 人機審批閘口         │
- │     (實時 Token 統計與延遲折線圖)       │     │       (金黃脈動 goldPulse 邊框)        │
+ │     (實時 Token 統計與延遲折線圖)       │     │       (審批狀態標籤)                  │
  └───────────────────────────────────────┘     └───────────────────────────────────────┘
 ```
 
@@ -260,6 +269,15 @@ uvicorn agent_workspace.api:app --host 0.0.0.0 --port 8000
   npm run dev
   ```
   *(若您希望直接下載預先編譯好的免安裝執行檔，請前往 [releases/](releases/) 目錄取得。若要自行編譯，請在 `viewer` 目錄下執行 `npm run tauri build`)*
+
+#### 4. 校驗 React 視覺控制平面
+```powershell
+cd viewer
+npm run build
+npm run verify:ui
+```
+
+React/Tauri viewer 是本地 Agent Runtime 的產品級 visual control plane。它已使用 route-level code splitting、共用 UI primitives、低飽和設計 token 與可重複的 bundle gate。`npm run verify:ui` 會檢查 production bundle，並要求最大 JavaScript chunk 小於 500 kB。`npm run verify:ui:screenshots` 會額外嘗試使用 Edge headless 產出截圖至 `viewer/output/ui-regression/`；若截圖必須作為硬性 gate，可設定 `UI_VERIFY_STRICT_SCREENSHOTS=1`。
 
 ---
 

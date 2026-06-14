@@ -20,13 +20,10 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
   return (
     <div className="fixed inset-0 z-40" onClick={onClose} onContextMenu={(event) => event.preventDefault()}>
       <div
-        className="absolute w-56 rounded-2xl border p-2 shadow-2xl"
+        className="control-surface absolute w-56 p-1.5"
         style={{
           left,
           top,
-          background: "rgba(8,15,29,0.94)",
-          borderColor: "var(--border-c)",
-          backdropFilter: "blur(20px)",
         }}
         onClick={(event) => event.stopPropagation()}
       >
@@ -36,8 +33,8 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
             <button
               type="button"
               onClick={item.onClick}
-              className="flex w-full items-center rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition-colors hover:bg-white/5"
-              style={{ color: item.tone === "danger" ? "#fca5a5" : "var(--t1)" }}
+              className="flex w-full items-center rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors hover:bg-white/5"
+              style={{ color: item.tone === "danger" ? "var(--danger)" : "var(--t1)" }}
             >
               {item.label}
             </button>

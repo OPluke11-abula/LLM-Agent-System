@@ -9,72 +9,78 @@ type SidebarProps = {
 export function Sidebar({ t, relaunchOnboarding }: SidebarProps) {
   const location = useLocation();
   const items = [
-    { label: t.taskFlow, to: "/" },
-    { label: t.rules, to: "/rules" },
-    { label: t.mods, to: "/mods" },
-    { label: t.settings, to: "/settings" },
-    { label: t.adminConsole, to: "/admin" },
+    { label: t.taskFlow, to: "/", kicker: "Flow" },
+    { label: t.rules, to: "/rules", kicker: "Policy" },
+    { label: t.mods, to: "/mods", kicker: "Skills" },
+    { label: t.settings, to: "/settings", kicker: "Config" },
+    { label: t.adminConsole, to: "/admin", kicker: "Ops" },
   ];
 
   return (
     <aside
-      className="fixed left-0 top-0 z-50 flex h-screen w-56 flex-col border-r p-5"
+      className="relative z-50 flex w-full flex-col border-b p-4 md:fixed md:left-0 md:top-0 md:h-screen md:w-64 md:border-r md:border-b-0 md:p-5"
       style={{ background: "var(--sidebar)", borderColor: "var(--border-c)" }}
     >
-      <div className="mt-1 mb-8 flex items-center gap-3 px-1">
-        <div
-          className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg"
-          style={{ background: "var(--accent)", boxShadow: "0 4px 16px var(--accent-bg)" }}
-        >
+      <div className="mb-4 px-1 md:mt-1 md:mb-8">
+        <div className="mb-4 flex items-center gap-3">
           <div
-            className="h-2.5 w-2.5 rounded-full bg-white/90"
-            style={{ boxShadow: "0 0 8px rgba(255,255,255,0.9)" }}
-          />
+            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border text-[11px] font-semibold tracking-[0.16em]"
+            style={{ borderColor: "rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.055)", color: "white" }}
+          >
+            LAS
+          </div>
+          <div className="min-w-0">
+            <span className="block truncate text-sm font-semibold leading-tight" style={{ color: "var(--t1)" }}>
+              {t.appTitle}
+            </span>
+            <span
+              className="mt-1 block text-[10px] font-medium uppercase tracking-[0.18em]"
+              style={{ color: "rgba(255,255,255,0.42)" }}
+            >
+              Agent Runtime
+            </span>
+          </div>
         </div>
-        <span className="text-sm font-extrabold leading-tight tracking-wide" style={{ color: "var(--t1)" }}>
-          {t.appTitle}
-        </span>
       </div>
-      <nav className="flex-1 space-y-1">
-        {items.map(({ label, to }) => {
+
+      <nav className="grid grid-cols-2 gap-1.5 sm:grid-cols-5 md:block md:flex-1 md:space-y-1.5">
+        {items.map(({ label, to, kicker }) => {
           const active = location.pathname === to;
 
           return (
             <Link
               key={to}
               to={to}
-              className="flex items-center rounded-xl px-4 py-2.5 text-sm font-bold transition-all duration-200"
-              style={
-                active
-                  ? {
-                      background: "var(--accent-bg)",
-                      color: "var(--accent)",
-                      border: "1px solid var(--accent)",
-                      marginLeft: "4px",
-                    }
-                  : { color: "var(--t3)", border: "1px solid transparent" }
-              }
+              aria-current={active ? "page" : undefined}
+              className={`nav-link ${active ? "nav-link-active" : ""} group flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium`}
             >
-              {label}
+              <span className="truncate">{label}</span>
+              <span className="text-[9px] font-semibold uppercase tracking-[0.14em] opacity-45 group-hover:opacity-70">
+                {kicker}
+              </span>
             </Link>
           );
         })}
       </nav>
-      <div className="border-t pt-4 space-y-3" style={{ borderColor: "var(--border-c)" }}>
+
+      <div className="hidden space-y-3 border-t pt-4 md:block" style={{ borderColor: "rgba(255,255,255,0.09)" }}>
         {relaunchOnboarding && (
           <button
             type="button"
             onClick={relaunchOnboarding}
-            className="w-full rounded-lg border border-dashed py-2 text-center text-xs font-bold transition-all hover:bg-white/5 active:scale-95 text-slate-300 hover:text-white"
-            style={{ borderColor: "var(--border-c)" }}
+            className="w-full rounded-lg border border-dashed py-2 text-center text-xs font-semibold transition-all hover:bg-white/5 active:translate-y-px"
+            style={{ borderColor: "rgba(255,255,255,0.14)", color: "rgba(255,255,255,0.72)" }}
           >
-            🚀 {t.relaunchTutorialBtn}
+            {t.relaunchTutorialBtn}
           </button>
         )}
-        <p className="text-[9px] font-semibold uppercase tracking-wider leading-relaxed t3">
-          AI Agent Topology Viewer
+        <p
+          className="text-[9px] font-medium uppercase leading-relaxed tracking-[0.16em]"
+          style={{ color: "rgba(255,255,255,0.36)" }}
+        >
+          Visual Control Plane
           <br />
-          Tauri 2.0 · TS 5.8 · ReactFlow 11
+          Tauri 2.0 / TS 5.8 / ReactFlow 11
         </p>
       </div>
     </aside>

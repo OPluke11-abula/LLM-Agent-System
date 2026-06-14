@@ -69,9 +69,9 @@ export function SettingsView({
   };
 
   const tabs: Array<{ id: SettingsTabId; label: string }> = [
-    { id: "general", label: `⚙️ ${t.generalSettingsTab}` },
-    { id: "docs", label: `📖 ${t.usageGuideTab}` },
-    { id: "guide", label: `🤝 ${t.aiGuideTab}` },
+    { id: "general", label: t.generalSettingsTab },
+    { id: "docs", label: t.usageGuideTab },
+    { id: "guide", label: t.aiGuideTab },
   ];
 
   function addWorkspace() {
@@ -162,7 +162,7 @@ export function SettingsView({
                 className="rounded-lg border px-5 py-2.5 text-sm font-bold transition-all hover:brightness-110 active:scale-95"
                 style={{ background: "var(--accent)", borderColor: "var(--accent)", color: "#fff" }}
               >
-                🚀 {t.relaunchTutorialBtn}
+                {t.relaunchTutorialBtn}
               </button>
             </div>
           </section>
@@ -277,7 +277,7 @@ export function SettingsView({
               className="mb-4 flex gap-3 rounded-xl border p-4"
               style={{ background: "var(--accent-bg)", borderColor: "var(--accent)" }}
             >
-              <span style={{ color: "var(--accent)" }}>💡</span>
+              <span className="mt-1 h-2 w-2 shrink-0 rounded-full" style={{ background: "var(--accent)" }} />
               <div>
                 <p className="text-xs font-bold" style={{ color: "var(--accent)" }}>
                   {t.aiHowTitle}

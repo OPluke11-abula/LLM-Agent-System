@@ -141,3 +141,4 @@ vite.config.ts.timestamp-*
 # AI Agent Topology Viewer generated paths
 workspace/
 AGENTS.md
+output/

@@ -7,6 +7,7 @@ import {
   useNodesState,
 } from "reactflow";
 import "reactflow/dist/style.css";
+import { Button, ProgressBar, StatusBadge, Surface, toneForStatus } from "./ui/primitives";
 import type { TranslationMessages } from "../types";
 
 type AdminDashboardViewProps = {
@@ -296,7 +297,7 @@ export function AdminDashboardView({ t }: AdminDashboardViewProps) {
                 style: {
                   ...node.style,
                   borderColor: node.id === fromAgent ? "var(--accent)" : "var(--border-c)",
-                  boxShadow: node.id === fromAgent ? "0 0 15px var(--accent)" : "none"
+                  boxShadow: node.id === fromAgent ? "var(--ring)" : "none"
                 }
               }))
             );
@@ -400,8 +401,8 @@ export function AdminDashboardView({ t }: AdminDashboardViewProps) {
               <span className="font-extrabold uppercase text-[9px]" style={{ color: isTampered ? "#f87171" : "var(--accent)" }}>
                 Block #{block.id}
               </span>
-              <span className="truncate max-w-[130px] font-bold text-slate-200">{block.event_type}</span>
-              <span className="font-mono text-[8px] text-slate-400">Hash: {block.current_hash.slice(0, 10)}...</span>
+              <span className="max-w-[130px] truncate font-bold t1">{block.event_type}</span>
+              <span className="font-mono text-[8px] t3">Hash: {block.current_hash.slice(0, 10)}...</span>
             </div>
           )
         },
@@ -464,47 +465,38 @@ export function AdminDashboardView({ t }: AdminDashboardViewProps) {
               fetchTenants();
               fetchLedger();
             }}
-            className="flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/40 text-slate-300 hover:bg-slate-850 px-3 py-1.5 text-xs font-bold transition-all"
+              className="quiet-button rounded-lg px-3 py-1.5 text-xs font-semibold"
           >
-            🔄 Refresh
+            Refresh
           </button>
         </div>
       </div>
 
       {/* 2. Tenant & Billing Grid */}
-      <section className="panel-bg rounded-xl border p-4 shadow-xl flex flex-col gap-3" style={{ borderColor: "var(--border-c)" }}>
-        <h2 className="text-xs font-black uppercase tracking-[0.14em] text-slate-200">{t.billingPlans}</h2>
+      <Surface as="section" elevated className="flex flex-col gap-3 p-4">
+        <h2 className="text-xs font-black uppercase tracking-[0.14em] t1">{t.billingPlans}</h2>
         {loadingTenants ? (
           <div className="text-center text-xs py-4 t3">Loading tenants...</div>
         ) : errorTenants ? (
-          <div className="text-center text-xs py-4 text-red-400">Error: {errorTenants}</div>
+          <div className="text-center text-xs py-4" style={{ color: "var(--danger)" }}>Error: {errorTenants}</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {tenants.map(tenant => (
-              <div
+              <Surface
                 key={tenant.tenant_id}
-                className="card-bg rounded-xl border p-4 flex flex-col gap-3 relative group"
-                style={{ borderColor: "var(--border-c)" }}
+                className="relative flex flex-col gap-3 p-4"
               >
                 {/* Header */}
                 <div className="flex justify-between items-start">
                   <div>
                     <span className="text-xs font-black t1">{tenant.tenant_id}</span>
-                    <p className="text-[9px] text-slate-500 font-mono mt-0.5 truncate max-w-[150px]">
+                    <p className="mt-0.5 max-w-[150px] truncate font-mono text-[9px] t3">
                       Stripe: {tenant.stripe_subscription_id || "None"}
                     </p>
                   </div>
-                  <span
-                    className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase ${
-                      tenant.status === "active"
-                        ? "bg-emerald-950 text-emerald-400 border border-emerald-800"
-                        : tenant.status === "frozen"
-                        ? "bg-amber-950 text-amber-400 border border-amber-800"
-                        : "bg-red-950 text-red-400 border border-red-800"
-                    }`}
-                  >
+                  <StatusBadge tone={toneForStatus(tenant.status)}>
                     {tenant.status}
-                  </span>
+                  </StatusBadge>
                 </div>
 
                 {/* API Key Rotation */}
@@ -515,18 +507,18 @@ export function AdminDashboardView({ t }: AdminDashboardViewProps) {
                       type="text"
                       readOnly
                       value={rotatedKeyInfo[tenant.tenant_id] || tenant.api_key}
-                      className="flex-1 bg-slate-950/80 border border-slate-800 rounded px-2 py-1 text-[10px] font-mono text-slate-300"
+                      className="field-input min-w-0 flex-1 rounded px-2 py-1 font-mono text-[10px]"
                     />
-                    <button
+                    <Button
                       onClick={() => handleRotateKey(tenant.tenant_id)}
-                      className="rounded bg-slate-800 hover:bg-slate-700 text-white px-2.5 py-1 text-[10px] font-bold border border-slate-700 active:scale-95 transition-all"
+                      className="px-2.5 py-1 text-[10px]"
                       title="Rotate Tenant API Key"
                     >
                       Rotate
-                    </button>
+                    </Button>
                   </div>
                   {rotatedKeyInfo[tenant.tenant_id] && (
-                    <span className="text-[8px] text-amber-400 font-bold">Key rotated successfully in-memory!</span>
+                    <span className="text-[8px] font-bold" style={{ color: "var(--warning)" }}>Key rotated successfully in-memory.</span>
                   )}
                 </div>
 
@@ -534,19 +526,15 @@ export function AdminDashboardView({ t }: AdminDashboardViewProps) {
                 <div className="flex flex-col gap-1 text-[10px] mt-1">
                   <div className="flex justify-between font-bold">
                     <span className="t3 uppercase tracking-[0.08em]">{t.realTimeUsage}</span>
-                    <span className="text-slate-400 font-mono">
+                    <span className="font-mono t3">
                       {tenant.tokens_last_minute} / 5k tpm
                     </span>
                   </div>
-                  <div className="w-full h-1.5 rounded-full bg-slate-900 overflow-hidden border border-slate-800">
-                    <div
-                      className={`h-full rounded-full transition-all duration-300 ${
-                        tenant.tokens_last_minute >= 4000 ? "bg-red-500" : tenant.tokens_last_minute >= 2500 ? "bg-amber-500" : "bg-cyan-500"
-                      }`}
-                      style={{ width: `${Math.min(100, (tenant.tokens_last_minute / 5000) * 100)}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between text-[8px] text-slate-500 mt-0.5">
+                  <ProgressBar
+                    value={(tenant.tokens_last_minute / 5000) * 100}
+                    tone={tenant.tokens_last_minute >= 4000 ? "danger" : tenant.tokens_last_minute >= 2500 ? "warning" : "accent"}
+                  />
+                  <div className="mt-0.5 flex justify-between text-[8px] t3">
                     <span>Total: {tenant.total_tokens.toLocaleString()} tokens</span>
                     <span>Cost: ${tenant.total_cost_usd.toFixed(4)}</span>
                   </div>
@@ -555,57 +543,53 @@ export function AdminDashboardView({ t }: AdminDashboardViewProps) {
                 {/* Simulation Control Overlay */}
                 {tenant.tenant_id !== "admin_tenant" && (
                   <div className="flex gap-1 border-t pt-2.5 mt-1 border-dashed" style={{ borderColor: "var(--border-c)" }}>
-                    <button
+                    <Button
                       onClick={() => handleUpdateSubscription(tenant.tenant_id, "active")}
-                      className="flex-1 rounded py-1 text-[9px] font-bold border bg-emerald-950/20 text-emerald-400 border-emerald-800 hover:bg-emerald-950/40 active:scale-95 transition-all"
+                      variant="primary"
+                      className="flex-1 py-1 text-[9px]"
                     >
                       Active
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       onClick={() => handleUpdateSubscription(tenant.tenant_id, "frozen")}
-                      className="flex-1 rounded py-1 text-[9px] font-bold border bg-amber-950/20 text-amber-400 border-amber-800 hover:bg-amber-950/40 active:scale-95 transition-all"
+                      variant="warning"
+                      className="flex-1 py-1 text-[9px]"
                     >
                       Freeze
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       onClick={() => handleUpdateSubscription(tenant.tenant_id, "canceled")}
-                      className="flex-1 rounded py-1 text-[9px] font-bold border bg-red-950/20 text-red-400 border-red-800 hover:bg-red-950/40 active:scale-95 transition-all"
+                      variant="danger"
+                      className="flex-1 py-1 text-[9px]"
                     >
                       Cancel
-                    </button>
+                    </Button>
                   </div>
                 )}
-              </div>
+              </Surface>
             ))}
           </div>
         )}
-      </section>
+      </Surface>
 
       {/* 3. Swarm Live Interceptor & Ledger Visualizer Row */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         {/* Swarm Live Interceptor Canvas */}
-        <section
-          className="lg:col-span-7 panel-bg rounded-xl border p-4 shadow-xl flex flex-col gap-3 min-h-[460px] relative"
-          style={{ borderColor: "var(--border-c)" }}
-        >
+        <Surface as="section" elevated className="relative flex min-h-[460px] flex-col gap-3 p-4 lg:col-span-7">
           <div className="flex justify-between items-center">
             <div>
-              <h2 className="text-xs font-black uppercase tracking-[0.14em] text-slate-200">{t.liveInterceptor}</h2>
+              <h2 className="text-xs font-black uppercase tracking-[0.14em] t1">{t.liveInterceptor}</h2>
               <p className="text-[10px] t3 mt-0.5">Session: {selectedSessionId}</p>
             </div>
             <div className="flex items-center gap-2">
-              <span className="flex h-2.5 w-2.5 relative">
-                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${wsConnected ? "bg-emerald-400" : "bg-amber-400"}`}></span>
-                <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${wsConnected ? "bg-emerald-500" : "bg-amber-500"}`}></span>
-              </span>
-              <span className="text-[9px] font-mono font-bold text-slate-400">
+              <StatusBadge tone={wsConnected ? "success" : "warning"}>
                 {wsConnected ? "WEBSOCKET LIVE" : "OFFLINE SIMULATION"}
-              </span>
+              </StatusBadge>
             </div>
           </div>
 
           {/* React Flow Swarm Canvas */}
-          <div className="flex-1 rounded-lg border relative overflow-hidden" style={{ background: "var(--bg-panel)", borderColor: "var(--border-c)", minHeight: "280px" }}>
+          <div className="flow-canvas relative min-h-[280px] flex-1 overflow-hidden rounded-lg border" style={{ borderColor: "var(--border-c)" }}>
             <ReactFlow
               nodes={swarmNodes}
               edges={swarmEdges}
@@ -619,115 +603,101 @@ export function AdminDashboardView({ t }: AdminDashboardViewProps) {
             </ReactFlow>
 
             {/* Float Telemetry Panel overlay */}
-            <div className="absolute bottom-3 left-3 z-10 p-2.5 rounded-lg border panel-bg flex flex-col gap-1 text-[9px] max-w-[280px]" style={{ borderColor: "var(--border-c)" }}>
-              <div className="flex justify-between font-bold text-slate-300">
+            <Surface className="absolute bottom-3 left-3 z-10 flex max-w-[280px] flex-col gap-1 p-2.5 text-[9px]">
+              <div className="flex justify-between font-bold t2">
                 <span>Last Node: <strong style={{ color: "var(--accent)" }}>{lastInteractedAgent || "None"}</strong></span>
-                <span>Latency: <strong className="text-cyan-400">{activeTelemetry.latencyMs}ms</strong></span>
+                <span>Latency: <strong style={{ color: "var(--accent)" }}>{activeTelemetry.latencyMs}ms</strong></span>
               </div>
-              <p className="text-slate-400 truncate mt-0.5">{activeTelemetry.lastMessage}</p>
-              <div className="flex justify-between items-center border-t border-slate-800 pt-1 mt-1 text-slate-500 font-mono">
+              <p className="mt-0.5 truncate t3">{activeTelemetry.lastMessage}</p>
+              <div className="mt-1 flex items-center justify-between border-t pt-1 font-mono t3" style={{ borderColor: "var(--border-c)" }}>
                 <span>Markup pricing applied</span>
-                <span className="text-emerald-400 font-bold">${activeTelemetry.billingUsd.toFixed(4)} USD</span>
+                <span className="font-bold" style={{ color: "var(--success)" }}>${activeTelemetry.billingUsd.toFixed(4)} USD</span>
               </div>
-            </div>
+            </Surface>
           </div>
 
           {/* Action Row */}
           <div className="flex gap-2">
-            <button
+            <Button
               onClick={handlePauseSwarm}
-              className={`flex-1 py-1.5 text-xs font-bold border rounded-lg active:scale-95 transition-all ${
-                swarmStatus === "paused"
-                  ? "bg-amber-950/20 text-amber-400 border-amber-800 cursor-not-allowed"
-                  : "bg-slate-800/40 text-slate-300 border-slate-700 hover:bg-slate-850"
-              }`}
+              variant={swarmStatus === "paused" ? "warning" : "quiet"}
+              className="flex-1"
             >
-              ⏸️ {t.pauseSwarm}
-            </button>
-            <button
+              {t.pauseSwarm}
+            </Button>
+            <Button
               onClick={handleResumeSwarm}
-              className={`flex-1 py-1.5 text-xs font-bold border rounded-lg active:scale-95 transition-all ${
-                swarmStatus === "running"
-                  ? "bg-emerald-950/20 text-emerald-400 border-emerald-800 cursor-not-allowed"
-                  : "bg-slate-800/40 text-slate-300 border-slate-700 hover:bg-slate-850"
-              }`}
+              variant={swarmStatus === "running" ? "primary" : "quiet"}
+              className="flex-1"
             >
-              ▶️ {t.resumeSwarm}
-            </button>
-            <button
+              {t.resumeSwarm}
+            </Button>
+            <Button
               onClick={() => setShowHijackInput(!showHijackInput)}
-              className="flex-1 py-1.5 text-xs font-bold border border-slate-700 bg-slate-800/40 text-slate-300 hover:bg-slate-850 rounded-lg active:scale-95 transition-all"
+              className="flex-1"
             >
-              🎯 {t.hijackInput}
-            </button>
+              {t.hijackInput}
+            </Button>
           </div>
 
           {/* Hijack Text Box Popup overlay */}
           {showHijackInput && (
-            <div className="absolute inset-x-4 bottom-16 z-20 p-3 rounded-lg border panel-bg flex flex-col gap-2" style={{ borderColor: "var(--border-c)" }}>
-              <div className="flex justify-between items-center border-b pb-1.5 border-slate-800">
-                <span className="text-[10px] font-bold text-slate-300">Inject Human-In-The-Loop Hijacked Input</span>
-                <button onClick={() => setShowHijackInput(false)} className="text-slate-500 hover:text-white">✕</button>
+            <Surface className="absolute inset-x-4 bottom-16 z-20 flex flex-col gap-2 p-3">
+              <div className="flex items-center justify-between border-b pb-1.5" style={{ borderColor: "var(--border-c)" }}>
+                <span className="text-[10px] font-bold t2">Inject Human-In-The-Loop Hijacked Input</span>
+                <Button onClick={() => setShowHijackInput(false)} className="px-2 py-1 text-[10px]">Close</Button>
               </div>
               <textarea
                 value={hijackText}
                 onChange={e => setHijackText(e.target.value)}
                 placeholder="Type response mock value or direct instructions to bypass native tool execution..."
-                className="bg-slate-950 border border-slate-850 rounded p-2 text-xs text-slate-200 h-16 resize-none font-mono"
+                className="field-input h-16 resize-none rounded p-2 font-mono text-xs"
               />
-              <button
+              <Button
                 onClick={handleHijackInput}
-                className="w-full py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold rounded"
+                variant="primary"
+                className="w-full"
               >
                 Submit Hijacked Input
-              </button>
-            </div>
+              </Button>
+            </Surface>
           )}
-        </section>
+        </Surface>
 
         {/* Ledger Validation Visualizer */}
-        <section
-          className="lg:col-span-5 panel-bg rounded-xl border p-4 shadow-xl flex flex-col gap-3 min-h-[460px] relative"
-          style={{ borderColor: "var(--border-c)" }}
-        >
+        <Surface as="section" elevated className="relative flex min-h-[460px] flex-col gap-3 p-4 lg:col-span-5">
           <div className="flex justify-between items-center">
             <div>
-              <h2 className="text-xs font-black uppercase tracking-[0.14em] text-slate-200">{t.ledgerVisualizer}</h2>
+              <h2 className="text-xs font-black uppercase tracking-[0.14em] t1">{t.ledgerVisualizer}</h2>
               <p className="text-[9px] t3 mt-0.5">SOC2 SHA-256 AuditLedger</p>
             </div>
-            <span
-              className={`text-[9px] px-2 py-0.5 rounded font-mono font-bold ${
-                auditStatus.valid
-                  ? "bg-emerald-950 text-emerald-400 border border-emerald-800"
-                  : "bg-red-950 text-red-400 border border-red-800 glow-amber"
-              }`}
-            >
+            <StatusBadge tone={auditStatus.valid ? "success" : "danger"}>
               {auditStatus.valid ? "HEALTHY" : "TAMPERED"}
-            </span>
+            </StatusBadge>
           </div>
 
           {/* Validation Status Card */}
-          <div className="card-bg rounded-lg border p-3 flex flex-col gap-1 text-[10px]" style={{ borderColor: "var(--border-c)" }}>
+          <Surface className="flex flex-col gap-1 p-3 text-[10px]">
             <div className="flex justify-between">
               <span className="t3">Merkle Root:</span>
-              <span className="font-mono text-slate-300 truncate max-w-[170px]" title={auditStatus.merkle_root}>
+              <span className="max-w-[170px] truncate font-mono t2" title={auditStatus.merkle_root}>
                 {auditStatus.merkle_root || "0x00000000000000000000"}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="t3">Block Validation Count:</span>
-              <span className="font-mono text-slate-300 font-bold">{auditBlocks.length} blocks verified</span>
+              <span className="font-mono font-bold t2">{auditBlocks.length} blocks verified</span>
             </div>
             {auditStatus.tampered_id !== null && (
-              <div className="border-t border-red-800/40 pt-2 mt-1.5 text-red-400 font-bold flex gap-1.5 items-center">
-                <span className="text-[12px]">⚠️</span>
+              <div className="mt-1.5 flex items-center gap-1.5 border-t pt-2 font-bold" style={{ borderColor: "color-mix(in srgb, var(--danger) 28%, transparent)", color: "var(--danger)" }}>
+                <span className="text-[12px]">!</span>
                 <span>Audit breach detected at Block #{auditStatus.tampered_id}! Block hash chain mismatch.</span>
               </div>
             )}
-          </div>
+          </Surface>
 
           {/* React Flow Ledger chain */}
-          <div className="flex-1 rounded-lg border relative overflow-hidden" style={{ background: "var(--bg-panel)", borderColor: "var(--border-c)", minHeight: "220px" }}>
+          <div className="flow-canvas relative min-h-[220px] flex-1 overflow-hidden rounded-lg border" style={{ borderColor: "var(--border-c)" }}>
             <ReactFlow
               nodes={ledgerNodes}
               edges={ledgerEdges}
@@ -743,21 +713,22 @@ export function AdminDashboardView({ t }: AdminDashboardViewProps) {
 
           {/* Action Row */}
           <div className="flex gap-2">
-            <button
+            <Button
               onClick={fetchLedger}
               disabled={checkingLedger}
-              className="flex-1 py-1.5 text-xs font-bold border border-slate-700 bg-slate-800/40 text-slate-300 hover:bg-slate-850 rounded-lg active:scale-95 transition-all"
+              className="flex-1"
             >
               {checkingLedger ? "Verifying..." : "Verify Chain"}
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={simulateTamper}
-              className="flex-1 py-1.5 text-xs font-bold border border-red-950/40 bg-red-950/20 text-red-400 hover:bg-red-950/30 rounded-lg active:scale-95 transition-all"
+              variant="danger"
+              className="flex-1"
             >
               Simulate Tamper
-            </button>
+            </Button>
           </div>
-        </section>
+        </Surface>
       </div>
     </div>
   );

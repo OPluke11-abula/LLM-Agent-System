@@ -166,24 +166,20 @@ export function ActivityLog({ entries, lang, onClear }: ActivityLogProps) {
   const copy = COPY[lang];
 
   return (
-    <section
-      className="panel-bg flex min-h-0 flex-col rounded-2xl border shadow-xl"
-      style={{ borderColor: "var(--border-c)" }}
-    >
+    <section className="control-surface flex min-h-0 flex-col overflow-hidden">
       <div className="flex flex-shrink-0 items-start justify-between gap-3 border-b px-4 py-3" style={{ borderColor: "var(--border-c)" }}>
         <div>
           <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full" style={{ background: "var(--accent)", boxShadow: "0 0 12px var(--accent)" }} />
-            <h3 className="text-sm font-black t1">{copy.title}</h3>
+            <span className="status-dot h-2 w-2 rounded-full" style={{ background: "var(--accent)" }} />
+            <h3 className="text-sm font-semibold t1">{copy.title}</h3>
           </div>
-          <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.16em] t3">{copy.subtitle}</p>
+          <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.14em] t3">{copy.subtitle}</p>
         </div>
         <button
           type="button"
           onClick={onClear}
           disabled={entries.length === 0}
-          className="rounded-lg border px-2.5 py-1.5 text-xs font-bold transition-all disabled:cursor-not-allowed disabled:opacity-40"
-          style={{ borderColor: "var(--border-c)", color: "var(--t2)", background: "var(--bg-card)" }}
+          className="quiet-button rounded-lg px-2.5 py-1.5 text-xs font-semibold disabled:opacity-40"
         >
           {copy.clear}
         </button>
@@ -191,7 +187,7 @@ export function ActivityLog({ entries, lang, onClear }: ActivityLogProps) {
 
       <div className="min-h-0 flex-1 overflow-y-auto p-3">
         {entries.length === 0 ? (
-          <div className="flex h-full min-h-36 items-center justify-center rounded-xl border border-dashed px-4 text-center text-xs font-semibold t3" style={{ borderColor: "var(--border-c)" }}>
+          <div className="flex h-full min-h-36 items-center justify-center rounded-lg border border-dashed px-4 text-center text-xs font-medium t3" style={{ borderColor: "var(--border-c)" }}>
             {copy.empty}
           </div>
         ) : (
@@ -202,13 +198,13 @@ export function ActivityLog({ entries, lang, onClear }: ActivityLogProps) {
               return (
                 <article
                   key={entry.id}
-                  className="rounded-xl border px-3 py-2.5"
+                  className="rounded-lg border px-3 py-2.5"
                   style={{ background: "var(--bg-card)", borderColor: style.border }}
                 >
                   <div className="mb-1 flex items-center justify-between gap-2">
                     <div className="flex min-w-0 items-center gap-2">
-                      <span className="h-2 w-2 flex-shrink-0 rounded-full" style={{ background: style.dot }} />
-                      <p className="truncate text-xs font-black t1">{copy.events[entry.type]}</p>
+                      <span className="status-dot h-2 w-2 flex-shrink-0 rounded-full" style={{ background: style.dot }} />
+                      <p className="truncate text-xs font-semibold t1">{copy.events[entry.type]}</p>
                     </div>
                     <time className="flex-shrink-0 text-[10px] font-mono t3">{formatTime(entry.timestamp, lang)}</time>
                   </div>

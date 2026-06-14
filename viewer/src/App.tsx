@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Route, Routes } from "react-router-dom";
 import {
@@ -9,19 +9,38 @@ import {
   EMPTY_MEMORY,
   T,
 } from "./constants";
-import { ModsView } from "./components/ModsView";
-import { OnboardingWizard } from "./components/OnboardingWizard";
-import { RulesView } from "./components/RulesView";
-import { SettingsView } from "./components/SettingsView";
 import { Sidebar } from "./components/Sidebar";
-import { AdminDashboardView } from "./components/AdminDashboardView";
-import { TaskFlowView } from "./components/TaskFlowView";
-import { TopologyView } from "./components/TopologyView";
 import { useActivityLog } from "./hooks/useActivityLog";
 import { usePersistedState } from "./hooks/usePersistedState";
 import { useTopology } from "./hooks/useTopology";
 import { useWorkspace } from "./hooks/useWorkspace";
 import type { AgentMemory, Lang, ThemeId, Workspace } from "./types";
+
+const AdminDashboardView = lazy(() =>
+  import("./components/AdminDashboardView").then((module) => ({ default: module.AdminDashboardView })),
+);
+const ModsView = lazy(() => import("./components/ModsView").then((module) => ({ default: module.ModsView })));
+const OnboardingWizard = lazy(() =>
+  import("./components/OnboardingWizard").then((module) => ({ default: module.OnboardingWizard })),
+);
+const RulesView = lazy(() => import("./components/RulesView").then((module) => ({ default: module.RulesView })));
+const SettingsView = lazy(() =>
+  import("./components/SettingsView").then((module) => ({ default: module.SettingsView })),
+);
+const TaskFlowView = lazy(() =>
+  import("./components/TaskFlowView").then((module) => ({ default: module.TaskFlowView })),
+);
+const TopologyView = lazy(() =>
+  import("./components/TopologyView").then((module) => ({ default: module.TopologyView })),
+);
+
+function PageFallback() {
+  return (
+    <div className="flex h-full items-center justify-center">
+      <div className="control-surface px-4 py-3 text-xs font-semibold t2">Loading control plane...</div>
+    </div>
+  );
+}
 
 export default function App() {
   const [lang, setLang] = usePersistedState<Lang>("app_lang", "zh");
@@ -92,119 +111,113 @@ export default function App() {
 
   if (!hasOnboarded) {
     return (
-      <OnboardingWizard
-        lang={lang}
-        onFinish={({ name, path }) => {
-          const workspaceId = `ws-${Date.now()}`;
-          const workspace = {
-            id: workspaceId,
-            name,
-            lang: "TypeScript",
-            path,
-          };
+      <Suspense fallback={<PageFallback />}>
+        <OnboardingWizard
+          lang={lang}
+          onFinish={({ name, path }) => {
+            const workspaceId = `ws-${Date.now()}`;
+            const workspace = {
+              id: workspaceId,
+              name,
+              lang: "TypeScript",
+              path,
+            };
 
-          setWorkspaces((prev) => {
-            const filtered = prev.filter((w) => w.path !== "");
-            if (filtered.some((w) => w.path === path && w.name === name)) {
-              return prev;
-            }
-            if (filtered.length === 0) {
-              return [workspace];
-            }
-            return [...filtered, workspace];
-          });
-          setActiveWorkspaceId(workspaceId);
-          setMemoryMap((prev) => ({ ...prev, [workspaceId]: EMPTY_MEMORY }));
-          setHasOnboarded(true);
-        }}
-      />
+            setWorkspaces((prev) => {
+              const filtered = prev.filter((w) => w.path !== "");
+              if (filtered.some((w) => w.path === path && w.name === name)) {
+                return prev;
+              }
+              if (filtered.length === 0) {
+                return [workspace];
+              }
+              return [...filtered, workspace];
+            });
+            setActiveWorkspaceId(workspaceId);
+            setMemoryMap((prev) => ({ ...prev, [workspaceId]: EMPTY_MEMORY }));
+            setHasOnboarded(true);
+          }}
+        />
+      </Suspense>
     );
   }
 
   return (
-    <div className="bg-grid relative h-screen w-full overflow-hidden font-sans">
-      <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden>
-        <div
-          className="absolute top-[-20%] left-[-10%] h-[50%] w-[50%] rounded-full opacity-30"
-          style={{ background: "radial-gradient(circle, var(--orb1) 0%, transparent 70%)", filter: "blur(70px)" }}
-        />
-        <div
-          className="absolute right-[-10%] bottom-[-20%] h-[40%] w-[40%] rounded-full opacity-20"
-          style={{ background: "radial-gradient(circle, var(--orb2) 0%, transparent 70%)", filter: "blur(90px)" }}
-        />
-      </div>
-      <div className="relative z-10 flex h-full">
+    <div className="app-frame bg-grid relative h-screen w-full overflow-hidden font-sans">
+      <div className="relative z-10 flex h-full flex-col md:flex-row">
         <Sidebar t={t} relaunchOnboarding={() => setHasOnboarded(false)} />
-        <main className="ml-56 h-screen min-w-0 flex-1 overflow-hidden p-5">
-          <Routes>
-            <Route
-              path="/"
-              element={
-                hasTopology ? (
-                  <TopologyView
-                    sessions={sessionList}
-                    lastUpdatedSessionId={lastUpdatedSessionId}
-                    activityEntries={activityEntries}
-                    onClearActivityLog={clearActivityLog}
-                    lang={lang}
-                  />
-                ) : (
-                  <TaskFlowView
-                    memory={activeMemory}
-                    workspaces={workspaces}
-                    activeWorkspaceId={activeWorkspaceId}
-                    setActiveWorkspaceId={setActiveWorkspaceId}
-                    onStatusChange={handleStatusChange}
-                    onDescriptionChange={handleDescriptionChange}
-                    onAddSubtask={handleAddSubtask}
-                    onDeleteTask={handleDeleteTask}
-                    activityEntries={activityEntries}
-                    onClearActivityLog={clearActivityLog}
+        <main className="min-h-0 min-w-0 flex-1 overflow-hidden p-4 md:ml-64 md:h-screen md:p-5">
+          <Suspense fallback={<PageFallback />}>
+            <Routes>
+              <Route
+                path="/"
+                element={
+                  hasTopology ? (
+                    <TopologyView
+                      sessions={sessionList}
+                      lastUpdatedSessionId={lastUpdatedSessionId}
+                      activityEntries={activityEntries}
+                      onClearActivityLog={clearActivityLog}
+                      lang={lang}
+                    />
+                  ) : (
+                    <TaskFlowView
+                      memory={activeMemory}
+                      workspaces={workspaces}
+                      activeWorkspaceId={activeWorkspaceId}
+                      setActiveWorkspaceId={setActiveWorkspaceId}
+                      onStatusChange={handleStatusChange}
+                      onDescriptionChange={handleDescriptionChange}
+                      onAddSubtask={handleAddSubtask}
+                      onDeleteTask={handleDeleteTask}
+                      activityEntries={activityEntries}
+                      onClearActivityLog={clearActivityLog}
+                      t={t}
+                      lang={lang}
+                    />
+                  )
+                }
+              />
+              <Route path="/rules" element={<RulesView t={t} rules={rules} setRules={setRules} />} />
+              <Route
+                path="/mods"
+                element={
+                  <ModsView
                     t={t}
                     lang={lang}
+                    agentsEnabled={agentsEnabled}
+                    setAgentsEnabled={setAgentsEnabled}
+                    activeSkills={activeSkills}
+                    setActiveSkills={setActiveSkills}
                   />
-                )
-              }
-            />
-            <Route path="/rules" element={<RulesView t={t} rules={rules} setRules={setRules} />} />
-            <Route
-              path="/mods"
-              element={
-                <ModsView
-                  t={t}
-                  lang={lang}
-                  agentsEnabled={agentsEnabled}
-                  setAgentsEnabled={setAgentsEnabled}
-                  activeSkills={activeSkills}
-                  setActiveSkills={setActiveSkills}
-                />
-              }
-            />
-            <Route
-              path="/settings"
-              element={
-                <SettingsView
-                  lang={lang}
-                  setLang={setLang}
-                  theme={theme}
-                  setTheme={setTheme}
-                  workspaces={workspaces}
-                  setWorkspaces={setWorkspaces}
-                  t={t}
-                  relaunchOnboarding={() => setHasOnboarded(false)}
-                />
-              }
-            />
-            <Route
-              path="/admin"
-              element={
-                <AdminDashboardView
-                  theme={theme}
-                  t={t}
-                />
-              }
-            />
-          </Routes>
+                }
+              />
+              <Route
+                path="/settings"
+                element={
+                  <SettingsView
+                    lang={lang}
+                    setLang={setLang}
+                    theme={theme}
+                    setTheme={setTheme}
+                    workspaces={workspaces}
+                    setWorkspaces={setWorkspaces}
+                    t={t}
+                    relaunchOnboarding={() => setHasOnboarded(false)}
+                  />
+                }
+              />
+              <Route
+                path="/admin"
+                element={
+                  <AdminDashboardView
+                    theme={theme}
+                    t={t}
+                  />
+                }
+              />
+            </Routes>
+          </Suspense>
         </main>
       </div>
     </div>

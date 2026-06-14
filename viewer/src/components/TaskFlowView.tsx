@@ -109,12 +109,12 @@ const LOCAL_COPY: Record<Lang, LocalizedCopy> = {
       completed: "已完成",
     },
     searchLabel: "搜尋與篩選",
-    editDescription: "✏️ 編輯描述",
-    addSubtask: "➕ 新增子任務",
-    copyTaskId: "📋 複製任務 ID",
-    markInProgress: "🔵 標記為進行中",
-    markCompleted: "✅ 標記為已完成",
-    deleteTask: "🗑️ 刪除任務",
+    editDescription: "編輯描述",
+    addSubtask: "新增子任務",
+    copyTaskId: "複製任務 ID",
+    markInProgress: "標記為進行中",
+    markCompleted: "標記為已完成",
+    deleteTask: "刪除任務",
     editTitle: "編輯任務描述",
     addTitle: "新增子任務",
     deleteTitle: "刪除任務",
@@ -149,12 +149,12 @@ const LOCAL_COPY: Record<Lang, LocalizedCopy> = {
       completed: "Completed",
     },
     searchLabel: "Search & Filter",
-    editDescription: "✏️ Edit description",
-    addSubtask: "➕ Add subtask",
-    copyTaskId: "📋 Copy task ID",
-    markInProgress: "🔵 Mark in progress",
-    markCompleted: "✅ Mark completed",
-    deleteTask: "🗑️ Delete task",
+    editDescription: "Edit description",
+    addSubtask: "Add subtask",
+    copyTaskId: "Copy task ID",
+    markInProgress: "Mark in progress",
+    markCompleted: "Mark completed",
+    deleteTask: "Delete task",
     editTitle: "Edit Task Description",
     addTitle: "Add Subtask",
     deleteTitle: "Delete Task",
@@ -189,12 +189,12 @@ const LOCAL_COPY: Record<Lang, LocalizedCopy> = {
       completed: "完了",
     },
     searchLabel: "検索とフィルター",
-    editDescription: "✏️ 説明の編集",
-    addSubtask: "➕ サブタスクを追加",
-    copyTaskId: "📋 タスクIDをコピー",
-    markInProgress: "🔵 進行中にマーク",
-    markCompleted: "✅ 完了にマーク",
-    deleteTask: "🗑️ タスクを削除",
+    editDescription: "説明の編集",
+    addSubtask: "サブタスクを追加",
+    copyTaskId: "タスクIDをコピー",
+    markInProgress: "進行中にマーク",
+    markCompleted: "完了にマーク",
+    deleteTask: "タスクを削除",
     editTitle: "タスク説明の編集",
     addTitle: "サブタスクの追加",
     deleteTitle: "タスクの削除",
@@ -229,12 +229,12 @@ const LOCAL_COPY: Record<Lang, LocalizedCopy> = {
       completed: "Terminé",
     },
     searchLabel: "Recherche & Filtres",
-    editDescription: "✏️ Modifier la description",
-    addSubtask: "➕ Ajouter une sous-tâche",
-    copyTaskId: "📋 Copier l'ID de la tâche",
-    markInProgress: "🔵 Marquer en cours",
-    markCompleted: "✅ Marquer terminé",
-    deleteTask: "🗑️ Supprimer la tâche",
+    editDescription: "Modifier la description",
+    addSubtask: "Ajouter une sous-tâche",
+    copyTaskId: "Copier l'ID de la tâche",
+    markInProgress: "Marquer en cours",
+    markCompleted: "Marquer terminé",
+    deleteTask: "Supprimer la tâche",
     editTitle: "Modifier la Description de la Tâche",
     addTitle: "Ajouter une Sous-Tâche",
     deleteTitle: "Supprimer la Tâche",
@@ -348,15 +348,33 @@ export function TaskFlowView({
         return;
       }
 
+      if (nodes.length > 5) {
+        const zoom = 0.55;
+        const minX = Math.min(...nodes.map((node) => node.position.x));
+        const minY = Math.min(...nodes.map((node) => node.position.y));
+        const maxY = Math.max(...nodes.map((node) => node.position.y + 155));
+        const graphCenterY = (minY + maxY) / 2;
+
+        void flowInstance.setViewport(
+          {
+            x: 40 - minX * zoom,
+            y: container.clientHeight / 2 - graphCenterY * zoom,
+            zoom,
+          },
+          { duration },
+        );
+        return;
+      }
+
       void flowInstance.fitView({
         padding: 0.14,
         duration,
         includeHiddenNodes: true,
-        minZoom: 0.05,
+        minZoom: 0.55,
         maxZoom: 1.05,
       });
     },
-    [flowInstance, nodes.length],
+    [flowInstance, nodes],
   );
 
   useEffect(() => {
@@ -562,7 +580,7 @@ export function TaskFlowView({
     : [];
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto xl:overflow-hidden">
+    <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto xl:overflow-hidden">
       {workspaces.length > 0 && (
         <div className="flex flex-shrink-0 flex-wrap gap-2">
           {workspaces.map((workspace) => (
@@ -570,11 +588,13 @@ export function TaskFlowView({
               key={workspace.id}
               type="button"
               onClick={() => setActiveWorkspaceId(workspace.id)}
-              className="flex flex-col items-start rounded-lg border px-3 py-2 text-xs font-bold transition-all"
+              className={`flex flex-col items-start rounded-lg px-3 py-2 text-xs font-semibold ${
+                workspace.id === activeWorkspaceId ? "primary-button" : "quiet-button"
+              }`}
               style={
                 workspace.id === activeWorkspaceId
-                  ? { background: "var(--accent-bg)", borderColor: "var(--accent)", color: "var(--accent)" }
-                  : { background: "var(--bg-card)", borderColor: "var(--border-c)", color: "var(--t3)" }
+                  ? { color: "var(--accent-strong)" }
+                  : { color: "var(--t3)" }
               }
             >
               <span>
@@ -594,43 +614,37 @@ export function TaskFlowView({
         {stats.map((stat) => (
           <div
             key={stat.label}
-            className="rounded-2xl border p-4 shadow-xl panel-bg"
-            style={{ borderColor: "var(--border-c)" }}
+            className="metric-card p-4"
           >
-            <p className="text-3xl font-black" style={{ color: "var(--accent)" }}>
+            <p className="text-2xl font-semibold tracking-tight" style={{ color: "var(--t1)" }}>
               {stat.value}
             </p>
-            <p className="mt-2 text-xs font-bold uppercase tracking-[0.18em] t3">{stat.label}</p>
+            <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.14em] t3">{stat.label}</p>
           </div>
         ))}
       </div>
 
-      <div
-        className="flex flex-col gap-3 rounded-2xl border p-4 shadow-xl panel-bg"
-        style={{ borderColor: "var(--border-c)" }}
-      >
+      <div className="control-surface flex flex-col gap-3 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-[10px] font-bold uppercase tracking-[0.24em] t3">{local.searchLabel}</p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] t3">{local.searchLabel}</p>
           <div className="flex flex-wrap items-center justify-end gap-2">
             {exportStatus && <p className="text-xs font-semibold" style={{ color: "var(--accent)" }}>{exportStatus}</p>}
             <p className="text-xs t2">
               {local.matchingCount} {matchedTasks.length} / {total}
             </p>
-            <div className="flex flex-wrap items-center gap-1.5 rounded-xl border p-1" style={{ borderColor: "var(--border-c)", background: "var(--bg-card)" }}>
-              <span className="hidden px-2 text-[10px] font-bold uppercase tracking-[0.16em] t3 sm:inline">{local.exportLabel}</span>
+            <div className="flex flex-wrap items-center gap-1.5 rounded-lg border p-1" style={{ borderColor: "var(--border-c)", background: "var(--bg-card)" }}>
+              <span className="hidden px-2 text-[10px] font-semibold uppercase tracking-[0.14em] t3 sm:inline">{local.exportLabel}</span>
               <button
                 type="button"
                 onClick={() => handleExport("json")}
-                className="rounded-lg border px-2.5 py-1.5 text-xs font-bold transition-all hover:brightness-125"
-                style={{ borderColor: "var(--accent)", color: "var(--accent)", background: "var(--accent-bg)" }}
+                className="primary-button rounded-md px-2.5 py-1.5 text-xs font-semibold"
               >
                 {local.exportJson}
               </button>
               <button
                 type="button"
                 onClick={() => handleExport("markdown")}
-                className="rounded-lg border px-2.5 py-1.5 text-xs font-bold transition-all hover:brightness-125"
-                style={{ borderColor: "var(--border-c)", color: "var(--t2)", background: "var(--bg-panel)" }}
+                className="quiet-button rounded-md px-2.5 py-1.5 text-xs font-semibold"
               >
                 <span className="hidden sm:inline">{local.exportMarkdown}</span>
                 <span className="sm:hidden">MD</span>
@@ -643,12 +657,7 @@ export function TaskFlowView({
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder={local.searchPlaceholder}
-            className="w-full rounded-xl border px-4 py-3 text-sm outline-none transition focus:ring-2"
-            style={{
-              background: "var(--bg-card)",
-              borderColor: "var(--border-c)",
-              color: "var(--t1)",
-            }}
+            className="field-input w-full rounded-lg px-4 py-3 text-sm outline-none"
           />
           <div className="flex flex-wrap gap-2">
             {(["all", "pending", "in_progress", "completed"] as FilterStatus[]).map((status) => (
@@ -656,11 +665,11 @@ export function TaskFlowView({
                 key={status}
                 type="button"
                 onClick={() => setFilter(status)}
-                className="rounded-xl border px-3 py-2 text-xs font-bold transition-all"
+                className={`rounded-lg px-3 py-2 text-xs font-semibold ${filter === status ? "primary-button" : "quiet-button"}`}
                 style={
                   filter === status
-                    ? { background: "var(--accent-bg)", borderColor: "var(--accent)", color: "var(--accent)" }
-                    : { background: "var(--bg-card)", borderColor: "var(--border-c)", color: "var(--t2)" }
+                    ? { color: "var(--accent-strong)" }
+                    : { color: "var(--t2)" }
                 }
               >
                 {local.filters[status]}
@@ -673,8 +682,8 @@ export function TaskFlowView({
       <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_160px] gap-3 2xl:grid-cols-[minmax(0,1fr)_320px] 2xl:grid-rows-none">
         <div
           ref={flowContainerRef}
-          className="relative min-h-[320px] overflow-hidden rounded-2xl border shadow-2xl xl:min-h-0"
-          style={{ borderColor: "var(--border-c)", background: "var(--bg-card)" }}
+          className="flow-canvas relative min-h-[320px] overflow-hidden rounded-lg border shadow-2xl xl:min-h-0"
+          style={{ borderColor: "var(--border-c)" }}
         >
         {memory.tasks.length === 0 && (
           <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center px-6 text-center">
@@ -721,12 +730,12 @@ export function TaskFlowView({
             setContextMenu(null);
           }}
           fitView
-          minZoom={0.05}
+          minZoom={0.55}
           maxZoom={1.4}
           fitViewOptions={{
             padding: 0.14,
             includeHiddenNodes: true,
-            minZoom: 0.05,
+            minZoom: 0.55,
             maxZoom: 1.05,
           }}
           nodeTypes={TASK_NODE_TYPES}
@@ -735,10 +744,10 @@ export function TaskFlowView({
         </ReactFlow>
 
         <aside
-          className={`absolute top-0 right-0 flex h-full w-80 flex-col border-l shadow-2xl transition-transform duration-500 ease-out ${
+          className={`absolute top-0 right-0 flex h-full w-80 flex-col border-l shadow-2xl transition-transform duration-300 ease-out ${
             selectedTask ? "translate-x-0" : "translate-x-full"
           }`}
-          style={{ background: "var(--bg-panel)", borderColor: "var(--border-c)", backdropFilter: "blur(20px)" }}
+          style={{ background: "var(--bg-panel)", borderColor: "var(--border-c)" }}
         >
           {selectedTask && (
             <>
@@ -746,13 +755,13 @@ export function TaskFlowView({
                 className="flex flex-shrink-0 items-center justify-between border-b px-5 pt-5 pb-4"
                 style={{ borderColor: "var(--border-c)" }}
               >
-                <h3 className="text-sm font-bold" style={{ color: "var(--accent)" }}>
+                <h3 className="text-sm font-semibold" style={{ color: "var(--t1)" }}>
                   {t.taskDetails}
                 </h3>
                 <button
                   type="button"
                   onClick={() => setSelectedTaskId(null)}
-                  className="t3 hover:t1 flex h-7 w-7 items-center justify-center rounded-full text-sm transition-colors"
+                  className="quiet-button flex h-7 w-7 items-center justify-center rounded-md text-sm"
                   style={{ background: "var(--bg-card)" }}
                 >
                   ✕
@@ -762,8 +771,8 @@ export function TaskFlowView({
                 <div>
                   <label className="t3 text-[9px] font-bold uppercase tracking-widest">{t.taskId}</label>
                   <div
-                    className="mt-1 rounded-lg px-3 py-2 text-xs font-mono"
-                    style={{ background: "var(--bg-card)", color: "var(--accent)" }}
+                    className="mt-1 rounded-lg border px-3 py-2 text-xs font-mono"
+                    style={{ background: "var(--bg-card)", borderColor: "var(--border-c)", color: "var(--accent-strong)" }}
                   >
                     {selectedTask.id}
                   </div>
@@ -783,7 +792,7 @@ export function TaskFlowView({
                           <li
                             key={depId}
                             className="rounded-lg border px-3 py-1.5 text-xs font-mono"
-                            style={{ background: "var(--bg-card)", color: "var(--accent)", borderColor: "var(--border-c)" }}
+                            style={{ background: "var(--bg-card)", color: "var(--accent-strong)", borderColor: "var(--border-c)" }}
                           >
                             {depId}{category}
                           </li>
@@ -803,14 +812,13 @@ export function TaskFlowView({
                       <button
                         type="button"
                         onClick={() => copyText(selectedTask.ai_feedback ?? "")}
-                        className="rounded border px-2 py-1 text-xs transition-opacity hover:opacity-100"
-                        style={{ borderColor: "var(--accent)", color: "var(--accent)", opacity: 0.7 }}
+                        className="quiet-button rounded-md px-2 py-1 text-xs"
                         title={t.copy}
                       >
                         {t.copy}
                       </button>
                     </div>
-                    <div className="mt-2 rounded-xl border p-4" style={{ background: "var(--accent-bg)", borderColor: "var(--accent)" }}>
+                    <div className="mt-2 rounded-lg border p-4" style={{ background: "var(--accent-bg)", borderColor: "var(--border-c)" }}>
                       <p className="text-xs leading-relaxed" style={{ color: "var(--t1)", whiteSpace: "pre-wrap" }}>
                         {selectedTask.ai_feedback}
                       </p>
@@ -842,8 +850,7 @@ export function TaskFlowView({
             value={editDraft.description}
             onChange={(event) => setEditDraft({ ...editDraft, description: event.target.value })}
             placeholder={local.descriptionPlaceholder}
-            className="w-full resize-none rounded-xl border p-3 text-sm focus:outline-none focus:ring-1 t1"
-            style={{ background: "var(--bg-card)", borderColor: "var(--border-c)" }}
+            className="field-input w-full resize-none rounded-lg p-3 text-sm focus:outline-none t1"
           />
         </Modal>
       )}
@@ -862,8 +869,7 @@ export function TaskFlowView({
             value={subtaskDraft.description}
             onChange={(event) => setSubtaskDraft({ ...subtaskDraft, description: event.target.value })}
             placeholder={local.subtaskPlaceholder}
-            className="w-full resize-none rounded-xl border p-3 text-sm focus:outline-none focus:ring-1 t1"
-            style={{ background: "var(--bg-card)", borderColor: "var(--border-c)" }}
+            className="field-input w-full resize-none rounded-lg p-3 text-sm focus:outline-none t1"
           />
         </Modal>
       )}
@@ -878,7 +884,7 @@ export function TaskFlowView({
           danger
         >
           <p className="text-sm leading-relaxed t2">{local.deleteConfirm}</p>
-          <div className="mt-3 rounded-lg border px-3 py-2 text-xs font-mono" style={{ background: "var(--bg-card)", borderColor: "var(--border-c)", color: "var(--accent)" }}>
+          <div className="mt-3 rounded-lg border px-3 py-2 text-xs font-mono" style={{ background: "var(--bg-card)", borderColor: "var(--border-c)", color: "var(--accent-strong)" }}>
             {deleteTargetId}
           </div>
         </Modal>

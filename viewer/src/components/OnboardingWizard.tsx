@@ -41,7 +41,7 @@ type WizardCopy = {
 const COPY: Record<Lang, WizardCopy> = {
   zh: {
     badge: "首次啟動引導",
-    title: "把 AI 的思考過程可視化 👁",
+    title: "把 AI 的思考過程可視化",
     subtitle: "先建立你的第一個工作區，再把提示詞貼給 AI，讓它開始規劃可追蹤的任務 DAG。",
     start: "開始設定",
     setupTitle: "建立第一個工作區",
@@ -52,7 +52,7 @@ const COPY: Record<Lang, WizardCopy> = {
     create: "建立",
     promptTitle: "複製 AI 提示詞",
     promptBody: "把這段指令貼給 AI，讓它開始規劃任務。",
-    copy: "📋 複製提示詞",
+    copy: "複製提示詞",
     copied: "已複製",
     finish: "完成，帶我看儀表板",
     back: "返回上一步",
@@ -67,7 +67,7 @@ const COPY: Record<Lang, WizardCopy> = {
   },
   en: {
     badge: "First-run setup",
-    title: "Visualize how your AI thinks 👁",
+    title: "Visualize how your AI thinks",
     subtitle: "Create your first workspace, then hand the prompt to your AI so it can start planning a trackable task DAG.",
     start: "Start setup",
     setupTitle: "Create your first workspace",
@@ -78,7 +78,7 @@ const COPY: Record<Lang, WizardCopy> = {
     create: "Create",
     promptTitle: "Copy the AI prompt",
     promptBody: "Paste this into your AI so it can start planning tasks.",
-    copy: "📋 Copy prompt",
+    copy: "Copy prompt",
     copied: "Copied",
     finish: "Finish and open dashboard",
     back: "Back",
@@ -93,7 +93,7 @@ const COPY: Record<Lang, WizardCopy> = {
   },
   ja: {
     badge: "初回起動ガイド",
-    title: "AIの思考プロセスを可視化する 👁",
+    title: "AIの思考プロセスを可視化する",
     subtitle: "最初のワークスペースを作成し、プロンプトをAIに渡して、追跡可能なタスクDAGの計画を開始させましょう。",
     start: "セットアップを開始",
     setupTitle: "最初のワークスペースを作成",
@@ -104,7 +104,7 @@ const COPY: Record<Lang, WizardCopy> = {
     create: "作成",
     promptTitle: "AIプロンプトをコピー",
     promptBody: "これをAIに貼り付けて、タスクの計画を開始させます。",
-    copy: "📋 プロンプトをコピー",
+    copy: "プロンプトをコピー",
     copied: "コピーしました",
     finish: "完了してダッシュボードを表示",
     back: "戻る",
@@ -119,7 +119,7 @@ const COPY: Record<Lang, WizardCopy> = {
   },
   fr: {
     badge: "Guide de premier démarrage",
-    title: "Visualisez le processus de réflexion de l'IA 👁",
+    title: "Visualisez le processus de réflexion de l'IA",
     subtitle: "Créez votre premier espace de travail, puis fournissez l'invite à votre IA pour qu'elle commence à planifier un DAG de tâches traçable.",
     start: "Démarrer la configuration",
     setupTitle: "Créer votre premier espace de travail",
@@ -130,7 +130,7 @@ const COPY: Record<Lang, WizardCopy> = {
     create: "Créer",
     promptTitle: "Copier l'invite de l'IA",
     promptBody: "Collez ceci dans votre IA pour qu'elle puisse commencer à planifier les tâches.",
-    copy: "📋 Copier l'invite",
+    copy: "Copier l'invite",
     copied: "Copié",
     finish: "Terminer et ouvrir le tableau de bord",
     back: "Retour",
@@ -272,74 +272,74 @@ function buildPlannerPrompt(workspaceName: string, workspacePath: string, lang: 
 
 function DemoDagCard() {
   return (
-    <div className="relative h-[320px] overflow-hidden rounded-[28px] border border-white/10 bg-black/20 p-6 shadow-2xl backdrop-blur-xl">
+    <div className="metric-card relative h-[320px] overflow-hidden p-6">
       <div className="mb-5 flex items-center justify-between">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-200/70">Topology Preview</p>
-          <p className="mt-2 text-lg font-semibold text-white">AI planning in motion</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em]" style={{ color: "var(--t3)" }}>Topology Preview</p>
+          <p className="mt-2 text-lg font-semibold" style={{ color: "var(--t1)" }}>AI planning in motion</p>
         </div>
-        <div className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-[11px] font-semibold text-cyan-100">
+        <div className="rounded-md border px-3 py-1 text-[11px] font-semibold" style={{ borderColor: "var(--border-c)", background: "var(--accent-bg)", color: "var(--accent-strong)" }}>
           LIVE DAG
         </div>
       </div>
 
-      <div className="relative h-[230px] rounded-[22px] border border-white/8 bg-slate-950/45">
+      <div className="flow-canvas relative h-[230px] rounded-lg border" style={{ borderColor: "var(--border-c)" }}>
         <svg className="absolute inset-0 h-full w-full" viewBox="0 0 720 300" fill="none" aria-hidden>
           <defs>
             <linearGradient id="onboard-line" x1="0" x2="1" y1="0" y2="0">
-              <stop offset="0%" stopColor="rgba(56,189,248,0.12)" />
-              <stop offset="50%" stopColor="rgba(34,211,238,0.9)" />
-              <stop offset="100%" stopColor="rgba(250,204,21,0.85)" />
+              <stop offset="0%" stopColor="rgba(143,183,255,0.12)" />
+              <stop offset="50%" stopColor="rgba(143,183,255,0.58)" />
+              <stop offset="100%" stopColor="rgba(231,191,120,0.56)" />
             </linearGradient>
           </defs>
-          <path d="M160 68 C250 68 250 68 338 68" stroke="url(#onboard-line)" strokeWidth="3" strokeLinecap="round" />
-          <path d="M430 68 C520 68 520 138 600 138" stroke="url(#onboard-line)" strokeWidth="3" strokeLinecap="round" />
-          <path d="M430 68 C520 68 520 228 600 228" stroke="url(#onboard-line)" strokeWidth="3" strokeLinecap="round" />
+          <path d="M160 68 C250 68 250 68 338 68" stroke="url(#onboard-line)" strokeWidth="2" strokeLinecap="round" />
+          <path d="M430 68 C520 68 520 138 600 138" stroke="url(#onboard-line)" strokeWidth="2" strokeLinecap="round" />
+          <path d="M430 68 C520 68 520 228 600 228" stroke="url(#onboard-line)" strokeWidth="2" strokeLinecap="round" />
         </svg>
 
-        <div className="onboarding-trace absolute left-[118px] top-[58px] h-3 w-3 rounded-full bg-cyan-300 shadow-[0_0_20px_rgba(103,232,249,0.95)]" />
-        <div className="onboarding-trace onboarding-trace-delay absolute left-[392px] top-[58px] h-3 w-3 rounded-full bg-amber-300 shadow-[0_0_18px_rgba(252,211,77,0.95)]" />
+        <div className="onboarding-trace absolute left-[118px] top-[58px] h-2.5 w-2.5 rounded-full" style={{ background: "var(--accent)" }} />
+        <div className="onboarding-trace onboarding-trace-delay absolute left-[392px] top-[58px] h-2.5 w-2.5 rounded-full" style={{ background: "var(--warning)" }} />
 
-        <div className="onboarding-float absolute left-8 top-8 w-32 rounded-2xl border border-cyan-400/20 bg-slate-900/75 p-4 shadow-xl">
+        <div className="task-node onboarding-float absolute left-8 top-8 w-32 p-4">
           <div className="mb-2 flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-cyan-100/60">task-001</span>
-            <span className="h-2.5 w-2.5 rounded-full bg-cyan-300" />
+            <span className="text-[10px] font-semibold uppercase tracking-[0.16em]" style={{ color: "var(--t3)" }}>task-001</span>
+            <span className="status-dot h-2.5 w-2.5 rounded-full" style={{ background: "var(--success)" }} />
           </div>
-          <p className="text-sm font-semibold text-white">Plan the system</p>
-          <p className="mt-3 inline-flex rounded-full border border-cyan-300/20 bg-cyan-400/10 px-2 py-1 text-[11px] font-semibold text-cyan-100">
+          <p className="text-sm font-semibold" style={{ color: "var(--t1)" }}>Plan the system</p>
+          <p className="status-complete mt-3 inline-flex rounded-md border px-2 py-1 text-[11px] font-semibold">
             completed
           </p>
         </div>
 
-        <div className="onboarding-float onboarding-delay-2 absolute left-[300px] top-8 w-32 rounded-2xl border border-amber-400/25 bg-slate-900/75 p-4 shadow-xl">
+        <div className="task-node onboarding-float onboarding-delay-2 absolute left-[300px] top-8 w-32 p-4">
           <div className="mb-2 flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-amber-100/60">task-002</span>
-            <span className="h-2.5 w-2.5 rounded-full bg-amber-300 shadow-[0_0_0_6px_rgba(252,211,77,0.16)]" />
+            <span className="text-[10px] font-semibold uppercase tracking-[0.16em]" style={{ color: "var(--t3)" }}>task-002</span>
+            <span className="status-dot h-2.5 w-2.5 rounded-full" style={{ background: "var(--warning)" }} />
           </div>
-          <p className="text-sm font-semibold text-white">Implement tasks</p>
-          <p className="mt-3 inline-flex rounded-full border border-amber-300/20 bg-amber-400/10 px-2 py-1 text-[11px] font-semibold text-amber-100">
+          <p className="text-sm font-semibold" style={{ color: "var(--t1)" }}>Implement tasks</p>
+          <p className="status-progress mt-3 inline-flex rounded-md border px-2 py-1 text-[11px] font-semibold">
             in_progress
           </p>
         </div>
 
-        <div className="onboarding-float onboarding-delay-3 absolute right-8 top-[78px] w-32 rounded-2xl border border-sky-300/15 bg-slate-900/72 p-4 shadow-xl">
+        <div className="task-node onboarding-float onboarding-delay-3 absolute right-8 top-[78px] w-32 p-4">
           <div className="mb-2 flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-sky-100/50">task-003</span>
-            <span className="h-2.5 w-2.5 rounded-full bg-slate-500" />
+            <span className="text-[10px] font-semibold uppercase tracking-[0.16em]" style={{ color: "var(--t3)" }}>task-003</span>
+            <span className="status-dot h-2.5 w-2.5 rounded-full" style={{ background: "var(--t3)" }} />
           </div>
-          <p className="text-sm font-semibold text-white">Review output</p>
-          <p className="mt-3 inline-flex rounded-full border border-slate-400/15 bg-slate-400/10 px-2 py-1 text-[11px] font-semibold text-slate-200">
+          <p className="text-sm font-semibold" style={{ color: "var(--t1)" }}>Review output</p>
+          <p className="status-pending mt-3 inline-flex rounded-md border px-2 py-1 text-[11px] font-semibold">
             pending
           </p>
         </div>
 
-        <div className="onboarding-float onboarding-delay-4 absolute right-8 bottom-8 w-32 rounded-2xl border border-sky-300/15 bg-slate-900/72 p-4 shadow-xl">
+        <div className="task-node onboarding-float onboarding-delay-4 absolute right-8 bottom-8 w-32 p-4">
           <div className="mb-2 flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-sky-100/50">task-004</span>
-            <span className="h-2.5 w-2.5 rounded-full bg-slate-500" />
+            <span className="text-[10px] font-semibold uppercase tracking-[0.16em]" style={{ color: "var(--t3)" }}>task-004</span>
+            <span className="status-dot h-2.5 w-2.5 rounded-full" style={{ background: "var(--t3)" }} />
           </div>
-          <p className="text-sm font-semibold text-white">Ship changes</p>
-          <p className="mt-3 inline-flex rounded-full border border-slate-400/15 bg-slate-400/10 px-2 py-1 text-[11px] font-semibold text-slate-200">
+          <p className="text-sm font-semibold" style={{ color: "var(--t1)" }}>Ship changes</p>
+          <p className="status-pending mt-3 inline-flex rounded-md border px-2 py-1 text-[11px] font-semibold">
             pending
           </p>
         </div>
@@ -379,17 +379,12 @@ export function OnboardingWizard({ lang, onFinish }: OnboardingWizardProps) {
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.18),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(245,158,11,0.18),transparent_30%),linear-gradient(135deg,#020617_0%,#08111f_45%,#0b1327_100%)]">
-      <div className="pointer-events-none absolute inset-0 opacity-50" aria-hidden>
-        <div className="absolute left-[-8%] top-[-12%] h-72 w-72 rounded-full bg-cyan-400/10 blur-3xl" />
-        <div className="absolute bottom-[-8%] right-[-4%] h-80 w-80 rounded-full bg-amber-300/10 blur-3xl" />
-      </div>
-
+    <div className="app-frame bg-grid relative min-h-screen overflow-hidden">
       <div className="relative z-10 mx-auto flex min-h-screen max-w-7xl items-center px-6 py-10">
         <div className="grid w-full gap-8 lg:grid-cols-[1.05fr_0.95fr]">
-          <section className="flex flex-col justify-between rounded-[32px] border border-white/10 bg-white/6 p-8 shadow-[0_30px_80px_rgba(2,8,23,0.45)] backdrop-blur-2xl">
+          <section className="control-surface flex flex-col justify-between p-8">
             <div>
-              <div className="mb-6 inline-flex rounded-full border border-cyan-300/20 bg-cyan-300/10 px-4 py-1.5 text-xs font-bold uppercase tracking-[0.28em] text-cyan-100">
+              <div className="mb-6 inline-flex rounded-md border px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em]" style={{ borderColor: "var(--border-c)", background: "var(--accent-bg)", color: "var(--accent-strong)" }}>
                 {copy.badge}
               </div>
               <div className="mb-8 flex items-center gap-3">
@@ -407,15 +402,15 @@ export function OnboardingWizard({ lang, onFinish }: OnboardingWizardProps) {
                         className="flex h-9 w-9 items-center justify-center rounded-full border text-sm font-bold"
                         style={
                           active
-                            ? { borderColor: "rgba(103,232,249,0.9)", background: "rgba(34,211,238,0.18)", color: "#ecfeff" }
+                            ? { borderColor: "var(--accent)", background: "var(--accent-bg)", color: "var(--accent-strong)" }
                             : done
-                              ? { borderColor: "rgba(56,189,248,0.38)", background: "rgba(14,116,144,0.32)", color: "#a5f3fc" }
-                              : { borderColor: "rgba(148,163,184,0.22)", background: "rgba(15,23,42,0.55)", color: "#94a3b8" }
+                              ? { borderColor: "var(--border-strong)", background: "var(--bg-card)", color: "var(--t2)" }
+                              : { borderColor: "var(--border-c)", background: "var(--bg-muted)", color: "var(--t3)" }
                         }
                       >
                         {item.index + 1}
                       </div>
-                      <span className={`text-sm font-semibold ${active ? "text-white" : "text-slate-400"}`}>{item.label}</span>
+                      <span className="text-sm font-semibold" style={{ color: active ? "var(--t1)" : "var(--t3)" }}>{item.label}</span>
                     </div>
                   );
                 })}
@@ -423,64 +418,64 @@ export function OnboardingWizard({ lang, onFinish }: OnboardingWizardProps) {
 
               {step === 0 && (
                 <div className="max-w-xl">
-                  <h1 className="text-4xl font-black leading-tight text-white lg:text-5xl">{copy.title}</h1>
-                  <p className="mt-5 text-base leading-8 text-slate-300">{copy.subtitle}</p>
+                  <h1 className="text-4xl font-semibold leading-tight tracking-tight lg:text-5xl" style={{ color: "var(--t1)" }}>{copy.title}</h1>
+                  <p className="mt-5 text-base leading-8" style={{ color: "var(--t2)" }}>{copy.subtitle}</p>
                 </div>
               )}
 
               {step === 1 && (
                 <div className="max-w-xl">
-                  <h2 className="text-3xl font-black text-white">{copy.setupTitle}</h2>
-                  <p className="mt-4 text-base leading-8 text-slate-300">{copy.setupBody}</p>
+                  <h2 className="text-3xl font-semibold tracking-tight" style={{ color: "var(--t1)" }}>{copy.setupTitle}</h2>
+                  <p className="mt-4 text-base leading-8" style={{ color: "var(--t2)" }}>{copy.setupBody}</p>
 
                   <div className="mt-8 space-y-5">
                     <label className="block">
-                      <span className="mb-2 block text-sm font-semibold text-slate-200">{copy.workspaceName}</span>
+                      <span className="mb-2 block text-sm font-semibold" style={{ color: "var(--t2)" }}>{copy.workspaceName}</span>
                       <input
                         value={workspaceName}
                         onChange={(event) => setWorkspaceName(event.target.value)}
-                        className="w-full rounded-2xl border border-white/10 bg-slate-950/55 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-300/60 focus:ring-2 focus:ring-cyan-300/20"
+                        className="field-input w-full rounded-lg px-4 py-3 text-sm outline-none"
                         placeholder="My First Project"
                       />
                     </label>
 
                     <label className="block">
-                      <span className="mb-2 block text-sm font-semibold text-slate-200">{copy.workspacePath}</span>
+                      <span className="mb-2 block text-sm font-semibold" style={{ color: "var(--t2)" }}>{copy.workspacePath}</span>
                       <input
                         value={workspacePath}
                         onChange={(event) => setWorkspacePath(event.target.value)}
-                        className="w-full rounded-2xl border border-white/10 bg-slate-950/55 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-300/60 focus:ring-2 focus:ring-cyan-300/20"
+                        className="field-input w-full rounded-lg px-4 py-3 text-sm outline-none"
                         placeholder="D:\Projects\my-project\workspace"
                       />
                     </label>
                   </div>
 
-                  <p className="mt-4 text-sm leading-7 text-slate-400">{copy.optionalHint}</p>
+                  <p className="mt-4 text-sm leading-7" style={{ color: "var(--t3)" }}>{copy.optionalHint}</p>
 
-                  <div className="mt-8 rounded-2xl border border-cyan-300/14 bg-cyan-300/8 p-4">
-                    <p className="text-xs font-bold uppercase tracking-[0.22em] text-cyan-100/70">{copy.pathPreview}</p>
-                    <p className="mt-2 break-all font-mono text-sm text-cyan-50">{previewPath}</p>
+                  <div className="metric-card mt-8 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em]" style={{ color: "var(--t3)" }}>{copy.pathPreview}</p>
+                    <p className="mt-2 break-all font-mono text-sm" style={{ color: "var(--accent-strong)" }}>{previewPath}</p>
                   </div>
                 </div>
               )}
 
               {step === 2 && (
                 <div className="max-w-xl">
-                  <h2 className="text-3xl font-black text-white">{copy.promptTitle}</h2>
-                  <p className="mt-4 text-base leading-8 text-slate-300">{copy.promptBody}</p>
+                  <h2 className="text-3xl font-semibold tracking-tight" style={{ color: "var(--t1)" }}>{copy.promptTitle}</h2>
+                  <p className="mt-4 text-base leading-8" style={{ color: "var(--t2)" }}>{copy.promptBody}</p>
 
-                  <div className="mt-7 rounded-[26px] border border-white/10 bg-slate-950/75 p-5 shadow-2xl">
+                  <div className="metric-card mt-7 p-5">
                     <div className="mb-4 flex items-center justify-between gap-3">
-                      <p className="text-xs font-bold uppercase tracking-[0.24em] text-cyan-100/70">Planner Prompt</p>
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em]" style={{ color: "var(--t3)" }}>Planner Prompt</p>
                       <button
                         type="button"
                         onClick={handleCopy}
-                        className="rounded-xl border border-cyan-300/30 bg-cyan-300/10 px-3 py-2 text-xs font-bold text-cyan-50 transition hover:border-cyan-200/60 hover:bg-cyan-300/16"
+                        className="primary-button rounded-lg px-3 py-2 text-xs font-semibold"
                       >
                         {copied ? copy.copied : copy.copy}
                       </button>
                     </div>
-                    <pre className="max-h-[330px] overflow-auto whitespace-pre-wrap break-words text-sm leading-7 text-slate-200">
+                    <pre className="max-h-[330px] overflow-auto whitespace-pre-wrap break-words text-sm leading-7" style={{ color: "var(--t2)" }}>
                       {prompt}
                     </pre>
                   </div>
@@ -493,7 +488,7 @@ export function OnboardingWizard({ lang, onFinish }: OnboardingWizardProps) {
                 <button
                   type="button"
                   onClick={() => setStep((current) => current - 1)}
-                  className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-slate-200 transition hover:bg-white/10"
+                  className="quiet-button rounded-lg px-5 py-3 text-sm font-semibold"
                 >
                   {copy.back}
                 </button>
@@ -503,7 +498,7 @@ export function OnboardingWizard({ lang, onFinish }: OnboardingWizardProps) {
                 <button
                   type="button"
                   onClick={() => setStep(1)}
-                  className="rounded-2xl bg-cyan-400 px-6 py-3 text-sm font-bold text-slate-950 shadow-[0_16px_32px_rgba(34,211,238,0.24)] transition hover:brightness-110"
+                  className="primary-button rounded-lg px-6 py-3 text-sm font-semibold"
                 >
                   {copy.start}
                 </button>
@@ -513,7 +508,7 @@ export function OnboardingWizard({ lang, onFinish }: OnboardingWizardProps) {
                 <button
                   type="button"
                   onClick={handleCreate}
-                  className="rounded-2xl bg-cyan-400 px-6 py-3 text-sm font-bold text-slate-950 shadow-[0_16px_32px_rgba(34,211,238,0.24)] transition hover:brightness-110"
+                  className="primary-button rounded-lg px-6 py-3 text-sm font-semibold"
                 >
                   {copy.create}
                 </button>
@@ -523,7 +518,7 @@ export function OnboardingWizard({ lang, onFinish }: OnboardingWizardProps) {
                 <button
                   type="button"
                   onClick={finishWizard}
-                  className="rounded-2xl bg-cyan-400 px-6 py-3 text-sm font-bold text-slate-950 shadow-[0_16px_32px_rgba(34,211,238,0.24)] transition hover:brightness-110"
+                  className="primary-button rounded-lg px-6 py-3 text-sm font-semibold"
                 >
                   {copy.finish}
                 </button>
@@ -533,22 +528,22 @@ export function OnboardingWizard({ lang, onFinish }: OnboardingWizardProps) {
 
           <section className="flex flex-col gap-6">
             <div>
-              <p className="mb-3 text-xs font-bold uppercase tracking-[0.28em] text-cyan-100/65">{copy.previewTitle}</p>
+              <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em]" style={{ color: "var(--t3)" }}>{copy.previewTitle}</p>
               <DemoDagCard />
             </div>
 
             <div className="grid gap-4 md:grid-cols-3">
-              <div className="rounded-[24px] border border-white/10 bg-white/6 p-5 backdrop-blur-xl">
-                <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-cyan-100/70">Plan</p>
-                <p className="mt-3 text-sm leading-7 text-slate-300">{copy.planCard}</p>
+              <div className="metric-card p-5">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ color: "var(--accent-strong)" }}>Plan</p>
+                <p className="mt-3 text-sm leading-7" style={{ color: "var(--t2)" }}>{copy.planCard}</p>
               </div>
-              <div className="rounded-[24px] border border-white/10 bg-white/6 p-5 backdrop-blur-xl">
-                <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-amber-100/70">Track</p>
-                <p className="mt-3 text-sm leading-7 text-slate-300">{copy.trackCard}</p>
+              <div className="metric-card p-5">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ color: "var(--warning)" }}>Track</p>
+                <p className="mt-3 text-sm leading-7" style={{ color: "var(--t2)" }}>{copy.trackCard}</p>
               </div>
-              <div className="rounded-[24px] border border-white/10 bg-white/6 p-5 backdrop-blur-xl">
-                <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-emerald-100/70">Review</p>
-                <p className="mt-3 text-sm leading-7 text-slate-300">{copy.reviewCard}</p>
+              <div className="metric-card p-5">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ color: "var(--success)" }}>Review</p>
+                <p className="mt-3 text-sm leading-7" style={{ color: "var(--t2)" }}>{copy.reviewCard}</p>
               </div>
             </div>
           </section>
