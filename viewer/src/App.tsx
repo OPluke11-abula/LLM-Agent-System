@@ -211,8 +211,8 @@ export default function App() {
                 path="/admin"
                 element={
                   <AdminDashboardView
-                    theme={theme}
                     t={t}
+                    lang={lang}
                   />
                 }
               />

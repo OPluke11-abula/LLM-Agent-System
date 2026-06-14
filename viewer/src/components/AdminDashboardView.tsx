@@ -8,11 +8,11 @@ import {
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { Button, ProgressBar, StatusBadge, Surface, toneForStatus } from "./ui/primitives";
-import type { TranslationMessages } from "../types";
+import type { Lang, TranslationMessages } from "../types";
 
 type AdminDashboardViewProps = {
-  theme: string;
   t: TranslationMessages;
+  lang: Lang;
 };
 
 type TenantInfo = {
@@ -37,14 +37,262 @@ type AuditBlock = {
   tenant_id: string;
 };
 
-export function AdminDashboardView({ t }: AdminDashboardViewProps) {
-  // 1. Tenants & Billing state
+type AdminCopy = {
+  intro: string;
+  refresh: string;
+  loadingTenants: string;
+  errorPrefix: string;
+  none: string;
+  rotateTitle: string;
+  rotate: string;
+  keyRotated: string;
+  active: string;
+  freeze: string;
+  cancel: string;
+  wsLive: string;
+  offlineSimulation: string;
+  lastNode: string;
+  latency: string;
+  markupApplied: string;
+  hitlTitle: string;
+  close: string;
+  hitlPlaceholder: string;
+  submitHijack: string;
+  ledgerSubtitle: string;
+  healthy: string;
+  tampered: string;
+  merkleRoot: string;
+  blockValidationCount: string;
+  blocksVerified: string;
+  auditBreach: string;
+  verifying: string;
+  verifyChain: string;
+  simulateTamper: string;
+  keyRotationFailed: string;
+  statusUpdateFailed: string;
+  pauseFailed: string;
+  resumeFailed: string;
+  hijackSuccess: string;
+  hijackFailed: string;
+  ledgerLoadFailed: string;
+  swarmInitialized: string;
+  debateMessage: (currentAgent: string, targetAgent: string) => string;
+  blockLabel: string;
+  hashLabel: string;
+  sessionLabel: string;
+  stripeLabel: string;
+  totalTokens: string;
+  cost: string;
+  tpmLimit: string;
+};
+
+const ADMIN_COPY: Record<Lang, AdminCopy> = {
+  zh: {
+    intro: "租戶隔離、計費限制、WebSocket 攔截與 SOC2 審計狀態集中管理。",
+    refresh: "重新整理",
+    loadingTenants: "正在載入租戶...",
+    errorPrefix: "錯誤",
+    none: "無",
+    rotateTitle: "輪替租戶 API key",
+    rotate: "輪替",
+    keyRotated: "Key 已在記憶體中輪替。",
+    active: "啟用",
+    freeze: "凍結",
+    cancel: "取消",
+    wsLive: "WebSocket 連線中",
+    offlineSimulation: "離線模擬",
+    lastNode: "最後節點",
+    latency: "延遲",
+    markupApplied: "已套用加成費率",
+    hitlTitle: "注入人工介入輸入",
+    close: "關閉",
+    hitlPlaceholder: "輸入回應 mock 值或直接指令，用於覆寫原生工具執行...",
+    submitHijack: "送出人工介入輸入",
+    ledgerSubtitle: "SOC2 SHA-256 審計鏈",
+    healthy: "健康",
+    tampered: "遭竄改",
+    merkleRoot: "Merkle Root",
+    blockValidationCount: "區塊驗證數",
+    blocksVerified: "個區塊已驗證",
+    auditBreach: "審計鏈不一致，疑似竄改區塊",
+    verifying: "驗證中...",
+    verifyChain: "驗證鏈",
+    simulateTamper: "模擬竄改",
+    keyRotationFailed: "Key 輪替失敗",
+    statusUpdateFailed: "訂閱狀態更新失敗",
+    pauseFailed: "暫停失敗",
+    resumeFailed: "恢復失敗",
+    hijackSuccess: "人工介入指令已送出。",
+    hijackFailed: "人工介入送出失敗",
+    ledgerLoadFailed: "審計資料載入失敗",
+    swarmInitialized: "Swarm 已初始化。",
+    debateMessage: (currentAgent, targetAgent) => `共識回合：${currentAgent} 已派送更新至 ${targetAgent}`,
+    blockLabel: "區塊",
+    hashLabel: "雜湊",
+    sessionLabel: "Session",
+    stripeLabel: "Stripe",
+    totalTokens: "總量",
+    cost: "成本",
+    tpmLimit: "5k tpm",
+  },
+  en: {
+    intro: "Tenant isolation, billing limits, WebSocket interception, and SOC2 audit state in one operator console.",
+    refresh: "Refresh",
+    loadingTenants: "Loading tenants...",
+    errorPrefix: "Error",
+    none: "None",
+    rotateTitle: "Rotate tenant API key",
+    rotate: "Rotate",
+    keyRotated: "Key rotated in memory.",
+    active: "Active",
+    freeze: "Freeze",
+    cancel: "Cancel",
+    wsLive: "WebSocket live",
+    offlineSimulation: "Offline simulation",
+    lastNode: "Last node",
+    latency: "Latency",
+    markupApplied: "Markup pricing applied",
+    hitlTitle: "Inject human-in-the-loop input",
+    close: "Close",
+    hitlPlaceholder: "Type a response mock value or direct instruction to override native tool execution...",
+    submitHijack: "Submit HITL Input",
+    ledgerSubtitle: "SOC2 SHA-256 audit chain",
+    healthy: "Healthy",
+    tampered: "Tampered",
+    merkleRoot: "Merkle Root",
+    blockValidationCount: "Block validation count",
+    blocksVerified: "blocks verified",
+    auditBreach: "Audit chain mismatch detected at block",
+    verifying: "Verifying...",
+    verifyChain: "Verify chain",
+    simulateTamper: "Simulate tamper",
+    keyRotationFailed: "Key rotation failed",
+    statusUpdateFailed: "Status update failed",
+    pauseFailed: "Pause failed",
+    resumeFailed: "Resume failed",
+    hijackSuccess: "HITL command dispatched.",
+    hijackFailed: "HITL dispatch failed",
+    ledgerLoadFailed: "Audit ledger load failed",
+    swarmInitialized: "Swarm initialized.",
+    debateMessage: (currentAgent, targetAgent) => `Consensus round: ${currentAgent} dispatched update to ${targetAgent}`,
+    blockLabel: "Block",
+    hashLabel: "Hash",
+    sessionLabel: "Session",
+    stripeLabel: "Stripe",
+    totalTokens: "Total",
+    cost: "Cost",
+    tpmLimit: "5k tpm",
+  },
+  ja: {
+    intro: "テナント分離、課金制限、WebSocket 介入、SOC2 監査状態を一つの操作画面で管理します。",
+    refresh: "更新",
+    loadingTenants: "テナントを読み込み中...",
+    errorPrefix: "エラー",
+    none: "なし",
+    rotateTitle: "テナント API key をローテーション",
+    rotate: "ローテーション",
+    keyRotated: "Key はメモリ上でローテーション済みです。",
+    active: "有効",
+    freeze: "凍結",
+    cancel: "取消",
+    wsLive: "WebSocket 接続中",
+    offlineSimulation: "オフラインシミュレーション",
+    lastNode: "最終ノード",
+    latency: "レイテンシ",
+    markupApplied: "加算価格を適用済み",
+    hitlTitle: "人間介入入力を注入",
+    close: "閉じる",
+    hitlPlaceholder: "レスポンスの mock 値またはネイティブツール実行を上書きする指示を入力...",
+    submitHijack: "HITL 入力を送信",
+    ledgerSubtitle: "SOC2 SHA-256 監査チェーン",
+    healthy: "正常",
+    tampered: "改ざん",
+    merkleRoot: "Merkle Root",
+    blockValidationCount: "ブロック検証数",
+    blocksVerified: "ブロック検証済み",
+    auditBreach: "監査チェーン不一致を検出したブロック",
+    verifying: "検証中...",
+    verifyChain: "チェーン検証",
+    simulateTamper: "改ざんを模擬",
+    keyRotationFailed: "Key ローテーション失敗",
+    statusUpdateFailed: "ステータス更新失敗",
+    pauseFailed: "一時停止失敗",
+    resumeFailed: "再開失敗",
+    hijackSuccess: "HITL コマンドを送信しました。",
+    hijackFailed: "HITL 送信失敗",
+    ledgerLoadFailed: "監査データの読み込み失敗",
+    swarmInitialized: "Swarm 初期化済み。",
+    debateMessage: (currentAgent, targetAgent) => `合意ラウンド：${currentAgent} から ${targetAgent} へ更新を送信`,
+    blockLabel: "ブロック",
+    hashLabel: "ハッシュ",
+    sessionLabel: "Session",
+    stripeLabel: "Stripe",
+    totalTokens: "合計",
+    cost: "コスト",
+    tpmLimit: "5k tpm",
+  },
+  fr: {
+    intro: "Isolation des locataires, limites de facturation, interception WebSocket et audit SOC2 dans une console opérateur.",
+    refresh: "Actualiser",
+    loadingTenants: "Chargement des locataires...",
+    errorPrefix: "Erreur",
+    none: "Aucun",
+    rotateTitle: "Faire tourner la clé API du locataire",
+    rotate: "Rotation",
+    keyRotated: "Clé remplacée en mémoire.",
+    active: "Actif",
+    freeze: "Geler",
+    cancel: "Annuler",
+    wsLive: "WebSocket actif",
+    offlineSimulation: "Simulation hors ligne",
+    lastNode: "Dernier noeud",
+    latency: "Latence",
+    markupApplied: "Tarification majorée appliquée",
+    hitlTitle: "Injecter une entrée humaine",
+    close: "Fermer",
+    hitlPlaceholder: "Saisir une valeur mock ou une instruction directe pour remplacer l'exécution native...",
+    submitHijack: "Envoyer l'entrée HITL",
+    ledgerSubtitle: "Chaîne d'audit SOC2 SHA-256",
+    healthy: "Sain",
+    tampered: "Altéré",
+    merkleRoot: "Merkle Root",
+    blockValidationCount: "Nombre de blocs validés",
+    blocksVerified: "blocs vérifiés",
+    auditBreach: "Incohérence de chaîne détectée au bloc",
+    verifying: "Vérification...",
+    verifyChain: "Vérifier la chaîne",
+    simulateTamper: "Simuler une altération",
+    keyRotationFailed: "Rotation de clé échouée",
+    statusUpdateFailed: "Mise à jour du statut échouée",
+    pauseFailed: "Pause échouée",
+    resumeFailed: "Reprise échouée",
+    hijackSuccess: "Commande HITL envoyée.",
+    hijackFailed: "Envoi HITL échoué",
+    ledgerLoadFailed: "Chargement de l'audit échoué",
+    swarmInitialized: "Swarm initialisé.",
+    debateMessage: (currentAgent, targetAgent) => `Tour de consensus : ${currentAgent} a envoyé une mise à jour à ${targetAgent}`,
+    blockLabel: "Bloc",
+    hashLabel: "Hash",
+    sessionLabel: "Session",
+    stripeLabel: "Stripe",
+    totalTokens: "Total",
+    cost: "Coût",
+    tpmLimit: "5k tpm",
+  },
+};
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
+
+export function AdminDashboardView({ t, lang }: AdminDashboardViewProps) {
+  const copy = ADMIN_COPY[lang];
   const [tenants, setTenants] = useState<TenantInfo[]>([]);
   const [loadingTenants, setLoadingTenants] = useState(true);
   const [errorTenants, setErrorTenants] = useState<string | null>(null);
   const [rotatedKeyInfo, setRotatedKeyInfo] = useState<{ [tenantId: string]: string }>({});
+  const [actionStatus, setActionStatus] = useState<{ message: string; tone: "success" | "warning" | "danger" } | null>(null);
 
-  // 2. Swarm Interceptor State
   const [selectedSessionId] = useState("default");
   const [swarmStatus, setSwarmStatus] = useState("running");
   const [hijackText, setHijackText] = useState("");
@@ -57,9 +305,8 @@ export function AdminDashboardView({ t }: AdminDashboardViewProps) {
     latencyMs: number;
     billingUsd: number;
     lastMessage: string;
-  }>({ latencyMs: 0, billingUsd: 0.0, lastMessage: "Swarm initialized." });
+  }>({ latencyMs: 0, billingUsd: 0.0, lastMessage: "" });
 
-  // 3. Ledger Visualizer State
   const [auditBlocks, setAuditBlocks] = useState<AuditBlock[]>([]);
   const [auditStatus, setAuditStatus] = useState<{
     valid: boolean;
@@ -70,7 +317,11 @@ export function AdminDashboardView({ t }: AdminDashboardViewProps) {
   const [ledgerNodes, setLedgerNodes, onLedgerNodesChange] = useNodesState([]);
   const [ledgerEdges, setLedgerEdges, onLedgerEdgesChange] = useEdgesState([]);
 
-  // Fetch Tenants Data
+  function setTimedActionStatus(message: string, tone: "success" | "warning" | "danger" = "success") {
+    setActionStatus({ message, tone });
+    window.setTimeout(() => setActionStatus(null), 3200);
+  }
+
   const fetchTenants = useCallback(async () => {
     try {
       const resp = await fetch("http://localhost:8000/v1/admin/tenants", {
@@ -84,24 +335,21 @@ export function AdminDashboardView({ t }: AdminDashboardViewProps) {
         setTenants(data.tenants || []);
         setErrorTenants(null);
       }
-    } catch (err: any) {
-      setErrorTenants(err.message || "Unknown error");
+    } catch (err) {
+      setErrorTenants(getErrorMessage(err));
     } finally {
       setLoadingTenants(false);
     }
   }, []);
 
-  // Fetch Ledger Audit Data
   const fetchLedger = useCallback(async () => {
     setCheckingLedger(true);
     try {
-      // 1. Fetch Audit Status
       const statusResp = await fetch("http://localhost:8000/v1/audit/status", {
         headers: { "x-api-key": "key-admin" }
       });
       const statusData = await statusResp.json();
       
-      // 2. Fetch Audit Logs
       const logsResp = await fetch("http://localhost:8000/v1/audit/logs", {
         headers: { "x-api-key": "key-admin" }
       });
@@ -117,12 +365,12 @@ export function AdminDashboardView({ t }: AdminDashboardViewProps) {
       }
     } catch (err) {
       console.error("Failed to load audit ledger data:", err);
+      setTimedActionStatus(`${copy.ledgerLoadFailed}: ${getErrorMessage(err)}`, "danger");
     } finally {
       setCheckingLedger(false);
     }
-  }, []);
+  }, [copy.ledgerLoadFailed]);
 
-  // Key rotation handler
   const handleRotateKey = async (tenantId: string) => {
     try {
       const resp = await fetch("http://localhost:8000/v1/admin/tenants/rotate-key", {
@@ -136,14 +384,14 @@ export function AdminDashboardView({ t }: AdminDashboardViewProps) {
       const data = await resp.json();
       if (data.status === "success") {
         setRotatedKeyInfo(prev => ({ ...prev, [tenantId]: data.api_key }));
-        fetchTenants();
+        void fetchTenants();
+        setTimedActionStatus(copy.keyRotated);
       }
     } catch (err) {
-      alert(`Key rotation failed: ${err}`);
+      setTimedActionStatus(`${copy.keyRotationFailed}: ${getErrorMessage(err)}`, "danger");
     }
   };
 
-  // Status simulation handler
   const handleUpdateSubscription = async (tenantId: string, status: string) => {
     try {
       const resp = await fetch("http://localhost:8000/v1/admin/tenants/update-subscription", {
@@ -156,14 +404,14 @@ export function AdminDashboardView({ t }: AdminDashboardViewProps) {
       });
       const data = await resp.json();
       if (data.status === "success") {
-        fetchTenants();
+        void fetchTenants();
+        setTimedActionStatus(`${tenantId}: ${status}`);
       }
     } catch (err) {
-      alert(`Status update failed: ${err}`);
+      setTimedActionStatus(`${copy.statusUpdateFailed}: ${getErrorMessage(err)}`, "danger");
     }
   };
 
-  // Swarm controls
   const handlePauseSwarm = async () => {
     try {
       const resp = await fetch(`http://localhost:8000/v1/sessions/${selectedSessionId}/pause`, {
@@ -175,7 +423,7 @@ export function AdminDashboardView({ t }: AdminDashboardViewProps) {
         setSwarmStatus("paused");
       }
     } catch (err) {
-      alert(`Failed to pause: ${err}`);
+      setTimedActionStatus(`${copy.pauseFailed}: ${getErrorMessage(err)}`, "danger");
     }
   };
 
@@ -190,7 +438,7 @@ export function AdminDashboardView({ t }: AdminDashboardViewProps) {
         setSwarmStatus("running");
       }
     } catch (err) {
-      alert(`Failed to resume: ${err}`);
+      setTimedActionStatus(`${copy.resumeFailed}: ${getErrorMessage(err)}`, "danger");
     }
   };
 
@@ -207,25 +455,23 @@ export function AdminDashboardView({ t }: AdminDashboardViewProps) {
       });
       const data = await resp.json();
       if (data.status === "success") {
-        alert("Hijack command dispatched successfully!");
+        setTimedActionStatus(copy.hijackSuccess);
         setHijackText("");
         setShowHijackInput(false);
       }
     } catch (err) {
-      alert(`Hijack failed: ${err}`);
+      setTimedActionStatus(`${copy.hijackFailed}: ${getErrorMessage(err)}`, "danger");
     }
   };
 
-  // Initialize data on load
   useEffect(() => {
     fetchTenants();
     fetchLedger();
   }, [fetchTenants, fetchLedger]);
 
-  // Swarm WebSockets & Mock Canvas Loop
   useEffect(() => {
     let ws: WebSocket | null = null;
-    let mockInterval: any = null;
+    let mockInterval: ReturnType<typeof window.setInterval> | null = null;
     let currentActiveIdx = 0;
 
     const agents = ["CEO", "Developer", "QA", "CFO"];
@@ -262,7 +508,6 @@ export function AdminDashboardView({ t }: AdminDashboardViewProps) {
     setSwarmNodes(initialNodes);
     setSwarmEdges(initialEdges);
 
-    // 1. Establish WebSocket Connection
     try {
       ws = new WebSocket(`ws://localhost:8000/v1/collaboration/${selectedSessionId}?api_key=key-admin`);
       
@@ -290,19 +535,17 @@ export function AdminDashboardView({ t }: AdminDashboardViewProps) {
               lastMessage: messageText
             });
 
-            // Make the node glow dynamically
             setSwarmNodes(nodes =>
               nodes.map(node => ({
                 ...node,
                 style: {
                   ...node.style,
                   borderColor: node.id === fromAgent ? "var(--accent)" : "var(--border-c)",
-                  boxShadow: node.id === fromAgent ? "var(--ring)" : "none"
+                  boxShadow: node.id === fromAgent ? "var(--shadow-card), var(--ring)" : "var(--shadow-card)"
                 }
               }))
             );
 
-            // Animate target edge
             setSwarmEdges(edges =>
               edges.map(edge => ({
                 ...edge,
@@ -315,8 +558,8 @@ export function AdminDashboardView({ t }: AdminDashboardViewProps) {
               }))
             );
           }
-        } catch (e) {
-          // Silent parsing errors
+        } catch {
+          return;
         }
       };
 
@@ -330,7 +573,6 @@ export function AdminDashboardView({ t }: AdminDashboardViewProps) {
       setWsConnected(false);
     }
 
-    // 2. Offline Mock Simulation (Activates when WebSocket is down or inactive)
     if (!wsConnected) {
       mockInterval = setInterval(() => {
         if (swarmStatus === "paused") return;
@@ -343,23 +585,21 @@ export function AdminDashboardView({ t }: AdminDashboardViewProps) {
         setActiveTelemetry({
           latencyMs: 400 + Math.floor(Math.random() * 300),
           billingUsd: 0.012 + Math.random() * 0.02,
-          lastMessage: `Debate consensus round: ${currentAgent} dispatched update to ${targetAgent}`
+          lastMessage: copy.debateMessage(currentAgent, targetAgent)
         });
 
-        // Set node styles
         setSwarmNodes(nodes =>
           nodes.map(node => ({
             ...node,
-            className: node.id === currentAgent ? "active-streaming-node" : "",
+            className: "",
             style: {
               ...node.style,
               borderColor: node.id === currentAgent ? "var(--accent)" : "var(--border-c)",
-              boxShadow: node.id === currentAgent ? "0 0 15px var(--accent)" : "none"
+              boxShadow: node.id === currentAgent ? "var(--shadow-card), var(--ring)" : "var(--shadow-card)"
             }
           }))
         );
 
-        // Animate edge
         setSwarmEdges(edges =>
           edges.map(edge => ({
             ...edge,
@@ -380,9 +620,8 @@ export function AdminDashboardView({ t }: AdminDashboardViewProps) {
       if (ws) ws.close();
       if (mockInterval) clearInterval(mockInterval);
     };
-  }, [selectedSessionId, wsConnected, swarmStatus]);
+  }, [copy, selectedSessionId, wsConnected, swarmStatus]);
 
-  // Ledger Chain React Flow builder
   useEffect(() => {
     if (auditBlocks.length === 0) {
       setLedgerNodes([]);
@@ -390,7 +629,6 @@ export function AdminDashboardView({ t }: AdminDashboardViewProps) {
       return;
     }
 
-    // Linear chain Layout
     const nodes = auditBlocks.map((block, i) => {
       const isTampered = !auditStatus.valid && block.id === auditStatus.tampered_id;
       return {
@@ -398,20 +636,20 @@ export function AdminDashboardView({ t }: AdminDashboardViewProps) {
         data: {
           label: (
             <div className="flex flex-col text-[10px] text-left leading-relaxed">
-              <span className="font-extrabold uppercase text-[9px]" style={{ color: isTampered ? "#f87171" : "var(--accent)" }}>
-                Block #{block.id}
+              <span className="font-extrabold uppercase text-[9px]" style={{ color: isTampered ? "var(--danger)" : "var(--accent)" }}>
+                {copy.blockLabel} #{block.id}
               </span>
               <span className="max-w-[130px] truncate font-bold t1">{block.event_type}</span>
-              <span className="font-mono text-[8px] t3">Hash: {block.current_hash.slice(0, 10)}...</span>
+              <span className="font-mono text-[8px] t3">{copy.hashLabel}: {block.current_hash.slice(0, 10)}...</span>
             </div>
           )
         },
         position: { x: i * 220 + 20, y: 60 },
         style: {
           background: "var(--bg-card)",
-          borderColor: isTampered ? "#ef4444" : "var(--border-c)",
-          boxShadow: isTampered ? "0 0 20px rgba(239, 68, 68, 0.45)" : "none",
-          borderWidth: isTampered ? "2px" : "1px",
+          borderColor: isTampered ? "var(--danger)" : "var(--border-c)",
+          boxShadow: isTampered ? "var(--shadow-card), 0 0 0 3px color-mix(in srgb, var(--danger) 18%, transparent)" : "var(--shadow-card)",
+          borderWidth: "1px",
           color: "var(--t1)",
           width: 170,
           borderRadius: "10px",
@@ -431,7 +669,7 @@ export function AdminDashboardView({ t }: AdminDashboardViewProps) {
         target: targetId,
         animated: !hasFailure,
         style: {
-          stroke: hasFailure ? "#ef4444" : "var(--accent)",
+          stroke: hasFailure ? "var(--danger)" : "var(--accent)",
           strokeWidth: 2
         }
       });
@@ -439,9 +677,8 @@ export function AdminDashboardView({ t }: AdminDashboardViewProps) {
 
     setLedgerNodes(nodes);
     setLedgerEdges(edges);
-  }, [auditBlocks, auditStatus]);
+  }, [auditBlocks, auditStatus, copy.blockLabel, copy.hashLabel]);
 
-  // Simulate ledger tamper for visual test
   const simulateTamper = () => {
     setAuditStatus({
       valid: false,
@@ -452,33 +689,33 @@ export function AdminDashboardView({ t }: AdminDashboardViewProps) {
 
   return (
     <div className="flex h-full flex-col gap-4 overflow-y-auto pr-2">
-      {/* 1. Header Area */}
       <div className="flex justify-between items-center border-b pb-3" style={{ borderColor: "var(--border-c)" }}>
         <div>
           <h1 className="text-xl font-black t1">{t.adminConsole}</h1>
-          <p className="text-xs t3 mt-0.5">Enterprise isolation billing limits, WebSockets visual interceptor, and SOC2 cryptographic auditing.</p>
+          <p className="text-xs t3 mt-0.5">{copy.intro}</p>
         </div>
-        <div className="flex items-center gap-2">
-          <button
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {actionStatus && <StatusBadge tone={actionStatus.tone}>{actionStatus.message}</StatusBadge>}
+          <Button
             onClick={() => {
               setLoadingTenants(true);
-              fetchTenants();
-              fetchLedger();
+              void fetchTenants();
+              void fetchLedger();
             }}
-              className="quiet-button rounded-lg px-3 py-1.5 text-xs font-semibold"
+            variant="quiet"
+            className="px-3 py-1.5"
           >
-            Refresh
-          </button>
+            {copy.refresh}
+          </Button>
         </div>
       </div>
 
-      {/* 2. Tenant & Billing Grid */}
       <Surface as="section" elevated className="flex flex-col gap-3 p-4">
         <h2 className="text-xs font-black uppercase tracking-[0.14em] t1">{t.billingPlans}</h2>
         {loadingTenants ? (
-          <div className="text-center text-xs py-4 t3">Loading tenants...</div>
+          <div className="text-center text-xs py-4 t3">{copy.loadingTenants}</div>
         ) : errorTenants ? (
-          <div className="text-center text-xs py-4" style={{ color: "var(--danger)" }}>Error: {errorTenants}</div>
+          <div className="text-center text-xs py-4" style={{ color: "var(--danger)" }}>{copy.errorPrefix}: {errorTenants}</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {tenants.map(tenant => (
@@ -486,12 +723,11 @@ export function AdminDashboardView({ t }: AdminDashboardViewProps) {
                 key={tenant.tenant_id}
                 className="relative flex flex-col gap-3 p-4"
               >
-                {/* Header */}
                 <div className="flex justify-between items-start">
                   <div>
                     <span className="text-xs font-black t1">{tenant.tenant_id}</span>
                     <p className="mt-0.5 max-w-[150px] truncate font-mono text-[9px] t3">
-                      Stripe: {tenant.stripe_subscription_id || "None"}
+                      {copy.stripeLabel}: {tenant.stripe_subscription_id || copy.none}
                     </p>
                   </div>
                   <StatusBadge tone={toneForStatus(tenant.status)}>
@@ -499,7 +735,6 @@ export function AdminDashboardView({ t }: AdminDashboardViewProps) {
                   </StatusBadge>
                 </div>
 
-                {/* API Key Rotation */}
                 <div className="flex flex-col gap-1 text-[10px]">
                   <span className="font-bold t3 uppercase tracking-[0.08em]">{t.apiKeyRotation}</span>
                   <div className="flex items-center gap-1.5">
@@ -512,22 +747,21 @@ export function AdminDashboardView({ t }: AdminDashboardViewProps) {
                     <Button
                       onClick={() => handleRotateKey(tenant.tenant_id)}
                       className="px-2.5 py-1 text-[10px]"
-                      title="Rotate Tenant API Key"
+                      title={copy.rotateTitle}
                     >
-                      Rotate
+                      {copy.rotate}
                     </Button>
                   </div>
                   {rotatedKeyInfo[tenant.tenant_id] && (
-                    <span className="text-[8px] font-bold" style={{ color: "var(--warning)" }}>Key rotated successfully in-memory.</span>
+                    <span className="text-[8px] font-bold" style={{ color: "var(--warning)" }}>{copy.keyRotated}</span>
                   )}
                 </div>
 
-                {/* Usage meter */}
                 <div className="flex flex-col gap-1 text-[10px] mt-1">
                   <div className="flex justify-between font-bold">
                     <span className="t3 uppercase tracking-[0.08em]">{t.realTimeUsage}</span>
                     <span className="font-mono t3">
-                      {tenant.tokens_last_minute} / 5k tpm
+                      {tenant.tokens_last_minute} / {copy.tpmLimit}
                     </span>
                   </div>
                   <ProgressBar
@@ -535,12 +769,11 @@ export function AdminDashboardView({ t }: AdminDashboardViewProps) {
                     tone={tenant.tokens_last_minute >= 4000 ? "danger" : tenant.tokens_last_minute >= 2500 ? "warning" : "accent"}
                   />
                   <div className="mt-0.5 flex justify-between text-[8px] t3">
-                    <span>Total: {tenant.total_tokens.toLocaleString()} tokens</span>
-                    <span>Cost: ${tenant.total_cost_usd.toFixed(4)}</span>
+                    <span>{copy.totalTokens}: {tenant.total_tokens.toLocaleString()} tokens</span>
+                    <span>{copy.cost}: ${tenant.total_cost_usd.toFixed(4)}</span>
                   </div>
                 </div>
 
-                {/* Simulation Control Overlay */}
                 {tenant.tenant_id !== "admin_tenant" && (
                   <div className="flex gap-1 border-t pt-2.5 mt-1 border-dashed" style={{ borderColor: "var(--border-c)" }}>
                     <Button
@@ -548,21 +781,21 @@ export function AdminDashboardView({ t }: AdminDashboardViewProps) {
                       variant="primary"
                       className="flex-1 py-1 text-[9px]"
                     >
-                      Active
+                      {copy.active}
                     </Button>
                     <Button
                       onClick={() => handleUpdateSubscription(tenant.tenant_id, "frozen")}
                       variant="warning"
                       className="flex-1 py-1 text-[9px]"
                     >
-                      Freeze
+                      {copy.freeze}
                     </Button>
                     <Button
                       onClick={() => handleUpdateSubscription(tenant.tenant_id, "canceled")}
                       variant="danger"
                       className="flex-1 py-1 text-[9px]"
                     >
-                      Cancel
+                      {copy.cancel}
                     </Button>
                   </div>
                 )}
@@ -572,23 +805,20 @@ export function AdminDashboardView({ t }: AdminDashboardViewProps) {
         )}
       </Surface>
 
-      {/* 3. Swarm Live Interceptor & Ledger Visualizer Row */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        {/* Swarm Live Interceptor Canvas */}
         <Surface as="section" elevated className="relative flex min-h-[460px] flex-col gap-3 p-4 lg:col-span-7">
           <div className="flex justify-between items-center">
             <div>
               <h2 className="text-xs font-black uppercase tracking-[0.14em] t1">{t.liveInterceptor}</h2>
-              <p className="text-[10px] t3 mt-0.5">Session: {selectedSessionId}</p>
+              <p className="text-[10px] t3 mt-0.5">{copy.sessionLabel}: {selectedSessionId}</p>
             </div>
             <div className="flex items-center gap-2">
               <StatusBadge tone={wsConnected ? "success" : "warning"}>
-                {wsConnected ? "WEBSOCKET LIVE" : "OFFLINE SIMULATION"}
+                {wsConnected ? copy.wsLive : copy.offlineSimulation}
               </StatusBadge>
             </div>
           </div>
 
-          {/* React Flow Swarm Canvas */}
           <div className="flow-canvas relative min-h-[280px] flex-1 overflow-hidden rounded-lg border" style={{ borderColor: "var(--border-c)" }}>
             <ReactFlow
               nodes={swarmNodes}
@@ -602,21 +832,19 @@ export function AdminDashboardView({ t }: AdminDashboardViewProps) {
               <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="var(--grid)" />
             </ReactFlow>
 
-            {/* Float Telemetry Panel overlay */}
             <Surface className="absolute bottom-3 left-3 z-10 flex max-w-[280px] flex-col gap-1 p-2.5 text-[9px]">
               <div className="flex justify-between font-bold t2">
-                <span>Last Node: <strong style={{ color: "var(--accent)" }}>{lastInteractedAgent || "None"}</strong></span>
-                <span>Latency: <strong style={{ color: "var(--accent)" }}>{activeTelemetry.latencyMs}ms</strong></span>
+                <span>{copy.lastNode}: <strong style={{ color: "var(--accent)" }}>{lastInteractedAgent || copy.none}</strong></span>
+                <span>{copy.latency}: <strong style={{ color: "var(--accent)" }}>{activeTelemetry.latencyMs}ms</strong></span>
               </div>
-              <p className="mt-0.5 truncate t3">{activeTelemetry.lastMessage}</p>
+              <p className="mt-0.5 truncate t3">{activeTelemetry.lastMessage || copy.swarmInitialized}</p>
               <div className="mt-1 flex items-center justify-between border-t pt-1 font-mono t3" style={{ borderColor: "var(--border-c)" }}>
-                <span>Markup pricing applied</span>
+                <span>{copy.markupApplied}</span>
                 <span className="font-bold" style={{ color: "var(--success)" }}>${activeTelemetry.billingUsd.toFixed(4)} USD</span>
               </div>
             </Surface>
           </div>
 
-          {/* Action Row */}
           <div className="flex gap-2">
             <Button
               onClick={handlePauseSwarm}
@@ -640,17 +868,16 @@ export function AdminDashboardView({ t }: AdminDashboardViewProps) {
             </Button>
           </div>
 
-          {/* Hijack Text Box Popup overlay */}
           {showHijackInput && (
             <Surface className="absolute inset-x-4 bottom-16 z-20 flex flex-col gap-2 p-3">
               <div className="flex items-center justify-between border-b pb-1.5" style={{ borderColor: "var(--border-c)" }}>
-                <span className="text-[10px] font-bold t2">Inject Human-In-The-Loop Hijacked Input</span>
-                <Button onClick={() => setShowHijackInput(false)} className="px-2 py-1 text-[10px]">Close</Button>
+                <span className="text-[10px] font-bold t2">{copy.hitlTitle}</span>
+                <Button onClick={() => setShowHijackInput(false)} className="px-2 py-1 text-[10px]">{copy.close}</Button>
               </div>
               <textarea
                 value={hijackText}
                 onChange={e => setHijackText(e.target.value)}
-                placeholder="Type response mock value or direct instructions to bypass native tool execution..."
+                placeholder={copy.hitlPlaceholder}
                 className="field-input h-16 resize-none rounded p-2 font-mono text-xs"
               />
               <Button
@@ -658,45 +885,42 @@ export function AdminDashboardView({ t }: AdminDashboardViewProps) {
                 variant="primary"
                 className="w-full"
               >
-                Submit Hijacked Input
+                {copy.submitHijack}
               </Button>
             </Surface>
           )}
         </Surface>
 
-        {/* Ledger Validation Visualizer */}
         <Surface as="section" elevated className="relative flex min-h-[460px] flex-col gap-3 p-4 lg:col-span-5">
           <div className="flex justify-between items-center">
             <div>
               <h2 className="text-xs font-black uppercase tracking-[0.14em] t1">{t.ledgerVisualizer}</h2>
-              <p className="text-[9px] t3 mt-0.5">SOC2 SHA-256 AuditLedger</p>
+              <p className="text-[9px] t3 mt-0.5">{copy.ledgerSubtitle}</p>
             </div>
             <StatusBadge tone={auditStatus.valid ? "success" : "danger"}>
-              {auditStatus.valid ? "HEALTHY" : "TAMPERED"}
+              {auditStatus.valid ? copy.healthy : copy.tampered}
             </StatusBadge>
           </div>
 
-          {/* Validation Status Card */}
           <Surface className="flex flex-col gap-1 p-3 text-[10px]">
             <div className="flex justify-between">
-              <span className="t3">Merkle Root:</span>
+              <span className="t3">{copy.merkleRoot}:</span>
               <span className="max-w-[170px] truncate font-mono t2" title={auditStatus.merkle_root}>
                 {auditStatus.merkle_root || "0x00000000000000000000"}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="t3">Block Validation Count:</span>
-              <span className="font-mono font-bold t2">{auditBlocks.length} blocks verified</span>
+              <span className="t3">{copy.blockValidationCount}:</span>
+              <span className="font-mono font-bold t2">{auditBlocks.length} {copy.blocksVerified}</span>
             </div>
             {auditStatus.tampered_id !== null && (
               <div className="mt-1.5 flex items-center gap-1.5 border-t pt-2 font-bold" style={{ borderColor: "color-mix(in srgb, var(--danger) 28%, transparent)", color: "var(--danger)" }}>
                 <span className="text-[12px]">!</span>
-                <span>Audit breach detected at Block #{auditStatus.tampered_id}! Block hash chain mismatch.</span>
+                <span>{copy.auditBreach} #{auditStatus.tampered_id}.</span>
               </div>
             )}
           </Surface>
 
-          {/* React Flow Ledger chain */}
           <div className="flow-canvas relative min-h-[220px] flex-1 overflow-hidden rounded-lg border" style={{ borderColor: "var(--border-c)" }}>
             <ReactFlow
               nodes={ledgerNodes}
@@ -711,21 +935,20 @@ export function AdminDashboardView({ t }: AdminDashboardViewProps) {
             </ReactFlow>
           </div>
 
-          {/* Action Row */}
           <div className="flex gap-2">
             <Button
               onClick={fetchLedger}
               disabled={checkingLedger}
               className="flex-1"
             >
-              {checkingLedger ? "Verifying..." : "Verify Chain"}
+              {checkingLedger ? copy.verifying : copy.verifyChain}
             </Button>
             <Button
               onClick={simulateTamper}
               variant="danger"
               className="flex-1"
             >
-              Simulate Tamper
+              {copy.simulateTamper}
             </Button>
           </div>
         </Surface>
