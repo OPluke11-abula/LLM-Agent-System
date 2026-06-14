@@ -28,6 +28,7 @@ class InMemorySwarmBroker(BaseSwarmBroker):
     def __init__(self) -> None:
         self._queues: dict[str, list[asyncio.Queue]] = {}
         self._listeners: dict[str, list[asyncio.Task]] = {}
+        self.kv_store: dict[str, str] = {}
 
     async def publish(self, channel: str, message: dict[str, Any]) -> None:
         logger.debug(f"[InMemoryBroker] Publish to {channel}: {message}")

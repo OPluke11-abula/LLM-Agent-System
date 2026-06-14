@@ -2998,6 +2998,88 @@ async def hijack_session_endpoint(session_id: str, req: HijackRequest, tenant_id
     return {"status": "already_resolved", "session_id": session_id}
 
 
+class ResumeSessionRequest(BaseModel):
+    session_id: str
+
+@app.get("/v1/swarm/sessions")
+async def get_swarm_sessions(tenant_id: str = Depends(get_tenant_context)):
+    if tenant_id != "admin_tenant" and tenant_id != "default_tenant":
+        raise HTTPException(status_code=403, detail="Forbidden: Admin access required.")
+    
+    try:
+        from core.broker import get_broker, RedisSwarmBroker
+    except ImportError:
+        from agent_workspace.core.broker import get_broker, RedisSwarmBroker
+        
+    broker = get_broker(workspace_path=workspace)
+    sessions_info = []
+    
+    if isinstance(broker, RedisSwarmBroker) and broker.client:
+        try:
+            keys = await broker.client.keys("swarm:session:*:checkpoint")
+            for k in keys:
+                data_str = await broker.client.get(k)
+                if data_str:
+                    sessions_info.append(json.loads(data_str))
+        except Exception as e:
+            logger.error(f"Error reading checkpoints from Redis: {e}")
+    elif hasattr(broker, "kv_store"):
+        for k, v in broker.kv_store.items():
+            if k.startswith("swarm:session:") and k.endswith(":checkpoint"):
+                sessions_info.append(json.loads(v))
+                
+    return {"status": "success", "sessions": sessions_info}
+
+
+@app.post("/v1/swarm/sessions/resume")
+async def resume_session_endpoint(req: ResumeSessionRequest, tenant_id: str = Depends(get_tenant_context)):
+    if tenant_id != "admin_tenant" and tenant_id != "default_tenant":
+        raise HTTPException(status_code=403, detail="Forbidden: Admin access required.")
+        
+    try:
+        from core.broker import get_broker, RedisSwarmBroker
+        from core.swarm_coordinator import SwarmCoordinator
+    except ImportError:
+        from agent_workspace.core.broker import get_broker, RedisSwarmBroker
+        from agent_workspace.core.swarm_coordinator import SwarmCoordinator
+        
+    broker = get_broker(workspace_path=workspace)
+    redis_key = f"swarm:session:{req.session_id}:checkpoint"
+    data_str = None
+    
+    if hasattr(broker, "kv_store"):
+        data_str = broker.kv_store.get(redis_key)
+    elif isinstance(broker, RedisSwarmBroker) and broker.client:
+        try:
+            data_str = await broker.client.get(redis_key)
+        except Exception:
+            pass
+            
+    if not data_str:
+        raise HTTPException(status_code=404, detail=f"No checkpoint found for session '{req.session_id}'")
+        
+    checkpoint = json.loads(data_str)
+    executing_node = checkpoint.get("node_id")
+    
+    if executing_node:
+        SwarmCoordinator.mark_node_offline(executing_node, reason="manual_failover")
+        
+    # Re-publish/sync checkpoint
+    sync_msg = {
+        "type": "checkpoint_sync",
+        "session_id": req.session_id,
+        "checkpoint": checkpoint
+    }
+    await broker.publish("swarm:session:checkpoint:sync", sync_msg)
+    
+    return {
+        "status": "success",
+        "message": f"Forced failover and resumption triggered for session '{req.session_id}'",
+        "session_id": req.session_id,
+        "previous_node": executing_node
+    }
+
+
 @app.on_event("shutdown")
 async def shutdown_event():
     global _audit_daemon

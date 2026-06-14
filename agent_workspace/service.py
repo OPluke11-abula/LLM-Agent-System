@@ -231,7 +231,7 @@ class SwarmAgentService:
             target_node_id = msg.get("target_node_id")
             if target_node_id and target_node_id != self.node_id:
                 return  # Skip, this task is meant for another node
-
+ 
             session_id = msg["session_id"]
             node_id = msg["node_id"]
             task_instructions = msg["task_instructions"]
@@ -240,18 +240,18 @@ class SwarmAgentService:
             security_restrictions = msg["security_restrictions"]
             mock_directives = msg["mock_directives"]
             validation_assertions = msg["validation_assertions"]
+            checkpoint = msg.get("checkpoint")
             
             self.status = "busy"
             response_channel = f"swarm:task:{node_id}:response"
             
             try:
-                # Execute simulation/delegation response logic
                 # Ensure valid roles
                 valid_roles = {"CEO", "Developer", "Auditor", "CFO"}
                 normalized_role = self.role.strip().upper()
                 matched_role = self.role.capitalize()
                 for vr in valid_roles:
-                    if vr.lower() == self.role:
+                    if vr.lower() == self.role.lower():
                         matched_role = vr
                         break
                 
@@ -259,9 +259,81 @@ class SwarmAgentService:
                 if security_restrictions.get("block_all") or "restrict_execution" in security_restrictions:
                     raise PermissionError("Security sandbox interception: Execution blocked by policy rules.")
                 
+                # 1. Validation Gate using ProofOfConsensus
+                if checkpoint:
+                    try:
+                        from core.agent_crew import AgentCrew
+                    except ImportError:
+                        from agent_workspace.core.agent_crew import AgentCrew
+                    
+                    is_valid = AgentCrew.verify_checkpoint_signature(checkpoint)
+                    if not is_valid:
+                        raise ValueError("Checkpoint consensus verification failed: signature is invalid.")
+                    logger.info(f"Checkpoint signature verified successfully for session {session_id}")
+                
+                # 2. Subtasks Progress Simulation
+                subtasks = ["initialize", "execute", "audit", "finalize"]
+                completed = []
+                outputs = {}
+                
+                if checkpoint:
+                    completed = checkpoint.get("completed_subtasks", [])
+                    outputs = checkpoint.get("intermediate_outputs", {})
+                    logger.info(f"Resuming task {node_id} from checkpoint. Completed subtasks: {completed}")
+                
+                # Run the remaining subtasks
+                remaining = [s for s in subtasks if s not in completed]
+                
+                # Map role to canonical PoC signer role
+                def get_signer_role(r: str) -> str:
+                    rl = r.lower()
+                    if "ceo" in rl: return "ceo"
+                    if "dev" in rl: return "dev"
+                    if "qa" in rl or "audit" in rl: return "qa"
+                    if "cfo" in rl: return "cfo"
+                    if "cto" in rl: return "cto"
+                    return "ceo"
+                
+                signer_role = get_signer_role(self.role)
+                
+                for s in remaining:
+                    logger.info(f"Executing subtask '{s}' for task {node_id}")
+                    completed.append(s)
+                    outputs[s] = f"Result of {s}"
+                    
+                    # Save progress checkpoint
+                    try:
+                        from core.agent_crew import AgentCrew
+                    except ImportError:
+                        from agent_workspace.core.agent_crew import AgentCrew
+                    
+                    crew = AgentCrew(session_id=session_id)
+                    await crew.save_checkpoint(
+                        broker=self.client,
+                        node_id=self.node_id,
+                        role=self.role,
+                        task_instructions=task_instructions,
+                        input_parameters=input_parameters,
+                        completed_subtasks=completed,
+                        intermediate_outputs=outputs,
+                        signer=signer_role
+                    )
+                    
+                    # Check for simulated failover trigger
+                    if mock_directives and mock_directives.get("fail_after_subtask") == s:
+                        logger.warning(f"Simulating node failure after subtask '{s}'")
+                        try:
+                            from core.swarm_coordinator import SwarmCoordinator
+                        except ImportError:
+                            from agent_workspace.core.swarm_coordinator import SwarmCoordinator
+                        SwarmCoordinator.mark_node_offline(self.node_id, reason="simulated_heartbeat_timeout")
+                        raise RuntimeError(f"Simulated node failure after {s}")
+                
                 output = f"Execution result for role [{matched_role}] with instructions: {task_instructions}."
                 if mock_directives.get("force_mock_response"):
                     output = mock_directives["force_mock_response"]
+                if checkpoint:
+                    output = f"Resumed execution from checkpoint. Completed: {completed}. {output}"
                 
                 # Check assertions
                 for assertion in validation_assertions:

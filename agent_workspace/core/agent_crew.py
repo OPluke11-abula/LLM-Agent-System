@@ -135,6 +135,7 @@ class AgentCrew:
         mock_directives: Optional[Dict[str, Any]],
         validation_assertions: Optional[List[str]],
         target_node_id: Optional[str] = None,
+        checkpoint: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         response_channel = f"swarm:task:{node_id}:response"
         
@@ -160,7 +161,8 @@ class AgentCrew:
                 "security_restrictions": security_restrictions,
                 "mock_directives": mock_directives,
                 "validation_assertions": validation_assertions,
-                "target_node_id": target_node_id
+                "target_node_id": target_node_id,
+                "checkpoint": checkpoint
             }
             await broker.publish(f"swarm:role:{role.lower()}", request_msg)
             
@@ -226,17 +228,17 @@ class AgentCrew:
 
         # Check for distributed broker delegation
         try:
-            from core.broker import get_broker, RedisSwarmBroker
+            from core.broker import get_broker, RedisSwarmBroker, InMemorySwarmBroker
             from core.swarm_coordinator import SwarmCoordinator
             from core.sandbox import FileSnapshotTransaction
         except ImportError:
-            from agent_workspace.core.broker import get_broker, RedisSwarmBroker
+            from agent_workspace.core.broker import get_broker, RedisSwarmBroker, InMemorySwarmBroker
             from agent_workspace.core.swarm_coordinator import SwarmCoordinator
             from agent_workspace.core.sandbox import FileSnapshotTransaction
             
         workspace_path = getattr(self, "workspace_path", ".")
         broker = get_broker()
-        if isinstance(broker, RedisSwarmBroker):
+        if isinstance(broker, (RedisSwarmBroker, InMemorySwarmBroker)):
             best_node_id = SwarmCoordinator.get_best_node(matched_role)
             nodes_tracked = (best_node_id is not None)
             max_attempts = 2 if nodes_tracked else 1
@@ -249,6 +251,7 @@ class AgentCrew:
                 
                 try:
                     async def run_dispatch():
+                        checkpoint = await self.get_checkpoint(broker)
                         return await self._async_dispatch_to_role(
                             broker=broker,
                             node_id=node_id,
@@ -259,7 +262,8 @@ class AgentCrew:
                             security_restrictions=security_restrictions,
                             mock_directives=mock_directives,
                             validation_assertions=validation_assertions,
-                            target_node_id=best_node_id
+                            target_node_id=best_node_id,
+                            checkpoint=checkpoint
                         )
                     
                     # Wrap dispatch in transactional workspace snapshot
@@ -327,3 +331,112 @@ class AgentCrew:
                 "status": "error",
                 "error": str(e)
             }
+
+    @staticmethod
+    def generate_checkpoint_signature(checkpoint_data: Dict[str, Any], role: str) -> str:
+        import hashlib
+        try:
+            from core.discussion_room import ProofOfConsensus
+        except ImportError:
+            from agent_workspace.core.discussion_room import ProofOfConsensus
+            
+        data_to_hash = {
+            "session_id": checkpoint_data.get("session_id"),
+            "node_id": checkpoint_data.get("node_id"),
+            "role": checkpoint_data.get("role"),
+            "task_instructions": checkpoint_data.get("task_instructions"),
+            "input_parameters": checkpoint_data.get("input_parameters"),
+            "completed_subtasks": checkpoint_data.get("completed_subtasks", []),
+            "intermediate_outputs": checkpoint_data.get("intermediate_outputs", {})
+        }
+        serialized = json.dumps(data_to_hash, sort_keys=True)
+        payload_hash = hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+        return ProofOfConsensus.generate_member_signature(role, payload_hash)
+
+    @staticmethod
+    def verify_checkpoint_signature(checkpoint_data: Dict[str, Any]) -> bool:
+        import hashlib
+        try:
+            from core.discussion_room import ProofOfConsensus
+        except ImportError:
+            from agent_workspace.core.discussion_room import ProofOfConsensus
+            
+        signature = checkpoint_data.get("signature")
+        signer = checkpoint_data.get("signer", "ceo")
+        if not signature:
+            return False
+            
+        data_to_hash = {
+            "session_id": checkpoint_data.get("session_id"),
+            "node_id": checkpoint_data.get("node_id"),
+            "role": checkpoint_data.get("role"),
+            "task_instructions": checkpoint_data.get("task_instructions"),
+            "input_parameters": checkpoint_data.get("input_parameters"),
+            "completed_subtasks": checkpoint_data.get("completed_subtasks", []),
+            "intermediate_outputs": checkpoint_data.get("intermediate_outputs", {})
+        }
+        serialized = json.dumps(data_to_hash, sort_keys=True)
+        payload_hash = hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+        expected = ProofOfConsensus.generate_member_signature(signer, payload_hash)
+        return signature == expected
+
+    async def save_checkpoint(
+        self,
+        broker,
+        node_id: str,
+        role: str,
+        task_instructions: str,
+        input_parameters: Dict[str, Any],
+        completed_subtasks: Optional[List[str]] = None,
+        intermediate_outputs: Optional[Dict[str, Any]] = None,
+        signer: str = "ceo"
+    ) -> Dict[str, Any]:
+        checkpoint_data = {
+            "session_id": self.session_id,
+            "node_id": node_id,
+            "role": role,
+            "task_instructions": task_instructions,
+            "input_parameters": input_parameters,
+            "completed_subtasks": completed_subtasks or [],
+            "intermediate_outputs": intermediate_outputs or {}
+        }
+        sig = self.generate_checkpoint_signature(checkpoint_data, signer)
+        checkpoint_data["signature"] = sig
+        checkpoint_data["signer"] = signer
+
+        redis_key = f"swarm:session:{self.session_id}:checkpoint"
+        try:
+            from core.broker import RedisSwarmBroker
+        except ImportError:
+            from agent_workspace.core.broker import RedisSwarmBroker
+            
+        if hasattr(broker, "kv_store"):
+            broker.kv_store[redis_key] = json.dumps(checkpoint_data)
+        elif getattr(broker, "client", None) is not None:
+            await broker.client.set(redis_key, json.dumps(checkpoint_data))
+
+        # Expose checkpoint state to the swarm using Redis pub/sub
+        sync_msg = {
+            "type": "checkpoint_sync",
+            "session_id": self.session_id,
+            "checkpoint": checkpoint_data
+        }
+        await broker.publish("swarm:session:checkpoint:sync", sync_msg)
+        return checkpoint_data
+
+    async def get_checkpoint(self, broker) -> Optional[Dict[str, Any]]:
+        redis_key = f"swarm:session:{self.session_id}:checkpoint"
+        data_str = None
+        try:
+            from core.broker import RedisSwarmBroker
+        except ImportError:
+            from agent_workspace.core.broker import RedisSwarmBroker
+            
+        if hasattr(broker, "kv_store"):
+            data_str = broker.kv_store.get(redis_key)
+        elif getattr(broker, "client", None) is not None:
+            data_str = await broker.client.get(redis_key)
+            
+        if data_str:
+            return json.loads(data_str)
+        return None
