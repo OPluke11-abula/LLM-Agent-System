@@ -598,6 +598,13 @@ class MultiChannelPubSubManager:
     async def publish(self, channel: str, session_id: str, data: dict[str, Any], publisher_tenant: str = "default_tenant", from_redis: bool = False):
         if channel not in self.channels:
             return
+            
+        # Record replay event
+        try:
+            from core.replay_logger import ReplayLogger
+            ReplayLogger.log_event(workspace, session_id, channel, data)
+        except Exception as e:
+            logger.error(f"Error logging publish event: {e}")
         
         # Propagate to Redis pubsub if published locally
         if not from_redis:
@@ -668,6 +675,13 @@ class DashboardConnectionManager:
                 del self.active_connections[session_id]
 
     async def broadcast(self, session_id: str, event: dict[str, Any], sender_tenant: str = "default_tenant"):
+        # Record replay event
+        try:
+            from core.replay_logger import ReplayLogger
+            ReplayLogger.log_event(workspace, session_id, "dashboard", event)
+        except Exception as e:
+            logger.error(f"Error logging dashboard event: {e}")
+
         if session_id not in self.active_connections:
             return
             
@@ -1915,6 +1929,17 @@ class CrewSyncManager:
             logger.info(f"Worker WebSocket disconnected from crew sync session '{session_id}'")
 
     async def broadcast(self, session_id: str, sender_ws: WebSocket, decrypted_message: str):
+        # Record replay event
+        try:
+            from core.replay_logger import ReplayLogger
+            try:
+                msg_data = json.loads(decrypted_message)
+            except Exception:
+                msg_data = {"raw_message": decrypted_message}
+            ReplayLogger.log_event(workspace, session_id, "crew_sync", msg_data)
+        except Exception as e:
+            logger.error(f"Error logging crew sync event: {e}")
+
         targets = []
         with self.lock:
             if session_id in self.sessions:
@@ -3306,6 +3331,50 @@ async def resume_session_endpoint(req: ResumeSessionRequest, tenant_id: str = De
         "message": f"Forced failover and resumption triggered for session '{req.session_id}'",
         "session_id": req.session_id,
         "previous_node": executing_node
+    }
+
+
+class ReplayCleanRequest(BaseModel):
+    ttl_days: int | None = 7
+
+
+@app.get("/v1/swarm/replays/{session_id}")
+async def get_swarm_replay(session_id: str, tenant_id: str = Depends(get_tenant_context)):
+    if tenant_id != "admin_tenant" and tenant_id != "default_tenant":
+        raise HTTPException(status_code=403, detail="Forbidden: Admin access required.")
+        
+    try:
+        from core.replay_logger import ReplayLogger
+    except ImportError:
+        from agent_workspace.core.replay_logger import ReplayLogger
+        
+    timeline = ReplayLogger.get_session_timeline(workspace, session_id)
+    if timeline is None:
+        raise HTTPException(status_code=404, detail="Session replay not found")
+        
+    return {
+        "status": "success",
+        "session_id": session_id,
+        "timeline": timeline
+    }
+
+
+@app.post("/v1/swarm/replays/clean")
+async def clean_swarm_replays(req: ReplayCleanRequest, tenant_id: str = Depends(get_tenant_context)):
+    if tenant_id != "admin_tenant" and tenant_id != "default_tenant":
+        raise HTTPException(status_code=403, detail="Forbidden: Admin access required.")
+        
+    try:
+        from core.replay_logger import ReplayLogger
+    except ImportError:
+        from agent_workspace.core.replay_logger import ReplayLogger
+        
+    ttl_days = req.ttl_days if req.ttl_days is not None else 7
+    purged_count = ReplayLogger.clean_replays(workspace, ttl_days)
+    
+    return {
+        "status": "success",
+        "purged_count": purged_count
     }
 
 

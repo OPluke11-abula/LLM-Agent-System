@@ -131,6 +131,17 @@ class TopologyEmitter:
 
         state = self._build_state(updated_at=event.timestamp)
         self._atomic_write(state)
+
+        # Record replay event
+        try:
+            from core.replay_logger import ReplayLogger
+            workspace_path = os.environ.get("AGENT_WORKSPACE_DIR")
+            if not workspace_path:
+                workspace_path = os.path.dirname(os.path.abspath(__file__))
+            ReplayLogger.log_event(workspace_path, event.session_id, "topology", event.to_dict())
+        except Exception:
+            pass
+
         return state
 
     def _edge_from_event(self, event: TopologyEvent) -> dict[str, Any]:
