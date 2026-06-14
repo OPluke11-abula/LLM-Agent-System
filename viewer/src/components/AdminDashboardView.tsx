@@ -8,6 +8,11 @@ import {
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { Button, ProgressBar, StatusBadge, Surface, toneForStatus } from "./ui/primitives";
+import {
+  ReplayPlaybackWidget,
+  SwarmGovernanceConsole,
+  type SwarmReplayEvent,
+} from "./SwarmGovernanceConsole";
 import type { Lang, TranslationMessages } from "../types";
 
 type AdminDashboardViewProps = {
@@ -464,6 +469,41 @@ export function AdminDashboardView({ t, lang }: AdminDashboardViewProps) {
     }
   };
 
+  const handleReplayEvent = useCallback((event: SwarmReplayEvent) => {
+    const activeNode = event.node_id || event.source || "CEO";
+    const targetNode = event.target || "";
+    setLastInteractedAgent(activeNode);
+    setActiveTelemetry({
+      latencyMs: event.latency_ms ?? 0,
+      billingUsd: activeTelemetry.billingUsd,
+      lastMessage: event.label,
+    });
+    setSwarmNodes(nodes =>
+      nodes.map(node => ({
+        ...node,
+        style: {
+          ...node.style,
+          borderColor: node.id === activeNode ? "var(--accent)" : node.id === targetNode ? "var(--warning)" : "var(--border-c)",
+          boxShadow: node.id === activeNode ? "var(--shadow-card), var(--ring)" : "var(--shadow-card)",
+        },
+      }))
+    );
+    setSwarmEdges(edges =>
+      edges.map(edge => {
+        const isActivePath = edge.source === activeNode || edge.target === targetNode;
+        return {
+          ...edge,
+          animated: isActivePath,
+          style: {
+            ...edge.style,
+            stroke: isActivePath ? "var(--accent)" : "var(--border-c)",
+            strokeWidth: isActivePath ? 2.5 : 1.5,
+          },
+        };
+      })
+    );
+  }, [activeTelemetry.billingUsd, setSwarmEdges, setSwarmNodes]);
+
   useEffect(() => {
     fetchTenants();
     fetchLedger();
@@ -843,6 +883,11 @@ export function AdminDashboardView({ t, lang }: AdminDashboardViewProps) {
                 <span className="font-bold" style={{ color: "var(--success)" }}>${activeTelemetry.billingUsd.toFixed(4)} USD</span>
               </div>
             </Surface>
+            <ReplayPlaybackWidget
+              sessionId={selectedSessionId}
+              lang={lang}
+              onReplayEvent={handleReplayEvent}
+            />
           </div>
 
           <div className="flex gap-2">
@@ -953,6 +998,11 @@ export function AdminDashboardView({ t, lang }: AdminDashboardViewProps) {
           </div>
         </Surface>
       </div>
+
+      <SwarmGovernanceConsole
+        lang={lang}
+        onStatus={setTimedActionStatus}
+      />
     </div>
   );
 }
