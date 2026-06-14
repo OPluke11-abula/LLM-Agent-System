@@ -53,7 +53,7 @@ type BillingStatus = {
   policy: BillingPolicy;
 };
 
-type BillingPolicy = "strict_quota" | "auto_downscale";
+type BillingPolicy = "strict_limit" | "auto_downscale";
 
 type AuditProof = {
   eventId: string;
@@ -457,7 +457,8 @@ function mapPeers(raw: unknown): PeerNode[] {
 function mapBilling(raw: unknown): BillingStatus {
   const record = asRecord(raw);
   const data = Object.keys(asRecord(record.data)).length > 0 ? asRecord(record.data) : record;
-  const policy = asString(data.policy, fallbackBilling.policy) === "strict_quota" ? "strict_quota" : "auto_downscale";
+  const rawPolicy = asString(data.policy, fallbackBilling.policy);
+  const policy = rawPolicy === "strict_limit" || rawPolicy === "strict_quota" ? "strict_limit" : "auto_downscale";
   return {
     remainingCredits: asNumber(data.remaining_credits ?? data.remainingCredits, fallbackBilling.remainingCredits),
     spendUsd: asNumber(data.spend_usd ?? data.spendUsd, fallbackBilling.spendUsd),
@@ -489,6 +490,305 @@ function groupNodesByRole(nodes: SwarmNode[]) {
     groups[node.role].push(node);
     return groups;
   }, {});
+}
+
+function nodeStatusTone(status: string) {
+  const value = status.toLowerCase();
+  if (value === "idle") return "success";
+  if (value === "busy") return "accent";
+  return toneForStatus(status);
+}
+
+export function SwarmNodeMonitor({
+  copy,
+  drawerOpen,
+  groupedNodes,
+  healthLogs,
+  onToggle,
+  onScale,
+}: {
+  copy: GovernanceCopy;
+  drawerOpen: boolean;
+  groupedNodes: Record<string, SwarmNode[]>;
+  healthLogs: HealthLog[];
+  onToggle: () => void;
+  onScale: (role: string, direction: "up" | "down") => void;
+}) {
+  return (
+    <Surface className="flex flex-col gap-3 p-3 xl:col-span-4" data-testid="swarm-node-monitor">
+      <div className="flex items-center justify-between">
+        <h3 className="text-[10px] font-black uppercase tracking-[0.14em] t2">{copy.nodeRegistry}</h3>
+        <Button onClick={onToggle} className="px-2 py-1 text-[10px]">
+          {drawerOpen ? copy.collapse : copy.expand}
+        </Button>
+      </div>
+      {drawerOpen && (
+        <div className="flex max-h-[310px] flex-col gap-3 overflow-y-auto pr-1">
+          {Object.entries(groupedNodes).map(([role, roleNodes]) => (
+            <div key={role} className="rounded-lg border p-2" style={{ borderColor: "var(--border-c)", background: "var(--bg-muted)" }}>
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-[0.12em] t1">{role}</span>
+                <div className="flex gap-1">
+                  <Button onClick={() => onScale(role, "down")} title={copy.scaleDown} className="h-7 w-7 px-0 py-0">-</Button>
+                  <Button onClick={() => onScale(role, "up")} title={copy.scaleUp} variant="primary" className="h-7 w-7 px-0 py-0">+</Button>
+                </div>
+              </div>
+              <div className="flex flex-col gap-2">
+                {roleNodes.map(node => (
+                  <div key={node.id} className="grid grid-cols-[1fr_auto] gap-2 text-[10px]">
+                    <div className="min-w-0">
+                      <p className="truncate font-mono font-semibold t2">{node.id}</p>
+                      <ProgressBar value={node.taskLoad} tone={node.taskLoad > 72 ? "warning" : "accent"} className="mt-1" />
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      <StatusBadge tone={nodeStatusTone(node.status)}>{node.status}</StatusBadge>
+                      <span className="font-mono t3">{copy.load} {node.taskLoad}%</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="rounded-lg border p-3 font-mono text-[10px]" style={{ borderColor: "var(--border-c)", background: "color-mix(in srgb, var(--warning-bg) 42%, var(--bg-card))" }}>
+        <p className="mb-2 text-[10px] font-black uppercase tracking-[0.14em]" style={{ color: "var(--warning)" }}>{copy.heartbeatLog}</p>
+        {healthLogs.map(log => (
+          <div key={log.id} className="mb-2 grid grid-cols-[58px_1fr] gap-2 last:mb-0">
+            <span className="t3">{log.timestamp}</span>
+            <span style={{ color: log.tone === "warning" ? "var(--warning)" : "var(--t2)" }}>
+              [{log.nodeId}] {log.message}
+            </span>
+          </div>
+        ))}
+      </div>
+    </Surface>
+  );
+}
+
+export function SessionFailoverDashboard({
+  copy,
+  sessions,
+  resumeLoading,
+  onResume,
+}: {
+  copy: GovernanceCopy;
+  sessions: SwarmSession[];
+  resumeLoading: string | null;
+  onResume: (sessionId: string) => void;
+}) {
+  return (
+    <Surface className="flex flex-col gap-3 p-3 xl:col-span-4" data-testid="session-failover-dashboard">
+      <h3 className="text-[10px] font-black uppercase tracking-[0.14em] t2">{copy.sessions}</h3>
+      <div className="grid grid-cols-1 gap-3">
+        {sessions.map(session => (
+          <div key={session.id} className="rounded-lg border p-3" style={{ borderColor: "var(--border-c)" }}>
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="truncate font-mono text-xs font-semibold t1">{session.id}</p>
+                <p className="mt-1 text-[10px] t3">{copy.completed} {session.completed} / {session.total}</p>
+              </div>
+              <StatusBadge tone={toneForStatus(session.status)}>{session.status}</StatusBadge>
+            </div>
+            <ProgressBar value={(session.completed / Math.max(1, session.total)) * 100} className="mt-3" tone={session.completed === session.total ? "success" : "accent"} />
+            <div className="mt-3 grid grid-cols-4 gap-1.5">
+              {session.checkpoints.map(checkpoint => (
+                <div
+                  key={checkpoint.id}
+                  className="rounded border px-1.5 py-1 text-center text-[9px] font-semibold"
+                  style={{
+                    borderColor: checkpoint.done ? "color-mix(in srgb, var(--success) 36%, transparent)" : "var(--border-c)",
+                    color: checkpoint.done ? "var(--success)" : "var(--t3)",
+                    background: checkpoint.done ? "var(--success-bg)" : "var(--bg-muted)",
+                  }}
+                >
+                  {checkpoint.label}
+                </div>
+              ))}
+            </div>
+            <Button
+              onClick={() => onResume(session.id)}
+              disabled={resumeLoading === session.id}
+              variant="primary"
+              className="mt-3 w-full"
+            >
+              {resumeLoading === session.id ? <span className="typing-dots">{copy.resuming}</span> : copy.forceResume}
+            </Button>
+          </div>
+        ))}
+      </div>
+    </Surface>
+  );
+}
+
+export function P2PMeshNetworkMap({
+  copy,
+  peers,
+}: {
+  copy: GovernanceCopy;
+  peers: PeerNode[];
+}) {
+  return (
+    <Surface className="flex flex-col gap-3 p-3 xl:col-span-4" data-testid="p2p-mesh-network-map">
+      <h3 className="text-[10px] font-black uppercase tracking-[0.14em] t2">{copy.peers}</h3>
+      <div className="overflow-hidden rounded-lg border" style={{ borderColor: "var(--border-c)" }}>
+        {peers.map(peer => (
+          <div key={peer.id} className="grid grid-cols-[1fr_auto_auto] items-center gap-2 border-b px-3 py-2 text-[10px] last:border-b-0" style={{ borderColor: "var(--border-c)" }}>
+            <div className="min-w-0">
+              <p className="truncate font-mono font-semibold t2">{peer.id}</p>
+              <p className="t3">{peer.status}</p>
+            </div>
+            <span className="flex items-center gap-1.5 font-mono t2">
+              <span className="h-2 w-2 rounded-full" style={{ background: peer.latencyMs < 50 ? "var(--success)" : "var(--warning)" }} />
+              {peer.latencyMs}ms
+            </span>
+            <StatusBadge tone={peer.mtls ? "success" : "warning"}>{peer.mtls ? copy.locked : copy.unlocked}</StatusBadge>
+          </div>
+        ))}
+      </div>
+    </Surface>
+  );
+}
+
+export function BillingPolicyControls({
+  copy,
+  billing,
+  policyLoading,
+  onPolicyChange,
+}: {
+  copy: GovernanceCopy;
+  billing: BillingStatus;
+  policyLoading: boolean;
+  onPolicyChange: (policy: BillingPolicy) => void;
+}) {
+  return (
+    <Surface className="flex flex-col gap-3 p-3" data-testid="billing-policy-controls">
+      <h3 className="text-[10px] font-black uppercase tracking-[0.14em] t2">{copy.billing}</h3>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-lg border p-3" style={{ borderColor: "var(--border-c)" }}>
+          <p className="text-xl font-semibold t1">{billing.remainingCredits.toLocaleString()}</p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] t3">{copy.remainingCredits}</p>
+        </div>
+        <div className="rounded-lg border p-3" style={{ borderColor: "var(--border-c)" }}>
+          <p className="text-xl font-semibold t1">${billing.spendUsd.toFixed(2)}</p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] t3">{copy.spendTrend} +{billing.trend}%</p>
+        </div>
+      </div>
+      <label className="text-[10px] font-bold uppercase tracking-[0.12em] t3" htmlFor="billing-policy-select">
+        {copy.policy}
+      </label>
+      <select
+        id="billing-policy-select"
+        value={billing.policy}
+        onChange={event => onPolicyChange(event.target.value as BillingPolicy)}
+        disabled={policyLoading}
+        className="field-input rounded-lg px-3 py-2 text-xs"
+      >
+        <option value="strict_limit">{copy.strictQuota}</option>
+        <option value="auto_downscale">{copy.autoDownscale}</option>
+      </select>
+    </Surface>
+  );
+}
+
+export function CryptographicProofInspector({
+  copy,
+  proofEventId,
+  proof,
+  proofLoading,
+  blockHash,
+  validation,
+  validationLoading,
+  modalOpen,
+  onEventIdChange,
+  onBlockHashChange,
+  onLoadProof,
+  onVerifyProof,
+  onCloseModal,
+}: {
+  copy: GovernanceCopy;
+  proofEventId: string;
+  proof: AuditProof | null;
+  proofLoading: boolean;
+  blockHash: string;
+  validation: ProofValidation | null;
+  validationLoading: boolean;
+  modalOpen: boolean;
+  onEventIdChange: (eventId: string) => void;
+  onBlockHashChange: (hash: string) => void;
+  onLoadProof: () => void;
+  onVerifyProof: () => void;
+  onCloseModal: () => void;
+}) {
+  return (
+    <Surface className="flex flex-col gap-3 p-3" data-testid="cryptographic-proof-inspector">
+      <h3 className="text-[10px] font-black uppercase tracking-[0.14em] t2">{copy.proofInspector}</h3>
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_auto]">
+        <label className="sr-only" htmlFor="audit-proof-event">{copy.eventId}</label>
+        <input
+          id="audit-proof-event"
+          value={proofEventId}
+          onChange={event => onEventIdChange(event.target.value)}
+          className="field-input rounded-lg px-3 py-2 font-mono text-xs"
+          placeholder={copy.eventId}
+        />
+        <Button onClick={onLoadProof} disabled={proofLoading} variant="primary">
+          {proofLoading ? `${copy.loadProof}...` : copy.loadProof}
+        </Button>
+      </div>
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_auto]">
+        <label className="sr-only" htmlFor="audit-proof-hash">{copy.verifyProof}</label>
+        <input
+          id="audit-proof-hash"
+          value={blockHash}
+          onChange={event => onBlockHashChange(event.target.value)}
+          className="field-input rounded-lg px-3 py-2 font-mono text-xs"
+          placeholder={copy.blockHashPlaceholder}
+        />
+        <Button onClick={onVerifyProof} disabled={validationLoading || !blockHash.trim()}>
+          {validationLoading ? `${copy.verifyProof}...` : copy.verifyProof}
+        </Button>
+      </div>
+      {validation && (
+        <StatusBadge tone={validation.valid ? "success" : "danger"} className="w-fit">
+          {validation.valid ? "Verified" : "Tampered"}: {validation.message}
+        </StatusBadge>
+      )}
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+        <div className="min-h-[92px] rounded-lg border p-3" style={{ borderColor: "var(--border-c)", background: "var(--bg-muted)" }}>
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] t3">{copy.merkleProof}</p>
+          <p className="break-all font-mono text-[10px] t2">{proof?.merkleProof.join(" / ") || copy.noData}</p>
+        </div>
+        <div className="min-h-[92px] rounded-lg border p-3" style={{ borderColor: "var(--border-c)", background: "var(--bg-muted)" }}>
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] t3">{copy.zkKeys}</p>
+          <p className="break-all font-mono text-[10px] t2">{proof?.zkKeys.join(" / ") || copy.noData}</p>
+        </div>
+      </div>
+      {modalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4">
+          <Surface className="flex w-full max-w-2xl flex-col gap-3 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-xs font-black uppercase tracking-[0.14em] t1">{copy.proofInspector}</h3>
+                <p className="mt-1 font-mono text-[10px] t3">{proof?.eventId || proofEventId}</p>
+              </div>
+              <Button onClick={onCloseModal} className="px-2 py-1 text-[10px]">{copy.collapse}</Button>
+            </div>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <div className="rounded-lg border p-3" style={{ borderColor: "var(--border-c)", background: "var(--bg-muted)" }}>
+                <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] t3">{copy.merkleProof}</p>
+                <p className="break-all font-mono text-[10px] t2">{proof?.merkleProof.join("\n") || copy.noData}</p>
+              </div>
+              <div className="rounded-lg border p-3" style={{ borderColor: "var(--border-c)", background: "var(--bg-muted)" }}>
+                <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] t3">{copy.zkKeys}</p>
+                <p className="break-all font-mono text-[10px] t2">{proof?.zkKeys.join("\n") || copy.noData}</p>
+              </div>
+            </div>
+          </Surface>
+        </div>
+      )}
+    </Surface>
+  );
 }
 
 export function ReplayPlaybackWidget({
@@ -601,6 +901,7 @@ export function SwarmGovernanceConsole({
   const [blockHash, setBlockHash] = useState("");
   const [validation, setValidation] = useState<ProofValidation | null>(null);
   const [validationLoading, setValidationLoading] = useState(false);
+  const [proofModalOpen, setProofModalOpen] = useState(false);
 
   const groupedNodes = useMemo(() => groupNodesByRole(nodes), [nodes]);
 
@@ -694,7 +995,7 @@ export function SwarmGovernanceConsole({
         method: "POST",
         body: JSON.stringify({ policy }),
       });
-      onStatus(`${copy.policy}: ${policy === "strict_quota" ? copy.strictQuota : copy.autoDownscale}`);
+      onStatus(`${copy.policy}: ${policy === "strict_limit" ? copy.strictQuota : copy.autoDownscale}`);
     } catch (error) {
       onStatus(`${copy.actionFailed}: ${error instanceof Error ? error.message : String(error)}`, "danger");
     } finally {
@@ -716,6 +1017,7 @@ export function SwarmGovernanceConsole({
         zkKeys: readArray(data.zk_keys ?? data.zkKeys, ["keys"]).map(item => String(item)),
         root: asString(data.root ?? data.merkle_root, "0x00000000000000000000"),
       });
+      setProofModalOpen(true);
     } catch (error) {
       setProof({
         eventId: proofEventId,
@@ -723,6 +1025,7 @@ export function SwarmGovernanceConsole({
         zkKeys: ["local-verifier-key", "session-public-input"],
         root: "fallback-root",
       });
+      setProofModalOpen(true);
       onStatus(`${copy.actionFailed}: ${error instanceof Error ? error.message : String(error)}`, "warning");
     } finally {
       setProofLoading(false);
@@ -764,188 +1067,45 @@ export function SwarmGovernanceConsole({
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-        <Surface className="flex flex-col gap-3 p-3 xl:col-span-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-[10px] font-black uppercase tracking-[0.14em] t2">{copy.nodeRegistry}</h3>
-            <Button onClick={() => setDrawerOpen(value => !value)} className="px-2 py-1 text-[10px]">
-              {drawerOpen ? copy.collapse : copy.expand}
-            </Button>
-          </div>
-          {drawerOpen && (
-            <div className="flex max-h-[310px] flex-col gap-3 overflow-y-auto pr-1">
-              {Object.entries(groupedNodes).map(([role, roleNodes]) => (
-                <div key={role} className="rounded-lg border p-2" style={{ borderColor: "var(--border-c)", background: "var(--bg-muted)" }}>
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase tracking-[0.12em] t1">{role}</span>
-                    <div className="flex gap-1">
-                      <Button onClick={() => scaleRole(role, "down")} title={copy.scaleDown} className="h-7 w-7 px-0 py-0">-</Button>
-                      <Button onClick={() => scaleRole(role, "up")} title={copy.scaleUp} variant="primary" className="h-7 w-7 px-0 py-0">+</Button>
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    {roleNodes.map(node => (
-                      <div key={node.id} className="grid grid-cols-[1fr_auto] gap-2 text-[10px]">
-                        <div className="min-w-0">
-                          <p className="truncate font-mono font-semibold t2">{node.id}</p>
-                          <ProgressBar value={node.taskLoad} tone={node.taskLoad > 72 ? "warning" : "accent"} className="mt-1" />
-                        </div>
-                        <div className="flex flex-col items-end gap-1">
-                          <StatusBadge tone={toneForStatus(node.status)}>{node.status}</StatusBadge>
-                          <span className="font-mono t3">{copy.load} {node.taskLoad}%</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </Surface>
-
-        <Surface className="flex flex-col gap-3 p-3 xl:col-span-4">
-          <h3 className="text-[10px] font-black uppercase tracking-[0.14em] t2">{copy.sessions}</h3>
-          <div className="grid grid-cols-1 gap-3">
-            {sessions.map(session => (
-              <div key={session.id} className="rounded-lg border p-3" style={{ borderColor: "var(--border-c)" }}>
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="truncate font-mono text-xs font-semibold t1">{session.id}</p>
-                    <p className="mt-1 text-[10px] t3">{copy.completed} {session.completed} / {session.total}</p>
-                  </div>
-                  <StatusBadge tone={toneForStatus(session.status)}>{session.status}</StatusBadge>
-                </div>
-                <div className="mt-3 grid grid-cols-4 gap-1.5">
-                  {session.checkpoints.map(checkpoint => (
-                    <div
-                      key={checkpoint.id}
-                      className="rounded border px-1.5 py-1 text-center text-[9px] font-semibold"
-                      style={{
-                        borderColor: checkpoint.done ? "color-mix(in srgb, var(--success) 36%, transparent)" : "var(--border-c)",
-                        color: checkpoint.done ? "var(--success)" : "var(--t3)",
-                        background: checkpoint.done ? "var(--success-bg)" : "var(--bg-muted)",
-                      }}
-                    >
-                      {checkpoint.label}
-                    </div>
-                  ))}
-                </div>
-                <Button
-                  onClick={() => resumeSession(session.id)}
-                  disabled={resumeLoading === session.id}
-                  variant="primary"
-                  className="mt-3 w-full"
-                >
-                  {resumeLoading === session.id ? copy.resuming : copy.forceResume}
-                </Button>
-              </div>
-            ))}
-          </div>
-        </Surface>
-
-        <Surface className="flex flex-col gap-3 p-3 xl:col-span-4">
-          <h3 className="text-[10px] font-black uppercase tracking-[0.14em] t2">{copy.heartbeatLog}</h3>
-          <div className="min-h-[132px] rounded-lg border p-3 font-mono text-[10px]" style={{ borderColor: "var(--border-c)", background: "color-mix(in srgb, var(--bg-base) 74%, var(--bg-card))" }}>
-            {healthLogs.map(log => (
-              <div key={log.id} className="mb-2 grid grid-cols-[58px_1fr] gap-2 last:mb-0">
-                <span className="t3">{log.timestamp}</span>
-                <span style={{ color: log.tone === "warning" ? "var(--warning)" : "var(--t2)" }}>
-                  [{log.nodeId}] {log.message}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          <h3 className="mt-1 text-[10px] font-black uppercase tracking-[0.14em] t2">{copy.peers}</h3>
-          <div className="overflow-hidden rounded-lg border" style={{ borderColor: "var(--border-c)" }}>
-            {peers.map(peer => (
-              <div key={peer.id} className="grid grid-cols-[1fr_auto_auto] items-center gap-2 border-b px-3 py-2 text-[10px] last:border-b-0" style={{ borderColor: "var(--border-c)" }}>
-                <div className="min-w-0">
-                  <p className="truncate font-mono font-semibold t2">{peer.id}</p>
-                  <p className="t3">{peer.status}</p>
-                </div>
-                <span className="flex items-center gap-1.5 font-mono t2">
-                  <span className="h-2 w-2 rounded-full" style={{ background: peer.latencyMs < 50 ? "var(--success)" : "var(--warning)" }} />
-                  {peer.latencyMs}ms
-                </span>
-                <StatusBadge tone={peer.mtls ? "success" : "warning"}>{peer.mtls ? copy.locked : copy.unlocked}</StatusBadge>
-              </div>
-            ))}
-          </div>
-        </Surface>
+        <SwarmNodeMonitor
+          copy={copy}
+          drawerOpen={drawerOpen}
+          groupedNodes={groupedNodes}
+          healthLogs={healthLogs}
+          onToggle={() => setDrawerOpen(value => !value)}
+          onScale={scaleRole}
+        />
+        <SessionFailoverDashboard
+          copy={copy}
+          sessions={sessions}
+          resumeLoading={resumeLoading}
+          onResume={resumeSession}
+        />
+        <P2PMeshNetworkMap copy={copy} peers={peers} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Surface className="flex flex-col gap-3 p-3">
-          <h3 className="text-[10px] font-black uppercase tracking-[0.14em] t2">{copy.billing}</h3>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-lg border p-3" style={{ borderColor: "var(--border-c)" }}>
-              <p className="text-xl font-semibold t1">{billing.remainingCredits.toLocaleString()}</p>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] t3">{copy.remainingCredits}</p>
-            </div>
-            <div className="rounded-lg border p-3" style={{ borderColor: "var(--border-c)" }}>
-              <p className="text-xl font-semibold t1">${billing.spendUsd.toFixed(2)}</p>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] t3">{copy.spendTrend} +{billing.trend}%</p>
-            </div>
-          </div>
-          <label className="text-[10px] font-bold uppercase tracking-[0.12em] t3" htmlFor="billing-policy-select">
-            {copy.policy}
-          </label>
-          <select
-            id="billing-policy-select"
-            value={billing.policy}
-            onChange={event => updatePolicy(event.target.value as BillingPolicy)}
-            disabled={policyLoading}
-            className="field-input rounded-lg px-3 py-2 text-xs"
-          >
-            <option value="strict_quota">{copy.strictQuota}</option>
-            <option value="auto_downscale">{copy.autoDownscale}</option>
-          </select>
-        </Surface>
-
-        <Surface className="flex flex-col gap-3 p-3">
-          <h3 className="text-[10px] font-black uppercase tracking-[0.14em] t2">{copy.proofInspector}</h3>
-          <div className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_auto]">
-            <label className="sr-only" htmlFor="audit-proof-event">{copy.eventId}</label>
-            <input
-              id="audit-proof-event"
-              value={proofEventId}
-              onChange={event => setProofEventId(event.target.value)}
-              className="field-input rounded-lg px-3 py-2 font-mono text-xs"
-              placeholder={copy.eventId}
-            />
-            <Button onClick={loadProof} disabled={proofLoading} variant="primary">
-              {proofLoading ? `${copy.loadProof}...` : copy.loadProof}
-            </Button>
-          </div>
-          <div className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_auto]">
-            <label className="sr-only" htmlFor="audit-proof-hash">{copy.verifyProof}</label>
-            <input
-              id="audit-proof-hash"
-              value={blockHash}
-              onChange={event => setBlockHash(event.target.value)}
-              className="field-input rounded-lg px-3 py-2 font-mono text-xs"
-              placeholder={copy.blockHashPlaceholder}
-            />
-            <Button onClick={verifyProof} disabled={validationLoading || !blockHash.trim()}>
-              {validationLoading ? `${copy.verifyProof}...` : copy.verifyProof}
-            </Button>
-          </div>
-          {validation && (
-            <StatusBadge tone={validation.valid ? "success" : "danger"} className="w-fit">
-              {validation.message}
-            </StatusBadge>
-          )}
-          <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-            <div className="min-h-[92px] rounded-lg border p-3" style={{ borderColor: "var(--border-c)", background: "var(--bg-muted)" }}>
-              <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] t3">{copy.merkleProof}</p>
-              <p className="break-all font-mono text-[10px] t2">{proof?.merkleProof.join(" / ") || copy.noData}</p>
-            </div>
-            <div className="min-h-[92px] rounded-lg border p-3" style={{ borderColor: "var(--border-c)", background: "var(--bg-muted)" }}>
-              <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] t3">{copy.zkKeys}</p>
-              <p className="break-all font-mono text-[10px] t2">{proof?.zkKeys.join(" / ") || copy.noData}</p>
-            </div>
-          </div>
-        </Surface>
+        <BillingPolicyControls
+          copy={copy}
+          billing={billing}
+          policyLoading={policyLoading}
+          onPolicyChange={updatePolicy}
+        />
+        <CryptographicProofInspector
+          copy={copy}
+          proofEventId={proofEventId}
+          proof={proof}
+          proofLoading={proofLoading}
+          blockHash={blockHash}
+          validation={validation}
+          validationLoading={validationLoading}
+          modalOpen={proofModalOpen}
+          onEventIdChange={setProofEventId}
+          onBlockHashChange={setBlockHash}
+          onLoadProof={loadProof}
+          onVerifyProof={verifyProof}
+          onCloseModal={() => setProofModalOpen(false)}
+        />
       </div>
 
       <PromptCalibrationDashboard lang={lang} onStatus={onStatus} />

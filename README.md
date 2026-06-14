@@ -115,9 +115,10 @@ uvicorn agent_workspace.api:app --host 0.0.0.0 --port 8000
 cd viewer
 npm run build
 npm run verify:ui
+npm run test:swarm-ui
 ```
 
-The React/Tauri viewer is the product-grade visual control plane for the local Agent Runtime. It uses route-level code splitting, shared UI primitives, low-saturation design tokens, and repeatable bundle verification. The Task Flow workspace, Activity Log, Admin Console, Rules, MODs, and Settings surfaces now share the same restrained status language, localized operational copy, and tokenized interaction states. The Admin Console also includes Swarm node scaling controls, session failover recovery, P2P mesh latency inspection, billing policy selection, topological replay playback, governance ballot voting, PromptComposer rule diff inspection, anomaly timelines, and Merkle/ZK proof verification panels backed by the `/v1/swarm/*` and `/v1/audit/*` operator APIs. `npm run verify:ui` checks the production bundle and enforces a sub-500 kB JavaScript chunk budget. `npm run verify:ui:screenshots` also attempts Edge headless screenshots into `viewer/output/ui-regression/`; set `UI_VERIFY_STRICT_SCREENSHOTS=1` when screenshot capture must be treated as a hard failure.
+The React/Tauri viewer is the product-grade visual control plane for the local Agent Runtime. It uses route-level code splitting, shared UI primitives, low-saturation design tokens, and repeatable bundle verification. The Task Flow workspace, Activity Log, Admin Console, Rules, MODs, and Settings surfaces now share the same restrained status language, localized operational copy, and tokenized interaction states. The Admin Console also includes typed Swarm node monitor, session failover, P2P mesh, billing policy, topological replay, governance ballot, PromptComposer diff, anomaly timeline, and Merkle/ZK proof inspector panels backed by the `/v1/swarm/*` and `/v1/audit/*` operator APIs. `npm run verify:ui` checks the production bundle and enforces a sub-500 kB JavaScript chunk budget. `npm run test:swarm-ui` verifies the Swarm governance panels, API endpoint bindings, and offline mock-service render markers inside the production Admin chunk. `npm run verify:ui:screenshots` also attempts Edge headless screenshots into `viewer/output/ui-regression/`; set `UI_VERIFY_STRICT_SCREENSHOTS=1` when screenshot capture must be treated as a hard failure.
 
 ---
 
@@ -275,9 +276,10 @@ uvicorn agent_workspace.api:app --host 0.0.0.0 --port 8000
 cd viewer
 npm run build
 npm run verify:ui
+npm run test:swarm-ui
 ```
 
-React/Tauri viewer 是本地 Agent Runtime 的產品級 visual control plane。它已使用 route-level code splitting、共用 UI primitives、低飽和設計 token 與可重複的 bundle gate。Task Flow 工作區、Activity Log、Admin Console、Rules、MODs 與 Settings surface 現在共用同一套克制的狀態語言、本地化操作文案與 tokenized interaction states。Admin Console 也已整合 Swarm 節點擴縮控制、session failover recovery、P2P mesh 延遲檢查、billing policy selector、topological replay playback、governance ballot voting、PromptComposer rule diff inspection、anomaly timelines，以及由 `/v1/swarm/*` 與 `/v1/audit/*` operator APIs 支援的 Merkle/ZK proof verification panels。`npm run verify:ui` 會檢查 production bundle，並要求最大 JavaScript chunk 小於 500 kB。`npm run verify:ui:screenshots` 會額外嘗試使用 Edge headless 產出截圖至 `viewer/output/ui-regression/`；若截圖必須作為硬性 gate，可設定 `UI_VERIFY_STRICT_SCREENSHOTS=1`。
+React/Tauri viewer 是本地 Agent Runtime 的產品級 visual control plane。它已使用 route-level code splitting、共用 UI primitives、低飽和設計 token 與可重複的 bundle gate。Task Flow 工作區、Activity Log、Admin Console、Rules、MODs 與 Settings surface 現在共用同一套克制的狀態語言、本地化操作文案與 tokenized interaction states。Admin Console 也已整合 typed Swarm node monitor、session failover、P2P mesh、billing policy、topological replay、governance ballot、PromptComposer diff、anomaly timeline，以及由 `/v1/swarm/*` 與 `/v1/audit/*` operator APIs 支援的 Merkle/ZK proof inspector panels。`npm run verify:ui` 會檢查 production bundle，並要求最大 JavaScript chunk 小於 500 kB。`npm run test:swarm-ui` 會驗證 Swarm governance panels、API endpoint bindings，以及 production Admin chunk 內的 offline mock-service render markers。`npm run verify:ui:screenshots` 會額外嘗試使用 Edge headless 產出截圖至 `viewer/output/ui-regression/`；若截圖必須作為硬性 gate，可設定 `UI_VERIFY_STRICT_SCREENSHOTS=1`。
 
 ---
 
