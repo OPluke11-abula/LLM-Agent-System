@@ -17,6 +17,15 @@ from api import app
 REPLAYS_DIR = Path(workspace_dir) / "memory" / "replays"
 
 @pytest.fixture(autouse=True)
+def setup_api_workspace():
+    import api
+    orig = api.workspace
+    api.workspace = workspace_dir
+    yield
+    api.workspace = orig
+
+
+@pytest.fixture(autouse=True)
 def cleanup_replays():
     # Setup: clean up existing DBs starting with 'test-'
     if REPLAYS_DIR.exists():

@@ -218,6 +218,157 @@ class AuditLedger:
             finally:
                 conn.close()
 
+    def generate_merkle_proof(self, event_id: int) -> Optional[Dict[str, Any]]:
+        """
+        Generates a Merkle Proof for a specific event ID.
+        Returns a dictionary containing the merkle proof (list of sibling hashes and positions),
+        the root hash, and the event's current_hash.
+        """
+        with self._lock:
+            conn = self._get_conn()
+            try:
+                cursor = conn.execute("SELECT id, current_hash FROM audit_ledger ORDER BY id ASC")
+                rows = cursor.fetchall()
+            finally:
+                conn.close()
+
+        if not rows:
+            return None
+
+        event_hashes = [row["current_hash"] for row in rows]
+        event_ids = [row["id"] for row in rows]
+
+        if event_id not in event_ids:
+            return None
+
+        target_idx = event_ids.index(event_id)
+        target_hash = event_hashes[target_idx]
+
+        # Build tree levels
+        levels = []
+        current_level = [hashlib.sha256(h.encode("utf-8")).hexdigest() for h in event_hashes]
+        levels.append(current_level)
+
+        while len(current_level) > 1:
+            next_level = []
+            for i in range(0, len(current_level), 2):
+                left = current_level[i]
+                right = current_level[i + 1] if i + 1 < len(current_level) else left
+                combined = left + right
+                parent_hash = hashlib.sha256(combined.encode("utf-8")).hexdigest()
+                next_level.append(parent_hash)
+            current_level = next_level
+            levels.append(current_level)
+
+        root_hash = current_level[0] if current_level else "0" * 64
+
+        # Generate proof path
+        proof = []
+        idx = target_idx
+        for level in levels[:-1]:
+            if idx % 2 == 0:
+                sibling_idx = idx + 1
+                if sibling_idx < len(level):
+                    sibling_hash = level[sibling_idx]
+                else:
+                    sibling_hash = level[idx]
+                position = "right"
+            else:
+                sibling_idx = idx - 1
+                sibling_hash = level[sibling_idx]
+                position = "left"
+            
+            proof.append({"hash": sibling_hash, "position": position})
+            idx = idx // 2
+
+        return {
+            "proof": proof,
+            "root_hash": root_hash,
+            "event_hash": target_hash
+        }
+
+    @classmethod
+    def verify_merkle_proof(cls, event_hash: str, proof: list, root_hash: str) -> bool:
+        """
+        Verifies a Merkle Proof for a given event hash against the root hash.
+        """
+        if not event_hash or not root_hash:
+            return False
+            
+        current = hashlib.sha256(event_hash.encode("utf-8")).hexdigest()
+        for step in proof:
+            sibling = step.get("hash")
+            position = step.get("position")
+            if not sibling or not position:
+                return False
+                
+            if position == "left":
+                combined = sibling + current
+            else:
+                combined = current + sibling
+            current = hashlib.sha256(combined.encode("utf-8")).hexdigest()
+            
+        return current == root_hash
+
+    def generate_zk_proof(self, event_id: int) -> Optional[Dict[str, Any]]:
+        """
+        Generates a simulated ZK Proof for a specific event ID.
+        """
+        with self._lock:
+            conn = self._get_conn()
+            try:
+                cursor = conn.execute("SELECT event_type, timestamp, previous_hash, current_hash, payload FROM audit_ledger WHERE id = ?", (event_id,))
+                row = cursor.fetchone()
+            finally:
+                conn.close()
+
+        if not row:
+            return None
+
+        event_type = row["event_type"]
+        timestamp = row["timestamp"]
+        previous_hash = row["previous_hash"]
+        current_hash = row["current_hash"]
+        payload_str = row["payload"]
+
+        # Create a commitment of the payload (blinding it)
+        import secrets
+        salt = secrets.token_hex(16)
+        payload_commitment = hashlib.sha256((payload_str + salt).encode("utf-8")).hexdigest()
+
+        # Secret key for ZK proof simulation
+        ZK_SECRET_KEY = b"zk_audit_chain_secret_key_findai_studio"
+        message = f"{event_type}:{timestamp}:{previous_hash}:{current_hash}:{payload_commitment}"
+        import hmac
+        signature = hmac.new(ZK_SECRET_KEY, message.encode("utf-8"), hashlib.sha256).hexdigest()
+
+        return {
+            "proof": signature,
+            "payload_commitment": payload_commitment,
+            "salt": salt,
+            "event_type": event_type,
+            "timestamp": timestamp,
+            "previous_hash": previous_hash,
+            "current_hash": current_hash
+        }
+
+    @classmethod
+    def verify_zk_proof(cls, event_type: str, timestamp: str, previous_hash: str, current_hash: str, proof_pkg: dict) -> bool:
+        """
+        Verifies a simulated ZK Proof.
+        """
+        payload_commitment = proof_pkg.get("payload_commitment")
+        signature = proof_pkg.get("proof")
+        if not payload_commitment or not signature:
+            return False
+
+        ZK_SECRET_KEY = b"zk_audit_chain_secret_key_findai_studio"
+        message = f"{event_type}:{timestamp}:{previous_hash}:{current_hash}:{payload_commitment}"
+        import hmac
+        expected_signature = hmac.new(ZK_SECRET_KEY, message.encode("utf-8"), hashlib.sha256).hexdigest()
+
+        return hmac.compare_digest(signature, expected_signature)
+
 
 class AuditConsensusDaemon:
     """

@@ -2711,6 +2711,50 @@ async def trigger_audit_sync(tenant_id: str = Depends(get_tenant_context)):
     }
 
 
+class AuditVerifyProofRequest(BaseModel):
+    event_hash: str
+    proof: list[dict[str, str]]
+    root_hash: str
+
+
+@app.get("/v1/audit/proof/{event_id}")
+async def get_audit_proof(event_id: int, tenant_id: str = Depends(get_tenant_context)):
+    try:
+        from core.audit_ledger import AuditLedger
+    except ImportError:
+        from agent_workspace.core.audit_ledger import AuditLedger
+
+    ledger = AuditLedger(workspace)
+    proof_data = ledger.generate_merkle_proof(event_id)
+    if not proof_data:
+        raise HTTPException(status_code=404, detail="Audit event or proof not found")
+
+    zk_proof = ledger.generate_zk_proof(event_id)
+
+    return {
+        "status": "success",
+        "event_id": event_id,
+        "event_hash": proof_data["event_hash"],
+        "merkle_proof": proof_data["proof"],
+        "zk_proof": zk_proof,
+        "zk_verification_key": "zk-audit-v1-key"
+    }
+
+
+@app.post("/v1/audit/verify-proof")
+async def verify_audit_proof(req: AuditVerifyProofRequest, tenant_id: str = Depends(get_tenant_context)):
+    try:
+        from core.audit_ledger import AuditLedger
+    except ImportError:
+        from agent_workspace.core.audit_ledger import AuditLedger
+
+    is_valid = AuditLedger.verify_merkle_proof(req.event_hash, req.proof, req.root_hash)
+    return {
+        "status": "success",
+        "valid": is_valid
+    }
+
+
 class ScaleRequest(BaseModel):
     role: str
     direction: str
