@@ -499,66 +499,10 @@ async def stream(request: ChatRequest) -> StreamingResponse:
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
-class SwarmP2PCrypto:
-    """Provides ECDH key exchange and AES-GCM-256 messaging utilities."""
-    def __init__(self):
-        from cryptography.hazmat.primitives.asymmetric import ec
-        self.private_key = ec.generate_private_key(ec.SECP256R1())
-        self.public_key = self.private_key.public_key()
-        
-    def get_public_bytes(self) -> str:
-        from cryptography.hazmat.primitives import serialization
-        pem = self.public_key.public_bytes(
-            encoding=serialization.Encoding.PEM,
-            format=serialization.PublicFormat.SubjectPublicKeyInfo
-        )
-        return pem.decode("utf-8")
-
-    @classmethod
-    def load_public_key(cls, pem_str: str):
-        from cryptography.hazmat.primitives import serialization
-        return serialization.load_pem_public_key(pem_str.encode("utf-8"))
-
-    def compute_shared_key(self, peer_public_key_pem: str) -> bytes:
-        from cryptography.hazmat.primitives.asymmetric import ec
-        from cryptography.hazmat.primitives import hashes
-        from cryptography.hazmat.primitives.kdf.hkdf import HKDF
-        peer_public_key = self.load_public_key(peer_public_key_pem)
-        shared_secret = self.private_key.exchange(ec.ECDH(), peer_public_key)
-        
-        # Derive key using HKDF
-        derived_key = HKDF(
-            algorithm=hashes.SHA256(),
-            length=32,
-            salt=None,
-            info=b"swarm-session-key",
-        ).derive(shared_secret)
-        
-        return derived_key
-
-    @classmethod
-    def encrypt_message(cls, key: bytes, plaintext: str) -> dict[str, str]:
-        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-        import os
-        import base64
-        aesgcm = AESGCM(key)
-        nonce = os.urandom(12)
-        ciphertext = aesgcm.encrypt(nonce, plaintext.encode("utf-8"), None)
-        return {
-            "encrypted": "true",
-            "ciphertext": base64.b64encode(ciphertext).decode("utf-8"),
-            "nonce": base64.b64encode(nonce).decode("utf-8")
-        }
-
-    @classmethod
-    def decrypt_message(cls, key: bytes, encrypted_payload: dict[str, str]) -> str:
-        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-        import base64
-        aesgcm = AESGCM(key)
-        ciphertext = base64.b64decode(encrypted_payload["ciphertext"])
-        nonce = base64.b64decode(encrypted_payload["nonce"])
-        plaintext = aesgcm.decrypt(nonce, ciphertext, None)
-        return plaintext.decode("utf-8")
+try:
+    from core.p2p_router import SwarmP2PCrypto
+except ImportError:
+    from agent_workspace.core.p2p_router import SwarmP2PCrypto
 
 
 class MultiChannelPubSubManager:
@@ -2564,6 +2508,101 @@ async def get_swarm_nodes(tenant_id: str = Depends(get_tenant_context)):
     except ImportError:
         from agent_workspace.core.swarm_coordinator import SwarmCoordinator
     return {"status": "success", "nodes": SwarmCoordinator.get_active_nodes()}
+
+
+@app.get("/v1/swarm/peers")
+async def get_swarm_peers(tenant_id: str = Depends(get_tenant_context)):
+    try:
+        from core.p2p_router import get_p2p_router
+    except ImportError:
+        from agent_workspace.core.p2p_router import get_p2p_router
+        
+    router = get_p2p_router()
+    peers_list = []
+    for peer_id, info in router.peers.items():
+        peers_list.append({
+            "node_id": peer_id,
+            "role": info.get("role", "unknown"),
+            "address": f"{info.get('host')}:{info.get('port')}",
+            "latency_ms": info.get("latency", 0.0),
+            "status": info.get("status", "disconnected")
+        })
+    return {"status": "success", "peers": peers_list}
+
+
+@app.websocket("/v1/swarm/p2p/tunnel")
+async def swarm_p2p_tunnel_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        from core.p2p_router import SwarmP2PCrypto, get_p2p_router
+        from core.discussion_room import ProofOfConsensus
+    except ImportError:
+        from agent_workspace.core.p2p_router import SwarmP2PCrypto, get_p2p_router
+        from agent_workspace.core.discussion_room import ProofOfConsensus
+        
+    server_crypto = SwarmP2PCrypto()
+    router = get_p2p_router()
+    
+    try:
+        # 1. Send server_hello
+        await websocket.send_json({
+            "handshake": "server_hello",
+            "public_key": server_crypto.get_public_bytes()
+        })
+        
+        # 2. Recv client_hello
+        client_hello = await websocket.receive_json()
+        if client_hello.get("handshake") != "client_hello":
+            await websocket.close(code=4002, reason="Handshake Error")
+            return
+            
+        client_pub = client_hello["public_key"]
+        shared_key = server_crypto.compute_shared_key(client_pub)
+        
+        # 3. Recv verify
+        verify_msg = await websocket.receive_json()
+        if verify_msg.get("handshake") != "verify":
+            await websocket.close(code=4002, reason="Handshake Error")
+            return
+            
+        role = verify_msg["role"]
+        client_node_id = verify_msg["node_id"]
+        client_host = verify_msg["host"]
+        client_port = verify_msg["port"]
+        payload_hash = verify_msg["payload_hash"]
+        signature = verify_msg["signature"]
+        
+        # Compute expected hash and verify signature
+        expected_hash = hashlib.sha256(f"{client_pub}:{server_crypto.get_public_bytes()}".encode("utf-8")).hexdigest()
+        if payload_hash != expected_hash:
+            await websocket.close(code=4003, reason="Tampered Handshake")
+            return
+            
+        expected_sig = ProofOfConsensus.generate_member_signature(role, payload_hash)
+        if signature != expected_sig:
+            await websocket.close(code=4003, reason="Invalid Signature")
+            return
+            
+        # Send confirmation
+        await websocket.send_json({
+            "handshake": "verified",
+            "status": "success",
+            "node_id": router.node_id,
+            "role": router.role
+        })
+        
+        # Register client peer
+        router.add_peer(client_node_id, role, client_host, client_port, status="connected", ws=websocket, shared_key=shared_key)
+        
+        # Listen for P2P messages on this connection
+        await router._listen_to_ws(websocket, client_node_id, shared_key)
+        
+    except Exception as e:
+        logger.error(f"Error in P2P WebSocket endpoint: {e}")
+        try:
+            await websocket.close(code=4000)
+        except Exception:
+            pass
 
 
 @app.post("/v1/swarm/scale")

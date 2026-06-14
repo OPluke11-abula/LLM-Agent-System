@@ -238,6 +238,49 @@ class AgentCrew:
             
         workspace_path = getattr(self, "workspace_path", ".")
         broker = get_broker()
+        
+        try:
+            from core.p2p_router import get_p2p_router
+        except ImportError:
+            from agent_workspace.core.p2p_router import get_p2p_router
+            
+        p2p_router = get_p2p_router()
+        has_p2p_peer = any(
+            peer.get("status") == "connected" and peer.get("role", "").lower() == matched_role.lower()
+            for peer in p2p_router.peers.values()
+        )
+        
+        if has_p2p_peer and isinstance(broker, InMemorySwarmBroker):
+            logger.info(f"RedisSwarmBroker offline or unreachable. Attempting P2P dispatch to role '{matched_role}'...")
+            async def run_p2p_dispatch():
+                return await p2p_router.dispatch_task(
+                    role=matched_role,
+                    task_instructions=task_instructions,
+                    input_parameters=input_parameters,
+                    security_restrictions=security_restrictions,
+                    mock_directives=mock_directives,
+                    validation_assertions=validation_assertions
+                )
+            try:
+                loop = asyncio.get_running_loop()
+                if loop.is_running():
+                    import concurrent.futures
+                    with concurrent.futures.ThreadPoolExecutor() as executor:
+                        future = executor.submit(lambda: asyncio.run(run_p2p_dispatch()))
+                        p2p_res = future.result()
+                else:
+                    p2p_res = loop.run_until_complete(run_p2p_dispatch())
+            except Exception as e:
+                try:
+                    p2p_res = asyncio.run(run_p2p_dispatch())
+                except Exception as ex:
+                    p2p_res = {"status": "error", "error": str(ex)}
+            if p2p_res and p2p_res.get("status") == "completed":
+                CrewRegistry.update_node_status(self.session_id, node_id, "completed")
+                return p2p_res
+            else:
+                logger.warning(f"P2P dispatch failed: {p2p_res.get('error') if p2p_res else 'No response'}")
+
         if isinstance(broker, (RedisSwarmBroker, InMemorySwarmBroker)):
             best_node_id = SwarmCoordinator.get_best_node(matched_role)
             nodes_tracked = (best_node_id is not None)
@@ -297,6 +340,41 @@ class AgentCrew:
                     if not nodes_tracked:
                         break
             
+            logger.info("All microservice dispatch attempts failed. Attempting P2P routing fallback...")
+            has_p2p_peer = any(
+                peer.get("status") == "connected" and peer.get("role", "").lower() == matched_role.lower()
+                for peer in p2p_router.peers.values()
+            )
+            if has_p2p_peer:
+                async def run_p2p_dispatch():
+                    return await p2p_router.dispatch_task(
+                        role=matched_role,
+                        task_instructions=task_instructions,
+                        input_parameters=input_parameters,
+                        security_restrictions=security_restrictions,
+                        mock_directives=mock_directives,
+                        validation_assertions=validation_assertions
+                    )
+                try:
+                    loop = asyncio.get_running_loop()
+                    if loop.is_running():
+                        import concurrent.futures
+                        with concurrent.futures.ThreadPoolExecutor() as executor:
+                            future = executor.submit(lambda: asyncio.run(run_p2p_dispatch()))
+                            p2p_res = future.result()
+                    else:
+                        p2p_res = loop.run_until_complete(run_p2p_dispatch())
+                except Exception as e:
+                    try:
+                        p2p_res = asyncio.run(run_p2p_dispatch())
+                    except Exception as ex:
+                        p2p_res = {"status": "error", "error": str(ex)}
+                if p2p_res and p2p_res.get("status") == "completed":
+                    CrewRegistry.update_node_status(self.session_id, node_id, "completed")
+                    return p2p_res
+                else:
+                    logger.warning(f"P2P fallback dispatch failed: {p2p_res.get('error') if p2p_res else 'No response'}")
+
             logger.info("All microservice dispatch attempts failed. Falling back to local execution.")
 
         try:
