@@ -682,6 +682,31 @@ class AgentRouter:
                 account = fallback_account
             else:
                 raise RuntimeError(f"Token budget exceeded for account '{account['id']}' and no fallback accounts are under budget.")
+
+        # Resolve tenant_id
+        tenant_id = None
+        try:
+            from core.account_manager import AccountManager
+            tenant_id = AccountManager.get_session_tenant(self.session_id)
+        except Exception:
+            pass
+        tenant_id = tenant_id or "default_tenant"
+
+        # Verify tenant credits
+        try:
+            from core.swarm_coordinator import SwarmCoordinator
+        except ImportError:
+            from agent_workspace.core.swarm_coordinator import SwarmCoordinator
+
+        SwarmCoordinator.verify_tenant_credit(self.engine.workspace_path, tenant_id)
+
+        # Enforce model downscaling policy if budget is low
+        if SwarmCoordinator.should_downscale_model(self.engine.workspace_path, tenant_id):
+            model = account.get("model", "")
+            if "pro" in model.lower():
+                account = dict(account)
+                account["model"] = "gemini-2.5-flash"
+                logger.info(f"Dynamic model downscaling active: overriding {model} -> gemini-2.5-flash for tenant {tenant_id}")
                 
         return account
 

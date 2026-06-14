@@ -18,6 +18,11 @@ class TenantSubscriptionInactiveError(Exception):
     pass
 
 
+class QuotaExceededError(Exception):
+    """Exception raised when a tenant's credit budget or token quota is exceeded."""
+    pass
+
+
 class SaaSBillingTracker:
     """
     Platform billing tracker linked to the sqlite3 financial ledger.

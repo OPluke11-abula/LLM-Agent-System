@@ -195,6 +195,30 @@ class AgentCrew:
         if validation_assertions is None:
             raise ValueError("Structured delegation requires 'validation_assertions' to be specified.")
 
+        # Resolve tenant_id
+        tenant_id = None
+        try:
+            from core.account_manager import AccountManager
+            tenant_id = AccountManager.get_session_tenant(self.session_id)
+        except Exception:
+            pass
+        tenant_id = tenant_id or "default_tenant"
+
+        # Verify tenant credits
+        workspace_path = getattr(self, "workspace_path", ".")
+        try:
+            from core.swarm_coordinator import SwarmCoordinator
+        except ImportError:
+            from agent_workspace.core.swarm_coordinator import SwarmCoordinator
+        SwarmCoordinator.verify_tenant_credit(workspace_path, tenant_id)
+
+        # Enforce model downscaling policy if budget is low
+        if SwarmCoordinator.should_downscale_model(workspace_path, tenant_id):
+            if mock_directives is None:
+                mock_directives = {}
+            mock_directives["downscale"] = True
+            logger.info(f"Model downscaling policy active for tenant {tenant_id}. Flagging downstream dispatches.")
+
         # Ensure valid roles
         valid_roles = {"CEO", "Developer", "Auditor", "CFO"}
         normalized_role = role.strip().upper()

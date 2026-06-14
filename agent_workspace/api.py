@@ -159,6 +159,33 @@ app = FastAPI(
     description="Non-invasive REST/SSE adapter for the LLM-Agent-System runtime.",
 )
 
+try:
+    from core.billing import QuotaExceededError, TenantSubscriptionInactiveError, TenantRateLimitError
+except ImportError:
+    from agent_workspace.core.billing import QuotaExceededError, TenantSubscriptionInactiveError, TenantRateLimitError
+
+@app.exception_handler(QuotaExceededError)
+async def quota_exceeded_handler(request: Request, exc: QuotaExceededError):
+    return JSONResponse(
+        status_code=402,
+        content={"detail": str(exc)}
+    )
+
+@app.exception_handler(TenantSubscriptionInactiveError)
+async def subscription_inactive_handler(request: Request, exc: TenantSubscriptionInactiveError):
+    return JSONResponse(
+        status_code=403,
+        content={"detail": str(exc)}
+    )
+
+@app.exception_handler(TenantRateLimitError)
+async def rate_limit_handler(request: Request, exc: TenantRateLimitError):
+    return JSONResponse(
+        status_code=429,
+        content={"detail": str(exc)}
+    )
+
+
 
 @app.middleware("http")
 async def metrics_middleware(request: Request, call_next):
@@ -742,12 +769,22 @@ async def collaboration_endpoint(websocket: WebSocket, session_id: str):
     ledger = FinancialLedger(workspace)
     limiter = TenantRateLimiter(ledger)
     try:
+        from core.swarm_coordinator import SwarmCoordinator
+    except ImportError:
+        from agent_workspace.core.swarm_coordinator import SwarmCoordinator
+
+    try:
         limiter.check_rate_limit(tenant_id)
+        SwarmCoordinator.verify_tenant_credit(workspace, tenant_id)
     except TenantSubscriptionInactiveError as e:
         await websocket.accept()
         await websocket.close(code=4003, reason=str(e))
         return
     except TenantRateLimitError as e:
+        await websocket.accept()
+        await websocket.close(code=4029, reason=str(e))
+        return
+    except QuotaExceededError as e:
         await websocket.accept()
         await websocket.close(code=4029, reason=str(e))
         return
@@ -907,12 +944,22 @@ async def dashboard_stream(websocket: WebSocket, session_id: str, role: str):
     ledger = FinancialLedger(workspace)
     limiter = TenantRateLimiter(ledger)
     try:
+        from core.swarm_coordinator import SwarmCoordinator
+    except ImportError:
+        from agent_workspace.core.swarm_coordinator import SwarmCoordinator
+
+    try:
         limiter.check_rate_limit(tenant_id)
+        SwarmCoordinator.verify_tenant_credit(workspace, tenant_id)
     except TenantSubscriptionInactiveError as e:
         await websocket.accept()
         await websocket.close(code=4003, reason=str(e))
         return
     except TenantRateLimitError as e:
+        await websocket.accept()
+        await websocket.close(code=4029, reason=str(e))
+        return
+    except QuotaExceededError as e:
         await websocket.accept()
         await websocket.close(code=4029, reason=str(e))
         return
@@ -976,12 +1023,22 @@ async def stream_ws(websocket: WebSocket):
     ledger = FinancialLedger(workspace)
     limiter = TenantRateLimiter(ledger)
     try:
+        from core.swarm_coordinator import SwarmCoordinator
+    except ImportError:
+        from agent_workspace.core.swarm_coordinator import SwarmCoordinator
+
+    try:
         limiter.check_rate_limit(tenant_id)
+        SwarmCoordinator.verify_tenant_credit(workspace, tenant_id)
     except TenantSubscriptionInactiveError as e:
         await websocket.accept()
         await websocket.close(code=4003, reason=str(e))
         return
     except TenantRateLimitError as e:
+        await websocket.accept()
+        await websocket.close(code=4029, reason=str(e))
+        return
+    except QuotaExceededError as e:
         await websocket.accept()
         await websocket.close(code=4029, reason=str(e))
         return
@@ -1065,12 +1122,22 @@ async def websocket_stream(websocket: WebSocket):
     ledger = FinancialLedger(workspace)
     limiter = TenantRateLimiter(ledger)
     try:
+        from core.swarm_coordinator import SwarmCoordinator
+    except ImportError:
+        from agent_workspace.core.swarm_coordinator import SwarmCoordinator
+
+    try:
         limiter.check_rate_limit(tenant_id)
+        SwarmCoordinator.verify_tenant_credit(workspace, tenant_id)
     except TenantSubscriptionInactiveError as e:
         await websocket.accept()
         await websocket.close(code=4003, reason=str(e))
         return
     except TenantRateLimitError as e:
+        await websocket.accept()
+        await websocket.close(code=4029, reason=str(e))
+        return
+    except QuotaExceededError as e:
         await websocket.accept()
         await websocket.close(code=4029, reason=str(e))
         return
@@ -1903,12 +1970,22 @@ async def crew_sync_endpoint(websocket: WebSocket, session_id: str):
     ledger = FinancialLedger(workspace)
     limiter = TenantRateLimiter(ledger)
     try:
+        from core.swarm_coordinator import SwarmCoordinator
+    except ImportError:
+        from agent_workspace.core.swarm_coordinator import SwarmCoordinator
+
+    try:
         limiter.check_rate_limit(tenant_id)
+        SwarmCoordinator.verify_tenant_credit(workspace, tenant_id)
     except TenantSubscriptionInactiveError as e:
         await websocket.accept()
         await websocket.close(code=4003, reason=str(e))
         return
     except TenantRateLimitError as e:
+        await websocket.accept()
+        await websocket.close(code=4029, reason=str(e))
+        return
+    except QuotaExceededError as e:
         await websocket.accept()
         await websocket.close(code=4029, reason=str(e))
         return
@@ -2401,6 +2478,119 @@ async def get_saas_invoice(filter_id: str | None = None, markup_multiplier: floa
     tracker = SaaSBillingTracker(ledger)
     invoice = tracker.get_saas_invoice(filter_id=filter_id, markup_multiplier=markup_multiplier, tenant_id=tenant_id)
     return invoice
+
+
+class BillingPolicyRequest(BaseModel):
+    routing_policy: str | None = None
+    credits: float | None = None
+    max_budget: float | None = None
+
+
+@app.get("/v1/swarm/billing/status")
+async def get_swarm_billing_status(tenant_id: str = Depends(get_tenant_context)):
+    try:
+        from core.ledger import FinancialLedger
+    except ImportError:
+        from agent_workspace.core.ledger import FinancialLedger
+        
+    ledger = FinancialLedger(workspace)
+    
+    import sqlite3
+    conn = sqlite3.connect(str(ledger.db_path))
+    try:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.execute(
+            "SELECT credits, max_budget, routing_policy FROM tenant_credit_budget WHERE tenant_id = ?",
+            (tenant_id,)
+        )
+        row = cursor.fetchone()
+        if row:
+            credits = row["credits"]
+            max_budget = row["max_budget"]
+            routing_policy = row["routing_policy"]
+        else:
+            credits = 100.0
+            max_budget = 100.0
+            routing_policy = "downscale"
+            conn.execute(
+                "INSERT OR IGNORE INTO tenant_credit_budget (tenant_id, credits, max_budget, routing_policy) VALUES (?, ?, ?, ?)",
+                (tenant_id, credits, max_budget, routing_policy)
+            )
+            conn.commit()
+    except Exception as e:
+        logger.error(f"Error fetching swarm billing status for tenant {tenant_id}: {e}")
+        credits = 100.0
+        max_budget = 100.0
+        routing_policy = "downscale"
+    finally:
+        conn.close()
+
+    records = ledger.get_all_records(tenant_id=tenant_id)
+    history = [dict(r) for r in records]
+
+    return {
+        "tenant_id": tenant_id,
+        "credits": credits,
+        "max_budget": max_budget,
+        "routing_policy": routing_policy,
+        "history": history
+    }
+
+
+@app.post("/v1/swarm/billing/policy")
+async def configure_billing_policy(req: BillingPolicyRequest, tenant_id: str = Depends(get_tenant_context)):
+    try:
+        from core.ledger import FinancialLedger
+    except ImportError:
+        from agent_workspace.core.ledger import FinancialLedger
+        
+    ledger = FinancialLedger(workspace)
+    import sqlite3
+    conn = sqlite3.connect(str(ledger.db_path))
+    try:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.execute("SELECT tenant_id FROM tenant_credit_budget WHERE tenant_id = ?", (tenant_id,))
+        if not cursor.fetchone():
+            conn.execute(
+                "INSERT INTO tenant_credit_budget (tenant_id, credits, max_budget, routing_policy) VALUES (?, 100.0, 100.0, 'downscale')",
+                (tenant_id,)
+            )
+            conn.commit()
+            
+        updates = []
+        params = []
+        if req.routing_policy is not None:
+            updates.append("routing_policy = ?")
+            params.append(req.routing_policy)
+        if req.credits is not None:
+            updates.append("credits = ?")
+            params.append(req.credits)
+        if req.max_budget is not None:
+            updates.append("max_budget = ?")
+            params.append(req.max_budget)
+            
+        if updates:
+            params.append(tenant_id)
+            query = f"UPDATE tenant_credit_budget SET {', '.join(updates)} WHERE tenant_id = ?"
+            conn.execute(query, tuple(params))
+            conn.commit()
+            
+        cursor = conn.execute(
+            "SELECT credits, max_budget, routing_policy FROM tenant_credit_budget WHERE tenant_id = ?",
+            (tenant_id,)
+        )
+        row = cursor.fetchone()
+        return {
+            "status": "success",
+            "credits": row["credits"],
+            "max_budget": row["max_budget"],
+            "routing_policy": row["routing_policy"]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update policy: {e}")
+    finally:
+        conn.close()
+
 
 
 class SandboxExecuteRequest(BaseModel):

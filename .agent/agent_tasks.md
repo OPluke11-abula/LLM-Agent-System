@@ -84,6 +84,7 @@
 - [x] **PHASE 49 — Distributed Swarm Dynamic Routing & Elastic Node Coordination**: Implemented load-balanced swarm routing, dynamic node discovery heartbeat tracking, automatic container scaling simulation loops, transactional workspace snapshot recovery, and dynamic fallback routing to support backward-compatible mock microservices.
 - [x] **PHASE 50 — Distributed Swarm State Replication, Session Resumption & Consensus-Gated Failover**: Implemented progress checkpoints saved under `swarm:session:<session_id>:checkpoint` in Redis and broadcast via pub/sub channel `swarm:session:checkpoint:sync`, structured node failover resumption to start tasks from the last checkpoint, integrated a cryptographically signed validation gate with `Proof-of-Consensus` signatures, registered FastAPI administrative endpoints `/v1/swarm/sessions` and `/v1/swarm/sessions/resume`, and created automated replication/resumption validation tests.
 - [x] **PHASE 51 — Multi-Cluster Peer-to-Peer Mesh Orchestration & Federated Routers**: Implemented P2PSwarmRouter with WebSockets gossip ping/pong discovery, direct P2P WebSocket tunnel execution with ECDH cryptographic handshakes and Proof-of-Consensus signatures, hybrid routing fallback in AgentCrew to bypass offline Redis brokers, HTTP peer administration endpoints (/v1/swarm/peers), and automated mesh validation tests.
+- [x] **PHASE 52 — Advanced Swarm Adaptive Resource Planning & Dynamic Cost-Aware Scheduling**: Integrated credit check quota gating (raising QuotaExceededError or closing WebSockets with code 4029), implemented low budget model downscaling policy to gemini-2.5-flash, registered REST GET /v1/swarm/billing/status and POST /v1/swarm/billing/policy endpoints, and wrote adaptive billing verification tests.
 
 ---
 
@@ -109,5 +110,7 @@
 | **Phase 49** | 6 tasks | 6 tasks | 100% Done |
 | **Phase 50** | 5 tasks | 5 tasks | 100% Done |
 | **Phase 51** | 5 tasks | 5 tasks | 100% Done |
+| **Phase 52** | 4 tasks | 4 tasks | 100% Done |
 
 *This queue is managed dynamically by the active LAS Developer Agent. All task updates, outcome logs, and progress status updates are written directly to this file before turn conclusion.*
+

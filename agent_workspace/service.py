@@ -167,8 +167,21 @@ class SwarmAgentService:
                 if not account:
                     account = self.account_manager.get_active_account()
                 
-                if not account:
-                    raise RuntimeError("No LLM accounts configured.")
+                # Resolve tenant_id
+                tenant_id = None
+                try:
+                    from core.account_manager import AccountManager
+                    tenant_id = AccountManager.get_session_tenant(session_id)
+                except Exception:
+                    pass
+                tenant_id = tenant_id or "default_tenant"
+
+                # Verify tenant credits
+                try:
+                    from core.swarm_coordinator import SwarmCoordinator
+                except ImportError:
+                    from agent_workspace.core.swarm_coordinator import SwarmCoordinator
+                SwarmCoordinator.verify_tenant_credit(self.workspace_path, tenant_id)
                 
                 # Check token budget
                 budget = account.get("token_budget", -1)
@@ -185,6 +198,12 @@ class SwarmAgentService:
                 )
                 
                 model_used = account.get("model", "gemini-2.5-flash")
+                # Enforce model downscaling policy if budget is low
+                if SwarmCoordinator.should_downscale_model(self.workspace_path, tenant_id):
+                    if "pro" in model_used.lower():
+                        model_used = "gemini-2.5-flash"
+                        logger.info(f"Dynamic model downscaling active: overriding {account.get('model')} -> gemini-2.5-flash for tenant {tenant_id}")
+
                 config = {
                     "model": model_used,
                     "temperature": 0.7,
@@ -246,6 +265,22 @@ class SwarmAgentService:
             response_channel = f"swarm:task:{node_id}:response"
             
             try:
+                # Resolve tenant_id
+                tenant_id = None
+                try:
+                    from core.account_manager import AccountManager
+                    tenant_id = AccountManager.get_session_tenant(session_id)
+                except Exception:
+                    pass
+                tenant_id = tenant_id or "default_tenant"
+
+                # Verify tenant credits
+                try:
+                    from core.swarm_coordinator import SwarmCoordinator
+                except ImportError:
+                    from agent_workspace.core.swarm_coordinator import SwarmCoordinator
+                SwarmCoordinator.verify_tenant_credit(self.workspace_path, tenant_id)
+
                 # Ensure valid roles
                 valid_roles = {"CEO", "Developer", "Auditor", "CFO"}
                 normalized_role = self.role.strip().upper()

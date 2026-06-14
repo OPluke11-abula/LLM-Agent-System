@@ -150,3 +150,74 @@ class SwarmCoordinator:
                 result["message"] = f"No active nodes found for role '{role_normalized}' to scale down."
                 
         return result
+
+    @classmethod
+    def verify_tenant_credit(cls, workspace_path: str, tenant_id: str) -> None:
+        """
+        Validates active Stripe subscription status and checks local credit balance.
+        Raises TenantSubscriptionInactiveError if status is 'frozen' or 'canceled'.
+        Raises QuotaExceededError if credits <= 0.0.
+        """
+        try:
+            from core.ledger import FinancialLedger
+            from core.billing import TenantStatusManager, TenantSubscriptionInactiveError, QuotaExceededError
+        except ImportError:
+            from agent_workspace.core.ledger import FinancialLedger
+            from agent_workspace.core.billing import TenantStatusManager, TenantSubscriptionInactiveError, QuotaExceededError
+            
+        import sqlite3
+
+        ledger = FinancialLedger(workspace_path)
+        status_mgr = TenantStatusManager(ledger)
+        status = status_mgr.get_tenant_status(tenant_id)
+        if status in ("frozen", "canceled"):
+            raise TenantSubscriptionInactiveError(f"Subscription is {status}. Access restricted.")
+
+        conn = sqlite3.connect(str(ledger.db_path))
+        try:
+            cursor = conn.execute("SELECT credits FROM tenant_credit_budget WHERE tenant_id = ?", (tenant_id,))
+            row = cursor.fetchone()
+            if row:
+                credits = row[0]
+            else:
+                credits = 100.0  # default
+        except Exception as e:
+            logger.error(f"Error checking credits for tenant {tenant_id}: {e}")
+            credits = 100.0
+        finally:
+            conn.close()
+
+        if credits <= 0.0:
+            raise QuotaExceededError(f"Tenant '{tenant_id}' has run out of credit budget (remaining: {credits}).")
+
+    @classmethod
+    def should_downscale_model(cls, workspace_path: str, tenant_id: str) -> bool:
+        """
+        Returns True if credits / max_budget < 0.20 and routing_policy == 'downscale'.
+        """
+        try:
+            from core.ledger import FinancialLedger
+        except ImportError:
+            from agent_workspace.core.ledger import FinancialLedger
+            
+        import sqlite3
+
+        ledger = FinancialLedger(workspace_path)
+        conn = sqlite3.connect(str(ledger.db_path))
+        try:
+            cursor = conn.execute("SELECT credits, max_budget, routing_policy FROM tenant_credit_budget WHERE tenant_id = ?", (tenant_id,))
+            row = cursor.fetchone()
+            if row:
+                credits, max_budget, routing_policy = row[0], row[1], row[2]
+            else:
+                credits, max_budget, routing_policy = 100.0, 100.0, "downscale"
+        except Exception as e:
+            logger.error(f"Error checking credits for tenant {tenant_id}: {e}")
+            return False
+        finally:
+            conn.close()
+
+        if max_budget > 0.0 and (credits / max_budget) < 0.20:
+            return str(routing_policy).lower() == "downscale"
+        return False
+

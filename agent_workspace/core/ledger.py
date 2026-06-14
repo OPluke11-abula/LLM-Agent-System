@@ -66,6 +66,16 @@ class FinancialLedger:
                     )
                     """
                 )
+                conn.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS tenant_credit_budget (
+                        tenant_id TEXT PRIMARY KEY,
+                        credits REAL NOT NULL DEFAULT 100.0,
+                        max_budget REAL NOT NULL DEFAULT 100.0,
+                        routing_policy TEXT DEFAULT 'downscale'
+                    )
+                    """
+                )
                 conn.commit()
                 # Run dynamic migration check for existing tables without tenant_id/markup_multiplier column
                 try:
@@ -124,8 +134,23 @@ class FinancialLedger:
                     """,
                     (session_id, account_id, provider, model, prompt_tokens, completion_tokens, total_tokens, cost, now, tenant_id, markup_multiplier)
                 )
+                
+                # Ensure tenant credit entry exists, then deduct cost
+                cursor = conn.execute("SELECT credits FROM tenant_credit_budget WHERE tenant_id = ?", (tenant_id,))
+                row = cursor.fetchone()
+                if not row:
+                    conn.execute(
+                        "INSERT INTO tenant_credit_budget (tenant_id, credits, max_budget, routing_policy) VALUES (?, 100.0, 100.0, 'downscale')",
+                        (tenant_id,)
+                    )
+                
+                conn.execute(
+                    "UPDATE tenant_credit_budget SET credits = MAX(0.0, credits - ?) WHERE tenant_id = ?",
+                    (cost, tenant_id)
+                )
+                
                 conn.commit()
-                logger.info("[CFO Ledger Log] Session: %s, Cost: $%0.6f added.", session_id, cost)
+                logger.info("[CFO Ledger Log] Session: %s, Cost: $%0.6f added and deducted from tenant %s.", session_id, cost, tenant_id)
             finally:
                 conn.close()
 

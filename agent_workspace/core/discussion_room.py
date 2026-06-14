@@ -136,7 +136,8 @@ class DiscussionRoom:
         self,
         account_id: str | None = None,
         prompt_len: int = 0,
-        topic: str = ""
+        topic: str = "",
+        session_id: str | None = None
     ) -> tuple[BaseLLMProvider, dict[str, Any], str]:
         """Resolve LLM provider, configuration, and account ID, with dynamic upscaling/downscaling."""
         # Apply dynamic .agent detection logic (from L-20260531-001) to locate the contract folder
@@ -176,6 +177,29 @@ class DiscussionRoom:
         )
 
         model = account.get("model", "gemini-2.5-flash")
+
+        # Resolve tenant_id
+        tenant_id = None
+        if session_id:
+            try:
+                from core.account_manager import AccountManager
+                tenant_id = AccountManager.get_session_tenant(session_id)
+            except Exception:
+                pass
+        tenant_id = tenant_id or "default_tenant"
+
+        # Verify tenant credits
+        try:
+            from core.swarm_coordinator import SwarmCoordinator
+        except ImportError:
+            from agent_workspace.core.swarm_coordinator import SwarmCoordinator
+        SwarmCoordinator.verify_tenant_credit(self.workspace_path, tenant_id)
+
+        # Enforce model downscaling policy if budget is low
+        if SwarmCoordinator.should_downscale_model(self.workspace_path, tenant_id):
+            if "pro" in model.lower():
+                model = "gemini-2.5-flash"
+                logger.info(f"Model downscaling active: overriding model to gemini-2.5-flash for tenant {tenant_id}")
 
         # Dynamic Model Tier Downscaling for low complexity or summary tasks
         is_simple_summary = any(k in topic.lower() for k in ["summary", "simple", "consensus_synthesis"])
@@ -452,7 +476,8 @@ It is now your turn, {p['name']}. Please respond to the topic or build on top of
                             provider, config, resolved_acc_id = self._resolve_agent_provider(
                                 account_id=p["account_id"],
                                 prompt_len=prompt_len,
-                                topic=topic
+                                topic=topic,
+                                session_id=session_id
                             )
                             messages = [{"role": "user", "content": user_content}]
 
@@ -573,7 +598,8 @@ Format the summary nicely in Markdown."""
                 provider, config, resolved_acc_id = self._resolve_agent_provider(
                     account_id=None,
                     prompt_len=mod_prompt_len,
-                    topic="consensus_synthesis"
+                    topic="consensus_synthesis",
+                    session_id=session_id
                 )
                 messages = [{"role": "user", "content": mod_user_content}]
 
