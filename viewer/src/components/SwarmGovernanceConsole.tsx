@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { PromptCalibrationDashboard } from "./PromptCalibrationDashboard";
 import { Button, ProgressBar, StatusBadge, Surface, toneForStatus } from "./ui/primitives";
 import type { Lang } from "../types";
 
@@ -946,6 +947,8 @@ export function SwarmGovernanceConsole({
           </div>
         </Surface>
       </div>
+
+      <PromptCalibrationDashboard lang={lang} onStatus={onStatus} />
     </Surface>
   );
 }

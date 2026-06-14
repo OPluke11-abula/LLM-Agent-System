@@ -88,6 +88,7 @@
 - [x] **PHASE 52 — Advanced Swarm Adaptive Resource Planning & Dynamic Cost-Aware Scheduling**: Integrated credit check quota gating (raising QuotaExceededError or closing WebSockets with code 4029), implemented low budget model downscaling policy to gemini-2.5-flash, registered REST GET /v1/swarm/billing/status and POST /v1/swarm/billing/policy endpoints, and wrote adaptive billing verification tests.
 - [x] **PHASE 53 — Interactive Swarm Visual Control-Plane Topology Replays**: Implemented thread-safe SQLite-backed replay registry (`ReplayLogger`) logging chronological WebSocket telemetry updates (including node state transitions, handoff events, latency spikes, and model cost telemetry) for each active crew session, chronological timeline query reconstruction methods, FastAPI administrative endpoints (`GET /v1/swarm/replays/{session_id}` and `POST /v1/swarm/replays/clean`), and automated integration verification tests.
 - [x] **PHASE 54 — Zero-Knowledge (ZK) Audit Chaining & Cryptographic Ledgers**: Upgraded `AuditLedger` with dynamic binary Merkle Tree proof generation (`generate_merkle_proof`) and verification (`verify_merkle_proof`) algorithms, implemented simulated ZK proof generation and verification for selective disclosure, registered FastAPI administrative endpoints (`GET /v1/audit/proof/{event_id}` and `POST /v1/audit/verify-proof`), and wrote comprehensive verification tests.
+- [x] **PHASE 55 — Swarm Governance & Dynamic Prompt Calibration Dashboard**: Added the React/Tauri governance dashboard exposing active proposals, signed approve/reject vote casting to `/v1/swarm/governance/vote`, consensus voting progress, PromptComposer rule-book loading from `/v1/swarm/governance/rules`, split-pane calibration diffs, optimization trigger logs, and AuditLedger anomaly mitigation timelines.
 
 ---
 
@@ -117,5 +118,6 @@
 | **Phase 52** | 4 tasks | 4 tasks | 100% Done |
 | **Phase 53** | 4 tasks | 4 tasks | 100% Done |
 | **Phase 54** | 4 tasks | 4 tasks | 100% Done |
+| **Phase 55** | 3 tasks | 3 tasks | 100% Done |
 
 *This queue is managed dynamically by the active LAS Developer Agent. All task updates, outcome logs, and progress status updates are written directly to this file before turn conclusion.*
