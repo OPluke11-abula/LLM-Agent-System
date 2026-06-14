@@ -77,7 +77,7 @@ export function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
           className="mt-2 rounded-md border px-2 py-1 text-[10px] font-semibold"
           style={{ color: "var(--accent-strong)", borderColor: "var(--border-c)", background: "var(--accent-bg)" }}
         >
-          AI note recorded
+          {data.labels.feedbackBadge}
         </div>
       )}
 

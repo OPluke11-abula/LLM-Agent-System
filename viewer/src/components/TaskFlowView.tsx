@@ -19,6 +19,7 @@ import { Modal } from "./Modal";
 import { ContextMenu } from "./ContextMenu";
 import { ActivityLog } from "./ActivityLog";
 import { TASK_NODE_TYPES } from "./TaskNode";
+import { Button, MetricTile, StatusBadge, Surface } from "./ui/primitives";
 import type {
   ActivityLogEntry,
   AgentMemory,
@@ -92,6 +93,8 @@ type LocalizedCopy = {
   exportGeneratedAt: string;
   exportDependencies: string;
   exportNoTasks: string;
+  emptyWorkspace: string;
+  closePanel: string;
 };
 
 const LOCAL_COPY: Record<Lang, LocalizedCopy> = {
@@ -134,6 +137,8 @@ const LOCAL_COPY: Record<Lang, LocalizedCopy> = {
     exportGeneratedAt: "匯出時間",
     exportDependencies: "依賴項目",
     exportNoTasks: "目前沒有任務。",
+    emptyWorkspace: "此工作區尚無任務。請在設定中指定 JSON 路徑，或讓 AI 代理寫入資料。",
+    closePanel: "關閉",
   },
   en: {
     total: "Total Tasks",
@@ -174,6 +179,8 @@ const LOCAL_COPY: Record<Lang, LocalizedCopy> = {
     exportGeneratedAt: "Generated at",
     exportDependencies: "Dependencies",
     exportNoTasks: "No tasks yet.",
+    emptyWorkspace: "No tasks in this workspace yet. Set the JSON path in Settings or let an AI agent write data.",
+    closePanel: "Close",
   },
   ja: {
     total: "総タスク",
@@ -214,6 +221,8 @@ const LOCAL_COPY: Record<Lang, LocalizedCopy> = {
     exportGeneratedAt: "出力時間",
     exportDependencies: "依存関係",
     exportNoTasks: "タスクはありません。",
+    emptyWorkspace: "このワークスペースにはまだタスクがありません。設定で JSON パスを指定するか、AI エージェントにデータを書き込ませてください。",
+    closePanel: "閉じる",
   },
   fr: {
     total: "Total Tâches",
@@ -254,6 +263,8 @@ const LOCAL_COPY: Record<Lang, LocalizedCopy> = {
     exportGeneratedAt: "Généré le",
     exportDependencies: "Dépendances",
     exportNoTasks: "Aucune tâche.",
+    emptyWorkspace: "Aucune tâche dans cet espace. Définissez le chemin JSON dans Paramètres ou laissez un agent IA écrire les données.",
+    closePanel: "Fermer",
   },
 };
 
@@ -584,18 +595,12 @@ export function TaskFlowView({
       {workspaces.length > 0 && (
         <div className="flex flex-shrink-0 flex-wrap gap-2">
           {workspaces.map((workspace) => (
-            <button
+            <Button
               key={workspace.id}
               type="button"
               onClick={() => setActiveWorkspaceId(workspace.id)}
-              className={`flex flex-col items-start rounded-lg px-3 py-2 text-xs font-semibold ${
-                workspace.id === activeWorkspaceId ? "primary-button" : "quiet-button"
-              }`}
-              style={
-                workspace.id === activeWorkspaceId
-                  ? { color: "var(--accent-strong)" }
-                  : { color: "var(--t3)" }
-              }
+              variant={workspace.id === activeWorkspaceId ? "primary" : "quiet"}
+              className="flex flex-col items-start px-3 py-2 text-xs"
             >
               <span>
                 {workspace.name} · {workspace.lang}
@@ -605,50 +610,50 @@ export function TaskFlowView({
                   {workspace.path}
                 </span>
               )}
-            </button>
+            </Button>
           ))}
         </div>
       )}
 
       <div className="grid gap-3 md:grid-cols-4">
         {stats.map((stat) => (
-          <div
+          <MetricTile
             key={stat.label}
-            className="metric-card p-4"
-          >
-            <p className="text-2xl font-semibold tracking-tight" style={{ color: "var(--t1)" }}>
-              {stat.value}
-            </p>
-            <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.14em] t3">{stat.label}</p>
-          </div>
+            label={stat.label}
+            value={stat.value}
+            tone={stat.label === local.completionRate ? "accent" : "neutral"}
+            className="p-4"
+          />
         ))}
       </div>
 
-      <div className="control-surface flex flex-col gap-3 p-4">
+      <Surface elevated className="flex flex-col gap-3 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] t3">{local.searchLabel}</p>
           <div className="flex flex-wrap items-center justify-end gap-2">
-            {exportStatus && <p className="text-xs font-semibold" style={{ color: "var(--accent)" }}>{exportStatus}</p>}
+            {exportStatus && <StatusBadge tone="success">{exportStatus}</StatusBadge>}
             <p className="text-xs t2">
               {local.matchingCount} {matchedTasks.length} / {total}
             </p>
             <div className="flex flex-wrap items-center gap-1.5 rounded-lg border p-1" style={{ borderColor: "var(--border-c)", background: "var(--bg-card)" }}>
               <span className="hidden px-2 text-[10px] font-semibold uppercase tracking-[0.14em] t3 sm:inline">{local.exportLabel}</span>
-              <button
+              <Button
                 type="button"
                 onClick={() => handleExport("json")}
-                className="primary-button rounded-md px-2.5 py-1.5 text-xs font-semibold"
+                variant="primary"
+                className="rounded-md px-2.5 py-1.5"
               >
                 {local.exportJson}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 onClick={() => handleExport("markdown")}
-                className="quiet-button rounded-md px-2.5 py-1.5 text-xs font-semibold"
+                variant="quiet"
+                className="rounded-md px-2.5 py-1.5"
               >
                 <span className="hidden sm:inline">{local.exportMarkdown}</span>
                 <span className="sm:hidden">MD</span>
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -661,48 +666,37 @@ export function TaskFlowView({
           />
           <div className="flex flex-wrap gap-2">
             {(["all", "pending", "in_progress", "completed"] as FilterStatus[]).map((status) => (
-              <button
+              <Button
                 key={status}
                 type="button"
                 onClick={() => setFilter(status)}
-                className={`rounded-lg px-3 py-2 text-xs font-semibold ${filter === status ? "primary-button" : "quiet-button"}`}
-                style={
-                  filter === status
-                    ? { color: "var(--accent-strong)" }
-                    : { color: "var(--t2)" }
-                }
+                variant={filter === status ? "primary" : "quiet"}
+                className="px-3 py-2"
               >
                 {local.filters[status]}
-              </button>
+              </Button>
             ))}
           </div>
         </div>
-      </div>
+      </Surface>
 
       <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_160px] gap-3 2xl:grid-cols-[minmax(0,1fr)_320px] 2xl:grid-rows-none">
         <div
           ref={flowContainerRef}
-          className="flow-canvas relative min-h-[320px] overflow-hidden rounded-lg border shadow-2xl xl:min-h-0"
+          className="flow-canvas relative min-h-[320px] overflow-hidden rounded-lg border xl:min-h-0"
           style={{ borderColor: "var(--border-c)" }}
         >
         {memory.tasks.length === 0 && (
           <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center px-6 text-center">
-            <div className="mb-4 text-5xl opacity-20">⬡</div>
-            <p className="text-sm font-bold opacity-30" style={{ color: "var(--t2)" }}>
-              {lang === "zh"
-                ? "此工作區尚無任務。在設定中指定 JSON 路徑，或讓 AI 代理寫入資料。"
-                : "No tasks in this workspace yet. Set the JSON path in Settings or let an AI agent write data."}
-            </p>
+            <StatusBadge tone="warning">{local.exportNoTasks}</StatusBadge>
+            <p className="mt-4 max-w-md text-sm font-semibold leading-relaxed t2">{local.emptyWorkspace}</p>
           </div>
         )}
 
         {memory.tasks.length > 0 && matchedTasks.length === 0 && (
-          <div
-            className="absolute top-4 left-1/2 z-20 -translate-x-1/2 rounded-full border px-4 py-2 text-xs font-semibold shadow-xl"
-            style={{ background: "var(--bg-panel)", borderColor: "var(--border-c)", color: "var(--t2)" }}
-          >
+          <Surface className="absolute top-4 left-1/2 z-20 -translate-x-1/2 px-4 py-2 text-xs font-semibold t2">
             {local.noMatches}
-          </div>
+          </Surface>
         )}
 
         <ReactFlow
@@ -744,7 +738,7 @@ export function TaskFlowView({
         </ReactFlow>
 
         <aside
-          className={`absolute top-0 right-0 flex h-full w-80 flex-col border-l shadow-2xl transition-transform duration-300 ease-out ${
+          className={`absolute top-0 right-0 flex h-full w-80 flex-col border-l transition-transform duration-300 ease-out ${
             selectedTask ? "translate-x-0" : "translate-x-full"
           }`}
           style={{ background: "var(--bg-panel)", borderColor: "var(--border-c)" }}
@@ -758,24 +752,21 @@ export function TaskFlowView({
                 <h3 className="text-sm font-semibold" style={{ color: "var(--t1)" }}>
                   {t.taskDetails}
                 </h3>
-                <button
+                <Button
                   type="button"
                   onClick={() => setSelectedTaskId(null)}
-                  className="quiet-button flex h-7 w-7 items-center justify-center rounded-md text-sm"
-                  style={{ background: "var(--bg-card)" }}
+                  variant="quiet"
+                  className="px-2 py-1"
                 >
-                  ✕
-                </button>
+                  {local.closePanel}
+                </Button>
               </div>
               <div className="flex-1 space-y-5 overflow-y-auto px-5 py-4">
                 <div>
                   <label className="t3 text-[9px] font-bold uppercase tracking-widest">{t.taskId}</label>
-                  <div
-                    className="mt-1 rounded-lg border px-3 py-2 text-xs font-mono"
-                    style={{ background: "var(--bg-card)", borderColor: "var(--border-c)", color: "var(--accent-strong)" }}
-                  >
+                  <Surface className="mt-1 px-3 py-2 font-mono text-xs" style={{ color: "var(--accent-strong)" }}>
                     {selectedTask.id}
-                  </div>
+                  </Surface>
                 </div>
                 <div>
                   <label className="t3 text-[9px] font-bold uppercase tracking-widest">{t.desc}</label>
@@ -791,7 +782,7 @@ export function TaskFlowView({
                         return (
                           <li
                             key={depId}
-                            className="rounded-lg border px-3 py-1.5 text-xs font-mono"
+                            className="rounded-lg border px-3 py-1.5 font-mono text-xs"
                             style={{ background: "var(--bg-card)", color: "var(--accent-strong)", borderColor: "var(--border-c)" }}
                           >
                             {depId}{category}
@@ -809,20 +800,21 @@ export function TaskFlowView({
                       <label className="text-[9px] font-bold uppercase tracking-widest" style={{ color: "var(--accent)" }}>
                         {t.aiFeedback}
                       </label>
-                      <button
+                      <Button
                         type="button"
                         onClick={() => copyText(selectedTask.ai_feedback ?? "")}
-                        className="quiet-button rounded-md px-2 py-1 text-xs"
+                        variant="quiet"
+                        className="px-2 py-1"
                         title={t.copy}
                       >
                         {t.copy}
-                      </button>
+                      </Button>
                     </div>
-                    <div className="mt-2 rounded-lg border p-4" style={{ background: "var(--accent-bg)", borderColor: "var(--border-c)" }}>
+                    <Surface className="mt-2 p-4" style={{ background: "var(--accent-bg)" }}>
                       <p className="text-xs leading-relaxed" style={{ color: "var(--t1)", whiteSpace: "pre-wrap" }}>
                         {selectedTask.ai_feedback}
                       </p>
-                    </div>
+                    </Surface>
                   </div>
                 )}
               </div>
@@ -884,9 +876,9 @@ export function TaskFlowView({
           danger
         >
           <p className="text-sm leading-relaxed t2">{local.deleteConfirm}</p>
-          <div className="mt-3 rounded-lg border px-3 py-2 text-xs font-mono" style={{ background: "var(--bg-card)", borderColor: "var(--border-c)", color: "var(--accent-strong)" }}>
+          <Surface className="mt-3 px-3 py-2 font-mono text-xs" style={{ color: "var(--accent-strong)" }}>
             {deleteTargetId}
-          </div>
+          </Surface>
         </Modal>
       )}
     </div>

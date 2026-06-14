@@ -1,4 +1,5 @@
 import type { ActivityLogEntry, Lang, TaskStatus } from "../types";
+import { Button, Surface } from "./ui/primitives";
 
 type ActivityLogProps = {
   entries: ActivityLogEntry[];
@@ -51,7 +52,7 @@ const COPY: Record<Lang, ActivityLogCopy> = {
     events: {
       "workspace-loaded": "Workspace loaded",
       "workspace-synced": "Memory file synced",
-      "topology-updated": "Topology updated",
+      "topology-updated": "拓撲已更新",
       "task-status": "Task status changed",
       "task-description": "Task description updated",
       "task-created": "Subtask created",
@@ -113,14 +114,14 @@ const COPY: Record<Lang, ActivityLogCopy> = {
 };
 
 const TYPE_STYLES: Record<ActivityLogEntry["type"], { dot: string; border: string }> = {
-  "workspace-loaded": { dot: "#38bdf8", border: "rgba(56,189,248,0.34)" },
-  "workspace-synced": { dot: "#22d3ee", border: "rgba(34,211,238,0.34)" },
-  "topology-updated": { dot: "#378ADD", border: "rgba(55,138,221,0.38)" },
-  "task-status": { dot: "#f59e0b", border: "rgba(245,158,11,0.36)" },
-  "task-description": { dot: "#a78bfa", border: "rgba(167,139,250,0.34)" },
-  "task-created": { dot: "#22c55e", border: "rgba(34,197,94,0.34)" },
-  "task-deleted": { dot: "#fb7185", border: "rgba(251,113,133,0.36)" },
-  "save-error": { dot: "#ef4444", border: "rgba(239,68,68,0.42)" },
+  "workspace-loaded": { dot: "var(--accent)", border: "color-mix(in srgb, var(--accent) 32%, transparent)" },
+  "workspace-synced": { dot: "var(--accent-strong)", border: "color-mix(in srgb, var(--accent) 28%, transparent)" },
+  "topology-updated": { dot: "var(--accent)", border: "color-mix(in srgb, var(--accent) 30%, transparent)" },
+  "task-status": { dot: "var(--warning)", border: "color-mix(in srgb, var(--warning) 34%, transparent)" },
+  "task-description": { dot: "var(--t2)", border: "var(--border-c)" },
+  "task-created": { dot: "var(--success)", border: "color-mix(in srgb, var(--success) 32%, transparent)" },
+  "task-deleted": { dot: "var(--danger)", border: "color-mix(in srgb, var(--danger) 34%, transparent)" },
+  "save-error": { dot: "var(--danger)", border: "color-mix(in srgb, var(--danger) 42%, transparent)" },
 };
 
 function formatTime(timestamp: string, lang: Lang) {
@@ -166,7 +167,7 @@ export function ActivityLog({ entries, lang, onClear }: ActivityLogProps) {
   const copy = COPY[lang];
 
   return (
-    <section className="control-surface flex min-h-0 flex-col overflow-hidden">
+    <Surface as="section" elevated className="flex min-h-0 flex-col overflow-hidden">
       <div className="flex flex-shrink-0 items-start justify-between gap-3 border-b px-4 py-3" style={{ borderColor: "var(--border-c)" }}>
         <div>
           <div className="flex items-center gap-2">
@@ -175,14 +176,15 @@ export function ActivityLog({ entries, lang, onClear }: ActivityLogProps) {
           </div>
           <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.14em] t3">{copy.subtitle}</p>
         </div>
-        <button
+        <Button
           type="button"
           onClick={onClear}
           disabled={entries.length === 0}
-          className="quiet-button rounded-lg px-2.5 py-1.5 text-xs font-semibold disabled:opacity-40"
+          variant="quiet"
+          className="px-2.5 py-1.5"
         >
           {copy.clear}
-        </button>
+        </Button>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-3">
@@ -215,6 +217,6 @@ export function ActivityLog({ entries, lang, onClear }: ActivityLogProps) {
           </div>
         )}
       </div>
-    </section>
+    </Surface>
   );
 }

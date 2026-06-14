@@ -79,6 +79,7 @@
 - [x] **PHASE 44 — Premium Visual Control Plane & UI Verification Gate**: Refined the React/Tauri viewer into a cohesive low-saturation Agent Runtime control plane, extracted reusable UI primitives, removed brittle glow/emoji-heavy dashboard styling, added route-level code splitting, introduced `verify:ui` bundle verification, and synchronized README guidance in English and Traditional Chinese.
 - [x] **PHASE 45 — Frontend/UI Designer Semantic Agent Memory**: Added `.agent/memory/semantic/frontend_ui_designer.json` to preserve the viewer's premium UI/UX design stance, implementation rules, verification gates, and anti-patterns for future frontend agents.
 - [x] **PHASE 46 — Settings, Rules & MODs Surface Cohesion**: Upgraded the remaining viewer configuration surfaces to shared `Surface`, `Button`, `MetricTile`, and `StatusBadge` primitives, localized new control-plane labels across supported languages, removed rendered emoji prefixes from operational copy, and aligned form focus/hover states with the restrained visual system.
+- [x] **PHASE 47 — Task Flow Workspace Visual Refinement**: Refined the primary Task Flow workspace with shared UI primitives, localized empty states and drawer controls, calmer React Flow canvas overlays, tokenized Activity Log status colors, and localized task-node AI feedback badges.
 
 ---
 
@@ -99,5 +100,6 @@
 | **Phase 44** | 5 tasks | 5 tasks | 100% Done |
 | **Phase 45** | 1 task | 1 task | 100% Done |
 | **Phase 46** | 4 tasks | 4 tasks | 100% Done |
+| **Phase 47** | 5 tasks | 5 tasks | 100% Done |
 
 *This queue is managed dynamically by the active LAS Developer Agent. All task updates, outcome logs, and progress status updates are written directly to this file before turn conclusion.*
