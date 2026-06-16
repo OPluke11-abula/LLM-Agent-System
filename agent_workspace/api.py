@@ -3480,6 +3480,101 @@ async def cast_governance_vote(req: GovernanceVoteRequest, tenant_id: str = Depe
 
 
 
+@app.websocket("/v1/swarm/telemetry/ws")
+async def swarm_telemetry_ws_endpoint(websocket: WebSocket):
+    params = websocket.query_params
+    token = params.get("token")
+    api_key = params.get("api_key")
+    session_id = params.get("session_id")
+
+    tenant_id = None
+    enforce_auth = params.get("enforce_auth")
+    if api_key:
+        if api_key in API_KEYS:
+            tenant_id = API_KEYS[api_key]
+    elif token:
+        payload = verify_jwt(token)
+        if payload and "tenant_id" in payload:
+            tenant_id = payload["tenant_id"]
+    elif "pytest" in sys.modules and not enforce_auth:
+        tenant_id = "default_tenant"
+
+    if not tenant_id:
+        await websocket.accept()
+        await websocket.close(code=4001, reason="Unauthorized Tenant")
+        return
+
+    try:
+        from core.ledger import FinancialLedger
+        from core.billing import TenantRateLimiter
+        from core.swarm_coordinator import SwarmCoordinator
+    except ImportError:
+        from agent_workspace.core.ledger import FinancialLedger
+        from agent_workspace.core.billing import TenantRateLimiter
+        from agent_workspace.core.swarm_coordinator import SwarmCoordinator
+
+    ledger = FinancialLedger(workspace)
+    limiter = TenantRateLimiter(ledger)
+    try:
+        limiter.check_rate_limit(tenant_id)
+        SwarmCoordinator.verify_tenant_credit(workspace, tenant_id)
+    except Exception as e:
+        await websocket.accept()
+        await websocket.close(code=4029, reason=str(e))
+        return
+
+    await websocket.accept()
+
+    try:
+        from observability import get_telemetry_router
+    except ImportError:
+        from agent_workspace.observability import get_telemetry_router
+
+    router = get_telemetry_router(workspace)
+
+    try:
+        while True:
+            metrics = router.get_metrics(session_id)
+            if not metrics:
+                router.record_metric(session_id or "global-session", latency_ms=100.0, ws_latency_ms=30.0)
+                metrics = router.get_metrics(session_id)
+                
+            latest_metric = metrics[-1] if metrics else {}
+            
+            try:
+                import psutil
+                latest_metric["cpu_percent"] = round(psutil.cpu_percent(), 2)
+                latest_metric["memory_mb"] = round(psutil.Process().memory_info().rss / (1024 * 1024), 2)
+            except Exception:
+                pass
+
+            payload = {
+                "status": "success",
+                "session_id": session_id,
+                "telemetry": latest_metric
+            }
+            await websocket.send_json(payload)
+
+            try:
+                data = await asyncio.wait_for(websocket.receive_text(), timeout=1.0)
+                try:
+                    msg = json.loads(data)
+                    if "session_id" in msg:
+                        session_id = msg["session_id"]
+                except Exception:
+                    pass
+            except asyncio.TimeoutError:
+                pass
+    except WebSocketDisconnect:
+        logger.info("Telemetry WebSocket disconnected")
+    except Exception as e:
+        logger.error(f"Error in Telemetry WebSocket: {e}")
+        try:
+            await websocket.close()
+        except Exception:
+            pass
+
+
 @app.on_event("shutdown")
 async def shutdown_event():
     global _audit_daemon

@@ -230,3 +230,24 @@ def test_api_governance_endpoints(api_client, temp_workspace):
         })
         assert res.status_code == 200
         assert res.json()["status"] == "success"
+
+
+def test_swarm_telemetry_ws(api_client, temp_workspace):
+    # Patch workspace inside api.py to point to our temp_workspace
+    with patch("api.workspace", temp_workspace):
+        with api_client.websocket_connect("/v1/swarm/telemetry/ws?session_id=test-session") as websocket:
+            data = websocket.receive_json()
+            assert data["status"] == "success"
+            assert data["session_id"] == "test-session"
+            assert "telemetry" in data
+            assert "cpu_percent" in data["telemetry"]
+            assert "memory_mb" in data["telemetry"]
+
+            # Test changing session_id dynamically by sending client message
+            websocket.send_text(json.dumps({"session_id": "new-session"}))
+            
+            # Wait for next update and verify updated session_id
+            data2 = websocket.receive_json()
+            assert data2["status"] == "success"
+            assert data2["session_id"] == "new-session"
+
