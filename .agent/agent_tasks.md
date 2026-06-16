@@ -93,6 +93,34 @@
 
 ---
 
+## 🌐 PHASE 57 — Swarm Operations Console & Dynamic Governance UI Integration / 群落運維控制台與動態治理 UI 整合
+
+### 57-01 Backend Telemetry & Security Sockets
+- [ ] **[Backend Programmer]** Expose real-time telemetry streaming over secure WebSockets `/v1/swarm/telemetry/ws` for container CPU/Memory, latency metrics, and API costs / 透過安全的 WebSockets `/v1/swarm/telemetry/ws` 暴露即時容器 CPU/記憶體、延遲指標與 API 成本的遙測串流。
+- [ ] **[Backend Programmer]** Integrate backend validation checks on `/v1/swarm/governance/vote` to reject votes from unregistered keys or invalid nonces / 在 `/v1/swarm/governance/vote` 中整合後端驗證，拒絕未註冊金鑰或無效 nonce 的投票。
+- [ ] **[Backend Programmer]** Expand the Merkle/ZK proof database endpoints to output complete cryptographic proof paths for specific SOC2 audit logs / 擴展 Merkle/ZK 證明資料庫端點，為特定 SOC2 審計日誌輸出完整的密碼學證明路徑。
+
+### 57-02 Frontend Dashboard Bindings & Client Signatures
+- [ ] **[Frontend Programmer]** Bind the `SwarmNodeMonitor` and `P2PMeshNetworkMap` panels to actual WebSocket streams, rendering active telemetry data instead of mock counters / 將 `SwarmNodeMonitor` 與 `P2PMeshNetworkMap` 面板綁定至真實的 WebSocket 串流，渲染即時遙測數據以取代 Mock 計數器。
+- [ ] **[Frontend Programmer]** Implement active form bindings for `/v1/swarm/governance/vote` inside the governance dashboard, handling cryptographic signature generation on the client side / 在治理儀表板中實作 `/v1/swarm/governance/vote` 的真實表單綁定，並在前端處理密碼學簽章生成。
+- [ ] **[Frontend Programmer]** Connect `CryptographicProofInspector` modal to fetch real ZK proofs and render node-edge path verifications / 連接 `CryptographicProofInspector` 彈窗，以獲取真實的 ZK 證明並渲染節點與邊路徑驗證。
+
+---
+
+## 🔒 PHASE 58 — Advanced Enterprise mTLS Tunneling & Dynamic Key Rotation / 進階企業級 mTLS 隧道與動態金鑰輪轉
+
+### 58-01 Backend Automated Certificate Generation & Rotation Hooks
+- [ ] **[Backend Programmer]** Build an automated client-certificate generation utility using `cryptography` in Python / 使用 Python 中的 `cryptography` 庫建立自動化的客戶端證書生成工具。
+- [ ] **[Backend Programmer]** Implement an automatic mTLS certificate rotation hook in `cross_cloud_gateway.py` triggered when a peer handshake fails or is close to expiration / 在 `cross_cloud_gateway.py` 中實作自動 mTLS 證書輪轉鉤子，於節點握手失敗或接近過期時自動觸發。
+- [ ] **[Backend Programmer]** Register administrative endpoints for forced certificate revocation (`POST /v1/cross-cloud/revoke`) / 註冊用於強制證書撤銷的行政端點 (`POST /v1/cross-cloud/revoke`)。
+
+### 58-02 Frontend Key Rotation Controls & Status Indicators
+- [ ] **[Frontend Programmer]** Render client certificate lifecycle badges (expiration timers, active status, SHA-256 fingerprint) / 在介面渲染客戶端證書生命週期徽章（過期計時器、啟用狀態、SHA-256 指紋）。
+- [ ] **[Frontend Programmer]** Build a trigger button in the Swarm Operations console to manually force key rotations / 在群落運維控制台中建立一個觸發按鈕，用於手動強制進行金鑰輪轉。
+- [ ] **[Frontend Programmer]** Create a dashboard alert system displaying real-time connection failures or node isolation warnings / 建立儀表板警報系統，顯示即時連線失敗或節點隔離警告。
+
+---
+
 ## 📈 Queue Summary & Progress
 
 | Phase | Total Tasks | Completed Tasks | Status |
@@ -121,5 +149,7 @@
 | **Phase 54** | 4 tasks | 4 tasks | 100% Done |
 | **Phase 55** | 3 tasks | 3 tasks | 100% Done |
 | **Phase 56** | 6 tasks | 6 tasks | 100% Done |
+| **Phase 57** | 6 tasks | 0 tasks | 0% Done |
+| **Phase 58** | 6 tasks | 0 tasks | 0% Done |
 
 *This queue is managed dynamically by the active LAS Developer Agent. All task updates, outcome logs, and progress status updates are written directly to this file before turn conclusion.*
