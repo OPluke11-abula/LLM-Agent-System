@@ -174,6 +174,14 @@ LAS supports highly scalable, distributed execution of agent swarms:
 
 ---
 
+### 🗳️ Swarm Consensus Governance & Dynamic Prompt Calibration
+LAS features a decentralized peer-voting governance protocol to self-recalibrate system directives:
+* **Decentralized Swarm Voting**: Triggers prompt policy calibration proposals automatically when the audit ledger detects latency overruns or safety exceptions. Swarm members (CEO, CTO, Dev, QA, CFO) cast cryptographically signed approve/reject votes.
+* **Proof-of-Consensus Certification**: Requires a strict majority (> 50% active members, i.e., 3 out of 5 roles) to sign and certify proposal hashes, generating consensus certificates registered in `consensus_registry.json`.
+* **Dynamic Prompt Policy Injection**: Automatically injects active calibration rules into future role system prompts under a dedicated section in `PromptComposer`.
+
+---
+
 ### 🔏 Portable Agent Protocol (PAP) v0.2.0 Alignment
 LAS is fully aligned with the latest PAP v0.2.0 reference specification:
 * **Strict JSON Schema Validation**: Natively validates `.agent/agent.md` manifest frontmatter against `spec/agent-schema.json` using the `jsonschema` library, catching layout mismatches and missing keys.
@@ -332,6 +340,14 @@ LAS 支援高可擴充性的分散式智慧體群體執行架構：
 * **密碼學共識審計**: 批次審計事件日誌並構建確定性 Merkle Tree (`core/merkle.py`)，驗證跨節點的區塊狀態一致性，並提供 `/v1/audit/status` 與 `/v1/audit/sync` API 端點。
 * **自癒與複製同步**: 透過非同步共識守護程序 (`AuditConsensusDaemon` 於 `core/audit_ledger.py`) 在 Redis 上定期廣播 Merkle Root 與計數。落後節點會自動請求缺失日誌、驗證簽章並進行自癒。
 * **篡改與分叉檢測**: 自動偵測無法解決的分叉和無效日誌，同步拋出安全性警報並寫入 `SOC2_VIOLATION` 審計記錄。
+
+---
+
+### 🗳️ Swarm 共識治理與動態提示詞策略校準
+LAS 具備去中心化的節點投票治理協定，實現提示詞指令的自適應校準與防禦：
+* **去中心化群體投票**：當 `AuditLedger` 偵測到超時或安全異常時，自動觸發提示詞策略校準提案。Swarm 成員（CEO、CTO、Dev、QA、CFO）針對提案投下經密碼學簽章的讚成或反對票。
+* **共識證明 (Proof-of-Consensus) 認證**：要求嚴格多數決（超過 50% 的活躍節點，即 5 個角色中至少 3 個讚成）對提案雜湊進行協同簽章，並產出共識憑證登記於 `consensus_registry.json` 中。
+* **動態提示詞注入**：`PromptComposer` 自動在系統提示詞中動態載入並注入已通過共識決的校準規則，實現系統自我優化與安全補強。
 
 ---
 

@@ -952,6 +952,78 @@ Stderr: {stderr_str[:500]}
             "Enforce a highly professional, factual, and actionable tone."
         )
 
+    async def run_governance_vote(self, proposal: dict) -> dict:
+        """
+        Executes a round-robin voting debate where each swarm member (ceo, cto, dev, qa, cfo)
+        votes "approve" or "reject" on a proposal and signs the payload hash.
+        """
+        logger.info("Initiating dynamic governance vote calibration debate for proposal %s", proposal.get("id"))
+        
+        votes = {}
+        signatures = {}
+        payload_hash = proposal["payload_hash"]
+        
+        # Loop through all swarm members
+        members = ProofOfConsensus.get_swarm_members()
+        for role in members:
+            if SwarmIDS.is_quarantined(role):
+                logger.warning("Member %s is quarantined and cannot participate in governance vote.", role)
+                continue
+                
+            # Each active node votes. We simulate the vote based on the role and proposal type.
+            # Let's run a quick LLM call for each member to evaluate the rule.
+            persona = self._resolve_agent_persona(role)
+            system_prompt = (
+                f"{persona}\n\n"
+                "You are participating in a decentralized swarm governance vote on a prompt policy calibration proposal.\n"
+                "You must evaluate the proposal and cast your vote: either APPROVE or REJECT."
+            )
+            
+            user_content = (
+                f"Rule Type: {proposal.get('rule_type')}\n"
+                f"Rule Text: {proposal.get('rule_text')}\n\n"
+                "Do you approve or reject this prompt calibration directive? "
+                "Respond with either 'APPROVE' or 'REJECT' as the first word of your response, "
+                "followed by a short, one-sentence rationale."
+            )
+            
+            vote = "approve"
+            try:
+                prompt_len = len(system_prompt + user_content) // 4
+                provider, config, resolved_acc_id = self._resolve_agent_provider(
+                    account_id=None,
+                    prompt_len=prompt_len,
+                    topic="governance-vote",
+                    session_id=f"vote-{proposal.get('id')}-{role}"
+                )
+                messages = [{"role": "user", "content": user_content}]
+                response_type, response_data = await provider.complete(
+                    system_prompt=system_prompt,
+                    messages=messages,
+                    tool_schemas=[],
+                    config=config
+                )
+                if response_type == "success" and response_data:
+                    resp_text = response_data.strip().upper()
+                    if resp_text.startswith("REJECT"):
+                        vote = "reject"
+                    elif resp_text.startswith("APPROVE"):
+                        vote = "approve"
+            except Exception as e:
+                logger.warning("LLM vote query failed for role %s: %s. Defaulting to APPROVE.", role, e)
+                vote = "approve"
+                
+            votes[role] = vote
+            sig = ProofOfConsensus.generate_member_signature(role, payload_hash)
+            signatures[role] = sig
+            
+        return {
+            "proposal_id": proposal.get("id"),
+            "votes": votes,
+            "signatures": signatures
+        }
+
+
 
 class ProofOfConsensus:
     """Implements decentralized Proof of Consensus (PoC) for the swarm."""

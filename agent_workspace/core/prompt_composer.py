@@ -232,9 +232,25 @@ class PromptComposer:
                         memories_text += f"- [{created}] [{domain}] {summary}\n"
                     semantic_context = memories_text
 
+        # Append dynamic governance calibration directives
+        gov_section = ""
+        try:
+            from core.governance import GovernanceManager
+        except ImportError:
+            from agent_workspace.core.governance import GovernanceManager
+        
+        try:
+            active_rules = GovernanceManager.get_active_rules(self.workspace_path)
+            if active_rules:
+                gov_section = "\n\n## 🛡️ DYNAMIC GOVERNANCE CALIBRATION DIRECTIVES:\n"
+                for idx, rule in enumerate(active_rules, 1):
+                    gov_section += f"{idx}. {rule}\n"
+        except Exception as e:
+            logger.warning("[PromptComposer] Failed to load active governance rules: %s", e)
+
         # Append dynamic lessons learned directives
         lessons = self._load_lessons_learned()
-        compiled = rendered + semantic_context + lessons
+        compiled = rendered + semantic_context + gov_section + lessons
         return self.prune_compiled_prompt(compiled)
 
     def prune_compiled_prompt(self, compiled_prompt: str) -> str:

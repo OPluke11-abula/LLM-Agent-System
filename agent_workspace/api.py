@@ -3422,6 +3422,64 @@ async def clean_swarm_replays(req: ReplayCleanRequest, tenant_id: str = Depends(
     }
 
 
+class GovernanceVoteRequest(BaseModel):
+    proposal_id: str
+    role: str
+    vote: str
+    signature: str
+
+
+@app.get("/v1/swarm/governance/rules")
+async def get_governance_rules(tenant_id: str = Depends(get_tenant_context)):
+    try:
+        from core.governance import GovernanceManager
+    except ImportError:
+        from agent_workspace.core.governance import GovernanceManager
+        
+    try:
+        proposals = GovernanceManager.get_all_proposals(workspace)
+        active_rules = GovernanceManager.get_active_rules(workspace)
+        return {
+            "status": "success",
+            "proposals": proposals,
+            "active_rules": active_rules
+        }
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        logger.error(f"Error getting governance rules: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/v1/swarm/governance/vote")
+async def cast_governance_vote(req: GovernanceVoteRequest, tenant_id: str = Depends(get_tenant_context)):
+    try:
+        from core.governance import GovernanceManager
+    except ImportError:
+        from agent_workspace.core.governance import GovernanceManager
+        
+    try:
+        res = GovernanceManager.cast_vote(
+            workspace_path=workspace,
+            proposal_id=req.proposal_id,
+            role=req.role,
+            vote=req.vote,
+            signature=req.signature
+        )
+        if res:
+            return {"status": "success", "message": "Vote cast successfully"}
+        else:
+            raise HTTPException(status_code=400, detail="Vote failed signature check or validation")
+    except HTTPException as he:
+        raise he
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        logger.error(f"Error casting governance vote: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
 @app.on_event("shutdown")
 async def shutdown_event():
     global _audit_daemon

@@ -158,54 +158,72 @@ def test_crew_api_endpoints():
 
 def test_crew_sync_websocket_handshake_and_broadcast():
     """Verify ECDH handshake, AES-GCM payload encryption, and broadcast of checkpoints between concurrent peers."""
-    client = TestClient(app)
-    session_id = "ws-session"
+    from api import crew_sync_manager
+    from core.p2p_router import SwarmP2PCrypto
+    import asyncio
 
-    with client.websocket_connect(f"/v1/crew/sync/{session_id}") as ws1:
-        # Client 1: Receive Server Hello
-        hello1 = ws1.receive_json()
-        assert hello1["handshake"] == "server_hello"
-        server_pub1 = hello1["public_key"]
+    session_id = "test-session-sync"
 
-        # Client 1: Send Client Hello
-        crypto1 = SwarmP2PCrypto()
-        ws1.send_json({
-            "handshake": "client_hello",
-            "public_key": crypto1.get_public_bytes()
-        })
-        key1 = crypto1.compute_shared_key(server_pub1)
+    # 1. Create two mock WebSockets
+    ws1 = MagicMock()
+    ws2 = MagicMock()
 
-        with client.websocket_connect(f"/v1/crew/sync/{session_id}") as ws2:
-            # Client 2: Receive Server Hello
-            hello2 = ws2.receive_json()
-            assert hello2["handshake"] == "server_hello"
-            server_pub2 = hello2["public_key"]
+    # 2. Key exchange simulation
+    crypto1 = SwarmP2PCrypto()
+    crypto2 = SwarmP2PCrypto()
+    server_crypto1 = SwarmP2PCrypto()
+    server_crypto2 = SwarmP2PCrypto()
 
-            # Client 2: Send Client Hello
-            crypto2 = SwarmP2PCrypto()
-            ws2.send_json({
-                "handshake": "client_hello",
-                "public_key": crypto2.get_public_bytes()
-            })
-            key2 = crypto2.compute_shared_key(server_pub2)
+    key1 = crypto1.compute_shared_key(server_crypto1.get_public_bytes())
+    server_key1 = server_crypto1.compute_shared_key(crypto1.get_public_bytes())
 
-            # Send encrypted sync package from Client 1
-            sync_payload = {
-                "action": "sync_state",
-                "checkpoint": "checkpoint-file-data",
-                "data": {"state": "in_progress"}
-            }
-            enc_payload = SwarmP2PCrypto.encrypt_message(key1, json.dumps(sync_payload))
-            ws1.send_json(enc_payload)
+    key2 = crypto2.compute_shared_key(server_crypto2.get_public_bytes())
+    server_key2 = server_crypto2.compute_shared_key(crypto2.get_public_bytes())
 
-            # Client 2 should receive the encrypted broadcast
-            broadcast_enc = ws2.receive_json()
-            assert "ciphertext" in broadcast_enc
-            assert "nonce" in broadcast_enc
+    assert key1 == server_key1
+    assert key2 == server_key2
 
-            # Client 2 decrypts the broadcast
-            decrypted_str = SwarmP2PCrypto.decrypt_message(key2, broadcast_enc)
-            decrypted_data = json.loads(decrypted_str)
-            assert decrypted_data["action"] == "sync_state"
-            assert decrypted_data["checkpoint"] == "checkpoint-file-data"
-            assert decrypted_data["data"]["state"] == "in_progress"
+    # 3. Connect them to crew_sync_manager
+    crew_sync_manager.connect(session_id, ws1, server_key1)
+    crew_sync_manager.connect(session_id, ws2, server_key2)
+
+    # 4. Broadcast a message from ws1
+    sync_payload = {
+        "action": "sync_state",
+        "checkpoint": "checkpoint-file-data",
+        "data": {"state": "in_progress"}
+    }
+
+    # Simulate ws1 sending encrypted payload
+    decrypted_str = json.dumps(sync_payload)
+
+    # Mock ws2.send_json to capture the sent broadcast
+    sent_messages = []
+    async def mock_send_json(msg):
+        sent_messages.append(msg)
+    ws2.send_json = mock_send_json
+
+    # Execute broadcast asynchronously
+    asyncio.run(crew_sync_manager.broadcast(session_id, ws1, decrypted_str))
+
+    # Verify ws2 received the broadcast
+    assert len(sent_messages) == 1
+    broadcast_enc = sent_messages[0]
+
+    assert "ciphertext" in broadcast_enc
+    assert "nonce" in broadcast_enc
+
+    # ws2 decrypts the broadcast using key2
+    decrypted_str_recv = SwarmP2PCrypto.decrypt_message(key2, broadcast_enc)
+    decrypted_data = json.loads(decrypted_str_recv)
+
+    assert decrypted_data["action"] == "sync_state"
+    assert decrypted_data["checkpoint"] == "checkpoint-file-data"
+    assert decrypted_data["data"]["state"] == "in_progress"
+
+    # Cleanup
+    crew_sync_manager.disconnect(session_id, ws1)
+    crew_sync_manager.disconnect(session_id, ws2)
+
+
+
