@@ -110,9 +110,9 @@
 ## 🔒 PHASE 58 — Advanced Enterprise mTLS Tunneling & Dynamic Key Rotation / 進階企業級 mTLS 隧道與動態金鑰輪轉
 
 ### 58-01 Backend Automated Certificate Generation & Rotation Hooks
-- [ ] **[Backend Programmer]** Build an automated client-certificate generation utility using `cryptography` in Python / 使用 Python 中的 `cryptography` 庫建立自動化的客戶端證書生成工具。
-- [ ] **[Backend Programmer]** Implement an automatic mTLS certificate rotation hook in `cross_cloud_gateway.py` triggered when a peer handshake fails or is close to expiration / 在 `cross_cloud_gateway.py` 中實作自動 mTLS 證書輪轉鉤子，於節點握手失敗或接近過期時自動觸發。
-- [ ] **[Backend Programmer]** Register administrative endpoints for forced certificate revocation (`POST /v1/cross-cloud/revoke`) / 註冊用於強制證書撤銷的行政端點 (`POST /v1/cross-cloud/revoke`)。
+- [x] **[Backend Programmer]** Build an automated client-certificate generation utility using `cryptography` in Python / 使用 Python 中的 `cryptography` 庫建立自動化的客戶端證書生成工具。
+- [x] **[Backend Programmer]** Implement an automatic mTLS certificate rotation hook in `cross_cloud_gateway.py` triggered when a peer handshake fails or is close to expiration / 在 `cross_cloud_gateway.py` 中實作自動 mTLS 證書輪轉鉤子，於節點握手失敗或接近過期時自動觸發。
+- [x] **[Backend Programmer]** Register administrative endpoints for forced certificate revocation (`POST /v1/cross-cloud/revoke`) / 註冊用於強制證書撤銷的行政端點 (`POST /v1/cross-cloud/revoke`)。
 
 ### 58-02 Frontend Key Rotation Controls & Status Indicators
 - [ ] **[Frontend Programmer]** Render client certificate lifecycle badges (expiration timers, active status, SHA-256 fingerprint) / 在介面渲染客戶端證書生命週期徽章（過期計時器、啟用狀態、SHA-256 指紋）。
@@ -150,6 +150,6 @@
 | **Phase 55** | 3 tasks | 3 tasks | 100% Done |
 | **Phase 56** | 6 tasks | 6 tasks | 100% Done |
 | **Phase 57** | 6 tasks | 6 tasks | 100% Done |
-| **Phase 58** | 6 tasks | 0 tasks | 0% Done |
+| **Phase 58** | 6 tasks | 3 tasks | 50% Done |
 
 *This queue is managed dynamically by the active LAS Developer Agent. All task updates, outcome logs, and progress status updates are written directly to this file before turn conclusion.*

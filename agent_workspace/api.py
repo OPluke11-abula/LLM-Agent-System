@@ -1905,6 +1905,104 @@ async def cross_cloud_tunnel_endpoint(websocket: WebSocket):
         CROSS_CLOUD_GATEWAY.peers.pop(cloud_name, None)
 
 
+class CrossCloudRevokeRequest(BaseModel):
+    client_cert_sha: str | None = None
+    cloud_name: str | None = None
+
+
+@app.get("/v1/cross-cloud/cert/status")
+async def get_cross_cloud_cert_status(tenant_id: str = Depends(get_tenant_context)):
+    try:
+        from core.cross_cloud_gateway import CROSS_CLOUD_GATEWAY
+    except ImportError:
+        from agent_workspace.core.cross_cloud_gateway import CROSS_CLOUD_GATEWAY
+
+    now = datetime.now(timezone.utc)
+    seconds_remaining = 0
+    status = "expired"
+
+    if CROSS_CLOUD_GATEWAY.cert_expiry:
+        seconds_remaining = max(0.0, (CROSS_CLOUD_GATEWAY.cert_expiry - now).total_seconds())
+        # Let's say if remaining time <= 360 seconds (10% of default 1hr), status is expiring
+        if seconds_remaining > 360:
+            status = "active"
+        elif seconds_remaining > 0:
+            status = "expiring"
+
+    return {
+        "status": "success",
+        "cert_sha": CROSS_CLOUD_GATEWAY.cert_sha,
+        "expiration": CROSS_CLOUD_GATEWAY.cert_expiry.isoformat() if CROSS_CLOUD_GATEWAY.cert_expiry else None,
+        "seconds_remaining": seconds_remaining,
+        "cert_status": status
+    }
+
+
+@app.post("/v1/cross-cloud/cert/rotate")
+async def rotate_cross_cloud_cert(tenant_id: str = Depends(get_tenant_context)):
+    try:
+        from core.cross_cloud_gateway import CROSS_CLOUD_GATEWAY
+    except ImportError:
+        from agent_workspace.core.cross_cloud_gateway import CROSS_CLOUD_GATEWAY
+
+    CROSS_CLOUD_GATEWAY.rotate_certificate()
+    now = datetime.now(timezone.utc)
+    seconds_remaining = max(0.0, (CROSS_CLOUD_GATEWAY.cert_expiry - now).total_seconds()) if CROSS_CLOUD_GATEWAY.cert_expiry else 0.0
+
+    return {
+        "status": "success",
+        "cert_sha": CROSS_CLOUD_GATEWAY.cert_sha,
+        "expiration": CROSS_CLOUD_GATEWAY.cert_expiry.isoformat() if CROSS_CLOUD_GATEWAY.cert_expiry else None,
+        "seconds_remaining": seconds_remaining,
+        "cert_status": "active"
+    }
+
+
+@app.post("/v1/cross-cloud/revoke")
+async def revoke_cross_cloud_cert(req: CrossCloudRevokeRequest, tenant_id: str = Depends(get_tenant_context)):
+    try:
+        from core.cross_cloud_gateway import CROSS_CLOUD_GATEWAY
+    except ImportError:
+        from agent_workspace.core.cross_cloud_gateway import CROSS_CLOUD_GATEWAY
+
+    revoked_count = 0
+    if req.client_cert_sha:
+        CROSS_CLOUD_GATEWAY.revoked_certs.add(req.client_cert_sha)
+        
+        # Disconnect any peer associated with this certificate
+        to_remove = []
+        for name, peer in CROSS_CLOUD_GATEWAY.peers.items():
+            if peer.get("cert_sha") == req.client_cert_sha:
+                to_remove.append((name, peer.get("ws")))
+                
+        for name, ws in to_remove:
+            CROSS_CLOUD_GATEWAY.peers.pop(name, None)
+            if ws:
+                try:
+                    await ws.close(code=4003)
+                except Exception:
+                    pass
+            revoked_count += 1
+
+    if req.cloud_name:
+        cloud = req.cloud_name.upper()
+        peer = CROSS_CLOUD_GATEWAY.peers.pop(cloud, None)
+        if peer:
+            ws = peer.get("ws")
+            if ws:
+                try:
+                    await ws.close(code=4003)
+                except Exception:
+                    pass
+            revoked_count += 1
+
+    return {
+        "status": "success",
+        "revoked_count": revoked_count,
+        "total_revoked_certs": len(CROSS_CLOUD_GATEWAY.revoked_certs)
+    }
+
+
 class CrewSyncManager:
     """Manages secure multi-agent state, log, and file checkpoint synchronization over WebSockets."""
     def __init__(self):
