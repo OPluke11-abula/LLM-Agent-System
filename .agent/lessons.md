@@ -2,6 +2,16 @@
 > Auto-maintained by the self-learning skill. Do not delete.
 > Workspace scope: applies to the LLM-Agent-System project.
 
+## [2026-06-16] Systems Analyst and Software Architect Role Boundary Enforcements
+
+**Before**: Proceeding directly to execute backend/frontend code changes, creating new files, and modifying endpoints when the user has approved the implementation plan, even when operating in an Analyst/Architect role.
+**After**: Strict enforcement of role boundaries. When operating as the Systems Analyst & Software Architect, do NOT modify code files, create codebase scripts, or execute git commits directly. Instead:
+  1. Produce the detailed designs, implementation plans (`implementation_plan.md`), and checklists (`task.md`).
+  2. Ask the user for explicit approval on the architectural design.
+  3. Formulate and present the exact Programmer Agent `/goal` command, letting the user trigger the specialized developer agent execution in a separate thread.
+**Why**: Overstepping the role boundary by directly writing code violates the clean separation between analysis/architecture and implementation tasks, causing developer track pollution and context drift.
+**Tags**: #role-calibration #architect #analyst #boundary-control #self-audit
+
 ## [2026-06-03] Agent Role Boundary Calibration
 
 **Before**: Automatically transitioning from planning to codebase modifications, code generation, and test execution upon workflow triggers.

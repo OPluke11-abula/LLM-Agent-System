@@ -115,9 +115,9 @@
 - [x] **[Backend Programmer]** Register administrative endpoints for forced certificate revocation (`POST /v1/cross-cloud/revoke`) / 註冊用於強制證書撤銷的行政端點 (`POST /v1/cross-cloud/revoke`)。
 
 ### 58-02 Frontend Key Rotation Controls & Status Indicators
-- [ ] **[Frontend Programmer]** Render client certificate lifecycle badges (expiration timers, active status, SHA-256 fingerprint) / 在介面渲染客戶端證書生命週期徽章（過期計時器、啟用狀態、SHA-256 指紋）。
-- [ ] **[Frontend Programmer]** Build a trigger button in the Swarm Operations console to manually force key rotations / 在群落運維控制台中建立一個觸發按鈕，用於手動強制進行金鑰輪轉。
-- [ ] **[Frontend Programmer]** Create a dashboard alert system displaying real-time connection failures or node isolation warnings / 建立儀表板警報系統，顯示即時連線失敗或節點隔離警告。
+- [x] **[Frontend Programmer]** Render client certificate lifecycle badges (expiration timers, active status, SHA-256 fingerprint) / 在介面渲染客戶端證書生命週期徽章（過期計時器、啟用狀態、SHA-256 指紋）。
+- [x] **[Frontend Programmer]** Build a trigger button in the Swarm Operations console to manually force key rotations / 在群落運維控制台中建立一個觸發按鈕，用於手動強制進行金鑰輪轉。
+- [x] **[Frontend Programmer]** Create a dashboard alert system displaying real-time connection failures or node isolation warnings / 建立儀表板警報系統，顯示即時連線失敗或節點隔離警告。
 
 ---
 
@@ -150,6 +150,6 @@
 | **Phase 55** | 3 tasks | 3 tasks | 100% Done |
 | **Phase 56** | 6 tasks | 6 tasks | 100% Done |
 | **Phase 57** | 6 tasks | 6 tasks | 100% Done |
-| **Phase 58** | 6 tasks | 3 tasks | 50% Done |
+| **Phase 58** | 6 tasks | 6 tasks | 100% Done |
 
 *This queue is managed dynamically by the active LAS Developer Agent. All task updates, outcome logs, and progress status updates are written directly to this file before turn conclusion.*

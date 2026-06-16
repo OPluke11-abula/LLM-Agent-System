@@ -44,9 +44,12 @@ type SwarmSession = {
 
 type PeerNode = {
   id: string;
+  cloudName?: string;
   latencyMs: number;
   mtls: boolean;
   status: string;
+  certSha?: string;
+  alert?: string;
 };
 
 type BillingStatus = {
@@ -70,6 +73,21 @@ type AuditProof = {
 type ProofValidation = {
   valid: boolean;
   message: string;
+};
+
+type MTLSTunnelStatus = {
+  certSha: string;
+  issuedAt: string | null;
+  expiration: string | null;
+  secondsRemaining: number;
+  status: "active" | "expiring" | "expired" | "revoked";
+};
+
+type GatewayAlert = {
+  id: string;
+  peerId: string;
+  message: string;
+  tone: Tone;
 };
 
 type GovernanceCopy = {
@@ -332,9 +350,9 @@ const fallbackSessions: SwarmSession[] = [
 ];
 
 const fallbackPeers: PeerNode[] = [
-  { id: "peer-tpe-01", latencyMs: 24, mtls: true, status: "connected" },
-  { id: "peer-nrt-02", latencyMs: 58, mtls: true, status: "connected" },
-  { id: "peer-sjc-03", latencyMs: 91, mtls: false, status: "degraded" },
+  { id: "peer-tpe-01", cloudName: "TPE", latencyMs: 24, mtls: true, status: "connected", certSha: "fallback-cert-tpe" },
+  { id: "peer-nrt-02", cloudName: "NRT", latencyMs: 58, mtls: true, status: "connected", certSha: "fallback-cert-nrt" },
+  { id: "peer-sjc-03", cloudName: "SJC", latencyMs: 91, mtls: false, status: "signature_error", certSha: "fallback-cert-sjc", alert: "Signature mismatch on tunnel heartbeat." },
 ];
 
 const fallbackBilling: BillingStatus = {
@@ -342,6 +360,14 @@ const fallbackBilling: BillingStatus = {
   spendUsd: 42.18,
   trend: 12,
   policy: "auto_downscale",
+};
+
+const fallbackMTLSStatus: MTLSTunnelStatus = {
+  certSha: "fallback-cert-sha-256",
+  issuedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+  expiration: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+  secondsRemaining: 1800,
+  status: "active",
 };
 
 const fallbackReplay: SwarmReplayEvent[] = [
@@ -472,9 +498,12 @@ function mapPeers(raw: unknown): PeerNode[] {
     const record = asRecord(item);
     return {
       id: asString(record.id ?? record.peer_id ?? record.node_id, `peer-${index + 1}`),
+      cloudName: asString(record.cloud_name ?? record.cloud ?? record.region, "") || undefined,
       latencyMs: asNumber(record.latency_ms ?? record.latency, 0),
       mtls: asBoolean(record.mtls ?? record.secure ?? record.mtls_enabled, false),
       status: asString(record.status, "connected"),
+      certSha: asString(record.cert_sha ?? record.client_cert_sha ?? record.fingerprint, "") || undefined,
+      alert: asString(record.alert ?? record.error ?? record.reason, "") || undefined,
     };
   });
 }
@@ -571,6 +600,68 @@ function mapAuditProof(raw: unknown, fallbackEventId: string): AuditProof {
     root: asString(data.root_hash ?? data.rootHash ?? data.root ?? data.merkle_root, "0x00000000000000000000"),
     zkProof: Object.keys(zkProof).length > 0 ? zkProof : null,
   };
+}
+
+function normalizeMTLSStatus(value: string, secondsRemaining: number): MTLSTunnelStatus["status"] {
+  const status = value.toLowerCase();
+  if (status.includes("revoked")) return "revoked";
+  if (status.includes("expired") || secondsRemaining <= 0) return "expired";
+  if (status.includes("expiring") || secondsRemaining <= 360) return "expiring";
+  return "active";
+}
+
+function mapMTLSStatus(raw: unknown): MTLSTunnelStatus {
+  const record = asRecord(raw);
+  const data = Object.keys(asRecord(record.data)).length > 0 ? asRecord(record.data) : record;
+  const expiration = asString(data.expiration ?? data.expires_at ?? data.expiry, fallbackMTLSStatus.expiration ?? "");
+  const secondsRemaining = asNumber(data.seconds_remaining ?? data.secondsRemaining, fallbackMTLSStatus.secondsRemaining);
+  const status = normalizeMTLSStatus(asString(data.cert_status ?? data.status, fallbackMTLSStatus.status), secondsRemaining);
+  return {
+    certSha: asString(data.cert_sha ?? data.sha256 ?? data.fingerprint, fallbackMTLSStatus.certSha),
+    issuedAt: asString(data.issued_at ?? data.issuedAt ?? data.created_at ?? data.createdAt, fallbackMTLSStatus.issuedAt ?? "") || null,
+    expiration: expiration || null,
+    secondsRemaining,
+    status,
+  };
+}
+
+function secondsUntil(status: MTLSTunnelStatus, nowMs: number) {
+  if (status.expiration) {
+    const expiryMs = Date.parse(status.expiration);
+    if (Number.isFinite(expiryMs)) return Math.max(0, Math.floor((expiryMs - nowMs) / 1000));
+  }
+  return Math.max(0, Math.floor(status.secondsRemaining));
+}
+
+function formatCountdown(seconds: number) {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+  return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+}
+
+function mtlsTone(status: MTLSTunnelStatus["status"]) {
+  if (status === "active") return "success";
+  if (status === "expiring") return "warning";
+  return "danger";
+}
+
+function deriveGatewayAlerts(peers: PeerNode[]) {
+  return peers.flatMap<GatewayAlert>(peer => {
+    const status = peer.status.toLowerCase();
+    const message = peer.alert
+      || (status.includes("signature") ? "Tunnel signature validation failed." : "")
+      || (status.includes("heartbeat") || status.includes("timeout") ? "Tunnel heartbeat failed." : "")
+      || (status.includes("offline") || status.includes("failed") || status.includes("error") ? "Peer tunnel is reporting a connection failure." : "");
+    return message
+      ? [{
+        id: `${peer.id}-${status}`,
+        peerId: peer.id,
+        message,
+        tone: status.includes("signature") || status.includes("revoked") ? "danger" : "warning",
+      }]
+      : [];
+  });
 }
 
 function mapReplay(raw: unknown): SwarmReplayEvent[] {
@@ -733,27 +824,94 @@ export function SessionFailoverDashboard({
 export function P2PMeshNetworkMap({
   copy,
   peers,
+  revokingPeerId,
+  onRevokePeer,
 }: {
   copy: GovernanceCopy;
   peers: PeerNode[];
+  revokingPeerId: string | null;
+  onRevokePeer: (peer: PeerNode) => void;
 }) {
   return (
     <Surface className="flex flex-col gap-3 p-3 xl:col-span-4" data-testid="p2p-mesh-network-map">
       <h3 className="text-[10px] font-black uppercase tracking-[0.14em] t2">{copy.peers}</h3>
       <div className="overflow-hidden rounded-lg border" style={{ borderColor: "var(--border-c)" }}>
         {peers.map(peer => (
-          <div key={peer.id} className="grid grid-cols-[1fr_auto_auto] items-center gap-2 border-b px-3 py-2 text-[10px] last:border-b-0" style={{ borderColor: "var(--border-c)" }}>
+          <div key={peer.id} className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-2 border-b px-3 py-2 text-[10px] last:border-b-0" style={{ borderColor: "var(--border-c)" }}>
             <div className="min-w-0">
               <p className="truncate font-mono font-semibold t2">{peer.id}</p>
-              <p className="t3">{peer.status}</p>
+              <p className="truncate t3">{peer.status}{peer.certSha ? ` / ${peer.certSha.slice(0, 10)}...` : ""}</p>
             </div>
             <span className="flex items-center gap-1.5 font-mono t2">
               <span className="h-2 w-2 rounded-full" style={{ background: peer.latencyMs < 50 ? "var(--success)" : "var(--warning)" }} />
               {peer.latencyMs}ms
             </span>
             <StatusBadge tone={peer.mtls ? "success" : "warning"}>{peer.mtls ? copy.locked : copy.unlocked}</StatusBadge>
+            <Button
+              onClick={() => onRevokePeer(peer)}
+              disabled={revokingPeerId === peer.id}
+              variant="danger"
+              className="px-2 py-1 text-[10px]"
+            >
+              {revokingPeerId === peer.id ? "Revoking" : "Revoke"}
+            </Button>
           </div>
         ))}
+      </div>
+    </Surface>
+  );
+}
+
+export function MTLSTunnelingStatusPanel({
+  certStatus,
+  countdownSeconds,
+  alerts,
+  rotationLoading,
+  onRotate,
+}: {
+  certStatus: MTLSTunnelStatus;
+  countdownSeconds: number;
+  alerts: GatewayAlert[];
+  rotationLoading: boolean;
+  onRotate: () => void;
+}) {
+  const status = normalizeMTLSStatus(certStatus.status, countdownSeconds);
+  return (
+    <Surface className="flex flex-col gap-3 p-3" data-testid="mtls-tunneling-status-panel">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-[10px] font-black uppercase tracking-[0.14em] t2">mTLS Tunneling Status</h3>
+          <p className="mt-1 text-[10px] t3">Client certificate lifecycle, cross-cloud tunnel trust, and gateway alerts.</p>
+        </div>
+        <StatusBadge tone={mtlsTone(status)}>{status}</StatusBadge>
+      </div>
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+        <div className="rounded-lg border p-3" style={{ borderColor: "var(--border-c)", background: "var(--bg-muted)" }}>
+          <p className="text-[10px] font-bold uppercase tracking-[0.12em] t3">SHA-256 fingerprint</p>
+          <p className="mt-1 break-all font-mono text-[10px] t2">{certStatus.certSha}</p>
+        </div>
+        <div className="rounded-lg border p-3" style={{ borderColor: "var(--border-c)", background: "var(--bg-muted)" }}>
+          <p className="text-[10px] font-bold uppercase tracking-[0.12em] t3">Issued</p>
+          <p className="mt-1 font-mono text-[10px] t2">{certStatus.issuedAt ?? "not reported"}</p>
+          <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.12em] t3">Expires</p>
+          <p className="mt-1 font-mono text-[10px] t2">{certStatus.expiration ?? "not reported"}</p>
+        </div>
+        <div className="rounded-lg border p-3" style={{ borderColor: "var(--border-c)", background: "var(--bg-muted)" }}>
+          <p className="text-[10px] font-bold uppercase tracking-[0.12em] t3">Countdown</p>
+          <p className="mt-1 font-mono text-xl font-semibold t1">{formatCountdown(countdownSeconds)}</p>
+          <Button onClick={onRotate} disabled={rotationLoading} variant="primary" className="mt-3 w-full">
+            {rotationLoading ? "Rotating Keys" : "Force Rotate Keys"}
+          </Button>
+        </div>
+      </div>
+      <div className="rounded-lg border p-3" style={{ borderColor: "var(--border-c)", background: alerts.length > 0 ? "var(--warning-bg)" : "var(--bg-muted)" }}>
+        <p className="mb-2 text-[10px] font-black uppercase tracking-[0.14em] t2">Connection Alerts</p>
+        {alerts.length > 0 ? alerts.map(alert => (
+          <div key={alert.id} className="mb-2 grid grid-cols-[auto_1fr] gap-2 text-[10px] last:mb-0">
+            <StatusBadge tone={alert.tone}>{alert.peerId}</StatusBadge>
+            <span className="t2">{alert.message}</span>
+          </div>
+        )) : <p className="text-[10px] t3">No tunnel heartbeat or signature warnings.</p>}
       </div>
     </Surface>
   );
@@ -1011,6 +1169,11 @@ export function SwarmGovernanceConsole({
   const [sessions, setSessions] = useState<SwarmSession[]>(fallbackSessions);
   const [peers, setPeers] = useState<PeerNode[]>(fallbackPeers);
   const [billing, setBilling] = useState<BillingStatus>(fallbackBilling);
+  const [mtlsStatus, setMTLSStatus] = useState<MTLSTunnelStatus>(fallbackMTLSStatus);
+  const [nowMs, setNowMs] = useState(Date.now());
+  const [rotationLoading, setRotationLoading] = useState(false);
+  const [revokingPeerId, setRevokingPeerId] = useState<string | null>(null);
+  const [socketAlerts, setSocketAlerts] = useState<GatewayAlert[]>([]);
   const [loading, setLoading] = useState(false);
   const [resumeLoading, setResumeLoading] = useState<string | null>(null);
   const [policyLoading, setPolicyLoading] = useState(false);
@@ -1023,6 +1186,11 @@ export function SwarmGovernanceConsole({
   const [proofModalOpen, setProofModalOpen] = useState(false);
 
   const groupedNodes = useMemo(() => groupNodesByRole(nodes), [nodes]);
+  const countdownSeconds = useMemo(() => secondsUntil(mtlsStatus, nowMs), [mtlsStatus, nowMs]);
+  const gatewayAlerts = useMemo(() => [
+    ...deriveGatewayAlerts(peers),
+    ...socketAlerts,
+  ].slice(0, 5), [peers, socketAlerts]);
 
   const applyTelemetryPayload = useCallback((raw: unknown) => {
     const telemetry = mapTelemetry(raw);
@@ -1048,12 +1216,13 @@ export function SwarmGovernanceConsole({
 
   const loadGovernanceData = useCallback(async () => {
     setLoading(true);
-    const [nodeResult, healthResult, sessionResult, peerResult, billingResult] = await Promise.allSettled([
+    const [nodeResult, healthResult, sessionResult, peerResult, billingResult, mtlsResult] = await Promise.allSettled([
       fetchJson<unknown>(apiUrl("/v1/swarm/nodes")),
       fetchJson<unknown>(apiUrl("/v1/swarm/health")),
       fetchJson<unknown>(apiUrl("/v1/swarm/sessions")),
       fetchJson<unknown>(apiUrl("/v1/swarm/peers")),
       fetchJson<unknown>(apiUrl("/v1/swarm/billing/status")),
+      fetchJson<unknown>(apiUrl("/v1/cross-cloud/cert/status")),
     ]);
 
     let usedFallback = false;
@@ -1091,6 +1260,12 @@ export function SwarmGovernanceConsole({
       usedFallback = true;
       setBilling(fallbackBilling);
     }
+    if (mtlsResult.status === "fulfilled") {
+      setMTLSStatus(mapMTLSStatus(mtlsResult.value));
+    } else {
+      usedFallback = true;
+      setMTLSStatus(fallbackMTLSStatus);
+    }
     setLoading(false);
     onStatus(usedFallback ? copy.offline : copy.loaded, usedFallback ? "warning" : "success");
   }, [copy.loaded, copy.offline, onStatus]);
@@ -1098,6 +1273,11 @@ export function SwarmGovernanceConsole({
   useEffect(() => {
     void loadGovernanceData();
   }, [loadGovernanceData]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNowMs(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     let closed = false;
@@ -1115,6 +1295,12 @@ export function SwarmGovernanceConsole({
       };
       socket.onclose = () => {
         if (!closed) {
+          setSocketAlerts(current => [{
+            id: `telemetry-socket-${Date.now()}`,
+            peerId: "telemetry-ws",
+            message: "Telemetry tunnel heartbeat closed; reconnect scheduled.",
+            tone: "warning",
+          }, ...current].slice(0, 3));
           reconnectTimer = window.setTimeout(connect, 5000);
         }
       };
@@ -1173,6 +1359,46 @@ export function SwarmGovernanceConsole({
       onStatus(`${copy.actionFailed}: ${error instanceof Error ? error.message : String(error)}`, "danger");
     } finally {
       setPolicyLoading(false);
+    }
+  }
+
+  async function rotateKeys() {
+    setRotationLoading(true);
+    try {
+      const raw = await fetchJson<unknown>(apiUrl("/v1/cross-cloud/cert/rotate"), { method: "POST" });
+      setMTLSStatus(mapMTLSStatus(raw));
+      setNowMs(Date.now());
+      setSocketAlerts(current => current.filter(alert => alert.peerId !== "cert-rotation"));
+      onStatus("mTLS client certificate rotated.", "success");
+    } catch (error) {
+      onStatus(`${copy.actionFailed}: ${error instanceof Error ? error.message : String(error)}`, "danger");
+    } finally {
+      setRotationLoading(false);
+    }
+  }
+
+  async function revokePeer(peer: PeerNode) {
+    setRevokingPeerId(peer.id);
+    try {
+      await fetchJson<unknown>(apiUrl("/v1/cross-cloud/revoke"), {
+        method: "POST",
+        body: JSON.stringify({
+          cloud_name: peer.cloudName ?? peer.id,
+          client_cert_sha: peer.certSha,
+        }),
+      });
+      setPeers(current => current.filter(item => item.id !== peer.id));
+      setSocketAlerts(current => [{
+        id: `revoked-${peer.id}-${Date.now()}`,
+        peerId: peer.id,
+        message: "Peer cloud gateway revoked and removed from the local mesh view.",
+        tone: "warning",
+      }, ...current].slice(0, 3));
+      onStatus(`${peer.id}: cross-cloud gateway revoked.`, "success");
+    } catch (error) {
+      onStatus(`${copy.actionFailed}: ${error instanceof Error ? error.message : String(error)}`, "danger");
+    } finally {
+      setRevokingPeerId(null);
     }
   }
 
@@ -1259,10 +1485,22 @@ export function SwarmGovernanceConsole({
           resumeLoading={resumeLoading}
           onResume={resumeSession}
         />
-        <P2PMeshNetworkMap copy={copy} peers={peers} />
+        <P2PMeshNetworkMap
+          copy={copy}
+          peers={peers}
+          revokingPeerId={revokingPeerId}
+          onRevokePeer={revokePeer}
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <MTLSTunnelingStatusPanel
+          certStatus={mtlsStatus}
+          countdownSeconds={countdownSeconds}
+          alerts={gatewayAlerts}
+          rotationLoading={rotationLoading}
+          onRotate={rotateKeys}
+        />
         <BillingPolicyControls
           copy={copy}
           billing={billing}
