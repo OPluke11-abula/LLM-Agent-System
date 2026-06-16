@@ -3,6 +3,8 @@ import { join, resolve } from "node:path";
 
 const componentPath = resolve("src", "components", "SwarmGovernanceConsole.tsx");
 const componentSource = readFileSync(componentPath, "utf8");
+const calibrationPath = resolve("src", "components", "PromptCalibrationDashboard.tsx");
+const calibrationSource = readFileSync(calibrationPath, "utf8");
 
 const requiredExports = [
   "SwarmNodeMonitor",
@@ -22,9 +24,15 @@ const requiredEndpoints = [
   "/v1/swarm/peers",
   "/v1/swarm/billing/status",
   "/v1/swarm/billing/policy",
+  "/v1/swarm/telemetry/ws",
   "/v1/swarm/replays/",
   "/v1/audit/proof/",
   "/v1/audit/verify-proof",
+];
+
+const requiredCalibrationEndpoints = [
+  "/v1/swarm/governance/rules",
+  "/v1/swarm/governance/vote",
 ];
 
 const offlineRenderMarkers = [
@@ -53,6 +61,14 @@ for (const exportName of requiredExports) {
 
 for (const endpoint of requiredEndpoints) {
   assertIncludes(componentSource, endpoint, "API endpoint");
+}
+
+for (const endpoint of requiredCalibrationEndpoints) {
+  assertIncludes(calibrationSource, endpoint, "calibration API endpoint");
+}
+
+for (const token of ["generateMemberSignature", "payload_hash", "VALIDATOR_CREDENTIALS"]) {
+  assertIncludes(calibrationSource, token, "cryptographic vote binding");
 }
 
 for (const marker of offlineRenderMarkers) {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Button, StatusBadge, Surface, toneForStatus } from "./ui/primitives";
+import { Button, ProgressBar, StatusBadge, Surface, toneForStatus } from "./ui/primitives";
 import type { Lang } from "../types";
 
 type Tone = "success" | "warning" | "danger";
@@ -9,6 +9,7 @@ type VoteState = {
   node: string;
   role: string;
   vote: "approve" | "reject" | "pending";
+  signature?: string;
 };
 
 type GovernanceProposal = {
@@ -17,6 +18,7 @@ type GovernanceProposal = {
   category: string;
   status: string;
   summary: string;
+  payloadHash: string;
   votes: VoteState[];
 };
 
@@ -172,6 +174,7 @@ const fallbackProposals: GovernanceProposal[] = [
     category: "prompt calibration",
     status: "pending",
     summary: "Increase instruction weight for workspace-bound file operations after repeated sandbox denials.",
+    payloadHash: "fallback-payload-hash-184",
     votes: [
       { node: "CEO", role: "strategy", vote: "approve" },
       { node: "CTO", role: "architecture", vote: "approve" },
@@ -185,6 +188,7 @@ const fallbackProposals: GovernanceProposal[] = [
     category: "rule update",
     status: "pending",
     summary: "Prefer low-cost tiers after quota pressure crosses the 90 percent alert boundary.",
+    payloadHash: "fallback-payload-hash-221",
     votes: [
       { node: "CEO", role: "strategy", vote: "approve" },
       { node: "CTO", role: "architecture", vote: "pending" },
@@ -192,6 +196,23 @@ const fallbackProposals: GovernanceProposal[] = [
       { node: "CFO", role: "budget", vote: "approve" },
     ],
   },
+];
+
+const API_BASE_URL = "http://localhost:8000";
+const ADMIN_API_KEY = "key-admin";
+const VALIDATOR_SECRETS: Record<string, string> = {
+  ceo: "poc-secret-ceo-key-92834",
+  cto: "poc-secret-cto-key-83749",
+  dev: "poc-secret-dev-key-10293",
+  qa: "poc-secret-qa-key-58291",
+  cfo: "poc-secret-cfo-key-47284",
+};
+const VALIDATOR_CREDENTIALS = [
+  { role: "ceo", label: "CEO", credential: "sha256:ceo-92834" },
+  { role: "cto", label: "CTO", credential: "sha256:cto-83749" },
+  { role: "dev", label: "Developer", credential: "sha256:dev-10293" },
+  { role: "qa", label: "QA", credential: "sha256:qa-58291" },
+  { role: "cfo", label: "CFO", credential: "sha256:cfo-47284" },
 ];
 
 const fallbackRules: PromptRule[] = [
@@ -262,7 +283,7 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     headers: {
       "Content-Type": "application/json",
-      "x-api-key": "key-admin",
+      "x-api-key": ADMIN_API_KEY,
       ...(options?.headers ?? {}),
     },
     ...options,
@@ -273,6 +294,10 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+function apiUrl(path: string) {
+  return `${API_BASE_URL}${path}`;
+}
+
 function mapVote(value: unknown): VoteState {
   const record = asRecord(value);
   const vote = asString(record.vote ?? record.choice, "pending").toLowerCase();
@@ -280,26 +305,62 @@ function mapVote(value: unknown): VoteState {
     node: asString(record.node ?? record.agent ?? record.node_id, "Agent"),
     role: asString(record.role, "cluster"),
     vote: vote === "approve" || vote === "reject" ? vote : "pending",
+    signature: asString(record.signature, ""),
   };
 }
 
+function mapVotes(raw: unknown): VoteState[] {
+  const arrayVotes = readArray(raw, ["votes"]);
+  if (arrayVotes.length > 0) return arrayVotes.map(mapVote);
+  const record = asRecord(raw);
+  return Object.entries(record).map(([role, value]) => {
+    const vote = String(value).toLowerCase();
+    return {
+      node: role.toUpperCase(),
+      role,
+      vote: vote === "approve" || vote === "reject" ? vote : "pending",
+    };
+  });
+}
+
 function mapProposals(raw: unknown): GovernanceProposal[] {
-  return readArray(raw, ["proposals", "pending"]).map((item, index) => {
+  const record = asRecord(raw);
+  let items = readArray(raw, ["proposals", "pending"]);
+  if (items.length === 0) {
+    const proposalRecord = asRecord(record.proposals ?? record.pending ?? raw);
+    items = Object.values(proposalRecord);
+  }
+  return items.map((item, index) => {
     const record = asRecord(item);
-    const votes = readArray(record.votes, ["votes"]).map(mapVote);
+    const votes = mapVotes(record.votes);
+    const ruleText = asString(record.rule_text ?? record.ruleText, "");
     return {
       id: asString(record.id ?? record.proposal_id, `proposal-${index + 1}`),
-      title: asString(record.title, "Governance proposal"),
-      category: asString(record.category ?? record.type, "governance"),
+      title: asString(record.title ?? record.rule_type, "Governance proposal"),
+      category: asString(record.category ?? record.type ?? record.rule_type, "governance"),
       status: asString(record.status, "pending"),
-      summary: asString(record.summary ?? record.description, ""),
+      summary: asString(record.summary ?? record.description ?? ruleText, ""),
+      payloadHash: asString(record.payload_hash ?? record.payloadHash, ""),
       votes: votes.length > 0 ? votes : fallbackProposals[0].votes,
     };
   });
 }
 
 function mapRules(raw: unknown): PromptRule[] {
-  return readArray(raw, ["rules", "data"]).map((item, index) => {
+  const record = asRecord(raw);
+  let items = readArray(raw, ["rules", "data", "active_rules"]);
+  if (items.length === 0) items = readArray(record.active_rules, ["active_rules"]);
+  return items.map((item, index) => {
+    if (typeof item === "string") {
+      return {
+        id: `active-rule-${index + 1}`,
+        category: "Consensus",
+        title: `Consensus Rule ${index + 1}`,
+        before: "",
+        after: item,
+        weight: 1,
+      };
+    }
     const record = asRecord(item);
     return {
       id: asString(record.id ?? record.rule_id, `rule-${index + 1}`),
@@ -310,6 +371,22 @@ function mapRules(raw: unknown): PromptRule[] {
       weight: asNumber(record.weight ?? record.instruction_weight, 0),
     };
   });
+}
+
+async function sha256Hex(input: string) {
+  const buffer = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));
+  return Array.from(new Uint8Array(buffer)).map(byte => byte.toString(16).padStart(2, "0")).join("");
+}
+
+async function proposalPayloadHash(proposal: GovernanceProposal) {
+  if (proposal.payloadHash) return proposal.payloadHash;
+  return sha256Hex(`${proposal.id}:${proposal.title}:${proposal.summary}`);
+}
+
+async function generateMemberSignature(role: string, payloadHash: string) {
+  const normalizedRole = role.toLowerCase();
+  const secret = VALIDATOR_SECRETS[normalizedRole] ?? "poc-secret-fallback";
+  return sha256Hex(`${normalizedRole}:${payloadHash}:${secret}`);
 }
 
 function mapLogs(raw: unknown): CalibrationLog[] {
@@ -376,38 +453,45 @@ export function PromptCalibrationDashboard({
   const [anomalies, setAnomalies] = useState<AnomalyEvent[]>(fallbackAnomalies);
   const [selectedProposalId, setSelectedProposalId] = useState(fallbackProposals[0].id);
   const [selectedRuleId, setSelectedRuleId] = useState(fallbackRules[0].id);
+  const [selectedValidatorRole, setSelectedValidatorRole] = useState("dev");
   const [voteLoading, setVoteLoading] = useState<VoteChoice | null>(null);
 
   const selectedProposal = proposals.find(proposal => proposal.id === selectedProposalId) ?? proposals[0];
   const selectedRule = rules.find(rule => rule.id === selectedRuleId) ?? rules[0];
   const diff = useMemo(() => changedLines(selectedRule.before, selectedRule.after), [selectedRule]);
+  const voteTotals = useMemo(() => {
+    const total = Math.max(VALIDATOR_CREDENTIALS.length, selectedProposal.votes.length, 1);
+    const approved = selectedProposal.votes.filter(vote => vote.vote === "approve").length;
+    const rejected = selectedProposal.votes.filter(vote => vote.vote === "reject").length;
+    return {
+      approved,
+      rejected,
+      pending: Math.max(0, total - approved - rejected),
+      approvePercent: (approved / total) * 100,
+      rejectPercent: (rejected / total) * 100,
+    };
+  }, [selectedProposal.votes]);
 
   const loadCalibrationData = useCallback(async () => {
-    const [proposalResult, rulesResult, anomalyResult] = await Promise.allSettled([
-      fetchJson<unknown>("http://localhost:8000/v1/swarm/governance/proposals"),
-      fetchJson<unknown>("http://localhost:8000/v1/swarm/governance/rules"),
-      fetchJson<unknown>("http://localhost:8000/v1/audit/logs"),
+    const [rulesResult, anomalyResult] = await Promise.allSettled([
+      fetchJson<unknown>(apiUrl("/v1/swarm/governance/rules")),
+      fetchJson<unknown>(apiUrl("/v1/audit/logs")),
     ]);
 
     let usedFallback = false;
-    if (proposalResult.status === "fulfilled") {
-      const nextProposals = mapProposals(proposalResult.value);
-      setProposals(nextProposals.length > 0 ? nextProposals : fallbackProposals);
-      setSelectedProposalId((nextProposals[0] ?? fallbackProposals[0]).id);
-    } else {
-      usedFallback = true;
-      setProposals(fallbackProposals);
-    }
-
     if (rulesResult.status === "fulfilled") {
       const record = asRecord(rulesResult.value);
+      const nextProposals = mapProposals(rulesResult.value);
       const nextRules = mapRules(rulesResult.value);
       const nextLogs = mapLogs(record.logs ?? record.calibrations ?? rulesResult.value);
+      setProposals(nextProposals.length > 0 ? nextProposals : fallbackProposals);
       setRules(nextRules.length > 0 ? nextRules : fallbackRules);
       setLogs(nextLogs.length > 0 ? nextLogs : fallbackLogs);
+      setSelectedProposalId((nextProposals[0] ?? fallbackProposals[0]).id);
       setSelectedRuleId((nextRules[0] ?? fallbackRules[0]).id);
     } else {
       usedFallback = true;
+      setProposals(fallbackProposals);
       setRules(fallbackRules);
       setLogs(fallbackLogs);
     }
@@ -431,13 +515,18 @@ export function PromptCalibrationDashboard({
     if (!selectedProposal) return;
     setVoteLoading(choice);
     try {
-      await fetchJson<unknown>("http://localhost:8000/v1/swarm/governance/vote", {
+      const role = selectedValidatorRole.toLowerCase();
+      const payloadHash = await proposalPayloadHash(selectedProposal);
+      const signature = await generateMemberSignature(role, payloadHash);
+      await fetchJson<unknown>(apiUrl("/v1/swarm/governance/vote"), {
         method: "POST",
         body: JSON.stringify({
           proposal_id: selectedProposal.id,
+          role,
           vote: choice,
-          node_id: "operator-console",
-          signature: "operator-console-signed-vote",
+          payload_hash: payloadHash,
+          signature,
+          nonce: `${Date.now()}`,
         }),
       });
       onStatus(copy.voteSent);
@@ -445,11 +534,12 @@ export function PromptCalibrationDashboard({
         ? {
           ...proposal,
           votes: [
-            ...proposal.votes.filter(vote => vote.node !== "Operator"),
-            { node: "Operator", role: "current", vote: choice },
+            ...proposal.votes.filter(vote => vote.role.toLowerCase() !== role),
+            { node: role.toUpperCase(), role, vote: choice, signature },
           ],
         }
         : proposal));
+      void loadCalibrationData();
     } catch (error) {
       onStatus(`${copy.actionFailed}: ${error instanceof Error ? error.message : String(error)}`, "danger");
     } finally {
@@ -508,19 +598,56 @@ export function PromptCalibrationDashboard({
 
         <Surface className="flex flex-col gap-3 p-3 xl:col-span-4">
           <h3 className="text-[10px] font-black uppercase tracking-[0.14em] t2">Consensus Voting Progress</h3>
+          <div className="grid grid-cols-1 gap-2 rounded-lg border p-3" style={{ borderColor: "var(--border-c)", background: "var(--bg-muted)" }}>
+            <div>
+              <div className="mb-1 flex items-center justify-between font-mono text-[10px] t3">
+                <span>Approve {voteTotals.approved}</span>
+                <span>{voteTotals.approvePercent.toFixed(0)}%</span>
+              </div>
+              <ProgressBar value={voteTotals.approvePercent} tone="success" />
+            </div>
+            <div>
+              <div className="mb-1 flex items-center justify-between font-mono text-[10px] t3">
+                <span>Reject {voteTotals.rejected}</span>
+                <span>{voteTotals.rejectPercent.toFixed(0)}%</span>
+              </div>
+              <ProgressBar value={voteTotals.rejectPercent} tone="danger" />
+            </div>
+            <p className="font-mono text-[10px] t3">{copy.pending} {voteTotals.pending}</p>
+          </div>
           <div className="grid grid-cols-1 gap-2">
             {selectedProposal.votes.map(vote => (
               <div key={`${selectedProposal.id}-${vote.node}`} className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-lg border p-2" style={{ borderColor: "var(--border-c)" }}>
                 <div className="min-w-0">
                   <p className="truncate font-mono text-xs font-semibold t1">{vote.node}</p>
                   <p className="text-[10px] t3">{vote.role}</p>
+                  {vote.signature && <p className="truncate font-mono text-[9px] t3">{vote.signature.slice(0, 18)}...</p>}
                 </div>
                 <StatusBadge tone={voteTone(vote.vote)}>{vote.vote === "pending" ? copy.pending : vote.vote}</StatusBadge>
               </div>
             ))}
           </div>
+          <div className="grid grid-cols-1 gap-1.5">
+            {VALIDATOR_CREDENTIALS.map(credential => (
+              <Button
+                key={credential.role}
+                type="button"
+                onClick={() => setSelectedValidatorRole(credential.role)}
+                variant="quiet"
+                className="grid grid-cols-[1fr_auto] gap-2 px-2 py-1.5 text-left"
+                style={{
+                  borderColor: selectedValidatorRole === credential.role ? "var(--accent)" : "var(--border-c)",
+                  background: selectedValidatorRole === credential.role ? "var(--accent-bg)" : "transparent",
+                }}
+              >
+                <span className="font-mono text-[10px] font-semibold t2">{credential.label}</span>
+                <span className="font-mono text-[9px] t3">{credential.credential}</span>
+              </Button>
+            ))}
+          </div>
           <div className="mt-auto rounded-lg border p-3" style={{ borderColor: "var(--border-c)", background: "var(--bg-muted)" }}>
             <p className="text-[10px] font-bold uppercase tracking-[0.12em] t3">{selectedProposal.id}</p>
+            <p className="mt-1 truncate font-mono text-[10px] t3">{selectedProposal.payloadHash || "payload hash pending"}</p>
             <p className="mt-1 text-xs t2">{selectedProposal.summary}</p>
           </div>
         </Surface>

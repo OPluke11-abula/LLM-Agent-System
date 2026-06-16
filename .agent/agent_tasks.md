@@ -96,14 +96,14 @@
 ## 🌐 PHASE 57 — Swarm Operations Console & Dynamic Governance UI Integration / 群落運維控制台與動態治理 UI 整合
 
 ### 57-01 Backend Telemetry & Security Sockets
-- [ ] **[Backend Programmer]** Expose real-time telemetry streaming over secure WebSockets `/v1/swarm/telemetry/ws` for container CPU/Memory, latency metrics, and API costs / 透過安全的 WebSockets `/v1/swarm/telemetry/ws` 暴露即時容器 CPU/記憶體、延遲指標與 API 成本的遙測串流。
-- [ ] **[Backend Programmer]** Integrate backend validation checks on `/v1/swarm/governance/vote` to reject votes from unregistered keys or invalid nonces / 在 `/v1/swarm/governance/vote` 中整合後端驗證，拒絕未註冊金鑰或無效 nonce 的投票。
-- [ ] **[Backend Programmer]** Expand the Merkle/ZK proof database endpoints to output complete cryptographic proof paths for specific SOC2 audit logs / 擴展 Merkle/ZK 證明資料庫端點，為特定 SOC2 審計日誌輸出完整的密碼學證明路徑。
+- [x] **[Backend Programmer]** Expose real-time telemetry streaming over secure WebSockets `/v1/swarm/telemetry/ws` for container CPU/Memory, latency metrics, and API costs / 透過安全的 WebSockets `/v1/swarm/telemetry/ws` 暴露即時容器 CPU/記憶體、延遲指標與 API 成本的遙測串流。
+- [x] **[Backend Programmer]** Integrate backend validation checks on `/v1/swarm/governance/vote` to reject votes from unregistered keys or invalid nonces / 在 `/v1/swarm/governance/vote` 中整合後端驗證，拒絕未註冊金鑰或無效 nonce 的投票。
+- [x] **[Backend Programmer]** Expand the Merkle/ZK proof database endpoints to output complete cryptographic proof paths for specific SOC2 audit logs / 擴展 Merkle/ZK 證明資料庫端點，為特定 SOC2 審計日誌輸出完整的密碼學證明路徑。
 
 ### 57-02 Frontend Dashboard Bindings & Client Signatures
-- [ ] **[Frontend Programmer]** Bind the `SwarmNodeMonitor` and `P2PMeshNetworkMap` panels to actual WebSocket streams, rendering active telemetry data instead of mock counters / 將 `SwarmNodeMonitor` 與 `P2PMeshNetworkMap` 面板綁定至真實的 WebSocket 串流，渲染即時遙測數據以取代 Mock 計數器。
-- [ ] **[Frontend Programmer]** Implement active form bindings for `/v1/swarm/governance/vote` inside the governance dashboard, handling cryptographic signature generation on the client side / 在治理儀表板中實作 `/v1/swarm/governance/vote` 的真實表單綁定，並在前端處理密碼學簽章生成。
-- [ ] **[Frontend Programmer]** Connect `CryptographicProofInspector` modal to fetch real ZK proofs and render node-edge path verifications / 連接 `CryptographicProofInspector` 彈窗，以獲取真實的 ZK 證明並渲染節點與邊路徑驗證。
+- [x] **[Frontend Programmer]** Bind the `SwarmNodeMonitor` and `P2PMeshNetworkMap` panels to actual WebSocket streams, rendering active telemetry data instead of mock counters / 將 `SwarmNodeMonitor` 與 `P2PMeshNetworkMap` 面板綁定至真實的 WebSocket 串流，渲染即時遙測數據以取代 Mock 計數器。
+- [x] **[Frontend Programmer]** Implement active form bindings for `/v1/swarm/governance/vote` inside the governance dashboard, handling cryptographic signature generation on the client side / 在治理儀表板中實作 `/v1/swarm/governance/vote` 的真實表單綁定，並在前端處理密碼學簽章生成。
+- [x] **[Frontend Programmer]** Connect `CryptographicProofInspector` modal to fetch real ZK proofs and render node-edge path verifications / 連接 `CryptographicProofInspector` 彈窗，以獲取真實的 ZK 證明並渲染節點與邊路徑驗證。
 
 ---
 
@@ -149,7 +149,7 @@
 | **Phase 54** | 4 tasks | 4 tasks | 100% Done |
 | **Phase 55** | 3 tasks | 3 tasks | 100% Done |
 | **Phase 56** | 6 tasks | 6 tasks | 100% Done |
-| **Phase 57** | 6 tasks | 0 tasks | 0% Done |
+| **Phase 57** | 6 tasks | 6 tasks | 100% Done |
 | **Phase 58** | 6 tasks | 0 tasks | 0% Done |
 
 *This queue is managed dynamically by the active LAS Developer Agent. All task updates, outcome logs, and progress status updates are written directly to this file before turn conclusion.*

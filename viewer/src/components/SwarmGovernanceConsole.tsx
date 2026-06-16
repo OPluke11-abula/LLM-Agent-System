@@ -21,6 +21,9 @@ type SwarmNode = {
   role: string;
   status: string;
   taskLoad: number;
+  cpuPercent?: number;
+  memoryMb?: number;
+  apiCostUsd?: number;
 };
 
 type HealthLog = {
@@ -57,9 +60,11 @@ type BillingPolicy = "strict_limit" | "auto_downscale";
 
 type AuditProof = {
   eventId: string;
-  merkleProof: string[];
+  eventHash: string;
+  merkleProof: Array<{ hash: string; position: string }>;
   zkKeys: string[];
   root: string;
+  zkProof?: Record<string, unknown> | null;
 };
 
 type ProofValidation = {
@@ -371,11 +376,25 @@ function readArray(value: unknown, keys: string[]) {
   return [];
 }
 
+const API_BASE_URL = "http://localhost:8000";
+const ADMIN_API_KEY = "key-admin";
+
+function apiUrl(path: string) {
+  return `${API_BASE_URL}${path}`;
+}
+
+function wsUrl(path: string) {
+  const url = new URL(path, API_BASE_URL);
+  url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+  url.searchParams.set("api_key", ADMIN_API_KEY);
+  return url.toString();
+}
+
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     headers: {
       "Content-Type": "application/json",
-      "x-api-key": "key-admin",
+      "x-api-key": ADMIN_API_KEY,
       ...(options?.headers ?? {}),
     },
     ...options,
@@ -390,11 +409,17 @@ function mapNodes(raw: unknown): SwarmNode[] {
   const items = readArray(raw, ["nodes", "data"]);
   return items.map((item, index) => {
     const record = asRecord(item);
+    const cpuPercent = asNumber(record.cpu_percent ?? record.cpuPercent, Number.NaN);
+    const memoryMb = asNumber(record.memory_mb ?? record.memoryMb, Number.NaN);
+    const apiCostUsd = asNumber(record.usd_cost ?? record.api_cost_usd ?? record.apiCostUsd, Number.NaN);
     return {
       id: asString(record.id ?? record.node_id, `node-${index + 1}`),
       role: asString(record.role ?? record.service_role, "worker"),
       status: asString(record.status, "idle"),
       taskLoad: asNumber(record.task_load ?? record.load ?? record.current_task_load, 0),
+      cpuPercent: Number.isFinite(cpuPercent) ? cpuPercent : undefined,
+      memoryMb: Number.isFinite(memoryMb) ? memoryMb : undefined,
+      apiCostUsd: Number.isFinite(apiCostUsd) ? apiCostUsd : undefined,
     };
   });
 }
@@ -446,7 +471,7 @@ function mapPeers(raw: unknown): PeerNode[] {
   return items.map((item, index) => {
     const record = asRecord(item);
     return {
-      id: asString(record.id ?? record.peer_id, `peer-${index + 1}`),
+      id: asString(record.id ?? record.peer_id ?? record.node_id, `peer-${index + 1}`),
       latencyMs: asNumber(record.latency_ms ?? record.latency, 0),
       mtls: asBoolean(record.mtls ?? record.secure ?? record.mtls_enabled, false),
       status: asString(record.status, "connected"),
@@ -464,6 +489,87 @@ function mapBilling(raw: unknown): BillingStatus {
     spendUsd: asNumber(data.spend_usd ?? data.spendUsd, fallbackBilling.spendUsd),
     trend: asNumber(data.trend ?? data.spend_trend, fallbackBilling.trend),
     policy,
+  };
+}
+
+function mapTelemetry(raw: unknown) {
+  const record = asRecord(raw);
+  const telemetry = Object.keys(asRecord(record.telemetry)).length > 0 ? asRecord(record.telemetry) : record;
+  const activeRoles = readArray(record.active_roles ?? telemetry.active_roles ?? record.activeRoles ?? telemetry.activeRoles, ["roles"])
+    .map(role => String(role))
+    .filter(Boolean);
+  return {
+    sessionId: asString(record.session_id ?? telemetry.session_id, "global-session"),
+    timestamp: asString(telemetry.timestamp ?? record.timestamp, new Date().toISOString()),
+    cpuPercent: asNumber(telemetry.cpu_percent ?? telemetry.cpuPercent, 0),
+    memoryMb: asNumber(telemetry.memory_mb ?? telemetry.memoryMb, 0),
+    latencyMs: asNumber(telemetry.latency_ms ?? telemetry.latencyMs ?? telemetry.p2p_latency_ms, 0),
+    wsLatencyMs: asNumber(telemetry.ws_latency_ms ?? telemetry.wsLatencyMs, 0),
+    apiCostUsd: asNumber(telemetry.usd_cost ?? telemetry.api_cost_usd ?? telemetry.apiCostUsd, 0),
+    activeRoles,
+  };
+}
+
+function deriveTelemetryNodes(current: SwarmNode[], raw: unknown) {
+  const telemetry = mapTelemetry(raw);
+  const liveNodes = mapNodes(raw);
+  if (liveNodes.length > 0) {
+    return liveNodes.map(node => ({
+      ...node,
+      cpuPercent: node.cpuPercent ?? telemetry.cpuPercent,
+      memoryMb: node.memoryMb ?? telemetry.memoryMb,
+      apiCostUsd: node.apiCostUsd ?? telemetry.apiCostUsd,
+    }));
+  }
+  const roles = telemetry.activeRoles.length > 0
+    ? telemetry.activeRoles
+    : Array.from(new Set(current.map(node => node.role)));
+  const source = current.length > 0
+    ? current
+    : roles.map((role, index) => ({ id: `${role.toLowerCase()}-${index + 1}`, role, status: "active", taskLoad: 0 }));
+  return source.map((node, index) => ({
+    ...node,
+    role: roles.includes(node.role) ? node.role : node.role,
+    status: roles.length === 0 || roles.includes(node.role) ? "active" : node.status,
+    taskLoad: Math.max(node.taskLoad, Math.round(telemetry.cpuPercent)),
+    cpuPercent: telemetry.cpuPercent,
+    memoryMb: telemetry.memoryMb,
+    apiCostUsd: telemetry.apiCostUsd,
+    id: node.id || `${roles[index] ?? "node"}-${index + 1}`,
+  }));
+}
+
+function deriveTelemetryPeers(current: PeerNode[], raw: unknown) {
+  const telemetry = mapTelemetry(raw);
+  const livePeers = mapPeers(raw);
+  if (livePeers.length > 0) return livePeers;
+  const latency = telemetry.wsLatencyMs || telemetry.latencyMs;
+  if (!latency) return current;
+  return current.map(peer => ({ ...peer, latencyMs: latency }));
+}
+
+function mapAuditProof(raw: unknown, fallbackEventId: string): AuditProof {
+  const record = asRecord(raw);
+  const data = Object.keys(asRecord(record.data)).length > 0 ? asRecord(record.data) : record;
+  const proofSteps = readArray(data.merkle_proof ?? data.merkleProof ?? data.proof, ["proof"]).map(item => {
+    const step = asRecord(item);
+    return {
+      hash: asString(step.hash ?? item, String(item)),
+      position: asString(step.position ?? step.direction, "sibling"),
+    };
+  });
+  const zkProof = asRecord(data.zk_proof ?? data.zkProof);
+  const zkKeys = [
+    asString(data.zk_verification_key ?? data.zkVerificationKey, ""),
+    ...Object.entries(zkProof).map(([key, value]) => `${key}:${String(value)}`),
+  ].filter(Boolean);
+  return {
+    eventId: String(data.event_id ?? data.eventId ?? fallbackEventId),
+    eventHash: asString(data.event_hash ?? data.eventHash, ""),
+    merkleProof: proofSteps,
+    zkKeys,
+    root: asString(data.root_hash ?? data.rootHash ?? data.root ?? data.merkle_root, "0x00000000000000000000"),
+    zkProof: Object.keys(zkProof).length > 0 ? zkProof : null,
   };
 }
 
@@ -539,6 +645,9 @@ export function SwarmNodeMonitor({
                     <div className="min-w-0">
                       <p className="truncate font-mono font-semibold t2">{node.id}</p>
                       <ProgressBar value={node.taskLoad} tone={node.taskLoad > 72 ? "warning" : "accent"} className="mt-1" />
+                      <p className="mt-1 truncate font-mono text-[9px] t3">
+                        CPU {node.cpuPercent?.toFixed(1) ?? "--"}% / MEM {node.memoryMb?.toFixed(1) ?? "--"}MB / ${node.apiCostUsd?.toFixed(4) ?? "0.0000"}
+                      </p>
                     </div>
                     <div className="flex flex-col items-end gap-1">
                       <StatusBadge tone={nodeStatusTone(node.status)}>{node.status}</StatusBadge>
@@ -757,7 +866,9 @@ export function CryptographicProofInspector({
       <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
         <div className="min-h-[92px] rounded-lg border p-3" style={{ borderColor: "var(--border-c)", background: "var(--bg-muted)" }}>
           <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] t3">{copy.merkleProof}</p>
-          <p className="break-all font-mono text-[10px] t2">{proof?.merkleProof.join(" / ") || copy.noData}</p>
+          <p className="break-all font-mono text-[10px] t2">
+            {proof?.merkleProof.map(step => `${step.position}:${step.hash}`).join(" / ") || copy.noData}
+          </p>
         </div>
         <div className="min-h-[92px] rounded-lg border p-3" style={{ borderColor: "var(--border-c)", background: "var(--bg-muted)" }}>
           <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] t3">{copy.zkKeys}</p>
@@ -777,7 +888,15 @@ export function CryptographicProofInspector({
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <div className="rounded-lg border p-3" style={{ borderColor: "var(--border-c)", background: "var(--bg-muted)" }}>
                 <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] t3">{copy.merkleProof}</p>
-                <p className="break-all font-mono text-[10px] t2">{proof?.merkleProof.join("\n") || copy.noData}</p>
+                <div className="flex flex-col gap-1">
+                  {proof?.merkleProof.length
+                    ? proof.merkleProof.map((step, index) => (
+                      <div key={`${step.hash}-${index}`} className="rounded border px-2 py-1 font-mono text-[10px] t2" style={{ borderColor: "var(--border-c)" }}>
+                        <span className="font-semibold">{index + 1}. {step.position}</span> {step.hash}
+                      </div>
+                    ))
+                    : <p className="font-mono text-[10px] t2">{copy.noData}</p>}
+                </div>
               </div>
               <div className="rounded-lg border p-3" style={{ borderColor: "var(--border-c)", background: "var(--bg-muted)" }}>
                 <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] t3">{copy.zkKeys}</p>
@@ -905,14 +1024,36 @@ export function SwarmGovernanceConsole({
 
   const groupedNodes = useMemo(() => groupNodesByRole(nodes), [nodes]);
 
+  const applyTelemetryPayload = useCallback((raw: unknown) => {
+    const telemetry = mapTelemetry(raw);
+    setNodes(current => deriveTelemetryNodes(current, raw));
+    setPeers(current => deriveTelemetryPeers(current, raw));
+    setBilling(current => ({
+      ...current,
+      spendUsd: Math.max(current.spendUsd, telemetry.apiCostUsd),
+      trend: telemetry.apiCostUsd > current.spendUsd ? Math.round(((telemetry.apiCostUsd - current.spendUsd) / Math.max(1, current.spendUsd)) * 100) : current.trend,
+    }));
+    const timestamp = telemetry.timestamp.split("T").pop()?.slice(0, 8) ?? "--:--:--";
+    setHealthLogs(current => [
+      {
+        id: `telemetry-${telemetry.timestamp}`,
+        timestamp,
+        nodeId: telemetry.sessionId,
+        message: `Telemetry stream CPU ${telemetry.cpuPercent.toFixed(1)}%, memory ${telemetry.memoryMb.toFixed(1)}MB, latency ${(telemetry.wsLatencyMs || telemetry.latencyMs).toFixed(1)}ms.`,
+        tone: (telemetry.cpuPercent > 85 || (telemetry.wsLatencyMs || telemetry.latencyMs) > 250 ? "warning" : "success") as Tone,
+      },
+      ...current.filter(log => !log.id.startsWith("telemetry-")),
+    ].slice(0, 5));
+  }, []);
+
   const loadGovernanceData = useCallback(async () => {
     setLoading(true);
     const [nodeResult, healthResult, sessionResult, peerResult, billingResult] = await Promise.allSettled([
-      fetchJson<unknown>("http://localhost:8000/v1/swarm/nodes"),
-      fetchJson<unknown>("http://localhost:8000/v1/swarm/health"),
-      fetchJson<unknown>("http://localhost:8000/v1/swarm/sessions"),
-      fetchJson<unknown>("http://localhost:8000/v1/swarm/peers"),
-      fetchJson<unknown>("http://localhost:8000/v1/swarm/billing/status"),
+      fetchJson<unknown>(apiUrl("/v1/swarm/nodes")),
+      fetchJson<unknown>(apiUrl("/v1/swarm/health")),
+      fetchJson<unknown>(apiUrl("/v1/swarm/sessions")),
+      fetchJson<unknown>(apiUrl("/v1/swarm/peers")),
+      fetchJson<unknown>(apiUrl("/v1/swarm/billing/status")),
     ]);
 
     let usedFallback = false;
@@ -958,9 +1099,41 @@ export function SwarmGovernanceConsole({
     void loadGovernanceData();
   }, [loadGovernanceData]);
 
+  useEffect(() => {
+    let closed = false;
+    let socket: WebSocket | null = null;
+    let reconnectTimer: number | undefined;
+
+    function connect() {
+      socket = new WebSocket(wsUrl("/v1/swarm/telemetry/ws"));
+      socket.onmessage = event => {
+        try {
+          applyTelemetryPayload(JSON.parse(event.data) as unknown);
+        } catch (error) {
+          onStatus(`${copy.actionFailed}: ${error instanceof Error ? error.message : String(error)}`, "warning");
+        }
+      };
+      socket.onclose = () => {
+        if (!closed) {
+          reconnectTimer = window.setTimeout(connect, 5000);
+        }
+      };
+      socket.onerror = () => {
+        socket?.close();
+      };
+    }
+
+    connect();
+    return () => {
+      closed = true;
+      if (reconnectTimer !== undefined) window.clearTimeout(reconnectTimer);
+      socket?.close();
+    };
+  }, [applyTelemetryPayload, copy.actionFailed, onStatus]);
+
   async function scaleRole(role: string, direction: "up" | "down") {
     try {
-      await fetchJson<unknown>("http://localhost:8000/v1/swarm/scale", {
+      await fetchJson<unknown>(apiUrl("/v1/swarm/scale"), {
         method: "POST",
         body: JSON.stringify({ role, direction }),
       });
@@ -974,7 +1147,7 @@ export function SwarmGovernanceConsole({
   async function resumeSession(sessionId: string) {
     setResumeLoading(sessionId);
     try {
-      await fetchJson<unknown>("http://localhost:8000/v1/swarm/sessions/resume", {
+      await fetchJson<unknown>(apiUrl("/v1/swarm/sessions/resume"), {
         method: "POST",
         body: JSON.stringify({ session_id: sessionId }),
       });
@@ -991,7 +1164,7 @@ export function SwarmGovernanceConsole({
     setPolicyLoading(true);
     setBilling(current => ({ ...current, policy }));
     try {
-      await fetchJson<unknown>("http://localhost:8000/v1/swarm/billing/policy", {
+      await fetchJson<unknown>(apiUrl("/v1/swarm/billing/policy"), {
         method: "POST",
         body: JSON.stringify({ policy }),
       });
@@ -1008,22 +1181,22 @@ export function SwarmGovernanceConsole({
     setProofLoading(true);
     setProof(null);
     try {
-      const raw = await fetchJson<unknown>(`http://localhost:8000/v1/audit/proof/${encodeURIComponent(proofEventId.trim())}`);
-      const record = asRecord(raw);
-      const data = Object.keys(asRecord(record.data)).length > 0 ? asRecord(record.data) : record;
-      setProof({
-        eventId: asString(data.event_id ?? data.eventId, proofEventId),
-        merkleProof: readArray(data.merkle_proof ?? data.merkleProof, ["proof"]).map(item => String(item)),
-        zkKeys: readArray(data.zk_keys ?? data.zkKeys, ["keys"]).map(item => String(item)),
-        root: asString(data.root ?? data.merkle_root, "0x00000000000000000000"),
-      });
+      const raw = await fetchJson<unknown>(apiUrl(`/v1/audit/proof/${encodeURIComponent(proofEventId.trim())}`));
+      const nextProof = mapAuditProof(raw, proofEventId);
+      setProof(nextProof);
+      setBlockHash(nextProof.eventHash);
       setProofModalOpen(true);
     } catch (error) {
       setProof({
         eventId: proofEventId,
-        merkleProof: ["fallback-sibling-left", "fallback-sibling-right"],
+        eventHash: blockHash.trim(),
+        merkleProof: [
+          { position: "left", hash: "fallback-sibling-left" },
+          { position: "right", hash: "fallback-sibling-right" },
+        ],
         zkKeys: ["local-verifier-key", "session-public-input"],
         root: "fallback-root",
+        zkProof: null,
       });
       setProofModalOpen(true);
       onStatus(`${copy.actionFailed}: ${error instanceof Error ? error.message : String(error)}`, "warning");
@@ -1033,13 +1206,18 @@ export function SwarmGovernanceConsole({
   }
 
   async function verifyProof() {
-    if (!blockHash.trim()) return;
+    if (!proof && !blockHash.trim()) return;
     setValidationLoading(true);
     setValidation(null);
     try {
-      const raw = await fetchJson<unknown>("http://localhost:8000/v1/audit/verify-proof", {
+      const eventHash = blockHash.trim() || proof?.eventHash || "";
+      const raw = await fetchJson<unknown>(apiUrl("/v1/audit/verify-proof"), {
         method: "POST",
-        body: JSON.stringify({ block_hash: blockHash.trim(), event_id: proofEventId.trim() }),
+        body: JSON.stringify({
+          event_hash: eventHash,
+          proof: proof?.merkleProof ?? [],
+          root_hash: proof?.root ?? "",
+        }),
       });
       const record = asRecord(raw);
       const valid = asBoolean(record.valid ?? record.ok, false);
