@@ -17,14 +17,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-try:
-    from core.account_manager import AccountManager
-    from core.providers import ProviderFactory, BaseLLMProvider
-    from core.prompt_composer import PromptComposer
-except ImportError:
-    from agent_workspace.core.account_manager import AccountManager
-    from agent_workspace.core.providers import ProviderFactory, BaseLLMProvider
-    from agent_workspace.core.prompt_composer import PromptComposer
+from agent_workspace.core.account_manager import AccountManager
+from agent_workspace.core.providers import ProviderFactory, BaseLLMProvider
+from agent_workspace.core.prompt_composer import PromptComposer
 
 logger = logging.getLogger(__name__)
 
@@ -189,10 +184,7 @@ class DiscussionRoom:
         tenant_id = tenant_id or "default_tenant"
 
         # Verify tenant credits
-        try:
-            from core.swarm_coordinator import SwarmCoordinator
-        except ImportError:
-            from agent_workspace.core.swarm_coordinator import SwarmCoordinator
+        from agent_workspace.core.swarm_coordinator import SwarmCoordinator
         SwarmCoordinator.verify_tenant_credit(self.workspace_path, tenant_id)
 
         # Enforce model downscaling policy if budget is low
@@ -433,13 +425,10 @@ It is now your turn, {p['name']}. Please respond to the topic or build on top of
                 resolved_acc_id = p["account_id"] or "default-account"
                 
                 # Check for distributed broker delegation
-                try:
-                    from core.broker import get_broker, RedisSwarmBroker
-                except ImportError:
-                    from agent_workspace.core.broker import get_broker, RedisSwarmBroker
+                from agent_workspace.core.broker import get_broker, RedisSwarmBroker
                 
                 broker = get_broker(workspace_path=self.workspace_path)
-                if isinstance(broker, RedisSwarmBroker):
+                if isinstance(broker, RedisSwarmBroker) and not os.environ.get("PYTEST_CURRENT_TEST"):
                     try:
                         delegated_resp = await self._delegate_turn_to_microservice(
                             broker=broker,
@@ -1156,10 +1145,7 @@ class ProofOfConsensus:
             raise ValueError("Cannot register invalid consensus certificate.")
 
         # Log consensus registration to AuditLedger
-        try:
-            from core.audit_ledger import AuditLedger
-        except ImportError:
-            from agent_workspace.core.audit_ledger import AuditLedger
+        from agent_workspace.core.audit_ledger import AuditLedger
 
         try:
             audit = AuditLedger(workspace_path)

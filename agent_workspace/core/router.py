@@ -18,20 +18,9 @@ import jsonschema
 from .engine import AgentEngine
 from .providers import ProviderFactory
 
-try:
-    from long_term_memory import LongTermMemoryStore
-except ImportError:
-    from agent_workspace.long_term_memory import LongTermMemoryStore
-
-try:
-    from observability import ACTIVE_SESSIONS, tracer
-except ImportError:
-    from agent_workspace.observability import ACTIVE_SESSIONS, tracer
-
-try:
-    from core.account_manager import AccountManager
-except ImportError:
-    from agent_workspace.core.account_manager import AccountManager
+from agent_workspace.long_term_memory import LongTermMemoryStore
+from agent_workspace.observability import ACTIVE_SESSIONS, tracer
+from agent_workspace.core.account_manager import AccountManager
 
 
 class ToolValidationError(ValueError):
@@ -330,10 +319,7 @@ class AgentRouter:
         return "standard"
 
     def _get_topology_emitter(self):
-        try:
-            from topology_bridge import TopologyEmitter
-        except ImportError:
-            from agent_workspace.topology_bridge import TopologyEmitter
+        from agent_workspace.topology_bridge import TopologyEmitter
         
         workspace_dir = os.environ.get("AGENT_WORKSPACE_DIR")
         if workspace_dir:
@@ -357,10 +343,7 @@ class AgentRouter:
         }
         ACTIVE_APPROVALS[self.session_id] = req
         
-        try:
-            from topology_bridge import TopologyEvent
-        except ImportError:
-            from agent_workspace.topology_bridge import TopologyEvent
+        from agent_workspace.topology_bridge import TopologyEvent
 
         # Emit awaiting_approval hitl_gate topology event
         try:
@@ -441,10 +424,7 @@ class AgentRouter:
             if not approved:
                 raise ApprovalDeniedError(f"Human approval denied for tool '{tool_name}'")
 
-        try:
-            from observability import get_global_balancer
-        except ImportError:
-            from agent_workspace.observability import get_global_balancer
+        from agent_workspace.observability import get_global_balancer
 
         balancer = get_global_balancer()
         future = balancer.offload(
@@ -577,10 +557,7 @@ class AgentRouter:
             user_level = ROLE_HIERARCHY.get(user_role, 1)
             req_level = ROLE_HIERARCHY.get(required_role, 1)
             if user_level < req_level:
-                try:
-                    from topology_bridge import TopologyEvent
-                except ImportError:
-                    from agent_workspace.topology_bridge import TopologyEvent
+                from agent_workspace.topology_bridge import TopologyEvent
                 
                 try:
                     emitter = self._get_topology_emitter()
@@ -693,10 +670,7 @@ class AgentRouter:
         tenant_id = tenant_id or "default_tenant"
 
         # Verify tenant credits
-        try:
-            from core.swarm_coordinator import SwarmCoordinator
-        except ImportError:
-            from agent_workspace.core.swarm_coordinator import SwarmCoordinator
+        from agent_workspace.core.swarm_coordinator import SwarmCoordinator
 
         SwarmCoordinator.verify_tenant_credit(self.engine.workspace_path, tenant_id)
 
@@ -950,10 +924,7 @@ class AgentRouter:
                 ACTIVE_SESSIONS.dec()
 
                 if hasattr(self, "_resolved_account") and self._resolved_account:
-                    try:
-                        from observability import get_cost_router
-                    except ImportError:
-                        from agent_workspace.observability import get_cost_router
+                    from agent_workspace.observability import get_cost_router
                     get_cost_router().record_latency(self._resolved_account["provider"], time.time() - loop_start_time)
 
             return final_response
@@ -1274,10 +1245,7 @@ class AgentRouter:
                 self.engine.increment_turns(self.session_id, f"Session stream turn completed. Input: {user_input[:100]}")
 
                 if hasattr(self, "_resolved_account") and self._resolved_account:
-                    try:
-                        from observability import get_cost_router
-                    except ImportError:
-                        from agent_workspace.observability import get_cost_router
+                    from agent_workspace.observability import get_cost_router
                     get_cost_router().record_latency(self._resolved_account["provider"], time.time() - loop_start_time)
 
             yield {"type": "done", "content": final_response}

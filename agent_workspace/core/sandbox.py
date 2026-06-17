@@ -138,19 +138,13 @@ class SandboxGuard:
         
         # 1. Consensus Verification
         payload_hash = hashlib.sha256(code_content.encode("utf-8")).hexdigest()
-        try:
-            from core.discussion_room import ProofOfConsensus
-        except ImportError:
-            from agent_workspace.core.discussion_room import ProofOfConsensus
+        from agent_workspace.core.discussion_room import ProofOfConsensus
 
         if not ProofOfConsensus.is_consensus_approved(workspace_path, payload_hash):
             cls.blocked_executions += 1
             cls.last_execution_status = "blocked"
             try:
-                try:
-                    from observability import PROMETHEUS_AVAILABLE, _get_or_create_metric
-                except ImportError:
-                    from agent_workspace.observability import PROMETHEUS_AVAILABLE, _get_or_create_metric
+                from agent_workspace.observability import PROMETHEUS_AVAILABLE, _get_or_create_metric
                 if PROMETHEUS_AVAILABLE:
                     from prometheus_client import Counter
                     sandbox_count = _get_or_create_metric(Counter, "las_sandbox_executions_total", "Total sandbox executions", ["tenant_id", "status"])
@@ -268,10 +262,7 @@ class SandboxGuard:
                     cls.last_execution_status = "failed"
                     # Increment Prometheus metric
                     try:
-                        try:
-                            from observability import PROMETHEUS_AVAILABLE, _get_or_create_metric
-                        except ImportError:
-                            from agent_workspace.observability import PROMETHEUS_AVAILABLE, _get_or_create_metric
+                        from agent_workspace.observability import PROMETHEUS_AVAILABLE, _get_or_create_metric
                         if PROMETHEUS_AVAILABLE:
                             from prometheus_client import Counter
                             sandbox_count = _get_or_create_metric(Counter, "las_sandbox_executions_total", "Total sandbox executions", ["tenant_id", "status"])
@@ -297,10 +288,7 @@ class SandboxGuard:
 
             # Increment Prometheus metric
             try:
-                try:
-                    from observability import PROMETHEUS_AVAILABLE, _get_or_create_metric
-                except ImportError:
-                    from agent_workspace.observability import PROMETHEUS_AVAILABLE, _get_or_create_metric
+                from agent_workspace.observability import PROMETHEUS_AVAILABLE, _get_or_create_metric
                 if PROMETHEUS_AVAILABLE:
                     from prometheus_client import Counter
                     sandbox_count = _get_or_create_metric(Counter, "las_sandbox_executions_total", "Total sandbox executions", ["tenant_id", "status"])
@@ -453,10 +441,7 @@ class SandboxGuard:
 
                     # Increment Prometheus metric
                     try:
-                        try:
-                            from observability import PROMETHEUS_AVAILABLE, _get_or_create_metric
-                        except ImportError:
-                            from agent_workspace.observability import PROMETHEUS_AVAILABLE, _get_or_create_metric
+                        from agent_workspace.observability import PROMETHEUS_AVAILABLE, _get_or_create_metric
                         if PROMETHEUS_AVAILABLE:
                             from prometheus_client import Counter
                             sandbox_count = _get_or_create_metric(Counter, "las_sandbox_executions_total", "Total sandbox executions", ["tenant_id", "status"])
@@ -484,10 +469,7 @@ class SandboxGuard:
 
                     # Increment Prometheus metric
                     try:
-                        try:
-                            from observability import PROMETHEUS_AVAILABLE, _get_or_create_metric
-                        except ImportError:
-                            from agent_workspace.observability import PROMETHEUS_AVAILABLE, _get_or_create_metric
+                        from agent_workspace.observability import PROMETHEUS_AVAILABLE, _get_or_create_metric
                         if PROMETHEUS_AVAILABLE:
                             from prometheus_client import Counter
                             sandbox_count = _get_or_create_metric(Counter, "las_sandbox_executions_total", "Total sandbox executions", ["tenant_id", "status"])
@@ -510,10 +492,7 @@ class SandboxGuard:
         except (PermissionError, ValueError) as err:
             # Increment Prometheus metric
             try:
-                try:
-                    from observability import PROMETHEUS_AVAILABLE, _get_or_create_metric
-                except ImportError:
-                    from agent_workspace.observability import PROMETHEUS_AVAILABLE, _get_or_create_metric
+                from agent_workspace.observability import PROMETHEUS_AVAILABLE, _get_or_create_metric
                 if PROMETHEUS_AVAILABLE:
                     from prometheus_client import Counter
                     sandbox_count = _get_or_create_metric(Counter, "las_sandbox_executions_total", "Total sandbox executions", ["tenant_id", "status"])

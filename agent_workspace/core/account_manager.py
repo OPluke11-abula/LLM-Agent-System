@@ -200,10 +200,7 @@ class AccountManager:
         import logging
         logger = logging.getLogger(__name__)
         
-        try:
-            from core.ledger import FinancialLedger
-        except ImportError:
-            from agent_workspace.core.ledger import FinancialLedger
+        from agent_workspace.core.ledger import FinancialLedger
             
         ledger = FinancialLedger(self.workspace_path)
         total_cost = ledger.get_total_cost()
@@ -282,10 +279,7 @@ class AccountManager:
             self._save_accounts(data)
             
             # Record in SQLite financial ledger
-            try:
-                from core.ledger import FinancialLedger
-            except ImportError:
-                from agent_workspace.core.ledger import FinancialLedger
+            from agent_workspace.core.ledger import FinancialLedger
                 
             tenant_id = self.get_session_tenant(session_id) or "default_tenant"
             ledger = FinancialLedger(self.workspace_path)
@@ -329,10 +323,7 @@ class AccountManager:
         if not providers_map:
             return self.get_active_account()
 
-        try:
-            from observability import get_cost_router
-        except ImportError:
-            from agent_workspace.observability import get_cost_router
+        from agent_workspace.observability import get_cost_router
 
         router = get_cost_router()
         optimal_provider = router.select_optimal_provider(task_type, list(providers_map.keys()))

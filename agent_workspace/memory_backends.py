@@ -101,7 +101,7 @@ class SQLiteBackend(MemoryBackend):
     triggers so callers only interact with ``memory_records``.
     """
 
-    _lock = threading.Lock()
+    _lock = threading.RLock()
 
     _DDL = """
     CREATE TABLE IF NOT EXISTS memory_records (
@@ -143,6 +143,7 @@ class SQLiteBackend(MemoryBackend):
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._local = threading.local()
+        self._connections = []
         # Initialise schema on the calling thread's connection.
         self._init_schema()
 
@@ -154,9 +155,22 @@ class SQLiteBackend(MemoryBackend):
             except Exception:
                 pass
             self._local.conn = None
+            with self._lock:
+                if conn in self._connections:
+                    self._connections.remove(conn)
+
+    def close_all(self) -> None:
+        with self._lock:
+            for conn in self._connections:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+            self._connections.clear()
+        self._local.conn = None
 
     def __del__(self) -> None:
-        self.close()
+        self.close_all()
 
     # -- connection-per-thread ------------------------------------------------
 
@@ -167,6 +181,8 @@ class SQLiteBackend(MemoryBackend):
             conn.execute("PRAGMA journal_mode=WAL")
             conn.row_factory = sqlite3.Row
             self._local.conn = conn
+            with self._lock:
+                self._connections.append(conn)
         return conn
 
     def _init_schema(self) -> None:

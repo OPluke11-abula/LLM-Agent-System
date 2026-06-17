@@ -9,15 +9,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-try:
-    from core.merkle import MerkleTree
-except ImportError:
-    from agent_workspace.core.merkle import MerkleTree
+from agent_workspace.core.merkle import MerkleTree
+from agent_workspace.core.broker import get_broker, RedisSwarmBroker
 
-try:
-    from core.broker import get_broker, RedisSwarmBroker
-except ImportError:
-    from agent_workspace.core.broker import get_broker, RedisSwarmBroker
 
 logger = logging.getLogger("AuditLedger")
 
@@ -59,6 +53,14 @@ class AuditLedger:
                         current_hash TEXT NOT NULL,
                         timestamp TEXT NOT NULL,
                         tenant_id TEXT DEFAULT 'default_tenant'
+                    )
+                    """
+                )
+                conn.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS revoked_certificates (
+                        cert_sha TEXT PRIMARY KEY,
+                        revoked_at TIMESTAMP
                     )
                     """
                 )
@@ -368,6 +370,55 @@ class AuditLedger:
         expected_signature = hmac.new(ZK_SECRET_KEY, message.encode("utf-8"), hashlib.sha256).hexdigest()
 
         return hmac.compare_digest(signature, expected_signature)
+
+    def revoke_certificate(self, cert_sha: str) -> None:
+        with self._lock:
+            conn = self._get_conn()
+            try:
+                revoked_at = datetime.now(timezone.utc).isoformat()
+                conn.execute(
+                    "INSERT OR REPLACE INTO revoked_certificates (cert_sha, revoked_at) VALUES (?, ?)",
+                    (cert_sha, revoked_at)
+                )
+                conn.commit()
+            finally:
+                conn.close()
+
+    def reinstate_certificate(self, cert_sha: str) -> None:
+        with self._lock:
+            conn = self._get_conn()
+            try:
+                conn.execute(
+                    "DELETE FROM revoked_certificates WHERE cert_sha = ?",
+                    (cert_sha,)
+                )
+                conn.commit()
+            finally:
+                conn.close()
+
+    def is_certificate_revoked(self, cert_sha: str) -> bool:
+        with self._lock:
+            conn = self._get_conn()
+            try:
+                cursor = conn.execute(
+                    "SELECT 1 FROM revoked_certificates WHERE cert_sha = ?",
+                    (cert_sha,)
+                )
+                return cursor.fetchone() is not None
+            finally:
+                conn.close()
+
+    def get_revoked_certificates(self) -> List[Dict[str, Any]]:
+        with self._lock:
+            conn = self._get_conn()
+            try:
+                cursor = conn.execute("SELECT cert_sha, revoked_at FROM revoked_certificates")
+                return [dict(row) for row in cursor.fetchall()]
+            finally:
+                conn.close()
+
+
+
 
 
 class AuditConsensusDaemon:

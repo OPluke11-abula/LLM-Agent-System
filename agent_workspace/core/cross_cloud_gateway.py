@@ -20,16 +20,27 @@ class CrossCloudGateway:
         self.local_cloud = "LOCAL"
         self.revoked_certs = set()
 
-        try:
-            from core.cert_manager import SwarmCertManager
-        except ImportError:
-            from agent_workspace.core.cert_manager import SwarmCertManager
+        from agent_workspace.core.cert_manager import SwarmCertManager
         self.cert_manager = SwarmCertManager
         self.private_key_pem = None
         self.client_cert_pem = None
         self.cert_expiry = None
         self.cert_sha = None
         self.prev_cert_sha = None
+
+        from agent_workspace.core.audit_ledger import AuditLedger
+        import os
+        workspace_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        self.audit_ledger = AuditLedger(workspace_path)
+        
+        # Load revoked certs from DB into memory set on startup
+        try:
+            db_revoked = self.audit_ledger.get_revoked_certificates()
+            for r in db_revoked:
+                self.revoked_certs.add(r["cert_sha"])
+        except Exception as e:
+            logger.error("[CrossCloudGateway] Failed to load CRL from AuditLedger on startup: %s", e)
+
         self.rotate_certificate()
         
     def register_local_cloud(self, cloud_name: str):
@@ -69,34 +80,55 @@ class CrossCloudGateway:
         except Exception as e:
             logger.error("[CrossCloudGateway] Failed to rotate client certificate: %s", e)
 
-    def validate_handshake(self, client_cert_sha: str, signature: str, payload: str) -> bool:
+    def validate_handshake(self, client_cert: str, signature: str, payload: str) -> bool:
         """
         mTLS routing overlay handshake verification.
         Computes SHA256 of payload + cert to verify signature validity.
         """
-        if not client_cert_sha or not signature:
+        if not client_cert or not signature:
             logger.warning("[CrossCloudGateway] Missing handshake credentials")
             return False
-            
-        if client_cert_sha in self.revoked_certs:
+
+        # Determine if it's PEM or fingerprint
+        if "-----BEGIN CERTIFICATE-----" in client_cert:
+            client_cert_sha = self.cert_manager.get_cert_fingerprint(client_cert)
+            is_pem = True
+        else:
+            client_cert_sha = client_cert
+            is_pem = False
+
+        # First, check if revoked in memory cache or in DB CRL
+        if client_cert_sha in self.revoked_certs or self.audit_ledger.is_certificate_revoked(client_cert_sha):
             logger.warning("[CrossCloudGateway] Revoked certificate handshake attempt: %s", client_cert_sha)
+            self.revoked_certs.add(client_cert_sha)
             return False
 
-        # Support current cert and grace period cert
-        allowed_shas = [self.cert_sha]
-        if self.prev_cert_sha:
-            allowed_shas.append(self.prev_cert_sha)
+        # Verify signature
+        if is_pem:
+            # Try asymmetric verification
+            if self.cert_manager.verify_signature(client_cert, signature, payload):
+                return True
+            logger.warning("[CrossCloudGateway] Asymmetric signature verification failed; trying fallback.")
 
-        # Fallback to verify mathematically anyway (backward compatibility with other peers)
+        # Fallback to verify mathematically anyway (backward compatibility with other peers/legacy format)
         expected_sig = hashlib.sha256(f"{payload}:{client_cert_sha}".encode("utf-8")).hexdigest()
         is_valid = (signature == expected_sig)
         if not is_valid:
             logger.warning("[CrossCloudGateway] Handshake signature mismatch. Got %s, expected %s", signature, expected_sig)
         return is_valid
 
-    def generate_signature(self, client_cert_sha: str, payload: str) -> str:
+    def generate_signature(self, client_cert_or_sha: str, payload: str) -> str:
         """Helper to generate valid signature for tests or client discovery handshakes."""
-        return hashlib.sha256(f"{payload}:{client_cert_sha}".encode("utf-8")).hexdigest()
+        if "-----BEGIN CERTIFICATE-----" in client_cert_or_sha and self.private_key_pem:
+            try:
+                return self.cert_manager.sign_payload(self.private_key_pem, payload)
+            except Exception:
+                pass
+        # Fallback to symmetric SHA-256
+        fingerprint = client_cert_or_sha
+        if "-----BEGIN CERTIFICATE-----" in client_cert_or_sha:
+            fingerprint = self.cert_manager.get_cert_fingerprint(client_cert_or_sha)
+        return hashlib.sha256(f"{payload}:{fingerprint}".encode("utf-8")).hexdigest()
 
     async def discover_peers(self, seed_nodes: list[dict[str, str]], client_cert_sha: str | None = None) -> int:
         """
@@ -111,7 +143,7 @@ class CrossCloudGateway:
                 logger.info("[CrossCloudGateway] Certificate expiring soon or expired. Automating rotation.")
                 self.rotate_certificate()
 
-        cert_sha_to_use = client_cert_sha or self.cert_sha
+        cert_or_sha_to_use = self.client_cert_pem if client_cert_sha is None else client_cert_sha
 
         connected_count = 0
         for node in seed_nodes:
@@ -122,7 +154,7 @@ class CrossCloudGateway:
                 
             # Perform simulated/mock handshake connection to register peer
             payload = f"handshake-from-{self.local_cloud}"
-            sig = self.generate_signature(cert_sha_to_use, payload)
+            sig = self.generate_signature(cert_or_sha_to_use, payload)
             
             # Register in peers
             self.peers[cloud] = {
@@ -130,7 +162,7 @@ class CrossCloudGateway:
                 "status": "connected",
                 "connected_at": datetime.now(timezone.utc).isoformat(),
                 "simulated": True,
-                "cert_sha": cert_sha_to_use
+                "cert_sha": self.cert_manager.get_cert_fingerprint(cert_or_sha_to_use) if "-----BEGIN CERTIFICATE-----" in cert_or_sha_to_use else cert_or_sha_to_use
             }
             self.known_nodes.add(url)
             connected_count += 1

@@ -50,10 +50,7 @@ class LogCompactor:
         # Trigger milestone reflection automatically (Task 21-01)
         try:
             import asyncio
-            try:
-                from core.discussion_room import DiscussionRoom
-            except ImportError:
-                from agent_workspace.core.discussion_room import DiscussionRoom
+            from agent_workspace.core.discussion_room import DiscussionRoom
             
             discussion_room = DiscussionRoom(workspace_path=project_root)
             

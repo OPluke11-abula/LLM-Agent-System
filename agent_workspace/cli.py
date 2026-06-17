@@ -18,19 +18,11 @@ workspace = os.path.dirname(os.path.abspath(__file__))
 if workspace not in sys.path:
     sys.path.insert(0, workspace)
 
-try:
-    from core.engine import AgentEngine
-    from core.router import AgentRouter
-    from core.workflow_engine import WorkflowEngine
-    from long_term_memory import LongTermMemoryStore
-    from pap_validate import validate as run_pap_validate
-except ImportError:
-    # Fallback to local imports if needed
-    from agent_workspace.core.engine import AgentEngine
-    from agent_workspace.core.router import AgentRouter
-    from agent_workspace.core.workflow_engine import WorkflowEngine
-    from agent_workspace.long_term_memory import LongTermMemoryStore
-    from agent_workspace.pap_validate import validate as run_pap_validate
+from agent_workspace.core.engine import AgentEngine
+from agent_workspace.core.router import AgentRouter
+from agent_workspace.core.workflow_engine import WorkflowEngine
+from agent_workspace.long_term_memory import LongTermMemoryStore
+from agent_workspace.pap_validate import validate as run_pap_validate
 
 def handle_list_skills(args):
     """List all registered tools including local and global overrides."""
@@ -451,10 +443,7 @@ def handle_run_debate(args):
     roles = [r.strip() for r in (args.agents or "analyst,programmer,architect").split(",")]
     agents_list = [{"role": r} for r in roles]
     
-    try:
-        from core.discussion_room import DiscussionRoom
-    except ImportError:
-        from agent_workspace.core.discussion_room import DiscussionRoom
+    from agent_workspace.core.discussion_room import DiscussionRoom
         
     room = DiscussionRoom(workspace_path=workspace)
     print(f"Initializing debate on: '{args.topic}'...")

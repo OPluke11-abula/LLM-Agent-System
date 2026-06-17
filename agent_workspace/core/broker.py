@@ -2,7 +2,9 @@ import os
 import json
 import logging
 import asyncio
+import inspect
 from typing import Callable, Any, Optional
+
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +50,7 @@ class InMemorySwarmBroker(BaseSwarmBroker):
             while True:
                 try:
                     msg = await q.get()
-                    if asyncio.iscoroutinefunction(callback):
+                    if inspect.iscoroutinefunction(callback):
                         await callback(msg)
                     else:
                         callback(msg)
@@ -148,7 +150,7 @@ class RedisSwarmBroker(BaseSwarmBroker):
                             cbs = self._subscribers.get(channel, [])
                             for cb in cbs:
                                 try:
-                                    if asyncio.iscoroutinefunction(cb):
+                                    if inspect.iscoroutinefunction(cb):
                                         await cb(data)
                                     else:
                                         cb(data)

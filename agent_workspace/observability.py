@@ -580,10 +580,7 @@ class TelemetryRouter:
             memory_mb = 124.5  # Mock default
 
         usd_cost = 0.0
-        try:
-            from core.ledger import FinancialLedger
-        except ImportError:
-            from agent_workspace.core.ledger import FinancialLedger
+        from agent_workspace.core.ledger import FinancialLedger
             
         try:
             ledger = FinancialLedger(self.workspace_path)

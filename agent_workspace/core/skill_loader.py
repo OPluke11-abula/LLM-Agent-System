@@ -204,10 +204,7 @@ class DynamicSkillSynthesizer:
 
         # Swarm Proof-of-Consensus Signature Verification
         payload_hash = hashlib.sha256(code_content.encode("utf-8")).hexdigest()
-        try:
-            from core.discussion_room import ProofOfConsensus
-        except ImportError:
-            from agent_workspace.core.discussion_room import ProofOfConsensus
+        from agent_workspace.core.discussion_room import ProofOfConsensus
 
         if not ProofOfConsensus.is_consensus_approved(self.workspace_path, payload_hash):
             raise PermissionError("Security violation: dynamic script execution rejected. Swarm signature verification failed.")

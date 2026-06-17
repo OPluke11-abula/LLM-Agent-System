@@ -206,10 +206,7 @@ class AgentCrew:
 
         # Verify tenant credits
         workspace_path = getattr(self, "workspace_path", ".")
-        try:
-            from core.swarm_coordinator import SwarmCoordinator
-        except ImportError:
-            from agent_workspace.core.swarm_coordinator import SwarmCoordinator
+        from agent_workspace.core.swarm_coordinator import SwarmCoordinator
         SwarmCoordinator.verify_tenant_credit(workspace_path, tenant_id)
 
         # Enforce model downscaling policy if budget is low
@@ -251,22 +248,14 @@ class AgentCrew:
         CrewRegistry.update_node_status(self.session_id, node_id, "running")
 
         # Check for distributed broker delegation
-        try:
-            from core.broker import get_broker, RedisSwarmBroker, InMemorySwarmBroker
-            from core.swarm_coordinator import SwarmCoordinator
-            from core.sandbox import FileSnapshotTransaction
-        except ImportError:
-            from agent_workspace.core.broker import get_broker, RedisSwarmBroker, InMemorySwarmBroker
-            from agent_workspace.core.swarm_coordinator import SwarmCoordinator
-            from agent_workspace.core.sandbox import FileSnapshotTransaction
+        from agent_workspace.core.broker import get_broker, RedisSwarmBroker, InMemorySwarmBroker
+        from agent_workspace.core.swarm_coordinator import SwarmCoordinator
+        from agent_workspace.core.sandbox import FileSnapshotTransaction
             
         workspace_path = getattr(self, "workspace_path", ".")
         broker = get_broker()
         
-        try:
-            from core.p2p_router import get_p2p_router
-        except ImportError:
-            from agent_workspace.core.p2p_router import get_p2p_router
+        from agent_workspace.core.p2p_router import get_p2p_router
             
         p2p_router = get_p2p_router()
         has_p2p_peer = any(
@@ -437,10 +426,7 @@ class AgentCrew:
     @staticmethod
     def generate_checkpoint_signature(checkpoint_data: Dict[str, Any], role: str) -> str:
         import hashlib
-        try:
-            from core.discussion_room import ProofOfConsensus
-        except ImportError:
-            from agent_workspace.core.discussion_room import ProofOfConsensus
+        from agent_workspace.core.discussion_room import ProofOfConsensus
             
         data_to_hash = {
             "session_id": checkpoint_data.get("session_id"),
@@ -458,10 +444,7 @@ class AgentCrew:
     @staticmethod
     def verify_checkpoint_signature(checkpoint_data: Dict[str, Any]) -> bool:
         import hashlib
-        try:
-            from core.discussion_room import ProofOfConsensus
-        except ImportError:
-            from agent_workspace.core.discussion_room import ProofOfConsensus
+        from agent_workspace.core.discussion_room import ProofOfConsensus
             
         signature = checkpoint_data.get("signature")
         signer = checkpoint_data.get("signer", "ceo")
@@ -507,10 +490,7 @@ class AgentCrew:
         checkpoint_data["signer"] = signer
 
         redis_key = f"swarm:session:{self.session_id}:checkpoint"
-        try:
-            from core.broker import RedisSwarmBroker
-        except ImportError:
-            from agent_workspace.core.broker import RedisSwarmBroker
+        from agent_workspace.core.broker import RedisSwarmBroker
             
         if hasattr(broker, "kv_store"):
             broker.kv_store[redis_key] = json.dumps(checkpoint_data)
@@ -529,10 +509,7 @@ class AgentCrew:
     async def get_checkpoint(self, broker) -> Optional[Dict[str, Any]]:
         redis_key = f"swarm:session:{self.session_id}:checkpoint"
         data_str = None
-        try:
-            from core.broker import RedisSwarmBroker
-        except ImportError:
-            from agent_workspace.core.broker import RedisSwarmBroker
+        from agent_workspace.core.broker import RedisSwarmBroker
             
         if hasattr(broker, "kv_store"):
             data_str = broker.kv_store.get(redis_key)

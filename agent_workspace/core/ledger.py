@@ -156,10 +156,7 @@ class FinancialLedger:
 
         # Increment Prometheus tenant tokens
         try:
-            try:
-                from observability import PROMETHEUS_AVAILABLE, _get_or_create_metric
-            except ImportError:
-                from agent_workspace.observability import PROMETHEUS_AVAILABLE, _get_or_create_metric
+            from agent_workspace.observability import PROMETHEUS_AVAILABLE, _get_or_create_metric
             if PROMETHEUS_AVAILABLE:
                 from prometheus_client import Counter
                 tenant_tokens = _get_or_create_metric(Counter, "las_tenant_tokens_total", "Total tokens consumed by tenant", ["tenant_id", "token_type"])

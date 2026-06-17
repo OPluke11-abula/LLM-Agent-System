@@ -7,7 +7,7 @@ import hashlib
 from cryptography import x509
 from cryptography.x509.oid import NameOID
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import serialization
 
 class SwarmCertManager:
@@ -77,3 +77,39 @@ class SwarmCertManager:
         except Exception:
             # Fallback to standard string SHA-256 if loading fails for any reason
             return hashlib.sha256(cert_pem.encode("utf-8")).hexdigest()
+
+    @staticmethod
+    def sign_payload(private_key_pem: str, payload: str) -> str:
+        """
+        Signs a string payload using the RSA private key (using PKCS#1 v1.5 padding and SHA-256).
+        Returns the signature in hex.
+        """
+        private_key = serialization.load_pem_private_key(
+            private_key_pem.encode("utf-8"),
+            password=None
+        )
+        signature = private_key.sign(
+            payload.encode("utf-8"),
+            padding.PKCS1v15(),
+            hashes.SHA256()
+        )
+        return signature.hex()
+
+    @staticmethod
+    def verify_signature(cert_pem: str, signature_hex: str, payload: str) -> bool:
+        """
+        Extracts the public key from the certificate PEM and verifies the signature against the payload.
+        """
+        try:
+            cert = x509.load_pem_x509_certificate(cert_pem.encode("utf-8"))
+            public_key = cert.public_key()
+            public_key.verify(
+                bytes.fromhex(signature_hex),
+                payload.encode("utf-8"),
+                padding.PKCS1v15(),
+                hashes.SHA256()
+            )
+            return True
+        except Exception:
+            return False
+

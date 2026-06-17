@@ -159,10 +159,7 @@ class PromptComposer:
         memory_config = config.get("memory", {})
         memory_dir = Path(self.project_root) / "memory"
         
-        try:
-            from long_term_memory import LongTermMemoryStore
-        except ImportError:
-            from agent_workspace.long_term_memory import LongTermMemoryStore
+        from agent_workspace.long_term_memory import LongTermMemoryStore
             
         try:
             return LongTermMemoryStore(
@@ -234,10 +231,7 @@ class PromptComposer:
 
         # Append dynamic governance calibration directives
         gov_section = ""
-        try:
-            from core.governance import GovernanceManager
-        except ImportError:
-            from agent_workspace.core.governance import GovernanceManager
+        from agent_workspace.core.governance import GovernanceManager
         
         try:
             active_rules = GovernanceManager.get_active_rules(self.workspace_path)

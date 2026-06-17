@@ -158,12 +158,8 @@ class SwarmCoordinator:
         Raises TenantSubscriptionInactiveError if status is 'frozen' or 'canceled'.
         Raises QuotaExceededError if credits <= 0.0.
         """
-        try:
-            from core.ledger import FinancialLedger
-            from core.billing import TenantStatusManager, TenantSubscriptionInactiveError, QuotaExceededError
-        except ImportError:
-            from agent_workspace.core.ledger import FinancialLedger
-            from agent_workspace.core.billing import TenantStatusManager, TenantSubscriptionInactiveError, QuotaExceededError
+        from agent_workspace.core.ledger import FinancialLedger
+        from agent_workspace.core.billing import TenantStatusManager, TenantSubscriptionInactiveError, QuotaExceededError
             
         import sqlite3
 
@@ -195,10 +191,7 @@ class SwarmCoordinator:
         """
         Returns True if credits / max_budget < 0.20 and routing_policy == 'downscale'.
         """
-        try:
-            from core.ledger import FinancialLedger
-        except ImportError:
-            from agent_workspace.core.ledger import FinancialLedger
+        from agent_workspace.core.ledger import FinancialLedger
             
         import sqlite3
 

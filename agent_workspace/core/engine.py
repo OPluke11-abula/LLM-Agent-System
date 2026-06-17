@@ -38,10 +38,7 @@ try:
 except ImportError:
     yaml = None
 
-try:
-    from observability import TOOL_CALL_COUNT, TOOL_CALL_LATENCY, Timer, tracer
-except ImportError:
-    from agent_workspace.observability import TOOL_CALL_COUNT, TOOL_CALL_LATENCY, Timer, tracer
+from agent_workspace.observability import TOOL_CALL_COUNT, TOOL_CALL_LATENCY, Timer, tracer
 
 
 logger = logging.getLogger(__name__)

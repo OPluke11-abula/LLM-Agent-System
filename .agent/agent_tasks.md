@@ -151,5 +151,23 @@
 | **Phase 56** | 6 tasks | 6 tasks | 100% Done |
 | **Phase 57** | 6 tasks | 6 tasks | 100% Done |
 | **Phase 58** | 6 tasks | 6 tasks | 100% Done |
+| **Phase 59** | 5 tasks | 5 tasks | 100% Done |
+
+---
+
+## 🔒 PHASE 59 — Production mTLS & Stripe Metered Billing Integration / 生產級 mTLS 與 Stripe 用量計費整合
+
+### 59-01 Backend Hardened mTLS & Persistent CRL
+- [x] **[Backend Programmer]** Implement RSA asymmetric signing and verification in `cert_manager.py` / 在 `cert_manager.py` 中實作 RSA 非對稱簽章與驗證。
+- [x] **[Backend Programmer]** Add persistent `revoked_certificates` SQLite database table in `audit_ledger.py` / 在 `audit_ledger.py` 中建立持久化 `revoked_certificates` SQLite 資料庫表。
+- [x] **[Backend Programmer]** Support dynamic public-key handshake validation and DB CRL checks with backward-compatibility fallbacks in `cross_cloud_gateway.py` / 在 `cross_cloud_gateway.py` 中支援動態公鑰握手驗證與資料庫 CRL 檢查，並具備向後相容 fallback 機制。
+- [x] **[Backend Programmer]** Register `/v1/cross-cloud/reinstate` and update `/v1/cross-cloud/revoke` to persist in DB / 註冊 `/v1/cross-cloud/reinstate` 端點並更新 `/v1/cross-cloud/revoke` 端點以實現資料庫持久化。
+- [x] **[Backend Programmer]** Update `/v1/swarm/telemetry/ws` to query the SQLite ledger and inject Stripe billing details (`billing_tier`, `credits_remaining`, `billing_status`) into the telemetry stream / 更新 `/v1/swarm/telemetry/ws` 查詢 SQLite 帳本並將 Stripe 計費詳細資訊注入遙測串流。
+
+### 59-02 Frontend Stripe Billing & CRL Console UI
+- [x] **[Frontend Programmer]** Build the Revoked Certificates ledger list panel in `SwarmGovernanceConsole.tsx` with operational "Reinstate" buttons / 在 `SwarmGovernanceConsole.tsx` 中建立已撤銷憑證帳本列表面板，並配備可操作的「恢復 (Reinstate)」按鈕。
+- [x] **[Frontend Programmer]** Integrate Stripe Billing credits ring widget, active billing tier badge, and real-time usage charts powered by the telemetry WebSocket feed / 整合 Stripe 計費額度環狀元件、啟用中計費層級徽章、以及基於遙測 WebSocket 訂閱的即時用量圖表。
+
+---
 
 *This queue is managed dynamically by the active LAS Developer Agent. All task updates, outcome logs, and progress status updates are written directly to this file before turn conclusion.*

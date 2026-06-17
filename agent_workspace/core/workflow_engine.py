@@ -18,14 +18,9 @@ from typing import Any
 import yaml
 from jinja2 import Environment, Template
 
-try:
-    from core.engine import AgentEngine
-    from core.account_manager import AccountManager
-    from core.providers import ProviderFactory
-except ImportError:
-    from agent_workspace.core.engine import AgentEngine
-    from agent_workspace.core.account_manager import AccountManager
-    from agent_workspace.core.providers import ProviderFactory
+from agent_workspace.core.engine import AgentEngine
+from agent_workspace.core.account_manager import AccountManager
+from agent_workspace.core.providers import ProviderFactory
 
 logger = logging.getLogger(__name__)
 
@@ -74,10 +69,7 @@ class WorkflowEngine:
 
         self.max_concurrent_tasks = 10
         try:
-            try:
-                from observability import get_active_profiler
-            except ImportError:
-                from agent_workspace.observability import get_active_profiler
+            from agent_workspace.observability import get_active_profiler
             profiler = get_active_profiler()
             if profiler:
                 profiler.register_engine(self)
@@ -345,10 +337,7 @@ class WorkflowEngine:
                 
                 # Execute blocking engine tool in a non-blocking thread executor
                 import asyncio
-                try:
-                    from observability import get_active_profiler
-                except ImportError:
-                    from agent_workspace.observability import get_active_profiler
+                from agent_workspace.observability import get_active_profiler
                 profiler = get_active_profiler()
                 executor = profiler.executor if (profiler and profiler.executor) else None
                 if profiler:
@@ -658,14 +647,10 @@ class WorkflowEngine:
         
         # Trigger automated task queue compaction sweep dynamically upon success
         try:
-            from core.log_compactor import LogCompactor
+            from agent_workspace.core.log_compactor import LogCompactor
             LogCompactor.compact_task_queue(self.workspace_path)
-        except ImportError:
-            try:
-                from agent_workspace.core.log_compactor import LogCompactor
-                LogCompactor.compact_task_queue(self.workspace_path)
-            except Exception as e:
-                logger.error("Failed to run task queue compaction: %s", e)
+        except Exception as e:
+            logger.error("Failed to run task queue compaction: %s", e)
         except Exception as e:
             logger.error("Failed to run task queue compaction: %s", e)
         

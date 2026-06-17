@@ -38,10 +38,7 @@ class GovernanceManager:
     @classmethod
     def check_and_trigger_calibration(cls, workspace_path: str) -> Optional[dict]:
         """Scans the AuditLedger logs for anomalies and triggers proposals."""
-        try:
-            from core.audit_ledger import AuditLedger
-        except ImportError:
-            from agent_workspace.core.audit_ledger import AuditLedger
+        from agent_workspace.core.audit_ledger import AuditLedger
 
         audit = AuditLedger(workspace_path)
         logs = audit.get_logs()
@@ -124,10 +121,7 @@ class GovernanceManager:
     @classmethod
     def cast_vote(cls, workspace_path: str, proposal_id: str, role: str, vote: str, signature: str) -> bool:
         """Verifies vote signature and updates proposal status upon cryptographic consensus."""
-        try:
-            from core.discussion_room import ProofOfConsensus
-        except ImportError:
-            from agent_workspace.core.discussion_room import ProofOfConsensus
+        from agent_workspace.core.discussion_room import ProofOfConsensus
 
         data = _load_governance(workspace_path)
         proposals = data.get("proposals", {})
@@ -174,10 +168,7 @@ class GovernanceManager:
     @classmethod
     def get_active_rules(cls, workspace_path: str) -> List[str]:
         """Returns the list of active calibrated rules certified by cryptographic consensus."""
-        try:
-            from core.discussion_room import ProofOfConsensus
-        except ImportError:
-            from agent_workspace.core.discussion_room import ProofOfConsensus
+        from agent_workspace.core.discussion_room import ProofOfConsensus
 
         data = _load_governance(workspace_path)
         proposals = data.get("proposals", {})

@@ -405,10 +405,7 @@ class LongTermMemoryStore:
 
     def _add_embedding_to_payload(self, record: LongTermMemoryRecord) -> None:
         try:
-            try:
-                from core.embeddings import EmbeddingGenerator
-            except ImportError:
-                from agent_workspace.core.embeddings import EmbeddingGenerator
+            from agent_workspace.core.embeddings import EmbeddingGenerator
             generator = EmbeddingGenerator()
             text_to_embed = record.summary or record.id
             embedding = generator.get_embedding(text_to_embed)
@@ -710,10 +707,7 @@ class ConcurrencyAuditor:
         try:
             # Dynamically import DiscussionRoom to broadcast telemetry warnings
             # to active telemetry dashboards in real-time.
-            try:
-                from core.discussion_room import DiscussionRoom
-            except ImportError:
-                from agent_workspace.core.discussion_room import DiscussionRoom
+            from agent_workspace.core.discussion_room import DiscussionRoom
             for cb in DiscussionRoom.telemetry_callbacks:
                 try:
                     cb(session_id, warning_event)

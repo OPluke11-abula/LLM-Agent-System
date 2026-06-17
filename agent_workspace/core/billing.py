@@ -124,10 +124,7 @@ class TenantStatusManager:
             conn.close()
 
         # 3. Log event to AuditLedger
-        try:
-            from core.audit_ledger import AuditLedger
-        except ImportError:
-            from agent_workspace.core.audit_ledger import AuditLedger
+        from agent_workspace.core.audit_ledger import AuditLedger
             
         try:
             audit = AuditLedger(self.ledger.workspace_path)

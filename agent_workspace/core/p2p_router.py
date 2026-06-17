@@ -7,7 +7,9 @@ import asyncio
 import logging
 import hashlib
 from typing import Any, Dict, List, Optional
+import inspect
 import websockets
+
 
 logger = logging.getLogger("P2PSwarmRouter")
 
@@ -109,7 +111,7 @@ class P2PSwarmRouter:
             ws = peer.get("ws")
             if ws:
                 try:
-                    if hasattr(ws, "close") and asyncio.iscoroutinefunction(ws.close):
+                    if hasattr(ws, "close") and inspect.iscoroutinefunction(ws.close):
                         await ws.close()
                     elif hasattr(ws, "close"):
                         await ws.close()
@@ -204,10 +206,7 @@ class P2PSwarmRouter:
             # 4. Generate Proof-of-Consensus verification signature
             payload_hash = hashlib.sha256(f"{client_crypto.get_public_bytes()}:{server_pub}".encode("utf-8")).hexdigest()
             
-            try:
-                from core.discussion_room import ProofOfConsensus
-            except ImportError:
-                from agent_workspace.core.discussion_room import ProofOfConsensus
+            from agent_workspace.core.discussion_room import ProofOfConsensus
                 
             sig = ProofOfConsensus.generate_member_signature(self.role, payload_hash)
             

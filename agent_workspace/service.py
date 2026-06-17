@@ -177,10 +177,7 @@ class SwarmAgentService:
                 tenant_id = tenant_id or "default_tenant"
 
                 # Verify tenant credits
-                try:
-                    from core.swarm_coordinator import SwarmCoordinator
-                except ImportError:
-                    from agent_workspace.core.swarm_coordinator import SwarmCoordinator
+                from agent_workspace.core.swarm_coordinator import SwarmCoordinator
                 SwarmCoordinator.verify_tenant_credit(self.workspace_path, tenant_id)
                 
                 # Check token budget
@@ -275,10 +272,7 @@ class SwarmAgentService:
                 tenant_id = tenant_id or "default_tenant"
 
                 # Verify tenant credits
-                try:
-                    from core.swarm_coordinator import SwarmCoordinator
-                except ImportError:
-                    from agent_workspace.core.swarm_coordinator import SwarmCoordinator
+                from agent_workspace.core.swarm_coordinator import SwarmCoordinator
                 SwarmCoordinator.verify_tenant_credit(self.workspace_path, tenant_id)
 
                 # Ensure valid roles
@@ -296,10 +290,7 @@ class SwarmAgentService:
                 
                 # 1. Validation Gate using ProofOfConsensus
                 if checkpoint:
-                    try:
-                        from core.agent_crew import AgentCrew
-                    except ImportError:
-                        from agent_workspace.core.agent_crew import AgentCrew
+                    from agent_workspace.core.agent_crew import AgentCrew
                     
                     is_valid = AgentCrew.verify_checkpoint_signature(checkpoint)
                     if not is_valid:
@@ -337,10 +328,7 @@ class SwarmAgentService:
                     outputs[s] = f"Result of {s}"
                     
                     # Save progress checkpoint
-                    try:
-                        from core.agent_crew import AgentCrew
-                    except ImportError:
-                        from agent_workspace.core.agent_crew import AgentCrew
+                    from agent_workspace.core.agent_crew import AgentCrew
                     
                     crew = AgentCrew(session_id=session_id)
                     await crew.save_checkpoint(
@@ -357,10 +345,7 @@ class SwarmAgentService:
                     # Check for simulated failover trigger
                     if mock_directives and mock_directives.get("fail_after_subtask") == s:
                         logger.warning(f"Simulating node failure after subtask '{s}'")
-                        try:
-                            from core.swarm_coordinator import SwarmCoordinator
-                        except ImportError:
-                            from agent_workspace.core.swarm_coordinator import SwarmCoordinator
+                        from agent_workspace.core.swarm_coordinator import SwarmCoordinator
                         SwarmCoordinator.mark_node_offline(self.node_id, reason="simulated_heartbeat_timeout")
                         raise RuntimeError(f"Simulated node failure after {s}")
                 

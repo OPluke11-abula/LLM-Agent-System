@@ -17,10 +17,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-try:
-    from observability import LLM_CALL_COUNT, LLM_CALL_LATENCY, Timer, tracer, TRACING_AVAILABLE
-except ImportError:
-    from agent_workspace.observability import LLM_CALL_COUNT, LLM_CALL_LATENCY, Timer, tracer, TRACING_AVAILABLE
+from agent_workspace.observability import LLM_CALL_COUNT, LLM_CALL_LATENCY, Timer, tracer, TRACING_AVAILABLE
 
 
 class ProviderResponse(tuple):
@@ -55,22 +52,15 @@ class BaseLLMProvider(ABC):
             if config.get("model"):
                 span.set_attribute("model", config["model"])
                 
-            try:
-                from core.account_manager import AccountManager
-            except ImportError:
-                from agent_workspace.core.account_manager import AccountManager
+            from agent_workspace.core.account_manager import AccountManager
             
             workspace_dir = os.environ.get("AGENT_WORKSPACE_DIR") or os.getcwd()
             am = AccountManager(workspace_dir)
             session_id = config.get("session_id", "default-session")
             tenant_id = am.get_session_tenant(session_id) or "default_tenant"
 
-            try:
-                from core.ledger import FinancialLedger
-                from core.billing import TenantRateLimiter
-            except ImportError:
-                from agent_workspace.core.ledger import FinancialLedger
-                from agent_workspace.core.billing import TenantRateLimiter
+            from agent_workspace.core.ledger import FinancialLedger
+            from agent_workspace.core.billing import TenantRateLimiter
 
             ledger = FinancialLedger(workspace_dir)
             limiter = TenantRateLimiter(ledger)
@@ -83,10 +73,7 @@ class BaseLLMProvider(ABC):
                     raise Exception(str(result[1]))
             except Exception as e:
                 logger.warning("Primary provider %s request failed: %s. SLA Router engaging failover...", provider_label, e)
-                try:
-                    from core.account_manager import AccountManager
-                except ImportError:
-                    from agent_workspace.core.account_manager import AccountManager
+                from agent_workspace.core.account_manager import AccountManager
                 
                 workspace_dir = os.environ.get("AGENT_WORKSPACE_DIR") or os.getcwd()
                 am = AccountManager(workspace_dir)
@@ -104,11 +91,8 @@ class BaseLLMProvider(ABC):
                         break
                 
                 if fallback_acc:
-                    try:
-                        from core.audit_ledger import AuditLedger
-                    except ImportError:
-                        from agent_workspace.core.audit_ledger import AuditLedger
-                        
+                    from agent_workspace.core.audit_ledger import AuditLedger
+                    
                     session_id = config.get("session_id", "default-session")
                     tenant_id = am.get_session_tenant(session_id) or "default_tenant"
                     
@@ -161,22 +145,15 @@ class BaseLLMProvider(ABC):
             if config.get("model"):
                 span.set_attribute("model", config["model"])
             
-            try:
-                from core.account_manager import AccountManager
-            except ImportError:
-                from agent_workspace.core.account_manager import AccountManager
+            from agent_workspace.core.account_manager import AccountManager
             
             workspace_dir = os.environ.get("AGENT_WORKSPACE_DIR") or os.getcwd()
             am = AccountManager(workspace_dir)
             session_id = config.get("session_id", "default-session")
             tenant_id = am.get_session_tenant(session_id) or "default_tenant"
 
-            try:
-                from core.ledger import FinancialLedger
-                from core.billing import TenantRateLimiter
-            except ImportError:
-                from agent_workspace.core.ledger import FinancialLedger
-                from agent_workspace.core.billing import TenantRateLimiter
+            from agent_workspace.core.ledger import FinancialLedger
+            from agent_workspace.core.billing import TenantRateLimiter
 
             ledger = FinancialLedger(workspace_dir)
             limiter = TenantRateLimiter(ledger)
@@ -189,10 +166,7 @@ class BaseLLMProvider(ABC):
                     yield event
             except Exception as e:
                 logger.warning("Primary provider stream %s failed: %s. SLA Router engaging failover...", provider_label, e)
-                try:
-                    from core.account_manager import AccountManager
-                except ImportError:
-                    from agent_workspace.core.account_manager import AccountManager
+                from agent_workspace.core.account_manager import AccountManager
                 
                 workspace_dir = os.environ.get("AGENT_WORKSPACE_DIR") or os.getcwd()
                 am = AccountManager(workspace_dir)
@@ -210,11 +184,8 @@ class BaseLLMProvider(ABC):
                         break
                 
                 if fallback_acc:
-                    try:
-                        from core.audit_ledger import AuditLedger
-                    except ImportError:
-                        from agent_workspace.core.audit_ledger import AuditLedger
-                        
+                    from agent_workspace.core.audit_ledger import AuditLedger
+                    
                     session_id = config.get("session_id", "default-session")
                     tenant_id = am.get_session_tenant(session_id) or "default_tenant"
                     
