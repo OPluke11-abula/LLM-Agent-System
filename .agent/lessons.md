@@ -54,3 +54,13 @@
   3. **Dynamic Variable Access**: Access globally patched module variables (like `api.workspace`) dynamically via `import api; api.workspace` instead of caching them via `from api import workspace` at import time to prevent path mismatches across concurrent tests.
 **Why**: Ensures robust multi-tenant authorization coverage, zero dependencies, and flawless test suites execution.
 **Tags**: #multi-tenancy #websockets #jwt #pytest #path-resolution
+
+## [2026-06-18] SQLite Concurrency Deadlocks, Thread-local Connection Leaks, and OpenTelemetry Shutdown
+
+**Before**: Using `threading.Lock()` (non-reentrant) for connection tracking leading to deadlocks, closing connections globally across threads inside concurrent workers causing active connections to close early or leak file handles, and letting OpenTelemetry ConsoleSpanExporter run after stdout closes.
+**After**:
+  1. **Reentrant Locking**: Always use `threading.RLock()` instead of `threading.Lock()` for database classes that perform nested thread-local database queries or connection caching to prevent self-deadlocks.
+  2. **Thread-specific Close vs Global Close**: Implement a thread-specific `close()` that only closes the calling thread's connection (removing it from the tracked list) to prevent concurrent workers from closing each other's connections. Use a distinct `close_all()` method at the very end of the test suite (or class lifecycle) to release all connection handles.
+  3. **OTel Graceful Shutdown**: Register a session-level autouse fixture in `conftest.py` that checks for `TracerProvider` and calls `provider.shutdown()` to flush and close span processors before pytest exits and closes standard I/O streams.
+**Why**: Prevents infinite deadlocks, resolves Windows `PermissionError` (access denied) when deleting test directories, and cleans up test stdout pollution from closed file trace logs.
+**Tags**: #sqlite #concurrency #deadlock #opentelemetry #pytest #resource-cleanup
