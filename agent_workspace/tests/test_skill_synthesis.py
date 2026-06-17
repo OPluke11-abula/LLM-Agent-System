@@ -62,10 +62,7 @@ class InvalidArgs:
 def execute_skill(args: InvalidArgs) -> str:
     return "done"
 """
-    try:
-        from core.discussion_room import ProofOfConsensus
-    except ImportError:
-        from agent_workspace.core.discussion_room import ProofOfConsensus
+    from agent_workspace.core.discussion_room import ProofOfConsensus
 
     with patch.object(ProofOfConsensus, "is_consensus_approved", return_value=True):
         with pytest.raises(ValueError, match="Synthesized skill must define a Pydantic BaseModel argument class"):
@@ -85,10 +82,7 @@ class CustomArgs(BaseModel):
 def execute_skill(args) -> str:
     return "done"
 """
-    try:
-        from core.discussion_room import ProofOfConsensus
-    except ImportError:
-        from agent_workspace.core.discussion_room import ProofOfConsensus
+    from agent_workspace.core.discussion_room import ProofOfConsensus
 
     with patch.object(ProofOfConsensus, "is_consensus_approved", return_value=True):
         with pytest.raises(ValueError, match="Synthesized skill must define a public function whose first parameter is annotated with the Pydantic BaseModel"):
@@ -108,10 +102,7 @@ class ValidArgs(BaseModel):
 def my_synthesized_tool(args: ValidArgs) -> str:
     return f"Synthesized task: {args.task}"
 """
-    try:
-        from core.discussion_room import ProofOfConsensus
-    except ImportError:
-        from agent_workspace.core.discussion_room import ProofOfConsensus
+    from agent_workspace.core.discussion_room import ProofOfConsensus
     
     # Mock sys.modules path for the temporary skills directory
     with patch("sys.path", [temp_workspace] + sys.path):

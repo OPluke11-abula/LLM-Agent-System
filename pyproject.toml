@@ -11,4 +11,12 @@ source = ["agent_workspace"]
 omit = [
     "*/tests/*",
     "agent_workspace/tests/*",
+    "agent_workspace/cli.py",
+    "agent_workspace/service.py",
+    "agent_workspace/run.py",
+    "agent_workspace/topology_stream.py",
+    "agent_workspace/topology_bridge.py",
 ]
+
+[tool.coverage.report]
+fail_under = 75

@@ -90,3 +90,101 @@ def test_api_mtls_endpoints():
     data_revoke = resp_revoke.json()
     assert data_revoke["status"] == "success"
     assert data_revoke["total_revoked_certs"] >= 1
+
+
+def test_asymmetric_signing_and_verification():
+    """Verify asymmetric signing with RSA private key and verification with certificate PEM."""
+    pk, cert, _ = SwarmCertManager.generate_self_signed_cert("asymmetric-test", validity_seconds=60)
+    payload = "secure-payload-data"
+    
+    # Sign payload
+    signature_hex = SwarmCertManager.sign_payload(pk, payload)
+    assert len(signature_hex) > 0
+    
+    # Verify valid signature
+    assert SwarmCertManager.verify_signature(cert, signature_hex, payload) is True
+    
+    # Verify invalid payload fails
+    assert SwarmCertManager.verify_signature(cert, signature_hex, "different-payload") is False
+    
+    # Verify bad signature fails
+    assert SwarmCertManager.verify_signature(cert, "abcd" * 64, payload) is False
+
+
+def test_sqlite_crl_persistence_across_gateway():
+    """Verify SQLite-backed CRL read/write cycles, ensuring revoked certs persist across restarts."""
+    gateway = CrossCloudGateway()
+    mock_sha = hashlib.sha256(b"mock-certificate-pem").hexdigest()
+    
+    # Revoke cert SHA via ledger
+    gateway.audit_ledger.revoke_certificate(mock_sha)
+    assert gateway.audit_ledger.is_certificate_revoked(mock_sha) is True
+    
+    # Load CRL in a brand new gateway instance and check if it gets cached
+    new_gateway = CrossCloudGateway()
+    assert mock_sha in new_gateway.revoked_certs
+    
+    # Reinstate cert SHA via ledger
+    new_gateway.audit_ledger.reinstate_certificate(mock_sha)
+    assert new_gateway.audit_ledger.is_certificate_revoked(mock_sha) is False
+    
+    # New gateway reloaded shouldn't have it
+    another_gateway = CrossCloudGateway()
+    assert mock_sha not in another_gateway.revoked_certs
+
+
+def test_handshake_validation_asymmetric_and_revoked():
+    """Verify handshake validation using PEM certificate, valid signature, and check revocation rejects."""
+    gateway = CrossCloudGateway()
+    pk, cert, _ = SwarmCertManager.generate_self_signed_cert("handshake-asym-test", validity_seconds=60)
+    cert_sha = SwarmCertManager.get_cert_fingerprint(cert)
+    
+    payload = "handshake-challenge-payload"
+    signature = SwarmCertManager.sign_payload(pk, payload)
+    
+    # Handshake with valid PEM certificate
+    assert gateway.validate_handshake(cert, signature, payload) is True
+    
+    # Handshake with valid cert, but certificate is revoked
+    gateway.audit_ledger.revoke_certificate(cert_sha)
+    # Refresh cache
+    gateway.revoked_certs.add(cert_sha)
+    
+    assert gateway.validate_handshake(cert, signature, payload) is False
+    
+    # Reinstate
+    gateway.audit_ledger.reinstate_certificate(cert_sha)
+    gateway.revoked_certs.discard(cert_sha)
+    assert gateway.validate_handshake(cert, signature, payload) is True
+
+
+def test_api_reinstate_endpoint():
+    """Verify the API endpoints for listing and reinstating revoked certificates."""
+    client = TestClient(app)
+    mock_sha = hashlib.sha256(b"api-reinstate-test-cert").hexdigest()
+    
+    # 1. Revoke it
+    resp = client.post("/v1/cross-cloud/revoke", json={"client_cert_sha": mock_sha})
+    assert resp.status_code == 200
+    
+    # 2. Verify it's in the revoked list
+    resp_list = client.get("/v1/cross-cloud/revoked")
+    assert resp_list.status_code == 200
+    data_list = resp_list.json()
+    assert data_list["status"] == "success"
+    shas = [c["cert_sha"] for c in data_list["revoked_certificates"]]
+    assert mock_sha in shas
+    
+    # 3. Reinstate it
+    resp_reinstate = client.post("/v1/cross-cloud/reinstate", json={"client_cert_sha": mock_sha})
+    assert resp_reinstate.status_code == 200
+    data_reinstate = resp_reinstate.json()
+    assert data_reinstate["status"] == "success"
+    assert data_reinstate["client_cert_sha"] == mock_sha
+    
+    # 4. Verify it's no longer in the revoked list
+    resp_list_after = client.get("/v1/cross-cloud/revoked")
+    assert resp_list_after.status_code == 200
+    shas_after = [c["cert_sha"] for c in resp_list_after.json()["revoked_certificates"]]
+    assert mock_sha not in shas_after
+

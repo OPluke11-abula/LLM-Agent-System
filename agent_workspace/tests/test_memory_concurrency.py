@@ -54,5 +54,5 @@ def test_sqlite_concurrency():
         search_res = backend.search("Summary")
         assert len(search_res) > 0
         
-        # Close the main thread's connection too so file can be unlinked
-        backend.close()
+        # Close all connections across all threads so file can be unlinked
+        backend.close_all()

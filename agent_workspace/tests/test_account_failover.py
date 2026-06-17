@@ -86,7 +86,7 @@ async def test_discussion_room_failover_rate_limit(mock_accounts_env):
     mock_provider.complete = mock_complete
     
     # Patch ProviderFactory
-    from core.providers import ProviderFactory
+    from agent_workspace.core.providers import ProviderFactory
     original_get_provider = ProviderFactory.get_provider
     ProviderFactory.get_provider = MagicMock(return_value=mock_provider)
     

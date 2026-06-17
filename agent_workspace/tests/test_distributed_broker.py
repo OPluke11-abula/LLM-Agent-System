@@ -3,6 +3,7 @@ import sys
 import json
 import pytest
 import asyncio
+import inspect
 from unittest.mock import AsyncMock, MagicMock, patch
 
 # Ensure agent_workspace is in sys.path
@@ -83,7 +84,7 @@ class MockRedisSwarmBroker(RedisSwarmBroker):
     async def publish(self, channel, message):
         if channel in self.subscribers:
             for cb in list(self.subscribers[channel]):
-                if asyncio.iscoroutinefunction(cb):
+                if inspect.iscoroutinefunction(cb):
                     await cb(message)
                 else:
                     cb(message)
