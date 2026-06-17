@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PromptCalibrationDashboard } from "./PromptCalibrationDashboard";
-import { Button, ProgressBar, StatusBadge, Surface, toneForStatus } from "./ui/primitives";
+import { Button, MetricTile, ProgressBar, StatusBadge, Surface, toneForStatus } from "./ui/primitives";
 import type { Lang } from "../types";
 
 type Tone = "success" | "warning" | "danger";
@@ -57,6 +57,8 @@ type BillingStatus = {
   spendUsd: number;
   trend: number;
   policy: BillingPolicy;
+  billingTier: string;
+  billingStatus: string;
 };
 
 type BillingPolicy = "strict_limit" | "auto_downscale";
@@ -88,6 +90,11 @@ type GatewayAlert = {
   peerId: string;
   message: string;
   tone: Tone;
+};
+
+type RevokedCertificate = {
+  certSha: string;
+  revokedAt: string | null;
 };
 
 type GovernanceCopy = {
@@ -360,6 +367,8 @@ const fallbackBilling: BillingStatus = {
   spendUsd: 42.18,
   trend: 12,
   policy: "auto_downscale",
+  billingTier: "Premium",
+  billingStatus: "active",
 };
 
 const fallbackMTLSStatus: MTLSTunnelStatus = {
@@ -369,6 +378,15 @@ const fallbackMTLSStatus: MTLSTunnelStatus = {
   secondsRemaining: 1800,
   status: "active",
 };
+
+const fallbackRevokedCertificates: RevokedCertificate[] = [
+  {
+    certSha: "revoked-fallback-sha-256-9f1b3c6a8d22",
+    revokedAt: new Date(Date.now() - 42 * 60 * 1000).toISOString(),
+  },
+];
+
+const fallbackMeteredUsage = Array.from({ length: 20 }, (_, index) => Number((0.012 + index * 0.002).toFixed(4)));
 
 const fallbackReplay: SwarmReplayEvent[] = [
   { id: "r-1", step: 0, node_id: "CEO", target: "Developer", status: "running", label: "initialize", latency_ms: 210 },
@@ -518,12 +536,16 @@ function mapBilling(raw: unknown): BillingStatus {
     spendUsd: asNumber(data.spend_usd ?? data.spendUsd, fallbackBilling.spendUsd),
     trend: asNumber(data.trend ?? data.spend_trend, fallbackBilling.trend),
     policy,
+    billingTier: asString(data.billing_tier ?? data.billingTier ?? data.tier, fallbackBilling.billingTier),
+    billingStatus: asString(data.billing_status ?? data.billingStatus ?? data.subscription_status ?? data.status, fallbackBilling.billingStatus),
   };
 }
 
 function mapTelemetry(raw: unknown) {
   const record = asRecord(raw);
   const telemetry = Object.keys(asRecord(record.telemetry)).length > 0 ? asRecord(record.telemetry) : record;
+  const apiCostValue = telemetry.usd_cost ?? telemetry.api_cost_usd ?? telemetry.apiCostUsd;
+  const creditsValue = telemetry.credits_remaining ?? telemetry.creditsRemaining ?? telemetry.remaining_credits;
   const activeRoles = readArray(record.active_roles ?? telemetry.active_roles ?? record.activeRoles ?? telemetry.activeRoles, ["roles"])
     .map(role => String(role))
     .filter(Boolean);
@@ -534,7 +556,11 @@ function mapTelemetry(raw: unknown) {
     memoryMb: asNumber(telemetry.memory_mb ?? telemetry.memoryMb, 0),
     latencyMs: asNumber(telemetry.latency_ms ?? telemetry.latencyMs ?? telemetry.p2p_latency_ms, 0),
     wsLatencyMs: asNumber(telemetry.ws_latency_ms ?? telemetry.wsLatencyMs, 0),
-    apiCostUsd: asNumber(telemetry.usd_cost ?? telemetry.api_cost_usd ?? telemetry.apiCostUsd, 0),
+    apiCostUsd: asNumber(apiCostValue, 0),
+    hasApiCost: apiCostValue !== undefined,
+    creditsRemaining: asNumber(creditsValue, Number.NaN),
+    billingTier: asString(telemetry.billing_tier ?? telemetry.billingTier, ""),
+    billingStatus: asString(telemetry.billing_status ?? telemetry.billingStatus, ""),
     activeRoles,
   };
 }
@@ -625,6 +651,17 @@ function mapMTLSStatus(raw: unknown): MTLSTunnelStatus {
   };
 }
 
+function mapRevokedCertificates(raw: unknown): RevokedCertificate[] {
+  const items = readArray(raw, ["revoked_certificates", "revokedCertificates", "certificates", "data"]);
+  return items.map(item => {
+    const record = asRecord(item);
+    return {
+      certSha: asString(record.cert_sha ?? record.client_cert_sha ?? record.sha ?? item, String(item)),
+      revokedAt: asString(record.revoked_at ?? record.revokedAt ?? record.timestamp, "") || null,
+    };
+  }).filter(item => item.certSha.length > 0);
+}
+
 function secondsUntil(status: MTLSTunnelStatus, nowMs: number) {
   if (status.expiration) {
     const expiryMs = Date.parse(status.expiration);
@@ -644,6 +681,20 @@ function mtlsTone(status: MTLSTunnelStatus["status"]) {
   if (status === "active") return "success";
   if (status === "expiring") return "warning";
   return "danger";
+}
+
+function truncateFingerprint(value: string) {
+  return value.length > 18 ? `${value.slice(0, 12)}...${value.slice(-6)}` : value;
+}
+
+function formatRevokedAt(value: string | null) {
+  if (!value) return "not reported";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "medium",
+  }).format(date);
 }
 
 function deriveGatewayAlerts(peers: PeerNode[]) {
@@ -866,18 +917,36 @@ export function MTLSTunnelingStatusPanel({
   certStatus,
   countdownSeconds,
   alerts,
+  revokedCertificates,
+  reinstatingCertSha,
+  reinstatedCertSha,
   rotationLoading,
   onRotate,
+  onCopyCertificate,
+  onReinstateCertificate,
 }: {
   certStatus: MTLSTunnelStatus;
   countdownSeconds: number;
   alerts: GatewayAlert[];
+  revokedCertificates: RevokedCertificate[];
+  reinstatingCertSha: string | null;
+  reinstatedCertSha: string | null;
   rotationLoading: boolean;
   onRotate: () => void;
+  onCopyCertificate: (sha: string) => void;
+  onReinstateCertificate: (sha: string) => void;
 }) {
   const status = normalizeMTLSStatus(certStatus.status, countdownSeconds);
   return (
-    <Surface className="flex flex-col gap-3 p-3" data-testid="mtls-tunneling-status-panel">
+    <Surface
+      className="flex flex-col gap-3 p-3"
+      data-testid="mtls-tunneling-status-panel"
+      style={{
+        background: "linear-gradient(145deg, hsl(218 18% 12% / 0.9), hsl(223 26% 8% / 0.96))",
+        borderColor: "hsl(210 22% 24% / 0.88)",
+        boxShadow: "inset 0 1px 0 hsl(0 0% 100% / 0.05), 0 20px 55px hsl(220 46% 3% / 0.34)",
+      }}
+    >
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-[10px] font-black uppercase tracking-[0.14em] t2">mTLS Tunneling Status</h3>
@@ -913,32 +982,167 @@ export function MTLSTunnelingStatusPanel({
           </div>
         )) : <p className="text-[10px] t3">No tunnel heartbeat or signature warnings.</p>}
       </div>
+      <div className="rounded-lg border p-3" style={{ borderColor: "hsl(214 24% 24% / 0.9)", background: "hsl(218 20% 10% / 0.72)" }}>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.14em] t2">Revoked Certificates Ledger</p>
+            <p className="mt-1 text-[10px] t3">Certificate reinstatement queue for cross-cloud mTLS trust.</p>
+          </div>
+          <StatusBadge tone={revokedCertificates.length > 0 ? "warning" : "success"}>{revokedCertificates.length} revoked</StatusBadge>
+        </div>
+        <div className="overflow-hidden rounded-lg border" style={{ borderColor: "hsl(214 24% 24% / 0.9)" }}>
+          {revokedCertificates.length > 0 ? revokedCertificates.map(certificate => {
+            const loading = reinstatingCertSha === certificate.certSha;
+            const success = reinstatedCertSha === certificate.certSha;
+            return (
+              <div
+                key={certificate.certSha}
+                className="grid grid-cols-1 gap-2 border-b px-3 py-2 text-[10px] transition-all duration-200 last:border-b-0 hover:grayscale hover:brightness-110 md:grid-cols-[1fr_1fr_auto]"
+                style={{ borderColor: "hsl(214 24% 24% / 0.9)", background: "hsl(220 18% 9% / 0.58)" }}
+              >
+                <div className="min-w-0">
+                  <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.12em] t3">SHA-256 fingerprint</p>
+                  <div className="flex items-center gap-2">
+                    <span className="truncate font-mono t2">{truncateFingerprint(certificate.certSha)}</span>
+                    <Button onClick={() => onCopyCertificate(certificate.certSha)} className="px-2 py-1 text-[10px]">Copy</Button>
+                  </div>
+                </div>
+                <div className="min-w-0">
+                  <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.12em] t3">Revoked at</p>
+                  <p className="truncate font-mono t2">{formatRevokedAt(certificate.revokedAt)}</p>
+                </div>
+                <Button
+                  onClick={() => onReinstateCertificate(certificate.certSha)}
+                  disabled={loading}
+                  variant={success ? "primary" : "warning"}
+                  className="justify-self-start px-3 py-1 text-[10px] transition-all duration-300 md:justify-self-end"
+                  style={{
+                    borderColor: success ? "hsl(194 90% 58%)" : "hsl(38 78% 55% / 0.78)",
+                    boxShadow: success ? "0 0 18px hsl(194 95% 56% / 0.52)" : "none",
+                  }}
+                >
+                  {loading && <span className="mr-1 inline-block h-3 w-3 animate-spin rounded-full border border-current border-t-transparent align-[-2px]" />}
+                  {success ? "Reinstated" : "Reinstate"}
+                </Button>
+              </div>
+            );
+          }) : (
+            <div className="px-3 py-4 text-[10px] t3">No revoked certificates in the current ledger.</div>
+          )}
+        </div>
+      </div>
     </Surface>
+  );
+}
+
+function CreditProgressRing({
+  credits,
+  maxCredits = 2000,
+}: {
+  credits: number;
+  maxCredits?: number;
+}) {
+  const percent = Math.max(0, Math.min(100, (credits / Math.max(1, maxCredits)) * 100));
+  const radius = 35;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (percent / 100) * circumference;
+  const gradientEnd = percent > 35 ? "hsl(154 55% 48%)" : "hsl(38 80% 56%)";
+  return (
+    <div className="relative grid place-items-center">
+      <svg viewBox="0 0 92 92" className="h-24 w-24 -rotate-90">
+        <defs>
+          <linearGradient id="credits-ring-gradient" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="hsl(166 58% 45%)" />
+            <stop offset="100%" stopColor={gradientEnd} />
+          </linearGradient>
+        </defs>
+        <circle cx="46" cy="46" r={radius} fill="none" stroke="hsl(210 16% 22% / 0.8)" strokeWidth="8" />
+        <circle
+          cx="46"
+          cy="46"
+          r={radius}
+          fill="none"
+          stroke="url(#credits-ring-gradient)"
+          strokeLinecap="round"
+          strokeWidth="8"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          className="transition-all duration-500"
+        />
+      </svg>
+      <div className="absolute text-center">
+        <p className="font-mono text-lg font-semibold t1">{Math.round(credits).toLocaleString()}</p>
+        <p className="text-[9px] font-bold uppercase tracking-[0.12em] t3">credits</p>
+      </div>
+    </div>
+  );
+}
+
+function MeteredUsageSparkline({ points }: { points: number[] }) {
+  const max = Math.max(...points, 0.001);
+  return (
+    <div className="flex h-20 items-end gap-1 overflow-hidden rounded-lg border px-2 py-2" style={{ borderColor: "hsl(214 24% 24% / 0.9)", background: "linear-gradient(180deg, hsl(216 18% 12% / 0.82), hsl(220 22% 8% / 0.72))" }}>
+      {points.map((point, index) => {
+        const height = Math.max(8, (point / max) * 64);
+        return (
+          <span
+            key={`${index}-${point}`}
+            className="w-full rounded-t-sm transition-all duration-300 ease-out"
+            style={{
+              height,
+              background: "linear-gradient(180deg, hsl(190 72% 55%), hsl(156 50% 42%))",
+              opacity: 0.36 + (index / Math.max(1, points.length - 1)) * 0.58,
+              transform: `translateX(${Math.max(0, points.length - 20) * -2}px)`,
+            }}
+            title={`$${point.toFixed(4)}`}
+          />
+        );
+      })}
+    </div>
   );
 }
 
 export function BillingPolicyControls({
   copy,
   billing,
+  meteredUsage,
   policyLoading,
   onPolicyChange,
 }: {
   copy: GovernanceCopy;
   billing: BillingStatus;
+  meteredUsage: number[];
   policyLoading: boolean;
   onPolicyChange: (policy: BillingPolicy) => void;
 }) {
+  const tier = billing.billingTier || "Standard";
+  const status = billing.billingStatus || "active";
   return (
-    <Surface className="flex flex-col gap-3 p-3" data-testid="billing-policy-controls">
-      <h3 className="text-[10px] font-black uppercase tracking-[0.14em] t2">{copy.billing}</h3>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-lg border p-3" style={{ borderColor: "var(--border-c)" }}>
-          <p className="text-xl font-semibold t1">{billing.remainingCredits.toLocaleString()}</p>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] t3">{copy.remainingCredits}</p>
-        </div>
-        <div className="rounded-lg border p-3" style={{ borderColor: "var(--border-c)" }}>
-          <p className="text-xl font-semibold t1">${billing.spendUsd.toFixed(2)}</p>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] t3">{copy.spendTrend} +{billing.trend}%</p>
+    <Surface
+      className="flex flex-col gap-3 p-3"
+      data-testid="billing-policy-controls"
+      style={{
+        background: "linear-gradient(135deg, hsl(217 18% 12% / 0.88), hsl(220 24% 8% / 0.94))",
+        borderColor: "hsl(210 24% 24% / 0.9)",
+        boxShadow: "inset 0 1px 0 hsl(0 0% 100% / 0.045), 0 18px 50px hsl(220 45% 3% / 0.32)",
+      }}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <h3 className="text-[10px] font-black uppercase tracking-[0.14em] t2">{copy.billing}</h3>
+        <StatusBadge tone={status.toLowerCase() === "active" ? "success" : "warning"}>{tier} / {status}</StatusBadge>
+      </div>
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-[auto_1fr]">
+        <CreditProgressRing credits={billing.remainingCredits} />
+        <div className="grid grid-cols-2 gap-3">
+          <MetricTile label={copy.remainingCredits} value={billing.remainingCredits.toLocaleString()} tone="success" />
+          <MetricTile label={`${copy.spendTrend} +${billing.trend}%`} value={`$${billing.spendUsd.toFixed(2)}`} tone="accent" />
+          <div className="col-span-2 rounded-lg border p-3" style={{ borderColor: "hsl(214 24% 24% / 0.9)", background: "hsl(218 20% 10% / 0.68)" }}>
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="text-[10px] font-bold uppercase tracking-[0.12em] t3">Metered Token Usage (Real-time)</p>
+              <span className="font-mono text-[10px] t3">{meteredUsage.length}/20</span>
+            </div>
+            <MeteredUsageSparkline points={meteredUsage} />
+          </div>
         </div>
       </div>
       <label className="text-[10px] font-bold uppercase tracking-[0.12em] t3" htmlFor="billing-policy-select">
@@ -1170,6 +1374,10 @@ export function SwarmGovernanceConsole({
   const [peers, setPeers] = useState<PeerNode[]>(fallbackPeers);
   const [billing, setBilling] = useState<BillingStatus>(fallbackBilling);
   const [mtlsStatus, setMTLSStatus] = useState<MTLSTunnelStatus>(fallbackMTLSStatus);
+  const [revokedCertificates, setRevokedCertificates] = useState<RevokedCertificate[]>(fallbackRevokedCertificates);
+  const [reinstatingCertSha, setReinstatingCertSha] = useState<string | null>(null);
+  const [reinstatedCertSha, setReinstatedCertSha] = useState<string | null>(null);
+  const [meteredUsage, setMeteredUsage] = useState<number[]>(fallbackMeteredUsage);
   const [nowMs, setNowMs] = useState(Date.now());
   const [rotationLoading, setRotationLoading] = useState(false);
   const [revokingPeerId, setRevokingPeerId] = useState<string | null>(null);
@@ -1200,7 +1408,13 @@ export function SwarmGovernanceConsole({
       ...current,
       spendUsd: Math.max(current.spendUsd, telemetry.apiCostUsd),
       trend: telemetry.apiCostUsd > current.spendUsd ? Math.round(((telemetry.apiCostUsd - current.spendUsd) / Math.max(1, current.spendUsd)) * 100) : current.trend,
+      remainingCredits: Number.isFinite(telemetry.creditsRemaining) ? telemetry.creditsRemaining : current.remainingCredits,
+      billingTier: telemetry.billingTier || current.billingTier,
+      billingStatus: telemetry.billingStatus || current.billingStatus,
     }));
+    if (telemetry.hasApiCost) {
+      setMeteredUsage(current => [...current.slice(-19), telemetry.apiCostUsd]);
+    }
     const timestamp = telemetry.timestamp.split("T").pop()?.slice(0, 8) ?? "--:--:--";
     setHealthLogs(current => [
       {
@@ -1216,13 +1430,14 @@ export function SwarmGovernanceConsole({
 
   const loadGovernanceData = useCallback(async () => {
     setLoading(true);
-    const [nodeResult, healthResult, sessionResult, peerResult, billingResult, mtlsResult] = await Promise.allSettled([
+    const [nodeResult, healthResult, sessionResult, peerResult, billingResult, mtlsResult, revokedResult] = await Promise.allSettled([
       fetchJson<unknown>(apiUrl("/v1/swarm/nodes")),
       fetchJson<unknown>(apiUrl("/v1/swarm/health")),
       fetchJson<unknown>(apiUrl("/v1/swarm/sessions")),
       fetchJson<unknown>(apiUrl("/v1/swarm/peers")),
       fetchJson<unknown>(apiUrl("/v1/swarm/billing/status")),
       fetchJson<unknown>(apiUrl("/v1/cross-cloud/cert/status")),
+      fetchJson<unknown>(apiUrl("/v1/cross-cloud/revoked")),
     ]);
 
     let usedFallback = false;
@@ -1266,6 +1481,13 @@ export function SwarmGovernanceConsole({
       usedFallback = true;
       setMTLSStatus(fallbackMTLSStatus);
     }
+    if (revokedResult.status === "fulfilled") {
+      const nextRevoked = mapRevokedCertificates(revokedResult.value);
+      setRevokedCertificates(nextRevoked.length > 0 ? nextRevoked : []);
+    } else {
+      usedFallback = true;
+      setRevokedCertificates(fallbackRevokedCertificates);
+    }
     setLoading(false);
     onStatus(usedFallback ? copy.offline : copy.loaded, usedFallback ? "warning" : "success");
   }, [copy.loaded, copy.offline, onStatus]);
@@ -1299,7 +1521,7 @@ export function SwarmGovernanceConsole({
             id: `telemetry-socket-${Date.now()}`,
             peerId: "telemetry-ws",
             message: "Telemetry tunnel heartbeat closed; reconnect scheduled.",
-            tone: "warning",
+            tone: "warning" as Tone,
           }, ...current].slice(0, 3));
           reconnectTimer = window.setTimeout(connect, 5000);
         }
@@ -1388,17 +1610,51 @@ export function SwarmGovernanceConsole({
         }),
       });
       setPeers(current => current.filter(item => item.id !== peer.id));
+      if (peer.certSha) {
+        setRevokedCertificates(current => [
+          { certSha: peer.certSha ?? peer.id, revokedAt: new Date().toISOString() },
+          ...current.filter(item => item.certSha !== peer.certSha),
+        ]);
+      }
       setSocketAlerts(current => [{
         id: `revoked-${peer.id}-${Date.now()}`,
         peerId: peer.id,
         message: "Peer cloud gateway revoked and removed from the local mesh view.",
-        tone: "warning",
+        tone: "warning" as Tone,
       }, ...current].slice(0, 3));
       onStatus(`${peer.id}: cross-cloud gateway revoked.`, "success");
     } catch (error) {
       onStatus(`${copy.actionFailed}: ${error instanceof Error ? error.message : String(error)}`, "danger");
     } finally {
       setRevokingPeerId(null);
+    }
+  }
+
+  async function copyCertificate(sha: string) {
+    try {
+      await navigator.clipboard.writeText(sha);
+      onStatus("Certificate fingerprint copied.", "success");
+    } catch (error) {
+      onStatus(`${copy.actionFailed}: ${error instanceof Error ? error.message : String(error)}`, "warning");
+    }
+  }
+
+  async function reinstateCertificate(sha: string) {
+    setReinstatingCertSha(sha);
+    setReinstatedCertSha(null);
+    try {
+      await fetchJson<unknown>(apiUrl("/v1/cross-cloud/reinstate"), {
+        method: "POST",
+        body: JSON.stringify({ client_cert_sha: sha }),
+      });
+      setRevokedCertificates(current => current.filter(item => item.certSha !== sha));
+      setReinstatedCertSha(sha);
+      window.setTimeout(() => setReinstatedCertSha(current => current === sha ? null : current), 2200);
+      onStatus("Certificate reinstated.", "success");
+    } catch (error) {
+      onStatus(`${copy.actionFailed}: ${error instanceof Error ? error.message : String(error)}`, "danger");
+    } finally {
+      setReinstatingCertSha(null);
     }
   }
 
@@ -1498,12 +1754,18 @@ export function SwarmGovernanceConsole({
           certStatus={mtlsStatus}
           countdownSeconds={countdownSeconds}
           alerts={gatewayAlerts}
+          revokedCertificates={revokedCertificates}
+          reinstatingCertSha={reinstatingCertSha}
+          reinstatedCertSha={reinstatedCertSha}
           rotationLoading={rotationLoading}
           onRotate={rotateKeys}
+          onCopyCertificate={copyCertificate}
+          onReinstateCertificate={reinstateCertificate}
         />
         <BillingPolicyControls
           copy={copy}
           billing={billing}
+          meteredUsage={meteredUsage}
           policyLoading={policyLoading}
           onPolicyChange={updatePolicy}
         />

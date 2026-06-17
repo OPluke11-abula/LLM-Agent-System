@@ -10,6 +10,7 @@ const requiredExports = [
   "SwarmNodeMonitor",
   "SessionFailoverDashboard",
   "P2PMeshNetworkMap",
+  "MTLSTunnelingStatusPanel",
   "BillingPolicyControls",
   "CryptographicProofInspector",
   "ReplayPlaybackWidget",
@@ -26,6 +27,11 @@ const requiredEndpoints = [
   "/v1/swarm/billing/policy",
   "/v1/swarm/telemetry/ws",
   "/v1/swarm/replays/",
+  "/v1/cross-cloud/cert/status",
+  "/v1/cross-cloud/cert/rotate",
+  "/v1/cross-cloud/revoke",
+  "/v1/cross-cloud/revoked",
+  "/v1/cross-cloud/reinstate",
   "/v1/audit/proof/",
   "/v1/audit/verify-proof",
 ];
@@ -39,12 +45,20 @@ const offlineRenderMarkers = [
   "data-testid=\"swarm-node-monitor\"",
   "data-testid=\"session-failover-dashboard\"",
   "data-testid=\"p2p-mesh-network-map\"",
+  "data-testid=\"mtls-tunneling-status-panel\"",
   "data-testid=\"billing-policy-controls\"",
   "data-testid=\"cryptographic-proof-inspector\"",
   "local-ceo-01",
   "recovery-ops-184",
   "peer-tpe-01",
   "fallback-sibling-left",
+  "fallback-cert-sha-256",
+  "Revoked Certificates Ledger",
+  "revoked-fallback-sha-256",
+  "Force Rotate Keys",
+  "Metered Token Usage (Real-time)",
+  "credits-ring-gradient",
+  "Revoke",
   "strict_limit",
   "auto_downscale",
 ];
@@ -71,6 +85,10 @@ for (const token of ["generateMemberSignature", "payload_hash", "VALIDATOR_CREDE
   assertIncludes(calibrationSource, token, "cryptographic vote binding");
 }
 
+for (const token of ["billing_tier", "credits_remaining", "billing_status", "apiCostUsd", "setMeteredUsage"]) {
+  assertIncludes(componentSource, token, "billing telemetry binding");
+}
+
 for (const marker of offlineRenderMarkers) {
   assertIncludes(componentSource, marker, "offline render marker");
 }
@@ -82,7 +100,7 @@ if (existsSync(distAssets)) {
     throw new Error("AdminDashboardView production chunk missing. Run `npm run build` first.");
   }
   const chunkSource = readFileSync(join(distAssets, adminChunk), "utf8");
-  for (const marker of ["swarm-node-monitor", "local-ceo-01", "peer-tpe-01", "strict_limit", "fallback-sibling-left"]) {
+  for (const marker of ["swarm-node-monitor", "mtls-tunneling-status-panel", "local-ceo-01", "peer-tpe-01", "strict_limit", "fallback-sibling-left", "fallback-cert-sha-256", "Revoked Certificates Ledger", "Metered Token Usage"]) {
     assertIncludes(chunkSource, marker, "production offline render marker");
   }
 }
