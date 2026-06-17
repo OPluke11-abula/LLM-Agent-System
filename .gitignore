@@ -228,13 +228,16 @@ AGENTS.md
 .agent.local.md
 
 # Runtime memory data (generated at runtime, not part of the template)
-agent_workspace/memory/*.json
-agent_workspace/memory/*.db
-agent_workspace/memory/*.tmp
-agent_workspace/memory/.*.tmp
+agent_workspace/memory/**/*.json
+agent_workspace/memory/**/*.db
+agent_workspace/memory/**/*.tmp
+agent_workspace/memory/**/.*.tmp
 agent_workspace/memory/*/
-agent_workspace/agent_workspace/memory/*.json
-agent_workspace/agent_workspace/memory/*.db
+agent_workspace/agent_workspace/memory/**/*.json
+agent_workspace/agent_workspace/memory/**/*.db
+mock_workspace/memory/**/*.json
+mock_workspace/memory/**/*.db
+mock_workspace/memory/**/*.tmp
 !agent_workspace/memory/.gitkeep
 workspace/*.json
 workspace/*.tmp
