@@ -39,6 +39,7 @@ except ImportError:
     yaml = None
 
 from agent_workspace.observability import TOOL_CALL_COUNT, TOOL_CALL_LATENCY, Timer, tracer
+from agent_workspace.core.precheck import SkillsPrechecker
 
 
 logger = logging.getLogger(__name__)
@@ -65,6 +66,7 @@ class AgentEngine:
 
     def __init__(self, workspace_path: str = ".", bypass_onboarding: bool = False, enforce_onboarding: bool | None = None):
         self.workspace_path = os.path.abspath(workspace_path)
+        self.prechecker = SkillsPrechecker(self.workspace_path)
 
         # Load agent config YAML frontmatter if it exists
         self.config = {}
@@ -305,6 +307,15 @@ class AgentEngine:
             raise KeyError(f"Unknown tool '{tool_name}'. Available tools: {known_tools}")
 
         tool = self.tools_registry[tool_name]
+
+        precheck_res = self.prechecker.run_precheck(tool_name, tool.get("function"))
+        if precheck_res["status"] == "BLOCKED":
+            import json
+            return json.dumps({
+                "status": "BLOCKED",
+                "message": f"Pre-check failed for tool '{tool_name}': {precheck_res['message']} Please verify configuration."
+            })
+
         validated_args = tool["args_model"](**arguments)
 
         with tracer.start_as_current_span("tool_call") as span:
@@ -630,7 +641,7 @@ class AgentEngine:
         from pathlib import Path
 
         project_root = Path(self.workspace_path).parent
-        
+
         # 1. Gather task_state
         task_state = {}
         tasks_file = project_root / ".agent" / "agent_tasks.md"
@@ -682,10 +693,10 @@ class AgentEngine:
         handoff_dir.mkdir(parents=True, exist_ok=True)
         handoff_file = handoff_dir / f"{handoff_id}.json"
         prompt_file = handoff_dir / f"{handoff_id}_prompt.md"
-        
+
         try:
             handoff_file.write_text(json.dumps(packet, ensure_ascii=False, indent=2), encoding="utf-8")
-            
+
             # Compile dense English handoff prompt markdown (Task 23-01)
             prompt_content = f"""# FindAi Studio LLM Agent System (LAS) - Warm Thread Handoff Prompt
 
@@ -738,7 +749,7 @@ This handoff is part of the Federated Swarm Autonomous Handoff protocol. It enab
             handoff_file.relative_to(handoff_dir)
         except ValueError:
             raise PermissionError("Directory traversal warning: Access denied outside handoff boundary")
-        
+
         if not handoff_file.is_file():
             raise FileNotFoundError(f"Handoff packet file '{handoff_id}' not found at {handoff_file}")
 
@@ -787,7 +798,7 @@ This handoff is part of the Federated Swarm Autonomous Handoff protocol. It enab
 
     def increment_turns(self, session_id: str, context_summary: str | None = None) -> tuple[int, bool, str | None]:
         """Increment session turn count and trigger export_handoff if threshold is reached (Task 23-01).
-        
+
         Returns a tuple of (current_turns, triggered_handoff, handoff_id).
         """
         turns = self.session_turns.get(session_id, 0) + 1

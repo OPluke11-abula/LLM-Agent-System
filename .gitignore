@@ -246,6 +246,13 @@ agent_workspace/tool_manifest.json
 !.agent/memory/
 .agent/workflows/runs/*.json
 .agent/memory/handoff/*.json
+.agent/skills_acceptance_report.md
+
+# Local maintenance artifacts
+.path-backups/
+agent_workspace/scratch/
+agent_workspace/memory/**/*.db.bak
+agent_workspace/memory/*.db.bak
 
 
 # Test scripts (development-only)
