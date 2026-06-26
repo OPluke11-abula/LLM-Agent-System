@@ -28,6 +28,26 @@
 - **預檢測試**：在 Commit 前，先執行 `verify.cmd` 或 pytest 測試套件，確保 100% 綠燈。
 - **規範提交**：執行 `git add .`、符合規範的 `git commit` 以及 `git push` 到遠端儲存庫。
 
+## 🛡️ AI Agent 技能生命週期管理與安全驗證指引
+
+為確保系統安全性與穩定性，AI Agent 在調用任何外部工具或執行自動化流程時，必須嚴格遵守以下安全指引：
+
+1. **防禦性預檢 (Defensive Pre-check)**：
+   - 在執行任何 Skills/Tools 之前，系統會自動在背景進行 CLI 依賴與 API 憑證的檢查。
+   - **安全規範**：在檢測憑證存在性時，只能檢測其是否存在 (布林值)，**絕對禁止在命令列參數或日誌中印出 raw tokens/secrets**。
+
+2. **迴圈執行硬上限 (Loop Limit Safety Gate)**：
+   - 對於自主執行的對話與工具執行迴圈，預設最大安全閥值為 **3 次**。
+   - 當迴圈次數 $\ge 3$ 時，系統會自動觸發並等待人類審批 (HITL Gate)。AI 必須停下並取得使用者明確授權後方可繼續執行。
+
+3. **靜態安全掃描與敏感標記**：
+   - 每次提交前，請執行 `python agent_workspace/tool_manifest.py validate`，這會自動掃描程式碼中是否含有硬編碼 (Hardcoded) 的 secrets/tokens。
+   - 任何涉及破壞性變更 (如刪除、部署、外部推送) 的工具，必須在對應 contract 的 YAML frontmatter 中標記 `sensitive: true`，作為 `HIGH-RISK` 手動審查對象。
+
+4. **Git 破壞性指令攔截**：
+   - 嚴格攔截 `git push -f`、`git push --force`、`git reset --hard` 以及 `git clean -f` 等會抹除代碼歷史或工作樹的指令。
+   - 若有必要執行，必須在對話中明確向使用者提出警告，並取得手動繞過授權。
+
 ---
 
 *本規範由專案負責人發布。AI Agent 於每次交互及工作結束時，必須自主對照本文件落實檢核。*

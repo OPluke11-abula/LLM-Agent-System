@@ -141,13 +141,39 @@ def validate(root: Path) -> None:
             skills_dir = project_root / directories["skills"]
 
     missing_skill_docs = []
+    invalid_skills = []
     for tool in tools:
         skill_doc = skills_dir / f"{tool}.md"
         if not skill_doc.is_file():
             missing_skill_docs.append(str(skill_doc.relative_to(root).as_posix()))
+            continue
+
+        try:
+            content = skill_doc.read_text(encoding="utf-8")
+            if not content.startswith("---"):
+                invalid_skills.append(f"{tool}.md does not start with '---'")
+                continue
+            parts = content.split("---", 2)
+            if len(parts) < 3:
+                invalid_skills.append(f"{tool}.md has invalid frontmatter delimiters")
+                continue
+            fm = yaml.safe_load(parts[1]) or {}
+            if not isinstance(fm, dict):
+                invalid_skills.append(f"{tool}.md frontmatter is not a dictionary")
+                continue
+
+            # Verify safety_notes is a non-empty list
+            safety_notes = fm.get("safety_notes")
+            if not safety_notes or not isinstance(safety_notes, list) or len(safety_notes) == 0:
+                invalid_skills.append(f"{tool}.md is missing safety_notes or safety_notes is empty")
+        except Exception as e:
+            invalid_skills.append(f"{tool}.md failed to validate: {e}")
 
     if missing_skill_docs:
         raise FileNotFoundError(f"Missing skill contracts: {missing_skill_docs}")
+
+    if invalid_skills:
+        raise ValueError(f"Skill contracts validation failed: {invalid_skills}")
 
     print(f"PAP workspace valid: {manifest_path}")
     print(f"Tools: {', '.join(tools)}")

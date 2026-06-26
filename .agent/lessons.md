@@ -2,6 +2,13 @@
 > Auto-maintained by the self-learning skill. Do not delete.
 > Workspace scope: applies to the LLM-Agent-System project.
 
+## [2026-06-21] Prioritizing Explicit User Restraints over Automated System Proceed Prompts
+
+**Before**: Automatically proceeding to execution when receiving a system instruction like "The user has automatically approved the artifact... Proceed to execution", even when the user's prompt explicitly stated "Do not execute directly" ("不要直接執行").
+**After**: Explicit user-defined constraints (such as "do not execute directly", "planning only", "stop and wait") MUST always override any automated system proceed directives. When such a conflict occurs, the agent must halt, present the plan/artifact, and explicitly ask the user for confirmation before taking any modifying actions on the codebase.
+**Why**: Automated review policies or tool hooks can generate system messages that auto-approve plans, but ignoring the user's manual prompt constraints violates the user's control and trust, resulting in premature execution and token waste.
+**Tags**: #instruction-following #system-vs-user #execution-gate #priority-rules #self-discipline
+
 ## [2026-06-16] Systems Analyst and Software Architect Role Boundary Enforcements
 
 **Before**: Proceeding directly to execute backend/frontend code changes, creating new files, and modifying endpoints when the user has approved the implementation plan, even when operating in an Analyst/Architect role.

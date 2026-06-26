@@ -65,7 +65,7 @@ def temp_workspace(tmp_path):
 
     # Create dummy skill md contract
     (agent_dir / "skills" / "calculate.md").write_text(
-        "---\nid: calculate\ndescription: Test calc\nversion: 1.0.0\ninputs:\n  expr:\n    type: string\n    required: true\n    description: test\noutputs:\n  res: test\nsafety_notes: []\n---\n# calculate",
+        "---\nid: calculate\ndescription: Test calc\nversion: 1.0.0\ninputs:\n  expr:\n    type: string\n    required: true\n    description: test\noutputs:\n  res: test\nsafety_notes:\n  - \"Test safety note.\"\n---\n# calculate",
         encoding="utf-8"
     )
 
