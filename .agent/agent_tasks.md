@@ -1,7 +1,7 @@
 # PAP Agent Task Queue (English Master Edition)
 >
-> **Protocol**: Portable Agent Protocol (PAP) v0.1.0  
-> **Format**: PAP Task Contract v1  
+> **Protocol**: Portable Agent Protocol (PAP) v0.1.0
+> **Format**: PAP Task Contract v1
 > **Status legend**: `[ ]` pending · `[~]` in-progress · `[x]` done · `[!]` blocked
 
 ---
@@ -152,6 +152,8 @@
 | **Phase 57** | 6 tasks | 6 tasks | 100% Done |
 | **Phase 58** | 6 tasks | 6 tasks | 100% Done |
 | **Phase 59** | 5 tasks | 5 tasks | 100% Done |
+| **Phase 60** | 5 tasks | 5 tasks | 100% Done |
+| **Phase 61** | 6 tasks | 6 tasks | 100% Done |
 
 ---
 
@@ -167,6 +169,35 @@
 ### 59-02 Frontend Stripe Billing & CRL Console UI
 - [x] **[Frontend Programmer]** Build the Revoked Certificates ledger list panel in `SwarmGovernanceConsole.tsx` with operational "Reinstate" buttons / 在 `SwarmGovernanceConsole.tsx` 中建立已撤銷憑證帳本列表面板，並配備可操作的「恢復 (Reinstate)」按鈕。
 - [x] **[Frontend Programmer]** Integrate Stripe Billing credits ring widget, active billing tier badge, and real-time usage charts powered by the telemetry WebSocket feed / 整合 Stripe 計費額度環狀元件、啟用中計費層級徽章、以及基於遙測 WebSocket 訂閱的即時用量圖表。
+
+---
+
+## 🚀 PHASE 60 — Token Optimization & Safety Gates / Token 優化與安全控制閘
+
+### 60-01 Token Instrumentation, Allowlisting & DiscussionRoom Swarm Ceilings
+- [x] **[Backend Programmer]** Implement OpenAI/Gemini/Anthropic token counter and OTel telemetry integration / 實作 OpenAI/Gemini/Anthropic token 計數器與 OTel 遙測整合
+- [x] **[Backend Programmer]** Restrict tools via PAP-declared and caller-provided allowlists intersection / 透過 PAP 聲明與呼叫端允許工具清單交集限制工具
+- [x] **[Backend Programmer]** Enforce 5-tier ceilings in DiscussionRoom and deterministic compaction preserving decisions/paths/errors/hashes / 在 DiscussionRoom 實作五層限制與保留決策/路徑/錯誤/雜湊的決定性壓縮
+
+### 60-02 Static Verification, License Compliance & Compression Benchmarks
+- [x] **[Backend Programmer]** Build modular report-only package license auditor command `audit-licenses` / 建立模組化僅報告的套件授權合規審計命令 `audit-licenses`
+- [x] **[Backend Programmer]** Establish requirements-experimental.txt and run offline prompt compression benchmark / 建立 requirements-experimental.txt 並執行離線提示詞壓縮基準測試
+
+---
+
+## PHASE 61 - Sakana Fugu-Inspired Conductor Layer & Agent Evaluation Plan
+
+### 61-01 Research, Architecture, and PAP Task Tracking
+- [x] **[Analyst/Architect]** Document the Sakana Fugu AI comparison, public-source constraints, LAS component mapping, and staged adoption plan in `docs/research/fugu-ai-study.md`.
+- [x] **[Architect]** Draft the `ConductorPlan` architecture in `docs/architecture/conductor-plan.md`, preserving `.agent/agent.md` separation-of-concerns, manifest-update, verification, and documentation principles.
+
+### 61-02 No-Behavior-Change Conductor Telemetry
+- [x] **[Backend Programmer]** Add a `ConductorPlan` schema under `agent_workspace/core/` with `fast`, `pro`, and `ultra` execution modes, role topology, tool allowlist, memory scope, budget, fallbacks, and decision rationale.
+- [x] **[Backend Programmer]** Emit conductor decision telemetry from `AgentRouter` without changing current provider selection or execution behavior.
+
+### 61-03 Thinker/Worker/Verifier Runtime Modes
+- [x] **[Backend Programmer]** Extend `DiscussionRoom` with explicit Thinker, Worker, and Verifier role contracts, durable verifier verdicts, and fail-closed escalation for high-risk plans.
+- [x] **[QA/Verification]** Add agent-level golden task fixtures and a smoke evaluation command that reports completion, cost, latency, tool use, verifier outcome, and unresolved risk.
 
 ---
 

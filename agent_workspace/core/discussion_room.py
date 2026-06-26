@@ -37,6 +37,53 @@ DEFAULT_PERSONAS = {
 }
 
 
+@dataclass
+class DiscussionRoleContract:
+    runtime_role: str
+    name: str
+    source_role: str
+    responsibility: str
+    verifier: bool = False
+    required: bool = True
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "runtime_role": self.runtime_role,
+            "name": self.name,
+            "source_role": self.source_role,
+            "responsibility": self.responsibility,
+            "verifier": self.verifier,
+            "required": self.required,
+        }
+
+
+@dataclass
+class VerifierVerdict:
+    session_id: str
+    topic: str
+    decision: str
+    verifier_role: str
+    rationale: str
+    risk_level: str
+    durable: bool = True
+    escalation: str | None = None
+    consensus_certificate: dict[str, Any] | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "session_id": self.session_id,
+            "topic": self.topic,
+            "decision": self.decision,
+            "verifier_role": self.verifier_role,
+            "rationale": self.rationale,
+            "risk_level": self.risk_level,
+            "durable": self.durable,
+            "escalation": self.escalation,
+            "consensus_certificate": self.consensus_certificate,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+
 class DiscussionRoom:
     """Orchestrates multi-agent consensus debate loops using different LLM models and personas."""
 
@@ -56,7 +103,7 @@ class DiscussionRoom:
         """Appends role-specific learning guide as SYSTEM SELF-LEARNING DIRECTIVES to system_prompt."""
         role_lower = role.lower()
         guide_path = None
-        
+
         if role_lower in ("dev", "programmer"):
             guide_path = self.prompt_composer.project_root / ".agent" / "programmer" / "programmer_learning_guide.md"
         elif role_lower == "qa":
@@ -86,7 +133,7 @@ class DiscussionRoom:
                     logger.error(f"Failed to scaffold QA learning guide: {e}")
         elif role_lower == "analyst":
             guide_path = self.prompt_composer.project_root / ".agent" / "analyst" / "analyst_learning_guide.md"
-            
+
         if guide_path and guide_path.is_file():
             try:
                 content = guide_path.read_text(encoding="utf-8").strip()
@@ -94,13 +141,13 @@ class DiscussionRoom:
                     system_prompt += f"\n\n## 🎓 SYSTEM SELF-LEARNING DIRECTIVES (Auto-Learned Best Practices):\n{content}"
             except Exception as e:
                 logger.error(f"Failed to read learning guide at {guide_path}: {e}")
-                
+
         return system_prompt
 
     def _resolve_agent_persona(self, role: str) -> str:
         """Resolve the agent persona dynamically from contract files or default fallback."""
         role_lower = role.lower()
-        
+
         # Apply dynamic .agent detection logic (from L-20260531-001) using Path to locate active configuration directory
         path_check = Path(self.workspace_path)
         if (path_check / ".agent").is_dir():
@@ -109,7 +156,7 @@ class DiscussionRoom:
             project_root = path_check.parent
         else:
             project_root = path_check.parent
-            
+
         role_file = project_root / ".agent" / "prompts" / "roles" / f"{role_lower}.md"
         if role_file.is_file():
             try:
@@ -123,7 +170,7 @@ class DiscussionRoom:
                             return role_def["persona"]
             except Exception as e:
                 logger.error(f"Failed to dynamically load persona for role {role_lower}: {e}")
-                
+
         # Fallback cleanly to DEFAULT_PERSONAS
         return DEFAULT_PERSONAS.get(role_lower, f"You are a helpful {role_lower} agent.")
 
@@ -223,14 +270,14 @@ class DiscussionRoom:
             project_root = path_check.parent
         else:
             project_root = path_check.parent
-            
+
         lessons_file = project_root / ".agent" / "knowledge_base" / "lessons_learned.md"
         if lessons_file.is_file():
             try:
                 lessons_learned_content = lessons_file.read_text(encoding="utf-8")
             except Exception:
                 pass
-                
+
         system_prompt = (
             "You are an expert self-healing engine for the LLM Agent System (LAS).\n"
             "An execution component failed.\n"
@@ -240,7 +287,7 @@ class DiscussionRoom:
             "Respond ONLY with a valid JSON object representing the corrected/patched context fields. "
             "Do not include any explanation or markdown formatting (like ```json ... ```) - just return raw JSON."
         )
-        
+
         user_content = (
             f"Component/Skill Failed: {skill_id}\n"
             f"Original Context: {json.dumps(params, ensure_ascii=False)}\n"
@@ -248,7 +295,7 @@ class DiscussionRoom:
             "Please analyze this failure. If a matching lesson is found, apply its best practice. "
             "Otherwise, correct the parameters/context to fix the error. Return the corrected fields as a JSON object."
         )
-        
+
         try:
             provider, config, resolved_acc_id = self._resolve_agent_provider(None)
             response_type, response_data = await provider.complete(
@@ -259,7 +306,7 @@ class DiscussionRoom:
             )
             if response_type == "error":
                 return params
-                
+
             raw_text = str(response_data).strip()
             if raw_text.startswith("```"):
                 lines = raw_text.splitlines()
@@ -268,7 +315,7 @@ class DiscussionRoom:
                 if lines and lines[-1].strip() == "```":
                     lines = lines[:-1]
                 raw_text = "\n".join(lines).strip()
-                
+
             patched = json.loads(raw_text)
             if isinstance(patched, dict):
                 return patched
@@ -289,16 +336,16 @@ class DiscussionRoom:
     ) -> Optional[dict[str, Any]]:
         # We subscribe to response channel
         response_channel = f"swarm:debate:{session_id}:{role.lower()}:response"
-        
+
         loop = asyncio.get_running_loop()
         future = loop.create_future()
-        
+
         async def on_response(msg: dict):
             if not future.done():
                 future.set_result(msg)
-                
+
         await broker.subscribe(response_channel, on_response)
-        
+
         try:
             # Publish request
             request_msg = {
@@ -313,12 +360,211 @@ class DiscussionRoom:
             }
             # Publish to role debate channel
             await broker.publish(f"swarm:debate:{role.lower()}", request_msg)
-            
+
             # Wait for response with timeout
             response = await asyncio.wait_for(future, timeout=5.0)
             return response
         finally:
             await broker.unsubscribe(response_channel)
+
+    def __init__(self, workspace_path: str = "."):
+        self.workspace_path = os.path.abspath(workspace_path)
+        self.account_manager = AccountManager(self.workspace_path)
+        self.prompt_composer = PromptComposer(self.workspace_path)
+
+    def _is_line_protected(self, line: str) -> bool:
+        import re
+        # Case insensitive terms
+        for term in ["Error", "Exception", "Decision", "Disagreement", "Conflict", "disagree"]:
+            if term.lower() in line.lower():
+                return True
+        # Case sensitive or special patterns
+        if "file://" in line:
+            return True
+        if ".py" in line:
+            return True
+        # hex SHA-256: 64 character hex string
+        if re.search(r'\b[a-fA-F0-9]{64}\b', line):
+            return True
+        return False
+
+    def _compact_transcript(self, transcript: list[dict[str, str]], max_tokens: int = 4000) -> str:
+        """Compact the transcript deterministically when it exceeds the token limit.
+
+        Preserves protected elements: file://, .py, Error, Exception, Decision,
+        Disagreement, Conflict, disagree, and 64-char hex SHA-256 hashes.
+        """
+        if not transcript:
+            return "(The discussion has just started. No contributions yet.)"
+
+        # First, format the transcript as it is
+        formatted = "\n".join(
+            f"[{msg['agent']} ({msg['role']})]: {msg['content']}"
+            for msg in transcript
+        )
+        from agent_workspace.core.token_counter import TokenCounter
+        if TokenCounter.count_text(formatted).count <= max_tokens:
+            return formatted
+
+        # Let's perform deterministic compaction on each message's content
+        compacted_messages = []
+        for msg in transcript:
+            content = msg["content"]
+            lines = content.splitlines()
+            compacted_lines = []
+            for line in lines:
+                if self._is_line_protected(line):
+                    compacted_lines.append(line)
+                else:
+                    # Truncate line if it's long
+                    trimmed = line.strip()
+                    if len(trimmed) > 80:
+                        compacted_lines.append(trimmed[:60] + "... [compacted]")
+                    else:
+                        compacted_lines.append(line)
+            compacted_content = "\n".join(compacted_lines)
+            compacted_messages.append({
+                "agent": msg["agent"],
+                "role": msg["role"],
+                "content": compacted_content
+            })
+
+        # Re-format compacted
+        formatted_compacted = "\n".join(
+            f"[{msg['agent']} ({msg['role']})]: {msg['content']}"
+            for msg in compacted_messages
+        )
+
+        # If it's still over max_tokens, let's aggressively drop non-protected lines or drop older messages
+        if TokenCounter.count_text(formatted_compacted).count > max_tokens:
+            # Let's do a more aggressive compaction: drop any line that is NOT protected.
+            more_compacted_messages = []
+            for msg in compacted_messages:
+                content = msg["content"]
+                lines = content.splitlines()
+                compacted_lines = []
+                for line in lines:
+                    if self._is_line_protected(line):
+                        compacted_lines.append(line)
+
+                # If everything in the message was dropped, keep at least a minimal note
+                if not compacted_lines:
+                    compacted_content = "... [message content compacted, no decisions/paths/errors/hashes present] ..."
+                else:
+                    compacted_content = "\n".join(compacted_lines)
+
+                more_compacted_messages.append({
+                    "agent": msg["agent"],
+                    "role": msg["role"],
+                    "content": compacted_content
+                })
+            formatted_compacted = "\n".join(
+                f"[{msg['agent']} ({msg['role']})]: {msg['content']}"
+                for msg in more_compacted_messages
+            )
+
+        return formatted_compacted
+
+    def build_role_contracts(self, agents: list[dict[str, Any]]) -> list[DiscussionRoleContract]:
+        role_map = {
+            "architect": ("thinker", "Plan the discussion strategy and decompose the work."),
+            "cto": ("thinker", "Plan the discussion strategy and decompose the work."),
+            "analyst": ("thinker", "Clarify requirements, risks, and constraints."),
+            "ceo": ("thinker", "Confirm strategic alignment and escalation priority."),
+            "dev": ("worker", "Execute the implementation-oriented discussion work."),
+            "programmer": ("worker", "Execute the implementation-oriented discussion work."),
+            "engineer": ("worker", "Execute the implementation-oriented discussion work."),
+            "qa": ("verifier", "Verify the outcome against requirements and tests."),
+            "auditor": ("verifier", "Verify the outcome against requirements and tests."),
+            "cfo": ("verifier", "Verify cost, budget, and operational risk."),
+            "moderator": ("verifier", "Synthesize and verify consensus durability."),
+        }
+        contracts: list[DiscussionRoleContract] = []
+        assigned_runtime_roles: set[str] = set()
+        for index, agent in enumerate(agents):
+            source_role = str(agent.get("role", "agent")).lower()
+            runtime_role, responsibility = role_map.get(
+                source_role,
+                ("worker", "Contribute to the discussion using the declared source role."),
+            )
+            if runtime_role in assigned_runtime_roles and runtime_role != "worker":
+                runtime_role = "worker"
+            assigned_runtime_roles.add(runtime_role)
+            name = str(agent.get("name") or source_role.capitalize())
+            contracts.append(
+                DiscussionRoleContract(
+                    runtime_role=runtime_role,
+                    name=name,
+                    source_role=source_role,
+                    responsibility=responsibility,
+                    verifier=runtime_role == "verifier",
+                    required=index == 0 or runtime_role in {"worker", "verifier"},
+                )
+            )
+
+        if contracts and not any(contract.runtime_role == "thinker" for contract in contracts):
+            contracts[0].runtime_role = "thinker"
+            contracts[0].responsibility = "Plan the discussion strategy and decompose the work."
+        if contracts and not any(contract.runtime_role == "verifier" for contract in contracts):
+            contracts[-1].runtime_role = "verifier"
+            contracts[-1].responsibility = "Verify the outcome against requirements and tests."
+            contracts[-1].verifier = True
+            contracts[-1].required = True
+        return contracts
+
+    def create_verifier_verdict(
+        self,
+        *,
+        session_id: str,
+        topic: str,
+        consensus_summary: str,
+        transcript: list[dict[str, str]],
+        role_contracts: list[DiscussionRoleContract],
+        risk_level: str = "medium",
+        approval_required: bool = False,
+        consensus_certificate: dict[str, Any] | None = None,
+    ) -> VerifierVerdict:
+        verifier = next((contract for contract in role_contracts if contract.verifier), None)
+        if verifier is None:
+            raise ValueError("Verifier role contract is required for a durable verdict.")
+
+        normalized_risk = risk_level.lower()
+        if normalized_risk == "high" and not approval_required and not consensus_certificate:
+            raise PermissionError("High-risk verifier verdict requires approval or consensus certificate.")
+
+        lowered_summary = consensus_summary.lower()
+        if "error synthesizing consensus" in lowered_summary or "[error" in lowered_summary:
+            decision = "reject"
+        elif "escalate" in lowered_summary or "blocked" in lowered_summary:
+            decision = "escalate"
+        else:
+            decision = "accept"
+
+        verifier_lines = [
+            str(msg.get("content", ""))
+            for msg in transcript
+            if str(msg.get("role", "")).lower() in {"qa", "auditor", "cfo", "moderator"}
+        ]
+        rationale_source = verifier_lines[-1] if verifier_lines else consensus_summary
+        rationale = " ".join(rationale_source.split())[:240]
+        escalation = None
+        if consensus_certificate:
+            escalation = "consensus_certificate"
+        elif approval_required:
+            escalation = "approval_required"
+        elif decision == "escalate":
+            escalation = "verifier_escalation"
+
+        return VerifierVerdict(
+            session_id=session_id,
+            topic=topic,
+            decision=decision,
+            verifier_role=verifier.name,
+            rationale=rationale,
+            risk_level=normalized_risk,
+            escalation=escalation,
+            consensus_certificate=consensus_certificate,
+        )
 
     async def run(
         self,
@@ -327,17 +573,35 @@ class DiscussionRoom:
         max_rounds: int = 2,
         moderator_persona: str | None = None,
         session_id: str = "debate-session",
-        sub_problems: list[dict[str, Any]] | None = None
+        sub_problems: list[dict[str, Any]] | None = None,
+        max_participants: int = 5,
+        max_sub_swarms: int = 3,
+        risk_level: str = "medium",
+        approval_required: bool = False,
+        consensus_certificate: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Orchestrate a round-robin sequential debate among agents on a topic.
 
         Concludes with a synthesized Consensus Summary, with parallel hierarchical sub-swarm delegation.
         """
+        # Enforce participant limits
+        if len(agents) > max_participants:
+            raise ValueError(f"Number of agents ({len(agents)}) exceeds max_participants ceiling ({max_participants}).")
+
+        if sub_problems:
+            if len(sub_problems) > max_sub_swarms:
+                raise ValueError(f"Number of sub-problems ({len(sub_problems)}) exceeds max_sub_swarms ceiling ({max_sub_swarms}).")
+            for i, sp in enumerate(sub_problems):
+                sp_agents = sp.get("agents", [])
+                if len(sp_agents) > max_participants:
+                    raise ValueError(f"Sub-swarm {i+1} agents count ({len(sp_agents)}) exceeds max_participants ceiling ({max_participants}).")
+
         transcript: list[dict[str, str]] = []
         total_prompt_tokens = 0
         total_completion_tokens = 0
         total_estimated_cost = 0.0
         models_used = set()
+        role_contracts = self.build_role_contracts(agents)
 
         def estimate_cost(model_name: str, prompt_t: int, completion_t: int) -> float:
             m_lower = model_name.lower()
@@ -368,11 +632,16 @@ class DiscussionRoom:
                         max_rounds=sp_max_rounds,
                         moderator_persona=sp_moderator_persona,
                         session_id=sp_session_id,
-                        sub_problems=None
+                        sub_problems=None,
+                        max_participants=max_participants,
+                        max_sub_swarms=max_sub_swarms,
+                        risk_level=risk_level,
+                        approval_required=approval_required,
+                        consensus_certificate=consensus_certificate,
                     )
                 )
             sub_swarm_results = await asyncio.gather(*tasks)
-            
+
             sub_swarm_context = "### Sub-Swarm Consensus Summaries:\n"
             for i, res in enumerate(sub_swarm_results):
                 sub_topic = res["topic"]
@@ -392,21 +661,16 @@ class DiscussionRoom:
                 "name": name,
                 "role": role,
                 "persona": persona,
-                "account_id": account_id
+                "account_id": account_id,
+                "runtime_role": role_contracts[len(participants)].runtime_role if len(participants) < len(role_contracts) else "worker",
             })
 
         # 2. Sequential Round-Robin Dialogue Loop
         for round_idx in range(1, max_rounds + 1):
             logger.info("Starting discussion round %d/%d", round_idx, max_rounds)
             for p in participants:
-                # Format current transcript for the participant
-                if transcript:
-                    formatted_transcript = "\n".join(
-                        f"[{msg['agent']} ({msg['role']})]: {msg['content']}"
-                        for msg in transcript
-                    )
-                else:
-                    formatted_transcript = "(The discussion has just started. No contributions yet.)"
+                # Format current transcript for the participant with compaction check (max 4000 tokens)
+                formatted_transcript = self._compact_transcript(transcript, max_tokens=4000)
 
                 system_prompt = f"{p['persona']}\n\nYou are participating in a multi-agent debate/discussion room. Help the team achieve a consensus."
                 system_prompt = self._append_role_learning_guide(p["role"], system_prompt)
@@ -423,10 +687,10 @@ It is now your turn, {p['name']}. Please respond to the topic or build on top of
                 start_time = time.perf_counter()
                 contribution = None
                 resolved_acc_id = p["account_id"] or "default-account"
-                
+
                 # Check for distributed broker delegation
                 from agent_workspace.core.broker import get_broker, RedisSwarmBroker
-                
+
                 broker = get_broker(workspace_path=self.workspace_path)
                 if isinstance(broker, RedisSwarmBroker) and not os.environ.get("PYTEST_CURRENT_TEST"):
                     try:
@@ -445,7 +709,7 @@ It is now your turn, {p['name']}. Please respond to the topic or build on top of
                             p_tok = delegated_resp.get("prompt_tokens", 0)
                             c_tok = delegated_resp.get("completion_tokens", 0)
                             self.account_manager.record_usage(resolved_acc_id, p_tok, c_tok)
-                            
+
                             model_used = delegated_resp.get("model", "gemini-2.5-flash")
                             models_used.add(model_used)
                             call_cost = estimate_cost(model_used, p_tok, c_tok)
@@ -468,6 +732,9 @@ It is now your turn, {p['name']}. Please respond to the topic or build on top of
                                 topic=topic,
                                 session_id=session_id
                             )
+                            # Cap per-response completion tokens inside run
+                            config["max_tokens"] = min(config.get("max_tokens", 4096), 1024)
+
                             messages = [{"role": "user", "content": user_content}]
 
                             response_type, response_data = await provider.complete(
@@ -497,7 +764,7 @@ It is now your turn, {p['name']}. Please respond to the topic or build on top of
                             prompt_tokens = len(system_prompt + user_content) // 4
                             completion_tokens = len(contribution) // 4
                             self.account_manager.record_usage(resolved_acc_id, prompt_tokens, completion_tokens)
-                            
+
                             model_used = config.get("model", "gemini-2.5-flash")
                             models_used.add(model_used)
                             call_cost = estimate_cost(model_used, prompt_tokens, completion_tokens)
@@ -513,14 +780,14 @@ It is now your turn, {p['name']}. Please respond to the topic or build on top of
                                 healed_data = await self._invoke_llm_healing("discussion_room_llm", {"system_prompt": system_prompt, "user_content": user_content}, error_msg)
                                 system_prompt = healed_data.get("system_prompt", system_prompt)
                                 user_content = healed_data.get("user_content", user_content)
-                                
+
                                 if "429" in error_msg.lower() or "rate limit" in error_msg.lower():
                                     self.account_manager.swap_to_fallback()
                             else:
                                 contribution = f"[Silent / Connection Error: {e}]"
 
                 duration_ms = int((time.perf_counter() - start_time) * 1000)
-                
+
                 # Cost Alert Calculation
                 cost_alert = False
                 active_acc = self.account_manager.get_active_account()
@@ -529,7 +796,7 @@ It is now your turn, {p['name']}. Please respond to the topic or build on top of
                     used = active_acc.get("tokens_used", 0)
                     if budget > 0 and (used / budget) >= 0.8:
                         cost_alert = True
-                
+
                 # Broadcast debate contribution event
                 debate_event = {
                     "session": session_id,
@@ -557,10 +824,8 @@ It is now your turn, {p['name']}. Please respond to the topic or build on top of
         # 3. Moderator Synthesis Round
         logger.info("Synthesizing meeting consensus summary...")
         mod_persona = moderator_persona or self._resolve_agent_persona("moderator")
-        formatted_final_transcript = "\n".join(
-            f"[{msg['agent']} ({msg['role']})]: {msg['content']}"
-            for msg in transcript
-        )
+        # Format final transcript for moderator with compaction check
+        formatted_final_transcript = self._compact_transcript(transcript, max_tokens=4000)
 
         mod_system_prompt = mod_persona
         mod_user_content = f"""Topic discussed: {topic}
@@ -579,7 +844,7 @@ Format the summary nicely in Markdown."""
 
         consensus_summary = f"[Error synthesizing consensus]"
         start_time = time.perf_counter()
-        
+
         max_attempts = 3
         for attempt in range(1, max_attempts + 2):
             try:
@@ -590,6 +855,9 @@ Format the summary nicely in Markdown."""
                     topic="consensus_synthesis",
                     session_id=session_id
                 )
+                # Cap per-response completion tokens inside run
+                config["max_tokens"] = min(config.get("max_tokens", 4096), 1024)
+
                 messages = [{"role": "user", "content": mod_user_content}]
 
                 response_type, response_data = await provider.complete(
@@ -619,7 +887,7 @@ Format the summary nicely in Markdown."""
                 prompt_tokens = len(mod_system_prompt + mod_user_content) // 4
                 completion_tokens = len(consensus_summary) // 4
                 self.account_manager.record_usage(resolved_acc_id, prompt_tokens, completion_tokens)
-                
+
                 model_used = config.get("model", "gemini-2.5-flash")
                 models_used.add(model_used)
                 call_cost = estimate_cost(model_used, prompt_tokens, completion_tokens)
@@ -635,14 +903,14 @@ Format the summary nicely in Markdown."""
                     healed_data = await self._invoke_llm_healing("discussion_room_moderator", {"system_prompt": mod_system_prompt, "user_content": mod_user_content}, error_msg)
                     mod_system_prompt = healed_data.get("system_prompt", mod_system_prompt)
                     mod_user_content = healed_data.get("user_content", mod_user_content)
-                    
+
                     if "429" in error_msg.lower() or "rate limit" in error_msg.lower():
                         self.account_manager.swap_to_fallback()
                 else:
                     consensus_summary = f"Error synthesizing consensus: {e}\n\nMeeting adjourned."
 
         duration_ms = int((time.perf_counter() - start_time) * 1000)
-        
+
         # Cost Alert Calculation
         cost_alert = False
         active_acc = self.account_manager.get_active_account()
@@ -651,7 +919,7 @@ Format the summary nicely in Markdown."""
             used = active_acc.get("tokens_used", 0)
             if budget > 0 and (used / budget) >= 0.8:
                 cost_alert = True
-                
+
         # Broadcast moderator synthesized event
         mod_event = {
             "session": session_id,
@@ -675,11 +943,22 @@ Format the summary nicely in Markdown."""
             for i, res in enumerate(sub_swarm_results):
                 consensus_summary += f"\n#### Sub-Swarm {i+1} [{res['topic']}]:\n{res['consensus_summary']}\n"
 
+        verifier_verdict = self.create_verifier_verdict(
+            session_id=session_id,
+            topic=topic,
+            consensus_summary=consensus_summary,
+            transcript=transcript,
+            role_contracts=role_contracts,
+            risk_level=risk_level,
+            approval_required=approval_required,
+            consensus_certificate=consensus_certificate,
+        )
+
         # Compile structured real-time invoice telemetry audit record
         import uuid
         invoice_id = f"inv-{uuid.uuid4().hex[:12]}"
         model_used_str = ", ".join(sorted(list(models_used))) if models_used else "gemini-2.5-flash"
-        
+
         invoice_record = {
             "invoice_id": invoice_id,
             "session_id": session_id,
@@ -701,6 +980,28 @@ Format the summary nicely in Markdown."""
         except Exception as e:
             logger.error("Failed to persist billing audit trail: %s", e)
 
+        # Archive full session transcript
+        archive_dir = Path(self.workspace_path) / ".agent" / "memory" / "archive"
+        try:
+            archive_dir.mkdir(parents=True, exist_ok=True)
+            timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+            archive_file = archive_dir / f"debate_{session_id}_{timestamp}.json"
+            archive_data = {
+                "session_id": session_id,
+                "topic": topic,
+                "rounds": max_rounds,
+                "participants": participants,
+                "transcript": transcript,
+                "consensus_summary": consensus_summary,
+                "role_contracts": [contract.to_dict() for contract in role_contracts],
+                "verifier_verdict": verifier_verdict.to_dict(),
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+            archive_file.write_text(json.dumps(archive_data, indent=2, ensure_ascii=False), encoding="utf-8")
+            logger.info("Archived full debate transcript to %s", archive_file)
+        except Exception as e:
+            logger.error("Failed to archive debate transcript: %s", e)
+
         # Broadcast invoice telemetry event
         invoice_event = {
             "session": session_id,
@@ -718,7 +1019,9 @@ Format the summary nicely in Markdown."""
             "topic": topic,
             "rounds": max_rounds,
             "transcript": transcript,
-            "consensus_summary": consensus_summary
+            "consensus_summary": consensus_summary,
+            "role_contracts": [contract.to_dict() for contract in role_contracts],
+            "verifier_verdict": verifier_verdict.to_dict(),
         }
 
     async def run_corporate_audit(self, task_id: str, proposed_code: str) -> dict[str, Any]:
@@ -727,28 +1030,28 @@ Format the summary nicely in Markdown."""
         runs automated pytest validations, acting as a real-time gating check.
         """
         logger.info("Initiating corporate audit gate for task %s", task_id)
-        
+
         # 1. Dev Agent (Programmer) produces the code review submission
         dev_note = f"Dev Agent submitted code review for Task {task_id}:\n```python\n{proposed_code}\n```"
-        
+
         # 2. QA Agent (Auditor) executes automated testing suite in the workspace asynchronously
         import asyncio
         import sys
         logger.info("QA Agent executing automated validation gate using pytest asynchronously...")
-        
+
         # Use current python executable to guarantee we use the correct environment
         python_exe = sys.executable or "python"
-        
+
         proc = await asyncio.create_subprocess_exec(
             python_exe, "-m", "pytest",
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             cwd=self.workspace_path
         )
-        
+
         stdout_chunks = []
         stderr_chunks = []
-        
+
         async def read_stream(stream, chunks, log_prefix):
             while True:
                 line = await stream.readline()
@@ -757,30 +1060,30 @@ Format the summary nicely in Markdown."""
                 decoded = line.decode("utf-8", errors="replace")
                 chunks.append(decoded)
                 logger.info("%s: %s", log_prefix, decoded.strip())
-                
+
         await asyncio.gather(
             read_stream(proc.stdout, stdout_chunks, "[QA pytest STDOUT]"),
             read_stream(proc.stderr, stderr_chunks, "[QA pytest STDERR]")
         )
-        
+
         returncode = await proc.wait()
-        
+
         stdout_str = "".join(stdout_chunks)
         stderr_str = "".join(stderr_chunks)
-        
+
         test_passed = (returncode == 0)
         qa_status = "PASS" if test_passed else "FAIL"
-        
+
         qa_feedback = f"""[QA Auditor Report] Task ID: {task_id}
 Status: {qa_status}
 Exit Code: {returncode}
 Stdout: {stdout_str[:500]}
 Stderr: {stderr_str[:500]}
 """
-        
+
         # 3. CFO Agent logs token cost and audits total financial allocation
         cfo_feedback = f"[CFO Audit Log] Task ID: {task_id} approved for release. Token cost checked against phase budget." if test_passed else f"[CFO Audit Log] Task ID: {task_id} rejected. Return to Dev for correction loop."
-        
+
         return {
             "task_id": task_id,
             "dev_note": dev_note,
@@ -797,7 +1100,7 @@ Stderr: {stderr_str[:500]}
         transaction_logs: list[str] | None = None
     ) -> str:
         """Triggers a round-robin debate among roles analyzing completed tasks.
-        
+
         Refines consensus to produce a unified milestone_learning_report.md and registers it.
         """
         logger.info("Initiating autonomous milestone reflection consensus loop for milestone %s", milestone_id)
@@ -813,11 +1116,11 @@ Stderr: {stderr_str[:500]}
                     task_dict = task
                 else:
                     task_dict = {}
-                
+
                 title = getattr(task, "title", "") or task_dict.get("title", "")
                 desc = getattr(task, "description", "") or task_dict.get("description", "")
                 logs = getattr(task, "logs", []) or task_dict.get("logs", [])
-                
+
                 logs_str = "\n".join(logs) if isinstance(logs, list) else str(logs)
                 logs_summary_parts.append(
                     f"### Task: {task_id} - {title}\n"
@@ -871,7 +1174,7 @@ Stderr: {stderr_str[:500]}
 
         kb_dir = project_root / ".agent" / "knowledge_base"
         kb_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # 4. Write milestone learning report
         report_file = kb_dir / "milestone_learning_report.md"
         try:
@@ -891,12 +1194,12 @@ Stderr: {stderr_str[:500]}
 
         if not isinstance(index_data, dict):
             index_data = {}
-        
+
         index_data.setdefault("schema_version", "1.0.0")
         index_data.setdefault("generated_at", datetime.now(timezone.utc).isoformat())
-        
+
         documents = index_data.setdefault("documents", [])
-        
+
         doc_id = f"milestone_learning_report"
         new_doc = {
             "id": doc_id,
@@ -947,18 +1250,18 @@ Stderr: {stderr_str[:500]}
         votes "approve" or "reject" on a proposal and signs the payload hash.
         """
         logger.info("Initiating dynamic governance vote calibration debate for proposal %s", proposal.get("id"))
-        
+
         votes = {}
         signatures = {}
         payload_hash = proposal["payload_hash"]
-        
+
         # Loop through all swarm members
         members = ProofOfConsensus.get_swarm_members()
         for role in members:
             if SwarmIDS.is_quarantined(role):
                 logger.warning("Member %s is quarantined and cannot participate in governance vote.", role)
                 continue
-                
+
             # Each active node votes. We simulate the vote based on the role and proposal type.
             # Let's run a quick LLM call for each member to evaluate the rule.
             persona = self._resolve_agent_persona(role)
@@ -967,7 +1270,7 @@ Stderr: {stderr_str[:500]}
                 "You are participating in a decentralized swarm governance vote on a prompt policy calibration proposal.\n"
                 "You must evaluate the proposal and cast your vote: either APPROVE or REJECT."
             )
-            
+
             user_content = (
                 f"Rule Type: {proposal.get('rule_type')}\n"
                 f"Rule Text: {proposal.get('rule_text')}\n\n"
@@ -975,7 +1278,7 @@ Stderr: {stderr_str[:500]}
                 "Respond with either 'APPROVE' or 'REJECT' as the first word of your response, "
                 "followed by a short, one-sentence rationale."
             )
-            
+
             vote = "approve"
             try:
                 prompt_len = len(system_prompt + user_content) // 4
@@ -1001,11 +1304,11 @@ Stderr: {stderr_str[:500]}
             except Exception as e:
                 logger.warning("LLM vote query failed for role %s: %s. Defaulting to APPROVE.", role, e)
                 vote = "approve"
-                
+
             votes[role] = vote
             sig = ProofOfConsensus.generate_member_signature(role, payload_hash)
             signatures[role] = sig
-            
+
         return {
             "proposal_id": proposal.get("id"),
             "votes": votes,
@@ -1057,8 +1360,11 @@ class ProofOfConsensus:
     def generate_member_signature(cls, role: str, payload_hash: str) -> str:
         """Generates a SHA256 signature for a specific role and payload hash."""
         import hashlib
-        secret = cls.SECRET_KEYS.get(role.lower(), "poc-secret-fallback")
-        return hashlib.sha256(f"{role.lower()}:{payload_hash}:{secret}".encode("utf-8")).hexdigest()
+        normalized_role = role.lower()
+        secret = cls.SECRET_KEYS.get(normalized_role)
+        if not secret:
+            raise ValueError(f"Unknown consensus role: {role}")
+        return hashlib.sha256(f"{normalized_role}:{payload_hash}:{secret}".encode("utf-8")).hexdigest()
 
     @classmethod
     def create_consensus_certificate(cls, payload_hash: str, approved_roles: list[str]) -> dict[str, Any]:
@@ -1230,5 +1536,3 @@ class SwarmIDS:
         """Helper to clear failures and quarantine for testing."""
         cls.quarantined_nodes.clear()
         cls.failures_count.clear()
-
-

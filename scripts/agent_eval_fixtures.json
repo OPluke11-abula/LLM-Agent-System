@@ -1,0 +1,67 @@
+[
+  {
+    "id": "conductor-telemetry-review",
+    "topic": "Review conductor telemetry implementation",
+    "risk_level": "medium",
+    "consensus_summary": "Decision: accept after focused tests and manifest validation pass.",
+    "transcript": [
+      {
+        "agent": "Planner",
+        "role": "architect",
+        "content": "Plan keeps routing behavior unchanged."
+      },
+      {
+        "agent": "Auditor",
+        "role": "qa",
+        "content": "Decision: focused tests passed and no unresolved blocker remains."
+      }
+    ],
+    "agents": [
+      {
+        "role": "architect",
+        "name": "Planner"
+      },
+      {
+        "role": "dev",
+        "name": "Builder"
+      },
+      {
+        "role": "qa",
+        "name": "Auditor"
+      }
+    ],
+    "expected_decision": "accept"
+  },
+  {
+    "id": "high-risk-with-consensus",
+    "topic": "Approve high-risk swarm failover",
+    "risk_level": "high",
+    "consensus_summary": "Decision: accept with consensus certificate.",
+    "transcript": [
+      {
+        "agent": "Auditor",
+        "role": "qa",
+        "content": "Decision: consensus certificate is present."
+      }
+    ],
+    "agents": [
+      {
+        "role": "ceo",
+        "name": "CEO"
+      },
+      {
+        "role": "dev",
+        "name": "Builder"
+      },
+      {
+        "role": "qa",
+        "name": "Auditor"
+      }
+    ],
+    "consensus_certificate": {
+      "payload_hash": "fixture",
+      "approvals": ["ceo", "cto", "dev"]
+    },
+    "expected_decision": "accept"
+  }
+]
