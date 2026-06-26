@@ -108,9 +108,10 @@ class CrossCloudGateway:
             # Try asymmetric verification
             if self.cert_manager.verify_signature(client_cert, signature, payload):
                 return True
-            logger.warning("[CrossCloudGateway] Asymmetric signature verification failed; trying fallback.")
+            logger.warning("[CrossCloudGateway] Asymmetric signature verification failed.")
+            return False
 
-        # Fallback to verify mathematically anyway (backward compatibility with other peers/legacy format)
+        # Fingerprint-only peers use the legacy SHA-256 handshake format.
         expected_sig = hashlib.sha256(f"{payload}:{client_cert_sha}".encode("utf-8")).hexdigest()
         is_valid = (signature == expected_sig)
         if not is_valid:

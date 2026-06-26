@@ -9,6 +9,37 @@ from typing import Any, Dict
 
 logger = logging.getLogger(__name__)
 
+SNAPSHOT_IGNORED_DIRS = {
+    "__pycache__",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".mypy_cache",
+    ".uv-cache",
+    ".path-backups",
+    "node_modules",
+    "venv",
+    ".venv",
+    "dist",
+    "build",
+    "output",
+    "scratch",
+    "coverage",
+    "cover",
+    "target",
+}
+
+
+def _is_snapshot_ignored_dir(name: str) -> bool:
+    return name.startswith(".") or name in SNAPSHOT_IGNORED_DIRS
+
+
+def _copy_snapshot_entry(src_path: str, dst_path: str) -> None:
+    os.makedirs(os.path.dirname(dst_path), exist_ok=True)
+    if os.path.islink(src_path):
+        os.symlink(os.readlink(src_path), dst_path, target_is_directory=os.path.isdir(src_path))
+        return
+    shutil.copy2(src_path, dst_path, follow_symlinks=False)
+
 
 class FileSnapshotTransaction:
     """Manages workspace snapshots and automatically rolls back modified files on failure."""
@@ -19,17 +50,27 @@ class FileSnapshotTransaction:
     def __enter__(self):
         self.temp_dir = tempfile.mkdtemp()
         for root, dirs, files in os.walk(self.workspace_path):
-            rel_root = os.path.relpath(root, self.workspace_path)
-            parts = rel_root.split(os.sep)
-            if any(p.startswith('.') or p in ("__pycache__", "node_modules", "venv", ".venv") for p in parts if p and p != '.'):
-                continue
+            kept_dirs = []
+            for directory in dirs:
+                if _is_snapshot_ignored_dir(directory):
+                    continue
+                src_dir = os.path.join(root, directory)
+                if os.path.islink(src_dir):
+                    rel_dir_path = os.path.relpath(src_dir, self.workspace_path)
+                    dst_dir = os.path.join(self.temp_dir, rel_dir_path)
+                    try:
+                        _copy_snapshot_entry(src_dir, dst_dir)
+                    except Exception as e:
+                        logger.warning("[FileSnapshotTransaction] Failed to snapshot directory symlink %s: %s", src_dir, e)
+                    continue
+                kept_dirs.append(directory)
+            dirs[:] = kept_dirs
             for file in files:
                 src_path = os.path.join(root, file)
                 rel_file_path = os.path.relpath(src_path, self.workspace_path)
                 dst_path = os.path.join(self.temp_dir, rel_file_path)
-                os.makedirs(os.path.dirname(dst_path), exist_ok=True)
                 try:
-                    shutil.copy2(src_path, dst_path)
+                    _copy_snapshot_entry(src_path, dst_path)
                 except Exception as e:
                     logger.warning("[FileSnapshotTransaction] Failed to snapshot file %s: %s", src_path, e)
         return self
@@ -38,13 +79,19 @@ class FileSnapshotTransaction:
         if not self.temp_dir or not os.path.exists(self.temp_dir):
             return
         logger.info("[FileSnapshotTransaction] Initiating rollback for workspace: %s", self.workspace_path)
-        
+
         # 1. Delete all non-ignored files in the workspace
-        for root, dirs, files in os.walk(self.workspace_path, topdown=False):
-            rel_root = os.path.relpath(root, self.workspace_path)
-            parts = rel_root.split(os.sep)
-            if any(p.startswith('.') or p in ("__pycache__", "node_modules", "venv", ".venv") for p in parts if p and p != '.'):
-                continue
+        for root, dirs, files in os.walk(self.workspace_path):
+            dirs[:] = [d for d in dirs if not _is_snapshot_ignored_dir(d)]
+            for directory in list(dirs):
+                dir_path = os.path.join(root, directory)
+                if not os.path.islink(dir_path):
+                    continue
+                try:
+                    os.rmdir(dir_path)
+                except Exception as e:
+                    logger.warning("[FileSnapshotTransaction] Failed to delete directory symlink during rollback: %s: %s", dir_path, e)
+                dirs.remove(directory)
             for file in files:
                 file_path = os.path.join(root, file)
                 try:
@@ -52,15 +99,37 @@ class FileSnapshotTransaction:
                 except Exception as e:
                     logger.warning("[FileSnapshotTransaction] Failed to delete file during rollback: %s: %s", file_path, e)
 
+        for root, dirs, files in os.walk(self.workspace_path, topdown=False):
+            rel_root = os.path.relpath(root, self.workspace_path)
+            parts = [p for p in rel_root.split(os.sep) if p and p != "."]
+            if not parts or any(_is_snapshot_ignored_dir(p) for p in parts):
+                continue
+            try:
+                os.rmdir(root)
+            except OSError:
+                pass
+            except Exception as e:
+                logger.warning("[FileSnapshotTransaction] Failed to remove directory during rollback: %s: %s", root, e)
+
         # 2. Restore files from the snapshot
         for root, dirs, files in os.walk(self.temp_dir):
+            for directory in list(dirs):
+                src_dir = os.path.join(root, directory)
+                if not os.path.islink(src_dir):
+                    continue
+                rel_dir_path = os.path.relpath(src_dir, self.temp_dir)
+                dst_dir = os.path.join(self.workspace_path, rel_dir_path)
+                try:
+                    _copy_snapshot_entry(src_dir, dst_dir)
+                except Exception as e:
+                    logger.error("[FileSnapshotTransaction] Failed to restore directory symlink during rollback: %s: %s", dst_dir, e)
+                dirs.remove(directory)
             for file in files:
                 src_path = os.path.join(root, file)
                 rel_file_path = os.path.relpath(src_path, self.temp_dir)
                 dst_path = os.path.join(self.workspace_path, rel_file_path)
-                os.makedirs(os.path.dirname(dst_path), exist_ok=True)
                 try:
-                    shutil.copy2(src_path, dst_path)
+                    _copy_snapshot_entry(src_path, dst_path)
                 except Exception as e:
                     logger.error("[FileSnapshotTransaction] Failed to restore file during rollback: %s: %s", dst_path, e)
 
@@ -81,30 +150,33 @@ class FileSnapshotTransaction:
 
 def make_safe_open(workspace_path: str):
     """Generates a restricted open() builtin that prevents path traversal outside the designated workspace."""
-    abs_workspace = os.path.abspath(workspace_path)
-    
+    abs_workspace = os.path.realpath(os.path.abspath(workspace_path))
+
     def safe_open(file, mode='r', *args, **kwargs):
-        if isinstance(file, (str, bytes)):
-            if isinstance(file, bytes):
-                decoded_file = file.decode("utf-8", errors="replace")
-            else:
-                decoded_file = file
-            
-            # Resolve to absolute path
-            if os.path.isabs(decoded_file):
-                resolved_path = os.path.abspath(decoded_file)
-            else:
-                resolved_path = os.path.abspath(os.path.join(abs_workspace, decoded_file))
-                
-            try:
-                rel = os.path.relpath(resolved_path, abs_workspace)
-                if rel.startswith("..") or os.path.isabs(rel):
-                    raise PermissionError(f"Security violation: Directory traversal attempt outside workspace boundaries: '{file}'")
-            except ValueError:
+        if not isinstance(file, (str, bytes, os.PathLike)):
+            raise PermissionError(f"Security violation: File descriptor access is not allowed: '{file}'")
+
+        file_path = os.fspath(file)
+        if isinstance(file_path, bytes):
+            decoded_file = file_path.decode("utf-8", errors="replace")
+        else:
+            decoded_file = file_path
+
+        # Resolve to absolute path
+        if os.path.isabs(decoded_file):
+            resolved_path = os.path.realpath(os.path.abspath(decoded_file))
+        else:
+            resolved_path = os.path.realpath(os.path.abspath(os.path.join(abs_workspace, decoded_file)))
+
+        try:
+            rel = os.path.relpath(resolved_path, abs_workspace)
+            if rel == os.pardir or rel.startswith(os.pardir + os.sep) or os.path.isabs(rel):
                 raise PermissionError(f"Security violation: Directory traversal attempt outside workspace boundaries: '{file}'")
-                
-        return open(file, mode, *args, **kwargs)
-        
+        except ValueError:
+            raise PermissionError(f"Security violation: Directory traversal attempt outside workspace boundaries: '{file}'")
+
+        return open(resolved_path, mode, *args, **kwargs)
+
     return safe_open
 
 
@@ -135,7 +207,7 @@ class SandboxGuard:
         Requires signature verification from ProofOfConsensus.
         """
         cls.total_executions += 1
-        
+
         # 1. Consensus Verification
         payload_hash = hashlib.sha256(code_content.encode("utf-8")).hexdigest()
         from agent_workspace.core.discussion_room import ProofOfConsensus
@@ -176,7 +248,7 @@ class SandboxGuard:
                 docker_available = True
             except Exception:
                 pass
-            
+
             # Check CLI fallback possibility
             docker_cli_available = False
             if not docker_available:
@@ -187,7 +259,7 @@ class SandboxGuard:
                         docker_cli_available = True
                 except Exception:
                     pass
-            
+
             if not docker_available and not docker_cli_available:
                 logger.warning("[SandboxGuard] Docker sandbox requested but Docker is unavailable. Falling back to AST.")
                 resolved_sandbox_type = "ast"
@@ -202,7 +274,7 @@ class SandboxGuard:
             stderr = ""
             cpu_overhead = 0.0
             mem_overhead_mb = 0.0
-            
+
             # Try SDK first
             try:
                 import docker
@@ -216,7 +288,7 @@ class SandboxGuard:
                     stdout=True,
                     stderr=True
                 )
-                
+
                 # Query stats before waiting
                 try:
                     stats = container.stats(stream=False)
@@ -240,7 +312,7 @@ class SandboxGuard:
                 container.remove(force=True)
             except Exception as e:
                 logger.warning(f"Docker Python SDK execution failed: {e}. Trying CLI fallback...")
-                
+
             # CLI fallback
             if exit_code == -1:
                 cpu_overhead = 15.0
@@ -391,14 +463,6 @@ class SandboxGuard:
                                 cls.blocked_executions += 1
                                 cls.last_execution_status = "blocked"
                                 raise PermissionError(f"Security violation: Blocked string literal containing '{word}' detected.")
-                    elif hasattr(ast, "Str") and isinstance(node, ast.Str):
-                        val = node.s.lower()
-                        for word in blocked_words:
-                            if word in val:
-                                cls.blocked_executions += 1
-                                cls.last_execution_status = "blocked"
-                                raise PermissionError(f"Security violation: Blocked string literal containing '{word}' detected.")
-
                 # Restricted Execution Environment
                 safe_globals = {
                     "__builtins__": {
@@ -406,7 +470,7 @@ class SandboxGuard:
                         if k not in cls.BLOCKED_BUILTINS and not k.startswith("__")
                     }
                 }
-                
+
                 # Add basic safe objects
                 safe_globals.update({
                     "abs": abs, "all": all, "any": any, "bin": bin, "bool": bool, "chr": chr,
@@ -435,7 +499,7 @@ class SandboxGuard:
                     compiled_code = compile(code_content, "<sandbox>", "exec")
                     sandbox_locals = locals_dict.copy()
                     exec(compiled_code, safe_globals, sandbox_locals)
-                    
+
                     cls.allowed_executions += 1
                     cls.last_execution_status = "allowed"
 
@@ -448,7 +512,7 @@ class SandboxGuard:
                             sandbox_count.labels(tenant_id=tenant_id, status=cls.last_execution_status).inc()
                     except Exception:
                         pass
-                    
+
                     # Log to audit trail
                     try:
                         from core.audit_ledger import AuditLedger

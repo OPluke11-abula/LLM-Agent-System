@@ -158,6 +158,18 @@ def test_handshake_validation_asymmetric_and_revoked():
     assert gateway.validate_handshake(cert, signature, payload) is True
 
 
+def test_pem_handshake_rejects_legacy_fingerprint_signature():
+    """Verify PEM handshakes cannot fall back to public fingerprint signatures."""
+    gateway = CrossCloudGateway()
+    _, cert, _ = SwarmCertManager.generate_self_signed_cert("pem-fallback-test", validity_seconds=60)
+    cert_sha = SwarmCertManager.get_cert_fingerprint(cert)
+
+    payload = "handshake-challenge-payload"
+    forged_legacy_signature = hashlib.sha256(f"{payload}:{cert_sha}".encode("utf-8")).hexdigest()
+
+    assert gateway.validate_handshake(cert, forged_legacy_signature, payload) is False
+
+
 def test_api_reinstate_endpoint():
     """Verify the API endpoints for listing and reinstating revoked certificates."""
     client = TestClient(app)
@@ -187,4 +199,3 @@ def test_api_reinstate_endpoint():
     assert resp_list_after.status_code == 200
     shas_after = [c["cert_sha"] for c in resp_list_after.json()["revoked_certificates"]]
     assert mock_sha not in shas_after
-

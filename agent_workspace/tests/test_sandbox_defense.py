@@ -1,5 +1,6 @@
 import os
 import sys
+import builtins
 import pytest
 import shutil
 import tempfile
@@ -67,6 +68,110 @@ def test_safe_open_traversal(tmp_path):
         with safe_open("C:/Windows/System32/drivers/etc/hosts" if os.name == 'nt' else "/etc/passwd", "r"):
             pass
 
+
+def test_safe_open_relative_path_reads_from_workspace(tmp_path, monkeypatch):
+    """Verify relative paths resolve against the sandbox workspace, not process cwd."""
+    safe_open = make_safe_open(str(tmp_path))
+    inside_file = tmp_path / "inside.txt"
+    inside_file.write_text("workspace content", encoding="utf-8")
+
+    cwd = tmp_path / "cwd"
+    cwd.mkdir()
+    (cwd / "inside.txt").write_text("cwd content", encoding="utf-8")
+    monkeypatch.chdir(cwd)
+
+    with safe_open("inside.txt", "r") as f:
+        assert f.read() == "workspace content"
+
+
+def test_safe_open_blocks_pathlike_traversal(tmp_path, monkeypatch):
+    """Verify pathlib paths cannot bypass workspace traversal checks."""
+    safe_open = make_safe_open(str(tmp_path))
+    outside_file = tmp_path.parent / "outside-safe-open.txt"
+    outside_file.write_text("outside content", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+
+    with pytest.raises(PermissionError, match="Directory traversal attempt outside workspace boundaries"):
+        with safe_open(Path("..") / outside_file.name, "r"):
+            pass
+
+
+def test_safe_open_allows_dotdot_prefix_filename_inside_workspace(tmp_path):
+    """Verify traversal checks do not reject legal filenames that merely start with '..'."""
+    safe_open = make_safe_open(str(tmp_path))
+    tricky_file = tmp_path / "..safe-name.txt"
+    tricky_file.write_text("safe content", encoding="utf-8")
+
+    with safe_open("..safe-name.txt", "r") as f:
+        assert f.read() == "safe content"
+
+
+def test_safe_open_rejects_file_descriptors(tmp_path, monkeypatch):
+    """Verify raw file descriptors cannot bypass workspace path checks."""
+    safe_open = make_safe_open(str(tmp_path))
+
+    def fail_if_called(*args, **kwargs):
+        raise AssertionError("safe_open delegated a raw file descriptor to open()")
+
+    monkeypatch.setattr(builtins, "open", fail_if_called)
+
+    with pytest.raises(PermissionError, match="File descriptor access is not allowed"):
+        safe_open(0)
+
+
+def test_safe_open_blocks_symlink_escape(tmp_path):
+    """Verify symlinks inside the workspace cannot point reads outside it."""
+    safe_open = make_safe_open(str(tmp_path))
+    outside_file = tmp_path.parent / "outside-symlink-target.txt"
+    outside_file.write_text("outside content", encoding="utf-8")
+    link_path = tmp_path / "linked-outside.txt"
+
+    try:
+        link_path.symlink_to(outside_file)
+    except (OSError, NotImplementedError) as exc:
+        pytest.skip(f"symlink creation unavailable in this environment: {exc}")
+
+    with pytest.raises(PermissionError, match="Directory traversal attempt outside workspace boundaries"):
+        with safe_open("linked-outside.txt", "r"):
+            pass
+
+
+def test_file_snapshot_preserves_symlinks_without_dereferencing(tmp_path):
+    """Verify snapshots preserve symlink entries instead of copying external targets."""
+    outside_file = tmp_path.parent / "outside-snapshot-target.txt"
+    outside_file.write_text("outside content", encoding="utf-8")
+    link_path = tmp_path / "linked-outside.txt"
+
+    try:
+        link_path.symlink_to(outside_file)
+    except (OSError, NotImplementedError) as exc:
+        pytest.skip(f"symlink creation unavailable in this environment: {exc}")
+
+    with FileSnapshotTransaction(str(tmp_path)) as transaction:
+        snapshot_link = Path(transaction.temp_dir) / "linked-outside.txt"
+        assert snapshot_link.is_symlink()
+        assert snapshot_link.resolve() == outside_file.resolve()
+
+
+def test_file_snapshot_preserves_directory_symlinks(tmp_path):
+    """Verify snapshots preserve directory symlink entries without walking their targets."""
+    outside_dir = tmp_path.parent / "outside-snapshot-dir"
+    outside_dir.mkdir()
+    (outside_dir / "outside.txt").write_text("outside content", encoding="utf-8")
+    link_path = tmp_path / "linked-outside-dir"
+
+    try:
+        link_path.symlink_to(outside_dir, target_is_directory=True)
+    except (OSError, NotImplementedError) as exc:
+        pytest.skip(f"directory symlink creation unavailable in this environment: {exc}")
+
+    with FileSnapshotTransaction(str(tmp_path)) as transaction:
+        snapshot_link = Path(transaction.temp_dir) / "linked-outside-dir"
+        assert snapshot_link.is_symlink()
+        assert snapshot_link.resolve() == outside_dir.resolve()
+        assert list(Path(transaction.temp_dir).iterdir()) == [snapshot_link]
+
+
 def test_file_snapshot_rollback(tmp_path):
     """Verify FileSnapshotTransaction rolls back workspace modifications on error."""
     # Write initial files
@@ -93,6 +198,52 @@ def test_file_snapshot_rollback(tmp_path):
     assert f1.read_text(encoding="utf-8") == "initial 1"
     assert f2.read_text(encoding="utf-8") == "initial 2"
     assert not (tmp_path / "file3.txt").exists()
+
+
+def test_file_snapshot_rollback_removes_new_directories(tmp_path):
+    """Verify rollback removes directories created during a failed transaction."""
+    source_file = tmp_path / "source.txt"
+    source_file.write_text("source initial", encoding="utf-8")
+
+    try:
+        with FileSnapshotTransaction(str(tmp_path)):
+            new_file = tmp_path / "newdir" / "nested" / "created.txt"
+            new_file.parent.mkdir(parents=True)
+            new_file.write_text("created", encoding="utf-8")
+            raise RuntimeError("trigger rollback")
+    except RuntimeError:
+        pass
+
+    assert source_file.read_text(encoding="utf-8") == "source initial"
+    assert not (tmp_path / "newdir").exists()
+
+
+def test_file_snapshot_ignores_generated_directories(tmp_path):
+    """Verify rollback skips generated/cache directories instead of snapshotting them."""
+    source_file = tmp_path / "source.txt"
+    source_file.write_text("source initial", encoding="utf-8")
+
+    generated_file = tmp_path / "dist" / "bundle.js"
+    generated_file.parent.mkdir()
+    generated_file.write_text("generated initial", encoding="utf-8")
+
+    scratch_file = tmp_path / "scratch" / "run.log"
+    scratch_file.parent.mkdir()
+    scratch_file.write_text("scratch initial", encoding="utf-8")
+
+    try:
+        with FileSnapshotTransaction(str(tmp_path)):
+            source_file.write_text("source modified", encoding="utf-8")
+            generated_file.write_text("generated modified", encoding="utf-8")
+            scratch_file.write_text("scratch modified", encoding="utf-8")
+            raise RuntimeError("trigger rollback")
+    except RuntimeError:
+        pass
+
+    assert source_file.read_text(encoding="utf-8") == "source initial"
+    assert generated_file.read_text(encoding="utf-8") == "generated modified"
+    assert scratch_file.read_text(encoding="utf-8") == "scratch modified"
+
 
 def test_swarm_ids_quarantine_and_rotation():
     """Verify SwarmIDS quarantines nodes and rotates session keys after 3 failures."""

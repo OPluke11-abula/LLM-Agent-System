@@ -59,6 +59,15 @@ def test_poc_member_signatures_and_master_signing(temp_workspace):
     assert ProofOfConsensus.verify_consensus_certificate(bad_cert) is False
 
 
+def test_poc_rejects_unknown_member_signature():
+    """Verify unknown roles cannot receive deterministic fallback signatures."""
+    import hashlib
+    payload_hash = hashlib.sha256(b"payload").hexdigest()
+
+    with pytest.raises(ValueError, match="Unknown consensus role"):
+        ProofOfConsensus.generate_member_signature("unknown-role", payload_hash)
+
+
 def test_synthesis_rejected_without_consensus(temp_workspace):
     synthesizer = DynamicSkillSynthesizer(temp_workspace)
     mock_engine = MagicMock()

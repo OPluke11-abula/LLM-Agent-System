@@ -49,6 +49,23 @@ def test_jwt_generation_and_verification():
     tampered_token = ".".join(tampered_parts)
     assert verify_jwt(tampered_token) is None
 
+
+def test_jwt_secret_can_be_rotated_with_environment(monkeypatch):
+    """Verify JWT signatures honor LAS_JWT_SECRET and reject tokens signed with old secrets."""
+    payload = {"tenant_id": "tenant_test", "exp": time.time() + 10}
+
+    monkeypatch.setenv("LAS_JWT_SECRET", "first-secret")
+    token = generate_jwt(payload)
+    assert verify_jwt(token)["tenant_id"] == "tenant_test"
+
+    monkeypatch.setenv("LAS_JWT_SECRET", "second-secret")
+    assert verify_jwt(token) is None
+
+    rotated_token = generate_jwt(payload)
+    assert rotated_token != token
+    assert verify_jwt(rotated_token)["tenant_id"] == "tenant_test"
+
+
 def test_auth_token_route(api_client):
     """Test the POST /v1/auth/token endpoint."""
     response = api_client.post("/v1/auth/token", json={"tenant_id": "tenant_a"})
@@ -109,7 +126,7 @@ def test_multi_tenant_audit_isolation(api_client, tmp_path):
     # Clear/mock ledgers so we have a clean test
     with patch("api.workspace", str(tmp_path)), \
          patch("core.discussion_room.ProofOfConsensus.is_consensus_approved", return_value=True):
-        
+
         # Tenant A executes code in sandbox
         payload = {"code_content": "print('hello')", "sandbox_type": "ast"}
         res = api_client.post("/v1/sandbox/execute", json=payload, headers={"Authorization": f"Bearer {token_a}"})
@@ -172,7 +189,7 @@ def test_slack_signature_verification(api_client):
         "x-slack-signature": signature,
         "Content-Type": "application/json"
     }
-    response = api_client.post("/v1/channels/slack/webhook", data=body, headers=headers)
+    response = api_client.post("/v1/channels/slack/webhook", content=body, headers=headers)
     assert response.status_code == 200
     assert response.json()["challenge"] == "slack_test_challenge"
 
@@ -185,7 +202,7 @@ def test_slack_signature_verification(api_client):
         "x-slack-signature": sig_old,
         "Content-Type": "application/json"
     }
-    response_old = api_client.post("/v1/channels/slack/webhook", data=body, headers=headers_old)
+    response_old = api_client.post("/v1/channels/slack/webhook", content=body, headers=headers_old)
     assert response_old.status_code == 403
 
     # Test invalid signature
@@ -194,7 +211,7 @@ def test_slack_signature_verification(api_client):
         "x-slack-signature": "v0=invalidsig",
         "Content-Type": "application/json"
     }
-    response_invalid = api_client.post("/v1/channels/slack/webhook", data=body, headers=headers_invalid)
+    response_invalid = api_client.post("/v1/channels/slack/webhook", content=body, headers=headers_invalid)
     assert response_invalid.status_code == 403
 
 def test_line_signature_verification(api_client):
@@ -207,7 +224,7 @@ def test_line_signature_verification(api_client):
         "x-line-signature": signature,
         "Content-Type": "application/json"
     }
-    response = api_client.post("/v1/channels/line/webhook", data=body, headers=headers)
+    response = api_client.post("/v1/channels/line/webhook", content=body, headers=headers)
     assert response.status_code == 200
     assert response.json()["status"] == "accepted"
 
@@ -216,7 +233,7 @@ def test_line_signature_verification(api_client):
         "x-line-signature": "invalid_sig",
         "Content-Type": "application/json"
     }
-    response_invalid = api_client.post("/v1/channels/line/webhook", data=body, headers=headers_invalid)
+    response_invalid = api_client.post("/v1/channels/line/webhook", content=body, headers=headers_invalid)
     assert response_invalid.status_code == 403
 
 def test_websocket_tenant_isolation(api_client):

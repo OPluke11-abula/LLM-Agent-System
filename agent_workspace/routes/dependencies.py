@@ -134,12 +134,16 @@ def sse_event(event: dict[str, Any]) -> str:
 
 
 
-JWT_SECRET = "las-saas-jwt-secret-key-98234"
+DEFAULT_JWT_SECRET = "las-saas-jwt-secret-key-98234"
 API_KEYS = {
     "key-tenant-a": "tenant_a",
     "key-tenant-b": "tenant_b",
     "key-admin": "admin_tenant"
 }
+
+
+def _jwt_secret() -> str:
+    return os.environ.get("LAS_JWT_SECRET") or DEFAULT_JWT_SECRET
 
 def base64url_encode(data: bytes) -> str:
     return base64.urlsafe_b64encode(data).rstrip(b'=').decode('utf-8')
@@ -153,7 +157,7 @@ def generate_jwt(payload: dict) -> str:
     header_b64 = base64url_encode(json.dumps(header).encode('utf-8'))
     payload_b64 = base64url_encode(json.dumps(payload).encode('utf-8'))
     signing_input = f"{header_b64}.{payload_b64}".encode('utf-8')
-    signature = hmac.new(JWT_SECRET.encode('utf-8'), signing_input, hashlib.sha256).digest()
+    signature = hmac.new(_jwt_secret().encode('utf-8'), signing_input, hashlib.sha256).digest()
     signature_b64 = base64url_encode(signature)
     return f"{header_b64}.{payload_b64}.{signature_b64}"
 
@@ -164,7 +168,7 @@ def verify_jwt(token: str) -> dict | None:
             return None
         header_b64, payload_b64, signature_b64 = parts
         signing_input = f"{header_b64}.{payload_b64}".encode('utf-8')
-        expected_sig = hmac.new(JWT_SECRET.encode('utf-8'), signing_input, hashlib.sha256).digest()
+        expected_sig = hmac.new(_jwt_secret().encode('utf-8'), signing_input, hashlib.sha256).digest()
         expected_sig_b64 = base64url_encode(expected_sig)
         if not hmac.compare_digest(signature_b64, expected_sig_b64):
             return None

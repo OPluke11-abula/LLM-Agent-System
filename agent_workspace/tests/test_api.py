@@ -116,6 +116,28 @@ async def test_topology_stream_parser():
     assert parsed.session == "s123"
 
 
+def test_topology_stream_ws_url_requires_explicit_credentials():
+    """Verify topology stream does not inject a default admin API key."""
+    url = topology_stream.build_collaboration_ws_url("s123")
+
+    assert url == "ws://localhost:8000/v1/collaboration/s123"
+    assert "key-admin" not in url
+    assert "api_key=" not in url
+
+
+def test_topology_stream_ws_url_uses_explicit_credentials():
+    """Verify topology stream URL builder uses caller-provided credentials only."""
+    token_url = topology_stream.build_collaboration_ws_url(
+        "s123",
+        token="jwt token",
+        api_key="ignored-key",
+    )
+    key_url = topology_stream.build_collaboration_ws_url("s123", api_key="explicit-key")
+
+    assert token_url == "ws://localhost:8000/v1/collaboration/s123?token=jwt+token"
+    assert key_url == "ws://localhost:8000/v1/collaboration/s123?api_key=explicit-key"
+
+
 def test_dashboard_ws_endpoint(api_client):
     """Verify that multi-dashboard WebSockets reject invalid roles and connect successfully under correct roles."""
     with api_client.websocket_connect("/v1/dashboard/session-ws-1/invalid_role") as websocket:
