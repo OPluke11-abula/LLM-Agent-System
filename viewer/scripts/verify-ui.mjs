@@ -1,13 +1,16 @@
-import { execFileSync } from "node:child_process";
 import { createServer } from "node:http";
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { extname, join, resolve } from "node:path";
-import { tmpdir } from "node:os";
+import { fileURLToPath } from "node:url";
+import { chromium } from "playwright";
 
-const root = resolve("dist");
-const outputRoot = resolve("output", "ui-regression");
+const viewerRoot = fileURLToPath(new URL("..", import.meta.url));
+const root = resolve(viewerRoot, "dist");
+const outputRoot = resolve(viewerRoot, "output", "ui-regression");
 const port = Number(process.env.UI_VERIFY_PORT || 5175);
 const takeScreenshots = process.env.UI_VERIFY_SCREENSHOTS === "1" || process.argv.includes("--screenshots");
+const screenshotTimeoutMs = Number(process.env.UI_VERIFY_SCREENSHOT_TIMEOUT_MS || 20_000);
+const strictScreenshots = takeScreenshots && process.env.UI_VERIFY_STRICT_SCREENSHOTS !== "0";
 const edgePath = process.env.EDGE_PATH || [
   "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
   "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
@@ -83,58 +86,50 @@ try {
   }
 
   for (const scenario of takeScreenshots ? scenarios : []) {
-    const userDataDir = join(tmpdir(), `las-ui-${scenario.name}-${Date.now()}`);
     const screenshotPath = join(outputRoot, `${scenario.name}.png`);
     const url = `http://127.0.0.1:${port}/__seed?route=${encodeURIComponent(scenario.route)}&onboarded=${scenario.onboarded}`;
-    const commonArgs = [
-      "--hide-scrollbars",
-      "--no-first-run",
-      "--disable-background-networking",
-      "--disable-extensions",
-      "--disable-sync",
-      `--user-data-dir=${userDataDir}`,
-      `--window-size=${scenario.width},${scenario.height}`,
-      "--virtual-time-budget=3000",
-      `--screenshot=${screenshotPath}`,
-      url,
-    ];
-    const attempts = [
-      [
-        "--headless=new",
-        "--use-angle=swiftshader",
-        "--use-gl=swiftshader",
-        "--enable-unsafe-swiftshader",
-        "--disable-gpu-sandbox",
-        "--disable-features=VizDisplayCompositor",
-        ...commonArgs,
-      ],
-      [
-        "--headless",
-        "--disable-gpu",
-        "--disable-software-rasterizer",
-        "--disable-gpu-compositing",
-        ...commonArgs,
-      ],
-    ];
-    let lastError;
-    for (const args of attempts) {
-      try {
-        execFileSync(edgePath, args, { stdio: "pipe", timeout: 8_000, windowsHide: true });
-        lastError = null;
-        break;
-      } catch (error) {
-        lastError = error;
+
+    let browser;
+    try {
+      browser = await chromium.launch({
+        executablePath: edgePath,
+        headless: true,
+        timeout: screenshotTimeoutMs,
+        args: [
+          "--hide-scrollbars",
+          "--disable-background-networking",
+          "--disable-extensions",
+          "--disable-sync",
+          "--use-angle=swiftshader",
+          "--use-gl=swiftshader",
+          "--enable-unsafe-swiftshader",
+        ],
+      });
+      const context = await browser.newContext({
+        viewport: { width: scenario.width, height: scenario.height },
+        deviceScaleFactor: 1,
+      });
+      const page = await context.newPage();
+      page.setDefaultTimeout(screenshotTimeoutMs);
+      await page.goto(url, { waitUntil: "domcontentloaded", timeout: screenshotTimeoutMs });
+      await page.locator("body").waitFor({ state: "visible", timeout: screenshotTimeoutMs });
+      await page.waitForTimeout(1000);
+      await page.screenshot({ path: screenshotPath, fullPage: true, timeout: screenshotTimeoutMs });
+      await context.close();
+    } catch (error) {
+      if (strictScreenshots) {
+        throw error;
       }
-    }
-    if (lastError) {
-      if (process.env.UI_VERIFY_STRICT_SCREENSHOTS === "1") {
-        throw lastError;
-      }
-      console.warn(`warning: skipped ${scenario.name} screenshot because Edge headless did not finish within 8s`);
-      rmSync(userDataDir, { recursive: true, force: true });
+      console.warn(`warning: skipped ${scenario.name} screenshot: ${error.message}`);
       continue;
+    } finally {
+      await browser?.close();
     }
-    rmSync(userDataDir, { recursive: true, force: true });
+
+    if (!existsSync(screenshotPath) || statSync(screenshotPath).size === 0) {
+      throw new Error(`Edge exited without writing a screenshot: ${screenshotPath}`);
+    }
+
     console.log(`captured ${scenario.name}: ${screenshotPath}`);
   }
 

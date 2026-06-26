@@ -1,9 +1,11 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const componentPath = resolve("src", "components", "SwarmGovernanceConsole.tsx");
+const viewerRoot = fileURLToPath(new URL("..", import.meta.url));
+const componentPath = resolve(viewerRoot, "src", "components", "SwarmGovernanceConsole.tsx");
 const componentSource = readFileSync(componentPath, "utf8");
-const calibrationPath = resolve("src", "components", "PromptCalibrationDashboard.tsx");
+const calibrationPath = resolve(viewerRoot, "src", "components", "PromptCalibrationDashboard.tsx");
 const calibrationSource = readFileSync(calibrationPath, "utf8");
 
 const requiredExports = [
@@ -93,7 +95,7 @@ for (const marker of offlineRenderMarkers) {
   assertIncludes(componentSource, marker, "offline render marker");
 }
 
-const distAssets = resolve("dist", "assets");
+const distAssets = resolve(viewerRoot, "dist", "assets");
 if (existsSync(distAssets)) {
   const adminChunk = readdirSync(distAssets).find((name) => name.startsWith("AdminDashboardView-") && name.endsWith(".js"));
   if (!adminChunk) {

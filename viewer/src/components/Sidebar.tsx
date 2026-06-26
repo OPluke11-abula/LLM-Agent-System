@@ -10,6 +10,7 @@ export function Sidebar({ t, relaunchOnboarding }: SidebarProps) {
   const location = useLocation();
   const items = [
     { label: t.taskFlow, to: "/", kicker: "Flow" },
+    { label: t.memoryTitle, to: "/memory", kicker: "Brain" },
     { label: t.rules, to: "/rules", kicker: "Policy" },
     { label: t.mods, to: "/mods", kicker: "Skills" },
     { label: t.settings, to: "/settings", kicker: "Config" },
@@ -52,10 +53,10 @@ export function Sidebar({ t, relaunchOnboarding }: SidebarProps) {
               key={to}
               to={to}
               aria-current={active ? "page" : undefined}
-              className={`nav-link ${active ? "nav-link-active" : ""} group flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium`}
+              className={`nav-link ${active ? "nav-link-active" : ""} group flex min-w-0 items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-sm font-medium`}
             >
-              <span className="truncate">{label}</span>
-              <span className="text-[9px] font-semibold uppercase tracking-[0.14em] opacity-45 group-hover:opacity-70">
+              <span className="min-w-0 truncate">{label}</span>
+              <span className="shrink-0 text-right text-[9px] font-semibold uppercase tracking-[0.14em] opacity-45 group-hover:opacity-70">
                 {kicker}
               </span>
             </Link>

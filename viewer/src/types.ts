@@ -106,6 +106,7 @@ export type TranslationMessages = {
   rules: string;
   mods: string;
   settings: string;
+  memoryTitle: string;
   taskDetails: string;
   taskId: string;
   desc: string;
@@ -246,7 +247,7 @@ export type TopologyEvent = {
   result_summary: string;
   created_at: string;
   updated_at: string;
-  
+
   // Backward compatibility fields
   event_id: string;
   timestamp: string;

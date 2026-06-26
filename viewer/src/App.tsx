@@ -24,6 +24,9 @@ const OnboardingWizard = lazy(() =>
   import("./components/OnboardingWizard").then((module) => ({ default: module.OnboardingWizard })),
 );
 const RulesView = lazy(() => import("./components/RulesView").then((module) => ({ default: module.RulesView })));
+const LongTermMemoryView = lazy(() =>
+  import("./components/LongTermMemoryView").then((module) => ({ default: module.LongTermMemoryView })),
+);
 const SettingsView = lazy(() =>
   import("./components/SettingsView").then((module) => ({ default: module.SettingsView })),
 );
@@ -211,6 +214,15 @@ export default function App() {
                 path="/admin"
                 element={
                   <AdminDashboardView
+                    t={t}
+                    lang={lang}
+                  />
+                }
+              />
+              <Route
+                path="/memory"
+                element={
+                  <LongTermMemoryView
                     t={t}
                     lang={lang}
                   />
