@@ -3,9 +3,11 @@ import uuid
 import logging
 import asyncio
 import json
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger("AgentCrew")
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 class CrewRegistry:
     """
@@ -119,8 +121,13 @@ class AgentCrew:
     Manages hierarchical multi-agent task dispatches across roles (CEO, Developer, Auditor, CFO).
     Enforces structured delegation protocols and verification assertions.
     """
-    def __init__(self, session_id: Optional[str] = None):
+    def __init__(self, session_id: Optional[str] = None, workspace_path: Optional[str] = None):
         self.session_id = session_id or f"crew-session-{uuid.uuid4()}"
+        if workspace_path is None:
+            workspace_path = str(PROJECT_ROOT / "agent_workspace" / "scratch" / "agent_crew" / self.session_id)
+        workspace = Path(workspace_path).resolve()
+        workspace.mkdir(parents=True, exist_ok=True)
+        self.workspace_path = str(workspace)
         logger.info(f"Initialized AgentCrew with session_id: {self.session_id}")
 
     async def _async_dispatch_to_role(

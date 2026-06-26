@@ -43,6 +43,9 @@ def test_swarm_p2p_crypto_keys():
 def test_agent_crew_orchestration_dispatches():
     """Test AgentCrew dispatch to CEO, Developer, Auditor, and CFO, verifying states and schema validations."""
     crew = AgentCrew()
+    assert os.path.isabs(crew.workspace_path)
+    assert os.path.normpath("agent_workspace/scratch/agent_crew") in os.path.normpath(crew.workspace_path)
+    assert os.path.isdir(crew.workspace_path)
     
     # 1. Successful dispatch with validation assertions and mock directives
     res = crew.dispatch_to_role(
@@ -92,6 +95,15 @@ def test_agent_crew_orchestration_dispatches():
     # 4. Enforce missing schema fields
     with pytest.raises(ValueError, match="input_parameters"):
         crew.dispatch_to_role(role="CEO", task_instructions="Coordinate task")
+
+
+def test_agent_crew_resolves_explicit_workspace_path(tmp_path):
+    relative_workspace = os.path.join("agent_workspace", "scratch", "agent_crew_relative_test")
+    crew = AgentCrew(workspace_path=relative_workspace)
+
+    assert os.path.isabs(crew.workspace_path)
+    assert crew.workspace_path == os.path.abspath(relative_workspace)
+    assert os.path.isdir(crew.workspace_path)
 
 
 def test_delegate_task_tool_schema_enforcement():

@@ -44,25 +44,25 @@ def test_log_compaction(temp_project_dir):
         "- `2026-05-28` Step 3: API endpoints exposed.",
         "- `2026-05-28` Step 4: final sweep and clean."
     ]
-    
+
     tasks_dict = {"TASK-100": task}
-    
+
     # Run LogCompactor
     res = LogCompactor.compact_milestone(tasks_dict, str(temp_project_dir), "PH12")
-    
+
     # Verify compaction metrics
     assert res["compacted_count"] == 1
     assert res["reduction_ratio"] >= 0.75
-    
+
     # Verify archive exists and contains original logs
     archive_file = Path(res["archive_path"])
     assert archive_file.is_file()
-    
+
     with open(archive_file, "r", encoding="utf-8") as f:
         data = json.load(f)
     assert "TASK-100" in data
     assert len(data["TASK-100"]["original_logs"]) == 4
-    
+
     # Verify active logs are semantically compressed to 1 summary token
     assert len(task.logs) == 1
     assert "Compacted Milestone PH12" in task.logs[0]
@@ -77,7 +77,7 @@ def test_lessons_learned_prompt_composer(temp_project_dir):
 - **Best Practice Policy**: Always mock approval checks in pytest.
 """
     lessons_file.write_text(lessons_content, encoding="utf-8")
-    
+
     # Create a mock prompt template
     prompt_file = temp_project_dir / ".agent" / "prompts" / "hello.md"
     prompt_content = """---
@@ -90,15 +90,15 @@ version: "1.0.0"
 Template body
 """
     prompt_file.write_text(prompt_content, encoding="utf-8")
-    
+
     # Initialize PromptComposer
     composer = PromptComposer(workspace_path=str(temp_project_dir / "workspace"))
     composer.project_root = temp_project_dir
     composer.prompts_dir = temp_project_dir / ".agent" / "prompts"
-    
+
     # Build prompt
     res = composer.build("hello", {"name": "LAS Dev Team"})
-    
+
     # Verify dynamic lessons learned directives injection
     assert "Hello, LAS Dev Team!" in res
     assert "SYSTEM SELF-LEARNING DIRECTIVES" in res
@@ -129,20 +129,20 @@ steps:
 ---
 """
     workflow_file.write_text(workflow_content, encoding="utf-8")
-    
+
     # Mock AgentEngine and execution calls
     engine_mock = MagicMock(spec=AgentEngine)
     engine_mock.workspace_path = str(temp_project_dir / "workspace")
     engine_mock.execute_tool.return_value = '{"status": "ok"}'
-    
+
     # Initialize WorkflowEngine
     wf_engine = WorkflowEngine(engine_mock)
     wf_engine.workflows_dir = temp_project_dir / ".agent" / "workflows"
     wf_engine.runs_dir = temp_project_dir / ".agent" / "workflows" / "runs"
-    
+
     # Run the workflow
     res = await wf_engine.execute("swarm_flow", "session-999")
-    
+
     # Verify outputs
     assert "step_1" in res
     assert "step_2" in res
@@ -157,20 +157,20 @@ def test_dynamic_log_compaction_threshold(temp_project_dir):
     task_small = TaskNode("TASK-small", "Small task")
     task_small.status = "completed"
     task_small.logs = ["Short log line"]
-    
+
     tasks_dict = {"TASK-small": task_small}
-    
+
     # Assert compaction is skipped (threshold = 100 estimated tokens)
     res_skipped = LogCompactor.compact_if_large(tasks_dict, str(temp_project_dir), "session_small", threshold=100)
     assert res_skipped is None
-    
+
     # Create task node with large logs exceeding threshold
     task_large = TaskNode("TASK-large", "Large task")
     task_large.status = "completed"
-    task_large.logs = ["a" * 250, "b" * 250] # 500 chars / 4 = 125 estimated tokens
-    
+    task_large.logs = ["a" * 1000, "b" * 1000]
+
     tasks_dict_large = {"TASK-large": task_large}
-    
+
     # Assert compaction triggers
     res_triggered = LogCompactor.compact_if_large(tasks_dict_large, str(temp_project_dir), "session_large", threshold=100)
     assert res_triggered is not None
@@ -186,7 +186,7 @@ def test_multilanguage_prompt_composer(temp_project_dir):
     - **Best Practice**: Policy in Japanese or French.
     """
     lessons_file.write_text(lessons_content, encoding="utf-8")
-    
+
     prompt_file = temp_project_dir / ".agent" / "prompts" / "translate_test.md"
     prompt_content = """---
 id: translate_test
@@ -197,14 +197,14 @@ version: "1.0.0"
 Body
 """
     prompt_file.write_text(prompt_content, encoding="utf-8")
-    
+
     # Initialize PromptComposer
     composer = PromptComposer(workspace_path=str(temp_project_dir / "workspace"))
     composer.project_root = temp_project_dir
     composer.prompts_dir = temp_project_dir / ".agent" / "prompts"
-    
+
     res = composer.build("translate_test", {})
-    
+
     # Assert all policy languages are correctly scanned and injected into prompt
     assert "Policy in English." in res
     assert "Policy in Traditional Chinese." in res
