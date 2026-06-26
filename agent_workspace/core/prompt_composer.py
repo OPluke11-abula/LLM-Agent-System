@@ -126,7 +126,7 @@ class PromptComposer:
         lessons_file = self.project_root / ".agent" / "knowledge_base" / "lessons_learned.md"
         if not lessons_file.is_file():
             return ""
-            
+
         try:
             content = lessons_file.read_text(encoding="utf-8")
             policies = []
@@ -135,7 +135,7 @@ class PromptComposer:
                 if stripped.startswith("- **Best Practice Policy**:") or stripped.startswith("- **最佳實踐**:") or stripped.startswith("- **Best Practice**:"):
                     policy = stripped.split(":", 1)[1].strip()
                     policies.append(policy)
-            
+
             if policies:
                 guidelines = "\n\n## 🎓 SYSTEM SELF-LEARNING DIRECTIVES (Auto-Learned Best Practices):\n"
                 for idx, policy in enumerate(policies, 1):
@@ -143,7 +143,7 @@ class PromptComposer:
                 return guidelines
         except Exception as e:
             logger.error(f"Failed to load lessons learned: {e}")
-            
+
         return ""
     def _get_long_term_memory(self) -> Any:
         import yaml
@@ -155,12 +155,12 @@ class PromptComposer:
                 config = {}
         except Exception:
             config = {}
-        
+
         memory_config = config.get("memory", {})
         memory_dir = Path(self.project_root) / "memory"
-        
+
         from agent_workspace.long_term_memory import LongTermMemoryStore
-            
+
         try:
             return LongTermMemoryStore(
                 memory_dir,
@@ -173,7 +173,7 @@ class PromptComposer:
     def build(self, prompt_id: str, variables: dict[str, Any]) -> str:
         """Load a prompt template, validate variables, escape values, and render it."""
         prompt_def = self.load_prompt(prompt_id)
-        
+
         expected_vars = prompt_def.get("variables", [])
         if not isinstance(expected_vars, list):
             expected_vars = [expected_vars]
@@ -195,44 +195,28 @@ class PromptComposer:
         template_str = prompt_def["template"]
         template = Template(template_str)
         rendered = template.render(**escaped_vars)
-        
+
         # Query long-term memory for semantic context when variables contain search-like text
         search_keys = {"task_description", "user_query", "query", "description", "user_request"}
         query_texts = []
         for k, v in variables.items():
             if k in search_keys and isinstance(v, str) and v.strip():
                 query_texts.append(v.strip())
-                
+
         semantic_context = ""
         if query_texts:
             store = self._get_long_term_memory()
             if store:
-                results = []
-                seen = set()
-                for query_text in query_texts:
-                    try:
-                        res = store.query(query_text, limit=3)
-                        for r in res:
-                            rid = r.get("id")
-                            if rid and rid not in seen:
-                                seen.add(rid)
-                                results.append(r)
-                    except Exception as e:
-                        logger.warning("[PromptComposer] Failed to query semantic memories: %s", e)
-                
-                if results:
-                    memories_text = "\n\n## 🧠 RELEVANT HISTORICAL CONTEXT (Semantic Memories):\n"
-                    for r in results:
-                        created = r.get("created_at", "")
-                        domain = r.get("domain", "episodic")
-                        summary = r.get("summary", "")
-                        memories_text += f"- [{created}] [{domain}] {summary}\n"
-                    semantic_context = memories_text
+                combined_query = " OR ".join(query_texts)
+                try:
+                    semantic_context = store.retrieve_and_format_context(combined_query, limit=5)
+                except Exception as e:
+                    logger.warning("[PromptComposer] Failed to retrieve semantic memories: %s", e)
 
         # Append dynamic governance calibration directives
         gov_section = ""
         from agent_workspace.core.governance import GovernanceManager
-        
+
         try:
             active_rules = GovernanceManager.get_active_rules(self.workspace_path)
             if active_rules:
@@ -253,16 +237,16 @@ class PromptComposer:
         If cumulative token count exceeds 6,000, older guidelines are cleanly compacted.
         """
         lines = compiled_prompt.splitlines()
-        
+
         # Parse the prompt into sections
         sections = [] # List of tuples: (is_directive, header_line, [content_lines])
         current_is_directive = False
         current_header = ""
         current_lines = []
-        
+
         for line in lines:
             stripped = line.strip()
-            if (stripped.startswith("## 🎓 SYSTEM SELF-LEARNING DIRECTIVES") or 
+            if (stripped.startswith("## 🎓 SYSTEM SELF-LEARNING DIRECTIVES") or
                 stripped.startswith("## ⚡ Auto-Learned Swarm Constraints")):
                 # Save previous section
                 sections.append((current_is_directive, current_header, current_lines))
@@ -271,25 +255,25 @@ class PromptComposer:
                 current_lines = []
             else:
                 current_lines.append(line)
-                
+
         # Append final section
         sections.append((current_is_directive, current_header, current_lines))
-        
+
         # Extract and measure size of all directive blocks
         total_directive_chars = 0
         directive_blocks = []
-        
+
         for is_dir, header, content_lines in sections:
             if is_dir:
                 block_text = "\n".join(content_lines)
                 total_directive_chars += len(header) + 1 + len(block_text)
                 directive_blocks.append((header, content_lines))
-                
+
         # 1 token ≈ 4 characters
         token_count = total_directive_chars // 4
         if token_count <= 6000:
             return compiled_prompt
-            
+
         # We need to prune and compress the directive blocks!
         import re
         all_items = []
@@ -300,9 +284,9 @@ class PromptComposer:
                 if not stripped:
                     continue
                 # Match numbered lists or bullet points
-                if (stripped.startswith("-") or 
-                    stripped.startswith("*") or 
-                    re.match(r"^\d+\.", stripped) or 
+                if (stripped.startswith("-") or
+                    stripped.startswith("*") or
+                    re.match(r"^\d+\.", stripped) or
                     stripped.startswith("#")):
                     if current_item:
                         all_items.append(" ".join(current_item))
@@ -312,18 +296,18 @@ class PromptComposer:
                     current_item.append(stripped)
             if current_item:
                 all_items.append(" ".join(current_item))
-                
+
         if not all_items:
             return compiled_prompt
-            
+
         # Retain last keep_count items in their full detail, summarize the rest
         keep_count = max(5, len(all_items) // 4)
         if keep_count >= len(all_items):
             keep_count = len(all_items) // 2
-            
+
         older_items = all_items[:-keep_count]
         newer_items = all_items[-keep_count:]
-        
+
         # Generate dense semantic summaries from older items
         summaries = []
         for item in older_items:
@@ -344,31 +328,31 @@ class PromptComposer:
                 if words:
                     clean_words = [re.sub(r"[^\w]", "", w) for w in words]
                     summaries.append(f"Optimized directive regarding: {' '.join(clean_words)}.")
-                    
+
         # Deduplicate summaries
         unique_summaries = []
         for s in summaries:
             if s not in unique_summaries:
                 unique_summaries.append(s)
-                
+
         if not unique_summaries:
             unique_summaries.append("Adhere to general robust coding standards, transaction safety, and non-interactive testing protocols.")
-            
+
         # Reconstruct the compacted directive block
         compacted_lines = []
         compacted_lines.append("### ⚡ COMPACTED SEMANTIC HISTORICAL DIRECTIVES (Unified Best Practices):")
         for idx, s in enumerate(unique_summaries, 1):
             compacted_lines.append(f"- **Summary Principle {idx}**: {s}")
-            
+
         compacted_lines.append("\n### 🎓 ACTIVE HIGH-PRIORITY SYSTEM DIRECTIVES:")
         for idx, item in enumerate(newer_items, 1):
             # Strip leading numbers/bullets if any to avoid double numbering in reconstruction
             clean_item = re.sub(r"^[-*\s]+", "", item)
             clean_item = re.sub(r"^\d+\.\s*", "", clean_item)
             compacted_lines.append(f"{idx}. {clean_item}")
-            
+
         compacted_block = "\n".join(compacted_lines)
-        
+
         # Reconstruct the final system prompt by replacing the first directive block and omitting the rest
         reconstructed = []
         replaced = False
@@ -382,7 +366,7 @@ class PromptComposer:
                 if header:
                     reconstructed.append(header)
                 reconstructed.extend(content_lines)
-                
+
         return "\n".join(reconstructed)
 
     def optimize_role_prompt(self, role: str, execution_efficiency: float, token_usage: int, outcome: str) -> bool:

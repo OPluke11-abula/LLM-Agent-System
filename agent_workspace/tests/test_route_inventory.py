@@ -1,9 +1,21 @@
 import pytest
 from agent_workspace.api import app
 
+
+def collect_route_paths(routes):
+    paths = set()
+    for route in routes:
+        if hasattr(route, "path"):
+            paths.add(route.path)
+        original_router = getattr(route, "original_router", None)
+        if original_router is not None and hasattr(original_router, "routes"):
+            paths.update(collect_route_paths(original_router.routes))
+    return paths
+
+
 def test_api_route_inventory():
     """Verify that all modular endpoint routes exist and match the expected inventory."""
-    actual_routes = {r.path for r in app.routes}
+    actual_routes = collect_route_paths(app.routes)
     expected_routes = {
         '/openapi.json', '/docs', '/docs/oauth2-redirect', '/redoc',
         '/v1/swarm/nodes', '/v1/swarm/scale', '/v1/swarm/health', '/v1/swarm/peers',
@@ -19,6 +31,7 @@ def test_api_route_inventory():
         '/v1/sessions/{session_id}/approve', '/v1/session/{session_id}/reject',
         '/v1/sessions/{session_id}/reject', '/v1/memory', '/v1/memory/query',
         '/v1/memory/preference', '/v1/memory/{session_id}/{key}', '/v1/memory/prune',
+        '/v1/memory/update', '/v1/memory/batch-move',
         '/v1/config', '/v1/accounts', '/v1/accounts/{account_id}', '/v1/accounts/active',
         '/v1/session/{session_id}/turns', '/v1/sessions/{session_id}/turns',
         '/v1/session/{session_id}/handoff', '/v1/sessions/{session_id}/handoff',

@@ -28,7 +28,8 @@ from agent_workspace.routes.dependencies import (
 from agent_workspace.routes.schemas import (
     ChatRequest, ChatResponse, TaskRequest, TaskSubmitResponse, ConfigUpdateRequest,
     AccountCreateRequest, ActiveAccountSelectRequest, PreferenceRequest,
-    BuilderAgentRequest, SandboxExecuteRequest
+    BuilderAgentRequest, SandboxExecuteRequest, MemoryUpdateRequest,
+    MemoryBatchMoveRequest
 )
 from agent_workspace.tool_manifest import ToolManifest
 from agent_workspace.core.account_manager import AccountManager
@@ -145,12 +146,12 @@ async def stream_ws(websocket: WebSocket):
         msg = data.get("msg", "")
         allowed_tools = data.get("allowed_tools")
         account_id = data.get("account_id")
-        
+
         if not msg:
             await websocket.send_json({"error": "msg is required"})
             await websocket.close()
             return
-            
+
         # Verify session tenancy context
         existing_tenant = AccountManager.get_session_tenant(session)
         if existing_tenant and existing_tenant != tenant_id:
@@ -169,7 +170,7 @@ async def stream_ws(websocket: WebSocket):
         r = build_router(session)
         async for event in r.stream_agent_loop(msg, allowed_tools=allowed_tools, account_id=account_id):
             await websocket.send_json({"session": session, **event})
-            
+
         await websocket.close()
     except WebSocketDisconnect:
         logger.info("WebSocket disconnected")
@@ -199,7 +200,7 @@ async def websocket_stream(websocket: WebSocket):
             except Exception as e:
                 await websocket.send_json({"error": "Invalid request format", "details": str(e)})
                 return
-            
+
             # Verify session tenancy context
             existing_tenant = AccountManager.get_session_tenant(request.session)
             if existing_tenant and existing_tenant != tenant_id:
@@ -212,7 +213,7 @@ async def websocket_stream(websocket: WebSocket):
             except HTTPException as e:
                 await websocket.send_json({"error": e.detail})
                 return
-                
+
             r = build_router(request.session)
             async for event in r.stream_agent_loop(
                 request.msg,
@@ -338,6 +339,7 @@ async def add_preference(req: PreferenceRequest) -> dict[str, Any]:
         preference_text=req.preference,
         confidence=req.confidence,
         expires_at=req.expires_at,
+        category=req.category,
     )
     return {"status": "success", "record": asdict(record)}
 
@@ -358,6 +360,32 @@ async def prune_memory() -> dict[str, Any]:
     return {"status": "success", "deleted_count": count}
 
 
+@router.post("/v1/memory/update")
+async def update_memory(req: MemoryUpdateRequest) -> dict[str, Any]:
+    store = get_long_term_memory()
+    success = store.update_record(
+        session_id=req.session_id,
+        key=req.key,
+        summary=req.summary,
+        domain=req.domain,
+        category=req.category,
+        confidence=req.confidence,
+        expires_at=req.expires_at,
+        citations=req.citations,
+    )
+    if not success:
+        raise HTTPException(status_code=404, detail="Memory record not found")
+    return {"status": "success", "session_id": req.session_id, "key": req.key}
+
+
+@router.post("/v1/memory/batch-move")
+async def batch_move_memory(req: MemoryBatchMoveRequest) -> dict[str, Any]:
+    store = get_long_term_memory()
+    target_items = [{"session_id": item.session_id, "key": item.key} for item in req.items]
+    count = store.batch_move(target_items, req.new_category)
+    return {"status": "success", "moved_count": count, "new_category": req.new_category}
+
+
 @router.get("/v1/config")
 async def get_config() -> dict[str, Any]:
     config_path = Path(get_workspace()) / "config.yaml"
@@ -365,10 +393,10 @@ async def get_config() -> dict[str, Any]:
         config = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
     except (OSError, yaml.YAMLError):
         config = {}
-    
+
     llm_config = config.get("llm", {})
     provider = llm_config.get("provider", "")
-    
+
     # Check if API key is set in environment variables
     api_key_set = False
     if provider == "google-genai" and os.environ.get("GOOGLE_API_KEY"):
@@ -377,7 +405,7 @@ async def get_config() -> dict[str, Any]:
         api_key_set = True
     elif provider == "anthropic" and os.environ.get("ANTHROPIC_API_KEY"):
         api_key_set = True
-        
+
     return {
         "provider": provider,
         "model": llm_config.get("model", ""),
@@ -393,10 +421,10 @@ async def update_config(req: ConfigUpdateRequest) -> dict[str, Any]:
         config = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
     except (OSError, yaml.YAMLError):
         config = {}
-        
+
     if "llm" not in config:
         config["llm"] = {}
-        
+
     if req.provider is not None:
         config["llm"]["provider"] = req.provider
     if req.model is not None:
@@ -406,10 +434,10 @@ async def update_config(req: ConfigUpdateRequest) -> dict[str, Any]:
             config["llm"].pop("base_url", None)
         else:
             config["llm"]["base_url"] = req.base_url
-            
+
     # Save config.yaml
     config_path.write_text(yaml.dump(config, sort_keys=False, allow_unicode=True), encoding="utf-8")
-    
+
     # Handle API Key
     if req.api_key is not None and req.api_key.strip() != "":
         env_path = Path(get_workspace()) / ".env"
@@ -422,7 +450,7 @@ async def update_config(req: ConfigUpdateRequest) -> dict[str, Any]:
             key_name = "OPENAI_API_KEY"
         elif provider == "anthropic":
             key_name = "ANTHROPIC_API_KEY"
-            
+
         if key_name:
             # Update .env
             env_vars = {}
@@ -433,20 +461,20 @@ async def update_config(req: ConfigUpdateRequest) -> dict[str, Any]:
                         if line and not line.startswith("#") and "=" in line:
                             k, v = line.split("=", 1)
                             env_vars[k.strip()] = v.strip()
-            
+
             env_vars[key_name] = req.api_key.strip()
-            
+
             with open(env_path, "w", encoding="utf-8") as f:
                 for k, v in env_vars.items():
                     f.write(f"{k}={v}\n")
-            
+
             # Reload dotenv
             dotenv.load_dotenv(env_path, override=True)
-            
+
     # Reset engine cache so next call reloads config
     from agent_workspace.routes import dependencies
     dependencies._engine = None
-    
+
     return {"status": "success", "message": "Configuration updated successfully."}
 
 
@@ -506,7 +534,7 @@ async def manual_handoff_export(session_id: str) -> dict[str, Any]:
     engine = get_engine()
     memory_dir = os.path.join(engine.workspace_path, "memory")
     from agent_workspace.core.router import MemoryManager
-        
+
     memory_mgr = MemoryManager(memory_dir, session_id=session_id)
     recent = memory_mgr.get_recent_context(3)
     if recent:
@@ -516,16 +544,16 @@ async def manual_handoff_export(session_id: str) -> dict[str, Any]:
         )
     else:
         context_summary = "Manual session state handoff."
-        
+
     try:
         handoff_id = engine.export_handoff(session_id, context_summary)
-        
+
         project_root = Path(engine.workspace_path).parent
         prompt_file = project_root / ".agent" / "memory" / "handoff" / f"{handoff_id}_prompt.md"
         prompt_content = ""
         if prompt_file.is_file():
             prompt_content = prompt_file.read_text(encoding="utf-8")
-            
+
         return {
             "status": "success",
             "handoff_id": handoff_id,
@@ -676,7 +704,7 @@ async def prune_router_routes(session_id: str | None = None, force: bool = False
 @router.post("/v1/builder/agents")
 async def create_builder_agent(req: BuilderAgentRequest, tenant_id: str = Depends(get_tenant_context)):
     from agent_workspace.core.builder import AgentBuilderRegistry
-        
+
     config = req.model_dump()
     registered = AgentBuilderRegistry.register_agent(req.name, config)
     return {"status": "success", "agent": registered}
@@ -685,7 +713,7 @@ async def create_builder_agent(req: BuilderAgentRequest, tenant_id: str = Depend
 @router.get("/v1/builder/templates")
 async def get_builder_templates(tenant_id: str = Depends(get_tenant_context)):
     from agent_workspace.core.builder import PRESET_TEMPLATES
-        
+
     return {"templates": PRESET_TEMPLATES}
 
 
@@ -703,7 +731,7 @@ async def test_builder_agent(req: Request, tenant_id: str = Depends(get_tenant_c
     system_template = agent_config.get("system_template", "")
     render_vars = {**agent_config, **variables}
     rendered_prompt = render_system_prompt(system_template, render_vars)
-    
+
     # Record transaction to ledger
     ledger = FinancialLedger(get_workspace())
     model_name = agent_config.get("model", "saas-builder-test")
@@ -716,7 +744,7 @@ async def test_builder_agent(req: Request, tenant_id: str = Depends(get_tenant_c
         completion_tokens=250,
         tenant_id=tenant_id
     )
-    
+
     # Emit telemetry webhook gateways logs
     gateways = agent_config.get("telemetry_gateways", [])
     telemetry_logs = emit_mock_webhook_telemetry(gateways, f"Agent response generated for user prompt: {test_input}")

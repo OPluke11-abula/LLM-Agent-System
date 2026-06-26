@@ -33,7 +33,7 @@ def test_generate_mock_embedding():
     emb1 = generate_mock_embedding(text1, dimension=1536)
     emb2 = generate_mock_embedding(text2, dimension=1536)
     emb3 = generate_mock_embedding(text3, dimension=1536)
-    
+
     assert emb1 == emb2
     assert emb1 != emb3
     assert len(emb1) == 1536
@@ -41,7 +41,7 @@ def test_generate_mock_embedding():
     # L2-normalization check (sum of squares = 1.0)
     sum_sq1 = sum(x * x for x in emb1)
     sum_sq3 = sum(x * x for x in emb3)
-    
+
     assert pytest.approx(sum_sq1, abs=1e-5) == 1.0
     assert pytest.approx(sum_sq3, abs=1e-5) == 1.0
 
@@ -54,7 +54,7 @@ def test_embedding_generator_mock_provider():
     """Verify that EmbeddingGenerator uses the mock provider when api keys are missing or provider=mock."""
     gen = EmbeddingGenerator(provider="mock")
     assert gen.provider == "mock"
-    
+
     emb = gen.get_embedding("hello")
     assert len(emb) == 1536
     assert pytest.approx(sum(x * x for x in emb), abs=1e-5) == 1.0
@@ -65,7 +65,7 @@ def test_embedding_generator_openai_provider(mock_client_class):
     """Verify that EmbeddingGenerator makes correct POST requests to OpenAI endpoint."""
     mock_client = MagicMock()
     mock_client_class.return_value.__enter__.return_value = mock_client
-    
+
     mock_response = MagicMock()
     mock_response.json.return_value = {
         "data": [{"embedding": [0.1] * 1536}]
@@ -74,7 +74,7 @@ def test_embedding_generator_openai_provider(mock_client_class):
 
     gen = EmbeddingGenerator(provider="openai", api_key="sk-test-key")
     emb = gen.get_embedding("hello", dimension=1536)
-    
+
     assert emb == [0.1] * 1536
     mock_client.post.assert_called_once()
     call_args = mock_client.post.call_args
@@ -88,7 +88,7 @@ def test_embedding_generator_google_provider(mock_client_class):
     """Verify that EmbeddingGenerator makes correct POST requests to Google GenAI endpoint."""
     mock_client = MagicMock()
     mock_client_class.return_value.__enter__.return_value = mock_client
-    
+
     mock_response = MagicMock()
     mock_response.json.return_value = {
         "embedding": {"values": [0.2] * 768}
@@ -97,7 +97,7 @@ def test_embedding_generator_google_provider(mock_client_class):
 
     gen = EmbeddingGenerator(provider="google", api_key="gemini-key")
     emb = gen.get_embedding("hello", dimension=768)
-    
+
     assert emb == [0.2] * 768
     mock_client.post.assert_called_once()
     call_args = mock_client.post.call_args
@@ -120,7 +120,7 @@ def test_chroma_backend_crud(mock_client_class, tmp_path):
     # Mock the responses for /collections, /upsert, /get, /query, /delete
     mock_response_init = MagicMock()
     mock_response_init.json.return_value = {"id": "col-uuid-12345"}
-    
+
     mock_response_write = MagicMock()
     mock_response_write.json.return_value = {}
 
@@ -169,7 +169,7 @@ def test_chroma_backend_crud(mock_client_class, tmp_path):
 
     # Write
     backend.write("sess-abc", "ltm-123", mock_record)
-    
+
     # Read
     res_read = backend.read("sess-abc", "ltm-123")
     assert res_read == mock_record
@@ -233,7 +233,7 @@ def test_pgvector_backend_crud(tmp_path):
         # Write
         record = {"id": "ltm-999", "summary": "Postgres test summary", "payload": {}}
         backend.write("sess-pg", "ltm-999", record)
-        
+
         # Read
         read_val = backend.read("sess-pg", "ltm-999")
         assert read_val == record
@@ -263,7 +263,7 @@ def test_chroma_fallback_to_sqlite(tmp_path):
         backend = ChromaBackend(tmp_path)
         assert backend.sqlite_fallback is not None
         assert isinstance(backend.sqlite_fallback, SQLiteBackend)
-        
+
         # CRUD operations should work via SQLite fallback
         record = {
             "id": "fallback-test",
@@ -284,11 +284,11 @@ def test_pgvector_fallback_to_sqlite(tmp_path):
     """Verify PgvectorBackend automatically falls back to SQLiteBackend when driver is missing."""
     # Ensure psycopg2 is not in sys.modules to simulate missing package
     sys.modules.pop("psycopg2", None)
-    
+
     backend = PgvectorBackend(tmp_path)
     assert backend.sqlite_fallback is not None
     assert isinstance(backend.sqlite_fallback, SQLiteBackend)
-    
+
     record = {
         "id": "fallback-test-pg",
         "session_id": "sess-fb-pg",
@@ -312,11 +312,11 @@ def test_prompt_composer_ssti_and_semantic_injection(tmp_path):
     # Create configuration yaml file in project workspace
     config_path = tmp_path / "config.yaml"
     config_path.write_text("memory:\n  backend: sqlite\n  long_term_enabled: true\n", encoding="utf-8")
-    
+
     # Create prompts folder inside .agent
     prompts_dir = tmp_path / ".agent" / "prompts"
     prompts_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Create a dummy prompt with task_description variable
     dummy_prompt = """---
 id: test_prompt
@@ -333,7 +333,7 @@ template: "Task: {{ task_description }}\\nUnsafe: {{ unsafe_var }}"
     # Add a memory record using LongTermMemoryStore
     memory_dir = tmp_path / "memory"
     store = LongTermMemoryStore(memory_dir, backend_name="sqlite")
-    
+
     # Populate memory
     store.add_semantic_knowledge(
         session_id="sess-pc",
@@ -341,23 +341,23 @@ template: "Task: {{ task_description }}\\nUnsafe: {{ unsafe_var }}"
     )
 
     composer = PromptComposer(workspace_path=str(tmp_path))
-    
+
     # Unsafe Jinja input
     unsafe_input = "{{ 999 * 999 }}"
     task_desc = "building safe systems"
-    
+
     variables = {
         "task_description": task_desc,
         "unsafe_var": unsafe_input
     }
-    
+
     rendered = composer.build("test_prompt", variables)
-    
+
     # 1. SSTI Escaping Assertion
     assert "{% raw %}{{{% endraw %}" in rendered
     assert "{% raw %}}}{% endraw %}" in rendered
     assert "998001" not in rendered  # Jinja template execution blocked!
-    
+
     # 2. Semantic Context Insertion Assertion
-    assert "## 🧠 RELEVANT HISTORICAL CONTEXT (Semantic Memories):" in rendered
+    assert "## 🧠 RELEVANT HISTORICAL CONTEXT (Long-Term Memories):" in rendered
     assert "historical reference to building safe systems" in rendered

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 import json
 import logging
@@ -23,7 +25,7 @@ class ContextDefragmenter:
     def defragment(self, session_id: str) -> dict[str, Any]:
         """Perform defragmentation sweep of all historical handoffs."""
         handoff_dir = self.project_root / ".agent" / "memory" / "handoff"
-        
+
         # 1. Gather all handoffs
         handoff_packets = []
         if handoff_dir.is_dir():
@@ -50,7 +52,7 @@ class ContextDefragmenter:
                 user_msg = c.get("user", "")
                 assistant_msg = c.get("assistant", "")
                 timestamp = c.get("timestamp", "")
-                
+
                 # Check if already present to prevent duplicate context bloat
                 is_duplicate = False
                 for existing in all_conversations:
@@ -73,7 +75,7 @@ class ContextDefragmenter:
                         # Extract task label
                         task_label = stripped[5:].strip()
                         is_completed = stripped.startswith("- [x]")
-                        
+
                         # Reconcile: Completed [x] wins
                         if task_label in tasks_map:
                             tasks_map[task_label] = tasks_map[task_label] or is_completed
@@ -83,7 +85,7 @@ class ContextDefragmenter:
         # 4. Construct Federated Knowledge Graph nodes and edges
         nodes = []
         edges = []
-        
+
         # Session Node
         nodes.append({
             "id": f"session-{session_id}",
@@ -106,7 +108,7 @@ class ContextDefragmenter:
                     "checksum": packet.get("checksum", "")
                 }
             })
-            
+
             # Connect chronologically
             edges.append({
                 "source": prev_node_id,
@@ -151,13 +153,13 @@ class ContextDefragmenter:
         # 6. Calculate Telemetry Metrics
         total_conv_items = sum(len(p.get("memory_snapshot", {}).get("working_memory", {}).get("conversations", [])) for p in handoff_packets)
         unique_conv_items = len(all_conversations)
-        
+
         total_tasks_items = sum(len([l for l in p.get("task_state", {}).get("agent_tasks_content", "").splitlines() if l.strip().startswith("- [")]) for p in handoff_packets)
         unique_tasks_items = len(tasks_map)
-        
+
         total_items = total_conv_items + total_tasks_items
         unique_items = unique_conv_items + unique_tasks_items
-        
+
         if total_items > 0:
             fragmentation_rate = round(1.0 - (unique_items / total_items), 2)
         else:
@@ -193,7 +195,7 @@ class CRDTState:
         # Only update if not tombstoned with a newer timestamp
         if key in self.tombstones and self.tombstones[key] >= t:
             return {}
-        
+
         if key not in self.timestamps or self.timestamps[key] < t:
             self.values[key] = value
             self.timestamps[key] = t
@@ -286,7 +288,7 @@ class DeltaStateReconciler:
         else:
             self.project_root = Path(self.workspace_path)
         self.state_file = self.project_root / ".agent" / "memory" / "reconciled_state.json"
-        
+
         # Vault mirroring paths
         if mirror_paths is not None:
             self.mirror_paths = [Path(p) for p in mirror_paths]
@@ -308,7 +310,7 @@ class DeltaStateReconciler:
             except Exception as e:
                 logger.warning(f"Primary state file load failed, initiating failover: {e}")
                 primary_failed = True
-                
+
         if primary_failed:
             # Attempt failover restoration from mirrored vaults
             for mirror_path in self.mirror_paths:
@@ -317,7 +319,7 @@ class DeltaStateReconciler:
                     try:
                         data = json.loads(mirror_file.read_text(encoding="utf-8"))
                         loaded_state = CRDTState.from_dict(data)
-                        
+
                         # Auto-heal: Restore the valid state to the primary path
                         try:
                             self.state_file.parent.mkdir(parents=True, exist_ok=True)
@@ -328,18 +330,18 @@ class DeltaStateReconciler:
                             logger.info(f"Auto-healed primary state from mirror: {mirror_path}")
                         except Exception as write_err:
                             logger.error(f"Failed to auto-heal primary state file: {write_err}")
-                            
+
                         return loaded_state
                     except Exception as mirror_err:
                         logger.warning(f"Failed to load state from mirror {mirror_path}: {mirror_err}")
-                        
+
         return CRDTState()
 
     def _save_state(self, state: CRDTState):
         self.state_file.parent.mkdir(parents=True, exist_ok=True)
         data_str = json.dumps(state.to_dict(), indent=2, ensure_ascii=False)
         self.state_file.write_text(data_str, encoding="utf-8")
-        
+
         # Redundant state vault mirroring
         for mirror_path in self.mirror_paths:
             try:

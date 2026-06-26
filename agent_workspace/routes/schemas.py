@@ -50,6 +50,7 @@ class PreferenceRequest(BaseModel):
     preference: str = Field(..., description="The preference text")
     confidence: float = 1.0
     expires_at: str | None = None
+    category: str = "general"
 
 
 class AuthTokenRequest(BaseModel):
@@ -146,3 +147,24 @@ class GovernanceVoteRequest(BaseModel):
     role: str
     vote: str
     signature: str
+
+
+class MemoryUpdateRequest(BaseModel):
+    session_id: str
+    key: str
+    summary: str
+    domain: str
+    category: str
+    confidence: float = 1.0
+    expires_at: str | None = None
+    citations: list[str] | None = None
+
+
+class MemoryBatchMoveItem(BaseModel):
+    session_id: str
+    key: str
+
+
+class MemoryBatchMoveRequest(BaseModel):
+    items: list[MemoryBatchMoveItem]
+    new_category: str

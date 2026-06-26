@@ -2,19 +2,21 @@ import os
 import json
 import pytest
 from pathlib import Path
+from agent_workspace.long_term_memory import LongTermMemoryStore
 from agent_workspace.memory_backends import FileBackend
+from agent_workspace.routes.schemas import PreferenceRequest
 
 def test_file_backend_crud(tmp_path):
     # Instantiate FileBackend in the temp directory
     backend = FileBackend(tmp_path)
-    
+
     session_id = "test-session"
-    
+
     # 1. Verify directories are created
     assert (tmp_path / "episodic").is_dir()
     assert (tmp_path / "semantic").is_dir()
     assert (tmp_path / "handoff").is_dir()
-    
+
     # 2. Write episodic memory
     episodic_record = {
         "id": "ltm-episodic1",
@@ -31,11 +33,11 @@ def test_file_backend_crud(tmp_path):
         "privacy_level": "session"
     }
     backend.write(session_id, "ltm-episodic1", episodic_record)
-    
+
     # Check that file is created under episodic subfolder
     file_path = tmp_path / "episodic" / "ltm-episodic1.json"
     assert file_path.is_file()
-    
+
     # Read back and assert equality
     read_data = backend.read(session_id, "ltm-episodic1")
     assert read_data == episodic_record
@@ -56,10 +58,10 @@ def test_file_backend_crud(tmp_path):
         "privacy_level": "project"
     }
     backend.write(session_id, "sem-semantic1", semantic_record)
-    
+
     # Check that file is created under semantic subfolder
     assert (tmp_path / "semantic" / "sem-semantic1.json").is_file()
-    
+
     # 4. Write handoff memory
     handoff_record = {
         "id": "handoff-1",
@@ -76,7 +78,7 @@ def test_file_backend_crud(tmp_path):
         "privacy_level": "project"
     }
     backend.write(session_id, "handoff-1", handoff_record)
-    
+
     assert (tmp_path / "handoff" / "handoff-1.json").is_file()
 
     # 5. Get all records
@@ -91,11 +93,11 @@ def test_file_backend_crud(tmp_path):
     search_results = backend.search("SQLite FTS5")
     assert len(search_results) == 1
     assert search_results[0]["id"] == "sem-semantic1"
-    
+
     # Test search with session filtering
     search_results_filtered = backend.search("layout", session_id="other-session")
     assert len(search_results_filtered) == 0
-    
+
     search_results_success = backend.search("layout", session_id=session_id)
     assert len(search_results_success) == 1
     assert search_results_success[0]["id"] == "ltm-episodic1"
@@ -105,3 +107,28 @@ def test_file_backend_crud(tmp_path):
     assert backend.read(session_id, "sem-semantic1") is None
     assert (tmp_path / "semantic" / "sem-semantic1.json").exists() is False
     assert len(backend.all_records()) == 2
+
+
+def test_preference_request_preserves_category_for_memory_console(tmp_path):
+    request = PreferenceRequest.model_validate({
+        "session": "memory-ui-session",
+        "preference": "Prefer concise Traditional Chinese replies.",
+        "confidence": 0.9,
+        "category": "user/preferences/style",
+    })
+
+    assert request.category == "user/preferences/style"
+
+    store = LongTermMemoryStore(tmp_path, backend_name="sqlite")
+    try:
+        record = store.add_preference(
+            session_id=request.session,
+            preference_text=request.preference,
+            confidence=request.confidence,
+            expires_at=request.expires_at,
+            category=request.category,
+        )
+        assert record.category == "user/preferences/style"
+        assert store.all_records()[0]["category"] == "user/preferences/style"
+    finally:
+        store.close()

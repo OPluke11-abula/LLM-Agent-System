@@ -58,6 +58,21 @@ class LongTermMemoryRecord:
     citations: list[str] | None = None
     expires_at: str | None = None
     privacy_level: str = "session"
+    category: str = "general"
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> LongTermMemoryRecord:
+        """Safely build LongTermMemoryRecord from dict, handling schema differences."""
+        import inspect
+        fields = {f.name for f in inspect.signature(cls).parameters.values()}
+        filtered = {k: v for k, v in data.items() if k in fields}
+        for field_name, param in inspect.signature(cls).parameters.items():
+            if field_name not in filtered:
+                if param.default is not inspect.Parameter.empty:
+                    filtered[field_name] = param.default
+                else:
+                    filtered[field_name] = None
+        return cls(**filtered)
 
 
 class FTS5QueryCache:
@@ -91,27 +106,27 @@ class FTS5QueryCache:
 
 class FTS5SemanticQueryEngine:
     """Semantic indexing query system utilizing SQLite FTS5 with optimized parsing and matching."""
-    
+
     # Common English stop words to discard from query to optimize search performance
     STOP_WORDS = {
-        "a", "about", "above", "after", "again", "against", "all", "am", "an", "and", 
-        "any", "are", "aren't", "as", "at", "be", "because", "been", "before", "being", 
-        "below", "between", "both", "but", "by", "can't", "cannot", "could", "couldn't", 
-        "did", "didn't", "do", "does", "doesn't", "doing", "don't", "down", "during", 
-        "each", "few", "for", "from", "further", "had", "hadn't", "has", "hasn't", "have", 
-        "haven't", "having", "he", "he'd", "he'll", "he's", "her", "here", "here's", 
-        "hers", "herself", "him", "himself", "his", "how", "how's", "i", "i'd", "i'll", 
-        "i'm", "i've", "if", "in", "into", "is", "isn't", "it", "it's", "its", "itself", 
-        "let's", "me", "more", "most", "mustn't", "my", "myself", "no", "nor", "not", 
-        "of", "off", "on", "once", "only", "or", "other", "ought", "our", "ours", 
-        "ourselves", "out", "over", "own", "same", "shan't", "she", "she'd", "she'll", 
-        "she's", "should", "shouldn't", "so", "some", "such", "than", "that", "that's", 
-        "the", "their", "theirs", "them", "themselves", "then", "there", "there's", 
-        "these", "they", "they'd", "they'll", "they're", "they've", "this", "those", 
-        "through", "to", "too", "under", "until", "up", "very", "was", "wasn't", "we", 
-        "we'd", "we'll", "we're", "we've", "were", "weren't", "what", "what's", "when", 
-        "when's", "where", "where's", "which", "while", "who", "who's", "whom", "why", 
-        "why's", "with", "won't", "would", "wouldn't", "you", "you'd", "you'll", "you're", 
+        "a", "about", "above", "after", "again", "against", "all", "am", "an", "and",
+        "any", "are", "aren't", "as", "at", "be", "because", "been", "before", "being",
+        "below", "between", "both", "but", "by", "can't", "cannot", "could", "couldn't",
+        "did", "didn't", "do", "does", "doesn't", "doing", "don't", "down", "during",
+        "each", "few", "for", "from", "further", "had", "hadn't", "has", "hasn't", "have",
+        "haven't", "having", "he", "he'd", "he'll", "he's", "her", "here", "here's",
+        "hers", "herself", "him", "himself", "his", "how", "how's", "i", "i'd", "i'll",
+        "i'm", "i've", "if", "in", "into", "is", "isn't", "it", "it's", "its", "itself",
+        "let's", "me", "more", "most", "mustn't", "my", "myself", "no", "nor", "not",
+        "of", "off", "on", "once", "only", "or", "other", "ought", "our", "ours",
+        "ourselves", "out", "over", "own", "same", "shan't", "she", "she'd", "she'll",
+        "she's", "should", "shouldn't", "so", "some", "such", "than", "that", "that's",
+        "the", "their", "theirs", "them", "themselves", "then", "there", "there's",
+        "these", "they", "they'd", "they'll", "they're", "they've", "this", "those",
+        "through", "to", "too", "under", "until", "up", "very", "was", "wasn't", "we",
+        "we'd", "we'll", "we're", "we've", "were", "weren't", "what", "what's", "when",
+        "when's", "where", "where's", "which", "while", "who", "who's", "whom", "why",
+        "why's", "with", "won't", "would", "wouldn't", "you", "you'd", "you'll", "you're",
         "you've", "your", "yours", "yourself", "yourselves"
     }
 
@@ -120,14 +135,14 @@ class FTS5SemanticQueryEngine:
         """Parse natural language query into FTS5-optimized search syntax."""
         if not query_text:
             return ""
-            
+
         # Clean and normalize input
         cleaned = re.sub(r'[^\w\s\-*\"\'\:]', ' ', query_text)
-        
+
         # Extract words and filter out stop words to optimize performance and prevent noise
         words = cleaned.strip().split()
         fts_tokens = []
-        
+
         for word in words:
             # Handle column-scoped syntax (e.g. summary:error)
             if ":" in word:
@@ -139,15 +154,15 @@ class FTS5SemanticQueryEngine:
                     if val_clean:
                         fts_tokens.append(f'{col}:"{val_clean}"')
                 continue
-                
+
             word_clean = word.lower().strip("\"'")
             if not word_clean:
                 continue
-                
+
             # Filter out short/stop words unless they have wildcard (*)
             if word_clean in cls.STOP_WORDS and not word.endswith("*"):
                 continue
-                
+
             # Handle prefix/wildcard search (e.g. error*)
             if word.endswith("*"):
                 clean_term = re.sub(r'[^\w]', '', word[:-1])
@@ -157,12 +172,12 @@ class FTS5SemanticQueryEngine:
                 clean_term = re.sub(r'[^\w]', '', word)
                 if clean_term:
                     fts_tokens.append(f'"{clean_term}"')
-                    
+
         if not fts_tokens:
             # Fallback if all words were filtered out
             fallback_words = [re.sub(r'[^\w]', '', w) for w in words]
             fts_tokens = [f'"{w}"' for w in fallback_words if w]
-            
+
         return " OR ".join(fts_tokens)
 
 
@@ -233,7 +248,7 @@ class LongTermMemoryStore:
         # Deduplicate: if a record with this hash already exists, return it.
         existing = self._backend.read(session_id, f"ltm-{source_hash[:16]}")
         if existing is not None:
-            return LongTermMemoryRecord(**existing)
+            return LongTermMemoryRecord.from_dict(existing)
 
         summary = self._summarize(normalized_messages)
         keywords = self._keywords(summary)
@@ -263,14 +278,14 @@ class LongTermMemoryStore:
     ) -> list[dict[str, Any]]:
         """Search long-term memory for records matching *query_text* using semantic FTS5 parsing."""
         start_time = time.perf_counter()
-        
+
         # 1. Generate cache key
         cache_key = f"{query_text}:{session_id}:{limit}:{domain}"
         cached = self._query_cache.get(cache_key)
         if cached is not None:
             logger.debug("FTS5 Query Cache hit for: %s", query_text)
             return cached
-            
+
         # 2. Parse query using the FTS5SemanticQueryEngine
         from memory_backends import VectorMemoryStore
         is_vector = isinstance(self._backend, VectorMemoryStore) and not getattr(self._backend, "sqlite_fallback", None)
@@ -280,7 +295,7 @@ class LongTermMemoryStore:
             fts_query = FTS5SemanticQueryEngine.parse_query(query_text)
             if not fts_query:
                 fts_query = query_text
-            
+
         # 3. Execute search against the backend with dynamic latency monitoring
         try:
             results = self._backend.search(fts_query, session_id=session_id, top_k=limit * 3 if domain else limit)
@@ -291,24 +306,24 @@ class LongTermMemoryStore:
                 results = self._backend.search(query_text, session_id=session_id, top_k=limit * 3 if domain else limit)
             except Exception:
                 results = []
-                
+
         if domain:
             results = [r for r in results if r.get("domain", "episodic") == domain]
-            
+
         final_results = results[:limit]
-        
+
         # 4. Save to cache
         self._query_cache.set(cache_key, final_results)
-        
+
         duration_ms = (time.perf_counter() - start_time) * 1000
         logger.info("FTS5 semantic memory query completed in %.2fms (limit=%d, results=%d)", duration_ms, limit, len(final_results))
-        
+
         # 5. Self-Optimization: If delay exceeds 15ms, trigger self-optimization
         if duration_ms > 15.0:
             logger.warning("FTS5 episodic query latency warning: %.2fms > 15ms. Triggering self-optimization.", duration_ms)
             if len(query_text.split()) > 10:
                 logger.info("Self-Optimization: Throttling complex search space for concurrent safety.")
-                
+
         return final_results
 
     def all_records(self) -> list[dict[str, Any]]:
@@ -321,16 +336,18 @@ class LongTermMemoryStore:
         knowledge_text: str,
         citations: list[str] | None = None,
         confidence: float = 1.0,
+        category: str = "general",
     ) -> LongTermMemoryRecord:
         """Store semantic facts or knowledge directly with citations."""
         source_hash = self._hash({"knowledge": knowledge_text, "citations": citations})
         record_id = f"sem-{source_hash[:16]}"
-        
+
         existing = self._backend.read(session_id, record_id)
         if existing is not None:
             # Reconstruct record, handling missing fields gracefully
-            return LongTermMemoryRecord(**{**{"domain": "semantic", "confidence": confidence, "citations": citations}, **existing})
-            
+            merged_data = {**existing, "domain": "semantic", "confidence": confidence, "citations": citations, "category": category}
+            return LongTermMemoryRecord.from_dict(merged_data)
+
         keywords = self._keywords(knowledge_text)
         record = LongTermMemoryRecord(
             id=record_id,
@@ -346,6 +363,7 @@ class LongTermMemoryStore:
             confidence=confidence,
             citations=citations or [],
             privacy_level="project",
+            category=category,
         )
         self._add_embedding_to_payload(record)
         self._backend.write(session_id, record.id, asdict(record))
@@ -357,15 +375,17 @@ class LongTermMemoryStore:
         preference_text: str,
         confidence: float = 1.0,
         expires_at: str | None = None,
+        category: str = "general",
     ) -> LongTermMemoryRecord:
         """Store user preferences with high confidence and optional expiration."""
         source_hash = self._hash({"preference": preference_text})
         record_id = f"pref-{source_hash[:16]}"
-        
+
         existing = self._backend.read(session_id, record_id)
         if existing is not None:
-            return LongTermMemoryRecord(**{**{"domain": "preference", "confidence": confidence}, **existing})
-            
+            merged_data = {**existing, "domain": "preference", "confidence": confidence, "category": category}
+            return LongTermMemoryRecord.from_dict(merged_data)
+
         keywords = self._keywords(preference_text)
         record = LongTermMemoryRecord(
             id=record_id,
@@ -382,6 +402,7 @@ class LongTermMemoryStore:
             citations=[],
             expires_at=expires_at,
             privacy_level="user",
+            category=category,
         )
         self._add_embedding_to_payload(record)
         self._backend.write(session_id, record.id, asdict(record))
@@ -402,6 +423,198 @@ class LongTermMemoryStore:
                 if self._backend.delete(r.get("session_id", ""), r.get("id", "")):
                     deleted_count += 1
         return deleted_count
+
+    def update_record(
+        self,
+        session_id: str,
+        key: str,
+        summary: str,
+        domain: str,
+        category: str,
+        confidence: float = 1.0,
+        expires_at: str | None = None,
+        citations: list[str] | None = None,
+    ) -> bool:
+        """Update fields of an existing memory record."""
+        existing = self._backend.read(session_id, key)
+        if existing is None:
+            return False
+
+        record = LongTermMemoryRecord(
+            id=key,
+            session_id=session_id,
+            created_at=existing.get("created_at", self._now()),
+            source=existing.get("source", "user_edit"),
+            source_hash=existing.get("source_hash", ""),
+            summary=summary,
+            keywords=self._keywords(summary),
+            message_count=existing.get("message_count", 0),
+            payload=existing.get("payload", {}),
+            domain=domain,
+            confidence=confidence,
+            citations=citations or [],
+            expires_at=expires_at,
+            category=category,
+        )
+        self._add_embedding_to_payload(record)
+        self._backend.write(session_id, record.id, asdict(record))
+        return True
+
+    def batch_move(self, target_items: list[dict[str, str]], new_category: str) -> int:
+        """Batch move multiple records to a new category. Each item in target_items has keys: session_id, key."""
+        moved_count = 0
+        for item in target_items:
+            session_id = item.get("session_id")
+            key = item.get("key")
+            if not session_id or not key:
+                continue
+            existing = self._backend.read(session_id, key)
+            if existing is not None:
+                record = LongTermMemoryRecord(
+                    id=key,
+                    session_id=session_id,
+                    created_at=existing.get("created_at", self._now()),
+                    source=existing.get("source", "user_edit"),
+                    source_hash=existing.get("source_hash", ""),
+                    summary=existing.get("summary", ""),
+                    keywords=existing.get("keywords", []),
+                    message_count=existing.get("message_count", 0),
+                    payload=existing.get("payload", {}),
+                    domain=existing.get("domain", "episodic"),
+                    confidence=existing.get("confidence", 1.0),
+                    citations=existing.get("citations", []),
+                    expires_at=existing.get("expires_at"),
+                    category=new_category,
+                )
+                self._backend.write(session_id, record.id, asdict(record))
+                moved_count += 1
+        return moved_count
+
+    def retrieve_and_format_context(
+        self,
+        query_text: str,
+        session_id: str | None = None,
+        limit: int = 5,
+        decay_rate: float = 0.005,
+    ) -> str:
+        """Queries memories, performs domain-confidence-recency re-ranking,
+        ensures diversity partitioning, and generates a formatted prompt context block.
+        """
+        # 1. Fetch more candidates to allow for re-ranking
+        candidates = self.query(query_text, session_id=session_id, limit=limit * 3)
+
+        # 2. Re-rank candidates based on domain, confidence, and recency decay
+        now_dt = datetime.now(timezone.utc)
+        scored_candidates = []
+
+        for idx, item in enumerate(candidates):
+            try:
+                rec = LongTermMemoryRecord.from_dict(item)
+            except Exception:
+                continue
+
+            # Base relevance score is rank-based from search ordering: 1.0 / (idx + 1)
+            relevance = 1.0 / (idx + 1)
+
+            # Domain weights
+            domain_weights = {
+                "preference": 3.0,
+                "semantic": 2.0,
+                "episodic": 1.0,
+            }
+            dom_weight = domain_weights.get(rec.domain, 1.0)
+
+            # Confidence weight
+            conf_weight = max(0.1, min(1.0, rec.confidence))
+
+            # Recency decay factor (only apply decay to episodic records)
+            recency_factor = 1.0
+            if rec.domain == "episodic" and rec.created_at:
+                try:
+                    # Parse created_at ISO string safely
+                    created_at_clean = rec.created_at
+                    if created_at_clean.endswith("Z"):
+                        created_at_clean = created_at_clean[:-1] + "+00:00"
+                    elif "+" not in created_at_clean and "-" not in created_at_clean[10:]:
+                        created_at_clean = created_at_clean + "+00:00"
+                    created_dt = datetime.fromisoformat(created_at_clean)
+                    age_days = (now_dt - created_dt).days
+                    if age_days > 0:
+                        recency_factor = 1.0 / (1.0 + decay_rate * age_days)
+                except Exception:
+                    pass
+
+            composite_score = relevance * dom_weight * conf_weight * recency_factor
+            scored_candidates.append((composite_score, rec))
+
+        # Sort by composite score descending
+        scored_candidates.sort(key=lambda x: x[0], reverse=True)
+
+        # 3. Diversity Partitioning: cap episodic memories to limit - 2 to make room for preferences and facts
+        final_records: list[LongTermMemoryRecord] = []
+        episodic_count = 0
+        max_episodic = max(1, limit - 2)
+
+        for _, rec in scored_candidates:
+            if rec.domain == "episodic":
+                if episodic_count < max_episodic:
+                    final_records.append(rec)
+                    episodic_count += 1
+            else:
+                final_records.append(rec)
+
+            if len(final_records) >= limit:
+                break
+
+        # 4. Generate formatted text block
+        if not final_records:
+            return ""
+
+        pref_list = []
+        sem_list = []
+        epi_list = []
+
+        for rec in final_records:
+            info = f"- [Category: {rec.category}] [Confidence: {rec.confidence:.1f}] {rec.summary}"
+            if rec.citations:
+                info += f" (Citations: {', '.join(rec.citations)})"
+            if rec.expires_at:
+                info += f" [Expires: {rec.expires_at}]"
+
+            if rec.domain == "preference":
+                pref_list.append(info)
+            elif rec.domain == "semantic":
+                sem_list.append(info)
+            else:
+                epi_list.append(f"- [Session: {rec.session_id}] [Time: {rec.created_at[:19]}] {rec.summary}")
+
+        context_parts = []
+        context_parts.append("\n\n## 🧠 RELEVANT HISTORICAL CONTEXT (Long-Term Memories):")
+
+        if pref_list:
+            context_parts.append("### User Preferences:")
+            context_parts.extend(pref_list)
+        if sem_list:
+            context_parts.append("### Confirmed Facts & Knowledge:")
+            context_parts.extend(sem_list)
+        if epi_list:
+            context_parts.append("### Past Sessions (Episodic):")
+            context_parts.extend(epi_list)
+
+        # 5. Append Response & Citation Directives
+        directives = (
+            "\n### ⚠️ MEMORY UTILIZATION AND CITATION DIRECTIVES:\n"
+            "When answering the user based on the memories above, you MUST strictly adhere to the following rules:\n"
+            "1. Differentiate Information Sources: Tag or label your statements to distinguish memory types:\n"
+            "   - Use '[已確認記憶]' (Confirmed Memory) for facts from 'preference' or 'semantic' domains.\n"
+            "   - Use '[近期補充]' (Recent Supplement) for facts from recent chat history or 'episodic' records.\n"
+            "   - Use '[模型推論]' (Model Inference) for details you infer or extrapolate from context.\n"
+            "   - Use '[不確定部分]' (Uncertain Parts) for ambiguous details or things you are unsure about.\n"
+            "2. Admit Gaps & Conflicts clearly: If the memories above do not contain the answer, or if there is conflicting information, you MUST explicitly state it (e.g., '記憶庫中無此記錄' or '記憶庫中存在以下衝突...'). Do NOT invent fake reasoning, templated personality analysis, or default behavior excuses to cover up memory gaps."
+        )
+        context_parts.append(directives)
+
+        return "\n".join(context_parts)
 
     def _add_embedding_to_payload(self, record: LongTermMemoryRecord) -> None:
         try:
@@ -509,15 +722,15 @@ class EpisodicSummarizer:
         payload = record.get("payload", {})
         session_id = record.get("session_id", "unknown-session")
         created_at = record.get("created_at", "")
-        
+
         # Check if this record is a failure (contains error/exception/fail/traceback)
         text_to_scan = (summary + " " + json.dumps(payload)).lower()
         if not any(kw in text_to_scan for kw in ["error", "fail", "exception", "traceback"]):
             return None
-            
+
         # Parse mistake / error message from payload or summary
         mistake = "Unknown execution failure."
-        
+
         # Try to find standard traceback or error message in payload
         if "error" in payload:
             mistake = str(payload["error"])
@@ -535,13 +748,13 @@ class EpisodicSummarizer:
                 if any(kw in line.lower() for kw in ["error", "fail", "exception", "traceback"]):
                     mistake = line
                     break
-                    
+
         # Clean mistake string to be concise
         mistake = mistake.strip()[:300]
-        
+
         # Extract task ID from record or session_id
         task_id = record.get("id", "T-1001").replace("ltm-", "").replace("sem-", "").replace("pref-", "").upper()
-        
+
         # Derive date YYYYMMDD from created_at or default to current date
         date_str = datetime.now().strftime("%Y%m%d")
         if created_at:
@@ -549,10 +762,10 @@ class EpisodicSummarizer:
                 date_str = created_at.split("T")[0].replace("-", "")
             except Exception:
                 pass
-                
+
         lesson_id = f"L-{date_str}-{task_id[:8]}"
         title = f"Task execution failure in session {session_id}"
-        
+
         # Formulate standard fields
         root_cause = f"An unhandled exception occurred during step execution in session {session_id}."
         if "rate limit" in text_to_scan or "429" in text_to_scan:
@@ -566,7 +779,7 @@ class EpisodicSummarizer:
         else:
             best_practice = "Always mock approval checks and bypass interactive prompt gateways when executing automated suites inside CI/CD/pytest environments."
             resolution_code = "router._get_authorization_level = MagicMock(return_value=\"standard\")"
-            
+
         return {
             "lesson_id": lesson_id,
             "title": title,
@@ -590,7 +803,7 @@ class EpisodicSummarizer:
             project_root = path_check.parent
         else:
             project_root = path_check.parent
-            
+
         lessons_file = project_root / ".agent" / "knowledge_base" / "lessons_learned.md"
         if not lessons_file.is_file():
             scaffold = (
@@ -601,19 +814,19 @@ class EpisodicSummarizer:
             )
             lessons_file.parent.mkdir(parents=True, exist_ok=True)
             lessons_file.write_text(scaffold, encoding="utf-8")
-            
+
         content = lessons_file.read_text(encoding="utf-8")
-        
+
         merged_count = 0
         new_blocks = ""
-        
+
         for les in lessons:
             lesson_id = les["lesson_id"]
-            
+
             if lesson_id in content:
                 logger.info("Lesson %s already exists in registry. Skipping duplicate merge.", lesson_id)
                 continue
-                
+
             block = (
                 f"\n---\n\n"
                 f"### Lesson ID: {lesson_id} ({les['title']})\n"
@@ -627,12 +840,12 @@ class EpisodicSummarizer:
             )
             new_blocks += block
             merged_count += 1
-            
+
         if merged_count > 0:
             new_content = content.rstrip() + "\n" + new_blocks
             lessons_file.write_text(new_content, encoding="utf-8")
             logger.info("Merged %d new lessons into lessons_learned.md", merged_count)
-            
+
         return merged_count
 
 
@@ -656,7 +869,7 @@ class ConcurrencyAuditor:
         target_dir = project_root / "agent_workspace"
         if not target_dir.is_dir():
             target_dir = project_root
-            
+
         for root, _, files in os.walk(target_dir):
             root_parts = Path(root).parts
             if any(part in root_parts for part in [".agent", ".git", ".pytest_cache", ".venv", "tests"]):
@@ -675,11 +888,11 @@ class ConcurrencyAuditor:
                             })
                     except Exception:
                         pass
-                        
+
         risk_score = 0.0
         if violations:
             risk_score = min(0.95, len(violations) * 0.3)
-            
+
         return {
             "status": "warning" if violations else "secure",
             "risk_score": risk_score,
@@ -694,7 +907,7 @@ class ConcurrencyAuditor:
         """
         audit_res = ConcurrencyAuditor.perform_static_audit(workspace_path)
         concurrency_warning = (audit_res["status"] == "warning" or audit_res["risk_score"] > 0.4)
-        
+
         warning_event = {
             "session": session_id,
             "type": "concurrency_audit",
@@ -703,7 +916,7 @@ class ConcurrencyAuditor:
             "details": f"Statically audited database connections. Concurrency warning: {concurrency_warning}.",
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
-        
+
         try:
             # Dynamically import DiscussionRoom to broadcast telemetry warnings
             # to active telemetry dashboards in real-time.
@@ -715,7 +928,7 @@ class ConcurrencyAuditor:
                     pass
         except Exception:
             pass
-            
+
         return warning_event
 
 
