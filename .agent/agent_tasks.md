@@ -155,6 +155,7 @@
 | **Phase 60** | 5 tasks | 5 tasks | 100% Done |
 | **Phase 61** | 6 tasks | 6 tasks | 100% Done |
 | **Phase 62** | 6 tasks | 6 tasks | 100% Done |
+| **Phase 63** | 6 tasks | 2 tasks | 33% In Progress |
 
 ---
 
@@ -213,6 +214,28 @@
 - [x] **[Frontend QA]** Run `npm outdated --json` in `viewer/` and confirm no outdated npm packages after the current Vite/Tailwind/TypeScript/Playwright upgrade.
 - [x] **[Backend QA]** Run `uv --cache-dir .uv-cache pip list --python .\.venv\Scripts\python.exe --outdated --format json`, upgrade local `.venv` packages covered by existing `requirements.txt` ranges (`fastapi`, `httpx2`, `httpcore2`), and leave `pydantic-core` pinned because `pydantic==2.13.4` explicitly requires `pydantic-core==2.46.4`.
 - [x] **[Verification]** Re-run the full `.\scripts\verify.cmd` gate after local dependency updates: Python compile, full pytest, PAP validation, tool manifest/secrets scan, viewer build, UI smoke, and swarm governance UI verification all completed successfully.
+
+---
+
+## PHASE 63 - Fugu Plan Gap Closure: Adaptive Memory, Eval Scale, UI Trace & Governance
+
+### 63-01 Current-State Gap Tracking
+- [x] **[Architect/QA]** Reconcile the Fugu-inspired Phase 0-7 plan against the current repository: Phase 0-1 complete, Phase 2-3 partial, Phase 4-6 incomplete, and Phase 7 partial/continuous.
+
+### 63-02 Adaptive Outcome Memory Foundation
+- [x] **[Backend Programmer]** Add `routing_outcome` long-term memory records with task type, execution mode, selected model, success/failure, error type, token total, latency, and human intervention count, and persist them from `AgentRouter` after each non-streaming run without changing provider/tool behavior.
+
+### 63-03 Outcome-Aware Routing
+- [ ] **[Backend Programmer]** Use prior `routing_outcome` records as bounded retrieval input for future `ConductorPlan` scoring while keeping fail-closed defaults and deterministic tests.
+
+### 63-04 Agent Eval Harness Scale-Up
+- [ ] **[QA/Verification]** Expand `scripts/agent_eval_fixtures.json` from smoke coverage to 20-50 golden tasks covering code review, debugging, repo navigation, security review, long-context research, and UI smoke.
+
+### 63-05 Conductor Trace UI
+- [ ] **[Frontend Programmer]** Add dashboard visibility for conductor trace: task breakdown, model selection rationale, memory hits, verifier verdict, cost, and latency.
+
+### 63-06 Unified Policy Gate
+- [ ] **[Security/Backend Programmer]** Bind ultra mode, browser/computer-use, safety scans, and external API actions to a single policy gate with scope guard, audit log, and ProofOfConsensus hooks.
 
 ---
 

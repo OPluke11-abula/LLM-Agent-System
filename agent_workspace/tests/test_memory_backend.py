@@ -2,6 +2,7 @@ import os
 import json
 import pytest
 from pathlib import Path
+from agent_workspace.core.conductor import build_default_conductor_plan
 from agent_workspace.long_term_memory import LongTermMemoryStore
 from agent_workspace.memory_backends import FileBackend
 from agent_workspace.routes.schemas import PreferenceRequest
@@ -130,5 +131,48 @@ def test_preference_request_preserves_category_for_memory_console(tmp_path):
         )
         assert record.category == "user/preferences/style"
         assert store.all_records()[0]["category"] == "user/preferences/style"
+    finally:
+        store.close()
+
+
+def test_route_outcome_memory_records_adaptive_routing_payload(tmp_path):
+    store = LongTermMemoryStore(tmp_path, backend_name="sqlite")
+    try:
+        plan = build_default_conductor_plan(
+            task_id="session-routing:compilation",
+            task_summary="Fix router telemetry and run focused tests.",
+            session_id="session-routing",
+            task_type="compilation",
+            intent="TASK",
+            resolved_tools=["run_tests"],
+            selected_account={
+                "id": "primary",
+                "provider": "google-genai",
+                "model": "gemini-2.5-pro",
+            },
+            max_iterations=5,
+            max_tool_calls=15,
+        )
+
+        record = store.add_route_outcome(
+            session_id="session-routing",
+            conductor_plan=plan.model_dump(mode="json"),
+            success=True,
+            latency_ms=1234,
+            token_count=4096,
+            human_intervention_count=1,
+        )
+
+        stored = store.all_records()[0]
+        assert record.id.startswith("outcome-")
+        assert stored["source"] == "routing_outcome"
+        assert stored["category"] == "routing/outcome"
+        assert stored["payload"]["record_type"] == "routing_outcome"
+        assert stored["payload"]["execution_mode"] == "pro"
+        assert stored["payload"]["success"] is True
+        assert stored["payload"]["token_count"] == 4096
+        assert stored["payload"]["latency_ms"] == 1234
+        assert stored["payload"]["human_intervention_count"] == 1
+        assert "google-genai/gemini-2.5-pro" in stored["summary"]
     finally:
         store.close()

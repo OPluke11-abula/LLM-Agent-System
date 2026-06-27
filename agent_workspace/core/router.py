@@ -274,6 +274,7 @@ class AgentRouter:
         self.total_prompt_tokens = 0
         self.total_completion_tokens = 0
         self.total_tokens = 0
+        self.human_intervention_count = 0
 
         memory_dir = os.path.join(engine.workspace_path, "memory")
         self.memory = MemoryManager(memory_dir, session_id=self.session_id)
@@ -334,6 +335,7 @@ class AgentRouter:
         """Wait for human approval of the tool execution.
         Returns True if approved, False if rejected.
         """
+        self.human_intervention_count += 1
         future = asyncio.get_running_loop().create_future()
 
         req = {
@@ -750,20 +752,30 @@ class AgentRouter:
         node_id = self.agent_name
         ROUTE_REGISTRY.start_dispatch(node_id)
         start_time = time.time()
+        intervention_count_before = self.human_intervention_count
         success = True
+        error_type: str | None = None
         try:
             res = await self._run_agent_loop_internal(
                 user_input, allowed_tools, output_schema, account_id
             )
             if isinstance(res, str) and res.startswith("Error:"):
                 success = False
+                error_type = res.splitlines()[0][:160]
             return res
-        except Exception:
+        except Exception as error:
             success = False
+            error_type = type(error).__name__
             raise
         finally:
             latency = time.time() - start_time
             ROUTE_REGISTRY.end_dispatch(node_id, latency, success)
+            self._record_route_outcome(
+                success=success,
+                latency_ms=int(latency * 1000),
+                error_type=error_type,
+                human_intervention_count=max(0, self.human_intervention_count - intervention_count_before),
+            )
 
     def _resolve_allowed_tools(self, caller_allowed: list[str] | None) -> list[str]:
         """
@@ -861,6 +873,30 @@ class AgentRouter:
                 "risk_level": plan.risk_level,
             },
         )
+
+    def _record_route_outcome(
+        self,
+        *,
+        success: bool,
+        latency_ms: int,
+        error_type: str | None,
+        human_intervention_count: int,
+    ) -> None:
+        if not self.long_term_memory or not self.last_conductor_plan:
+            return
+        try:
+            record = self.long_term_memory.add_route_outcome(
+                session_id=self.session_id,
+                conductor_plan=self.last_conductor_plan.model_dump(mode="json"),
+                success=success,
+                latency_ms=latency_ms,
+                token_count=self.total_tokens,
+                error_type=error_type,
+                human_intervention_count=human_intervention_count,
+            )
+            logger.info("[LongTermMemory] persisted route outcome %s for session %s", record.id, self.session_id)
+        except Exception as error:
+            logger.warning("[LongTermMemory] route outcome persistence failed for session %s: %s", self.session_id, error)
 
     async def _run_agent_loop_internal(
         self,

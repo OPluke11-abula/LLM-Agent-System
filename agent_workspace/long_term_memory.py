@@ -267,6 +267,79 @@ class LongTermMemoryStore:
         self._backend.write(session_id, record.id, asdict(record))
         return record
 
+    def add_route_outcome(
+        self,
+        *,
+        session_id: str,
+        conductor_plan: dict[str, Any],
+        success: bool,
+        latency_ms: int,
+        token_count: int,
+        error_type: str | None = None,
+        human_intervention_count: int = 0,
+    ) -> LongTermMemoryRecord:
+        """Persist a compact routing outcome for future adaptive routing."""
+
+        created_at = self._now()
+        selected_models = conductor_plan.get("selected_models", [])
+        model_labels = [
+            f"{model.get('provider', 'unknown')}/{model.get('model', 'unknown')}"
+            for model in selected_models
+            if isinstance(model, dict)
+        ]
+        status = "succeeded" if success else "failed"
+        task_type = str(conductor_plan.get("task_type", "unknown"))
+        execution_mode = str(conductor_plan.get("execution_mode", "unknown"))
+        topology = str(conductor_plan.get("topology", "unknown"))
+        error_label = error_type or "none"
+        summary = (
+            f"Routing outcome {status}: task_type={task_type}, mode={execution_mode}, "
+            f"topology={topology}, models={','.join(model_labels) or 'unknown'}, "
+            f"tokens={token_count}, latency_ms={latency_ms}, "
+            f"human_interventions={human_intervention_count}, error={error_label}."
+        )
+        payload = {
+            "record_type": "routing_outcome",
+            "task_id": conductor_plan.get("task_id"),
+            "task_type": task_type,
+            "execution_mode": execution_mode,
+            "risk_level": conductor_plan.get("risk_level"),
+            "topology": topology,
+            "selected_models": selected_models,
+            "tool_allowlist": conductor_plan.get("tool_allowlist", []),
+            "verification_strategy": conductor_plan.get("verification_strategy", {}),
+            "success": success,
+            "error_type": error_type,
+            "token_count": token_count,
+            "latency_ms": latency_ms,
+            "human_intervention_count": human_intervention_count,
+        }
+        source_hash = self._hash(
+            {
+                "session_id": session_id,
+                "created_at": created_at,
+                "payload": payload,
+            }
+        )
+        record = LongTermMemoryRecord(
+            id=f"outcome-{source_hash[:16]}",
+            session_id=session_id,
+            created_at=created_at,
+            source="routing_outcome",
+            source_hash=source_hash,
+            summary=summary,
+            keywords=self._keywords(summary),
+            message_count=0,
+            payload=payload,
+            domain="episodic",
+            confidence=1.0,
+            privacy_level="session",
+            category="routing/outcome",
+        )
+        self._add_embedding_to_payload(record)
+        self._backend.write(session_id, record.id, asdict(record))
+        return record
+
     _query_cache = FTS5QueryCache()
 
     def query(

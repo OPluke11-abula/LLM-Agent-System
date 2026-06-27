@@ -37,6 +37,8 @@ LAS now includes a Fugu-inspired `ConductorPlan` telemetry surface. Before the r
 
 `DiscussionRoom` also emits Thinker/Worker/Verifier role contracts and a durable verifier verdict for each debate run. The deterministic smoke eval can be run with `python scripts/eval_agents.py` to report completion, cost, latency, tool use, verifier outcome, and unresolved risk from local golden fixtures.
 
+Router runs now persist compact `routing_outcome` records into long-term memory, including success/failure, task type, execution mode, selected model, token total, latency, and human intervention count. These records are the first adaptive-memory substrate; routing still remains behavior-compatible until outcome scoring is explicitly enabled.
+
 ---
 
 ### 🗺️ Live Topological Dagre View
@@ -236,6 +238,8 @@ LAS is fully aligned with the latest PAP v0.2.0 reference specification:
 LAS 現在加入受 Fugu 啟發的 `ConductorPlan` 遙測層。Router 在執行任務前，可以描述預計使用的 execution mode (`fast`, `pro`, `ultra`)、角色拓撲、模型與帳號選擇、工具允許清單、記憶範圍、驗證策略、預算與 fallback 政策；這一層目前只做可審計記錄，不改變既有 provider selection 行為。
 
 `DiscussionRoom` 也會在每次 debate run 輸出 Thinker/Worker/Verifier 角色契約與 durable verifier verdict。可用 `python scripts/eval_agents.py` 執行 deterministic smoke eval，從本地 golden fixtures 回報 completion、cost、latency、tool use、verifier outcome 與 unresolved risk。
+
+Router 現在會把精簡的 `routing_outcome` 記錄寫入 long-term memory，內容包含成功/失敗、任務類型、execution mode、已選模型、token 總量、latency 與人工介入次數。這是 adaptive memory 的第一層資料基礎；在 outcome scoring 明確啟用前，routing 行為仍維持相容。
 
 ---
 
