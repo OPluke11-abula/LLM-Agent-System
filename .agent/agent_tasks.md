@@ -155,7 +155,7 @@
 | **Phase 60** | 5 tasks | 5 tasks | 100% Done |
 | **Phase 61** | 6 tasks | 6 tasks | 100% Done |
 | **Phase 62** | 6 tasks | 6 tasks | 100% Done |
-| **Phase 63** | 6 tasks | 2 tasks | 33% In Progress |
+| **Phase 63** | 6 tasks | 3 tasks | 50% In Progress |
 
 ---
 
@@ -226,7 +226,7 @@
 - [x] **[Backend Programmer]** Add `routing_outcome` long-term memory records with task type, execution mode, selected model, success/failure, error type, token total, latency, and human intervention count, and persist them from `AgentRouter` after each non-streaming run without changing provider/tool behavior.
 
 ### 63-03 Outcome-Aware Routing
-- [ ] **[Backend Programmer]** Use prior `routing_outcome` records as bounded retrieval input for future `ConductorPlan` scoring while keeping fail-closed defaults and deterministic tests.
+- [x] **[Backend Programmer]** Use prior `routing_outcome` records as bounded retrieval input for future `ConductorPlan` scoring while keeping fail-closed defaults and deterministic tests.
 
 ### 63-04 Agent Eval Harness Scale-Up
 - [ ] **[QA/Verification]** Expand `scripts/agent_eval_fixtures.json` from smoke coverage to 20-50 golden tasks covering code review, debugging, repo navigation, security review, long-context research, and UI smoke.

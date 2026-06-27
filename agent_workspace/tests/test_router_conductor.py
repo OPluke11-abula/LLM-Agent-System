@@ -37,6 +37,52 @@ def test_router_builds_conductor_plan_without_changing_tool_allowlist(tmp_path):
     assert router.last_conductor_plan is plan
 
 
+def test_router_adds_route_outcome_hints_without_changing_selected_model(tmp_path):
+    agent_dir = tmp_path / ".agent"
+    agent_dir.mkdir(parents=True)
+    (agent_dir / "agent.md").write_text(
+        "---\nauthorization_level: standard\ntools:\n  - calculate\n  - run_tests\n---\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "config.yaml").write_text(
+        "agent:\n  max_iterations: 5\n  max_tool_calls: 15\nmemory:\n  long_term_enabled: true\n  backend: sqlite\n",
+        encoding="utf-8",
+    )
+
+    engine = AgentEngine(workspace_path=str(tmp_path), bypass_onboarding=True)
+    router = AgentRouter(engine, session_id="s-hints", agent_name="tester")
+    try:
+        seed_plan = router._build_conductor_plan(
+            user_input="Seed a previous compilation outcome.",
+            task_type="compilation",
+            intent="TASK",
+            resolved_tools=["run_tests"],
+            selected_account={"id": "primary", "provider": "google-genai", "model": "gemini-2.5-pro"},
+        )
+        router.long_term_memory.add_route_outcome(
+            session_id="s-hints",
+            conductor_plan=seed_plan.model_dump(mode="json"),
+            success=True,
+            latency_ms=500,
+            token_count=1200,
+        )
+
+        plan = router._build_conductor_plan(
+            user_input="Please run tests after changing router telemetry.",
+            task_type="compilation",
+            intent="TASK",
+            resolved_tools=["run_tests"],
+            selected_account={"id": "primary", "provider": "google-genai", "model": "gemini-2.5-flash"},
+        )
+    finally:
+        router.close()
+
+    assert plan.selected_models[0].model == "gemini-2.5-flash"
+    assert len(plan.routing_memory_hints) == 1
+    assert plan.routing_memory_hints[0].task_type == "compilation"
+    assert plan.routing_memory_hints[0].success is True
+
+
 @pytest.mark.asyncio
 async def test_router_persists_route_outcome_after_agent_loop(tmp_path):
     agent_dir = tmp_path / ".agent"

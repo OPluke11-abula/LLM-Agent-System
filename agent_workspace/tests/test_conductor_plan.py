@@ -139,6 +139,40 @@ def test_chat_plan_defaults_to_fast_single_worker():
     assert plan.verification_strategy.kind == "none"
 
 
+def test_conductor_plan_attaches_route_outcome_hints_without_changing_selection():
+    plan = build_default_conductor_plan(
+        task_id="session-4:compilation",
+        task_summary="Fix tests and report verification.",
+        session_id="session-4",
+        task_type="compilation",
+        intent="TASK",
+        resolved_tools=["run_tests"],
+        selected_account={"id": "primary", "provider": "google-genai", "model": "gemini-2.5-flash"},
+        max_iterations=5,
+        max_tool_calls=15,
+        route_outcome_hints=[
+            {
+                "id": "outcome-abc",
+                "payload": {
+                    "task_type": "compilation",
+                    "execution_mode": "pro",
+                    "success": True,
+                    "token_count": 2048,
+                    "latency_ms": 750,
+                    "human_intervention_count": 0,
+                },
+            }
+        ],
+    )
+
+    assert plan.selected_models[0].provider == "google-genai"
+    assert plan.selected_models[0].model == "gemini-2.5-flash"
+    assert len(plan.routing_memory_hints) == 1
+    assert plan.routing_memory_hints[0].record_id == "outcome-abc"
+    assert plan.routing_memory_hints[0].success is True
+    assert "audit hints only" in plan.decision_rationale
+
+
 def test_unlimited_negative_account_budget_is_not_a_schema_failure():
     plan = build_default_conductor_plan(
         task_id="session-3:text_inference",

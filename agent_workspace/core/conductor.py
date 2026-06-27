@@ -97,6 +97,19 @@ class FallbackRule(BaseModel):
     target_model: str | None = None
 
 
+class RouteOutcomeHint(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    record_id: str
+    task_type: str
+    execution_mode: str
+    success: bool
+    error_type: str | None = None
+    token_count: int = Field(default=0, ge=0)
+    latency_ms: int = Field(default=0, ge=0)
+    human_intervention_count: int = Field(default=0, ge=0)
+
+
 class ConductorPlan(BaseModel):
     """Audit-friendly plan describing how LAS intends to orchestrate a task."""
 
@@ -120,6 +133,7 @@ class ConductorPlan(BaseModel):
     verification_strategy: VerificationStrategy
     budget: ExecutionBudget
     fallbacks: list[FallbackRule] = Field(default_factory=list)
+    routing_memory_hints: list[RouteOutcomeHint] = Field(default_factory=list)
     decision_rationale: str
 
     @model_validator(mode="after")
@@ -225,6 +239,30 @@ def _default_roles(execution_mode: ExecutionMode, topology: Topology) -> list[Co
     return roles
 
 
+def _normalize_route_outcome_hints(raw_hints: list[dict[str, Any]] | None) -> list[RouteOutcomeHint]:
+    hints: list[RouteOutcomeHint] = []
+    for raw in raw_hints or []:
+        payload = raw.get("payload", raw)
+        if not isinstance(payload, dict):
+            continue
+        try:
+            hints.append(
+                RouteOutcomeHint(
+                    record_id=str(raw.get("id") or payload.get("record_id") or ""),
+                    task_type=str(payload.get("task_type", "unknown")),
+                    execution_mode=str(payload.get("execution_mode", "unknown")),
+                    success=bool(payload.get("success", False)),
+                    error_type=payload.get("error_type"),
+                    token_count=int(payload.get("token_count") or 0),
+                    latency_ms=int(payload.get("latency_ms") or 0),
+                    human_intervention_count=int(payload.get("human_intervention_count") or 0),
+                )
+            )
+        except (TypeError, ValueError):
+            continue
+    return hints
+
+
 def build_default_conductor_plan(
     *,
     task_id: str,
@@ -238,6 +276,7 @@ def build_default_conductor_plan(
     max_tool_calls: int,
     long_term_enabled: bool = True,
     tenant_id: str | None = None,
+    route_outcome_hints: list[dict[str, Any]] | None = None,
 ) -> ConductorPlan:
     """Build a deterministic telemetry plan without changing runtime behavior."""
 
@@ -260,6 +299,10 @@ def build_default_conductor_plan(
         selection_reason="Matches the already-resolved account; telemetry-only plan preserves current routing.",
     )
     tool_allowlist = [] if normalized_intent == "CHAT" else list(resolved_tools)
+    normalized_hints = _normalize_route_outcome_hints(route_outcome_hints)
+    decision_rationale = "Telemetry-only conductor plan mirrors the current router decision without changing execution."
+    if normalized_hints:
+        decision_rationale += " Prior routing outcomes are attached as bounded audit hints only."
 
     return ConductorPlan(
         task_id=task_id,
@@ -299,5 +342,6 @@ def build_default_conductor_plan(
                 action="use_existing_provider_failover",
             )
         ],
-        decision_rationale="Telemetry-only conductor plan mirrors the current router decision without changing execution.",
+        routing_memory_hints=normalized_hints,
+        decision_rationale=decision_rationale,
     )

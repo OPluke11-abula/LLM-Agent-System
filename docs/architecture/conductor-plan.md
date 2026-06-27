@@ -41,6 +41,7 @@ class ConductorPlan(BaseModel):
     verification_strategy: VerificationStrategy
     budget: ExecutionBudget
     fallbacks: list[FallbackRule]
+    routing_memory_hints: list[RouteOutcomeHint]
     decision_rationale: str
 ```
 
@@ -95,6 +96,8 @@ Every conductor execution should report:
 - verifier decision
 - tests or checks run
 - unresolved risks
+
+Adaptive routing starts in audit-only mode: recent same-task-type `routing_outcome` records are attached to the plan as bounded `routing_memory_hints`. They must not change provider selection until scoring policy and tests explicitly enable that behavior.
 
 The first implementation should only log plans. Behavior changes should happen after schema and telemetry are stable.
 

@@ -176,3 +176,61 @@ def test_route_outcome_memory_records_adaptive_routing_payload(tmp_path):
         assert "google-genai/gemini-2.5-pro" in stored["summary"]
     finally:
         store.close()
+
+
+def test_recent_route_outcomes_are_task_scoped_and_bounded(tmp_path):
+    store = LongTermMemoryStore(tmp_path, backend_name="sqlite")
+    try:
+        compilation_plan = build_default_conductor_plan(
+            task_id="session-routing:compilation",
+            task_summary="Fix router telemetry and run focused tests.",
+            session_id="session-routing",
+            task_type="compilation",
+            intent="TASK",
+            resolved_tools=["run_tests"],
+            selected_account={"id": "primary", "provider": "google-genai", "model": "gemini-2.5-pro"},
+            max_iterations=5,
+            max_tool_calls=15,
+        )
+        ui_plan = build_default_conductor_plan(
+            task_id="session-routing:ui_layout",
+            task_summary="Fix a layout regression.",
+            session_id="session-routing",
+            task_type="ui_layout",
+            intent="TASK",
+            resolved_tools=[],
+            selected_account={"id": "primary", "provider": "google-genai", "model": "gemini-2.5-flash"},
+            max_iterations=5,
+            max_tool_calls=15,
+        )
+
+        store.add_route_outcome(
+            session_id="session-routing",
+            conductor_plan=compilation_plan.model_dump(mode="json"),
+            success=True,
+            latency_ms=100,
+            token_count=1000,
+        )
+        store.add_route_outcome(
+            session_id="session-routing",
+            conductor_plan=ui_plan.model_dump(mode="json"),
+            success=True,
+            latency_ms=200,
+            token_count=2000,
+        )
+        store.add_route_outcome(
+            session_id="other-session",
+            conductor_plan=compilation_plan.model_dump(mode="json"),
+            success=False,
+            latency_ms=300,
+            token_count=3000,
+            error_type="other session",
+        )
+
+        outcomes = store.recent_route_outcomes(task_type="compilation", session_id="session-routing", limit=1)
+
+        assert len(outcomes) == 1
+        assert outcomes[0]["session_id"] == "session-routing"
+        assert outcomes[0]["payload"]["task_type"] == "compilation"
+    finally:
+        store.close()

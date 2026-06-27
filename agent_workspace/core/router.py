@@ -841,6 +841,16 @@ class AgentRouter:
         resolved_tools: list[str],
         selected_account: dict[str, Any],
     ) -> ConductorPlan:
+        route_outcome_hints: list[dict[str, Any]] = []
+        if self.long_term_memory:
+            try:
+                route_outcome_hints = self.long_term_memory.recent_route_outcomes(
+                    task_type=task_type,
+                    session_id=self.session_id,
+                    limit=3,
+                )
+            except Exception as error:
+                logger.warning("[AgentRouter] Failed to retrieve route outcome hints: %s", error)
         plan = build_default_conductor_plan(
             task_id=f"{self.session_id}:{task_type}",
             task_summary=user_input,
@@ -852,6 +862,7 @@ class AgentRouter:
             max_iterations=self.max_iterations,
             max_tool_calls=self.max_tool_calls,
             long_term_enabled=self.long_term_memory is not None,
+            route_outcome_hints=route_outcome_hints,
         )
         self.last_conductor_plan = plan
         return plan
@@ -864,6 +875,7 @@ class AgentRouter:
         span.set_attribute("conductor.task_type", plan.task_type)
         span.set_attribute("conductor.tool_allowlist_count", len(plan.tool_allowlist))
         span.set_attribute("conductor.selected_models", len(plan.selected_models))
+        span.set_attribute("conductor.routing_memory_hints", len(plan.routing_memory_hints))
         logger.info(
             "Conductor plan created",
             extra={

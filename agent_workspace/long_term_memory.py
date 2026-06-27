@@ -340,6 +340,34 @@ class LongTermMemoryStore:
         self._backend.write(session_id, record.id, asdict(record))
         return record
 
+    def recent_route_outcomes(
+        self,
+        *,
+        task_type: str,
+        session_id: str | None = None,
+        limit: int = 3,
+    ) -> list[dict[str, Any]]:
+        """Return recent routing outcomes for the same task type, bounded for planning."""
+
+        bounded_limit = max(0, min(limit, 10))
+        if bounded_limit == 0:
+            return []
+
+        matches: list[dict[str, Any]] = []
+        for record in self.all_records():
+            if session_id and record.get("session_id") != session_id:
+                continue
+            payload = record.get("payload") or {}
+            if (
+                record.get("source") == "routing_outcome"
+                and payload.get("record_type") == "routing_outcome"
+                and payload.get("task_type") == task_type
+            ):
+                matches.append(record)
+                if len(matches) >= bounded_limit:
+                    break
+        return matches
+
     _query_cache = FTS5QueryCache()
 
     def query(
