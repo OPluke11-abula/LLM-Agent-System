@@ -154,6 +154,7 @@
 | **Phase 59** | 5 tasks | 5 tasks | 100% Done |
 | **Phase 60** | 5 tasks | 5 tasks | 100% Done |
 | **Phase 61** | 6 tasks | 6 tasks | 100% Done |
+| **Phase 62** | 6 tasks | 6 tasks | 100% Done |
 
 ---
 
@@ -198,6 +199,20 @@
 ### 61-03 Thinker/Worker/Verifier Runtime Modes
 - [x] **[Backend Programmer]** Extend `DiscussionRoom` with explicit Thinker, Worker, and Verifier role contracts, durable verifier verdicts, and fail-closed escalation for high-risk plans.
 - [x] **[QA/Verification]** Add agent-level golden task fixtures and a smoke evaluation command that reports completion, cost, latency, tool use, verifier outcome, and unresolved risk.
+
+---
+
+## PHASE 62 - Repository Maintenance Baseline, Dependency Verification & Worktree Hygiene
+
+### 62-01 Commit Hygiene and Baseline Verification
+- [x] **[Maintainer]** Split accumulated dirty worktree changes into narrow commits and push them to `origin/main`, covering conductor telemetry, safety gates, PAP safety notes, long-term memory APIs, sandbox/auth hardening, agent crew scratch isolation, viewer memory manager, and legacy workspace cleanup.
+- [x] **[QA/Verification]** Restore the repo to a clean `main...origin/main` baseline after removing untracked stale handoff drafts and reverting test-generated consensus registry noise.
+
+### 62-02 Dependency and Security Audit
+- [x] **[Frontend QA]** Run `npm audit --json` in `viewer/` and confirm 0 vulnerabilities across 158 dependencies.
+- [x] **[Frontend QA]** Run `npm outdated --json` in `viewer/` and confirm no outdated npm packages after the current Vite/Tailwind/TypeScript/Playwright upgrade.
+- [x] **[Backend QA]** Run `uv --cache-dir .uv-cache pip list --python .\.venv\Scripts\python.exe --outdated --format json`, upgrade local `.venv` packages covered by existing `requirements.txt` ranges (`fastapi`, `httpx2`, `httpcore2`), and leave `pydantic-core` pinned because `pydantic==2.13.4` explicitly requires `pydantic-core==2.46.4`.
+- [x] **[Verification]** Re-run the full `.\scripts\verify.cmd` gate after local dependency updates: Python compile, full pytest, PAP validation, tool manifest/secrets scan, viewer build, UI smoke, and swarm governance UI verification all completed successfully.
 
 ---
 
