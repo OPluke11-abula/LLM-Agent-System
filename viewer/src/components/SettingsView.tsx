@@ -1,6 +1,7 @@
 import { useState, useEffect, type Dispatch, type SetStateAction } from "react";
 import { ALL_LANGS, THEME_LIST } from "../constants";
 import type { Lang, SettingsTabId, ThemeId, TranslationMessages, Workspace, LlmConfig, LlmConfigPayload } from "../types";
+import { logUiDiagnostic } from "../utils/logger";
 import { Button, MetricTile, StatusBadge, Surface } from "./ui/primitives";
 
 type SettingsViewProps = {
@@ -44,7 +45,10 @@ export function SettingsView({
           api_key: "",
         });
       })
-      .catch((err) => console.error("Failed to load config:", err));
+      .catch((err) => {
+        setSaveStatus("Failed to load LLM config");
+        logUiDiagnostic("Failed to load config", err);
+      });
   }, []);
 
   async function saveLlmConfig() {
@@ -57,9 +61,12 @@ export function SettingsView({
       if (res.ok) {
         setSaveStatus(t.configSavedToast);
         setTimeout(() => setSaveStatus(""), 3000);
+      } else {
+        setSaveStatus(`Failed to save config (${res.status})`);
       }
     } catch (err) {
-      console.error("Failed to save config:", err);
+      setSaveStatus("Failed to save LLM config");
+      logUiDiagnostic("Failed to save config", err);
     }
   }
 
@@ -133,7 +140,7 @@ export function SettingsView({
             <div className="flex flex-wrap gap-3">
               {(["zh", "en", "ja", "fr"] as Lang[]).map((item) => {
                 const langNames: Record<Lang, string> = {
-                  zh: "中文",
+                  zh: "繁體中文",
                   en: "English",
                   ja: "日本語",
                   fr: "Français",
@@ -219,7 +226,7 @@ export function SettingsView({
                   type="password"
                   value={llmPayload.api_key || ""}
                   onChange={(e) => setLlmPayload({ ...llmPayload, api_key: e.target.value })}
-                  placeholder={llmConfig?.api_key_set ? "•••••••••••••••••••• (Leave blank to keep current)" : "Enter API Key..."}
+                  placeholder={llmConfig?.api_key_set ? "Current key is set. Leave blank to keep it." : "Enter API Key..."}
                   className="field-input w-full rounded-lg px-3 py-2 text-sm"
                 />
               </div>

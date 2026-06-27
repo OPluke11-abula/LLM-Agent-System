@@ -13,6 +13,7 @@ import { TOPOLOGY_EDGE_TYPES } from "./edges";
 import { TOPOLOGY_NODE_TYPES } from "./nodes";
 import { Button, MetricTile, ProgressBar, StatusBadge, Surface, Tooltip } from "./ui/primitives";
 import { buildTopologyFlow, formatDuration, NODE_COLORS, summarizeTopology } from "../utils/topologyUtils";
+import { logUiDiagnostic } from "../utils/logger";
 import type { ActivityLogEntry, Lang, TopologyEvent, TopologyNodeData, TopologyState } from "../types";
 
 type TopologyViewProps = {
@@ -235,7 +236,7 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
           });
         }
       } catch (e) {
-        console.error("Failed to fetch turns:", e);
+        logUiDiagnostic("Failed to fetch turns", e);
       }
     };
 
@@ -264,7 +265,7 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
           });
         }
       } catch (e) {
-        console.error("Failed to fetch defrag metrics:", e);
+        logUiDiagnostic("Failed to fetch defrag metrics", e);
       }
     };
 
@@ -295,7 +296,7 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
           });
         }
       } catch (e) {
-        console.error("Failed to fetch ledger:", e);
+        logUiDiagnostic("Failed to fetch ledger", e);
       }
     };
 
@@ -326,7 +327,7 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
           });
         }
       } catch (e) {
-        console.error("Failed to fetch sandbox status:", e);
+        logUiDiagnostic("Failed to fetch sandbox status", e);
       }
     };
 
@@ -354,7 +355,7 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
           });
         }
       } catch (e) {
-        console.error("Failed to fetch telemetry:", e);
+        logUiDiagnostic("Failed to fetch telemetry", e);
       }
     };
 
@@ -383,7 +384,7 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
           });
         }
       } catch (e) {
-        console.error("Failed to fetch router status:", e);
+        logUiDiagnostic("Failed to fetch router status", e);
       }
     };
 
@@ -446,7 +447,7 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
               } : null);
             }
           } catch (e) {
-            console.error("Failed to parse websocket message:", e);
+            logUiDiagnostic("Failed to parse websocket message", e);
           }
         };
 
@@ -460,7 +461,7 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
           ws?.close();
         };
       } catch (e) {
-        console.error("WebSocket collab connection failed:", e);
+        logUiDiagnostic("WebSocket collab connection failed", e);
       }
     };
 
@@ -487,7 +488,7 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
       await navigator.clipboard.writeText(data.prompt);
       alert(`Successfully exported session state!\nHandoff ID: ${data.handoff_id}\n\nThe English handoff prompt has been copied to your clipboard.`);
     } catch (e) {
-      console.error(e);
+      logUiDiagnostic("Failed to export handoff", e);
       alert(`Failed to export handoff: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setExporting(false);
@@ -516,7 +517,7 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
           : `Swarm Memory Sweep completed!\nFragmentation rate: ${Math.round(data.fragmentation_rate * 100)}%\nEfficiency: ${Math.round(data.reconciliation_efficiency * 100)}%\nFederated graph saved.`
       );
     } catch (e) {
-      console.error(e);
+      logUiDiagnostic("Defragmentation sweep failed", e);
       alert(`Defragmentation sweep failed: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setDefragmenting(false);
@@ -544,7 +545,7 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
           : `Route optimization complete!\nRoutes pruned: ${data.pruned_any ? 'Yes' : 'No'}\nActive routes: ${data.active_routes?.length ?? 0}`
       );
     } catch (e) {
-      console.error(e);
+      logUiDiagnostic("Pruning failed", e);
       alert(`Pruning failed: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setPruning(false);
@@ -561,7 +562,7 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
       });
       if (!response.ok) throw new Error("API call failed");
     } catch (e) {
-      console.error(e);
+      logUiDiagnostic(`Failed to ${action} session`, e);
       alert(`Failed to ${action} session: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setResolving(null);

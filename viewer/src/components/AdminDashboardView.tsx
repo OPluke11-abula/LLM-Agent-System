@@ -13,6 +13,7 @@ import {
   SwarmGovernanceConsole,
   type SwarmReplayEvent,
 } from "./SwarmGovernanceConsole";
+import { logUiDiagnostic } from "../utils/logger";
 import type { Lang, TranslationMessages } from "../types";
 
 type AdminDashboardViewProps = {
@@ -369,7 +370,7 @@ export function AdminDashboardView({ t, lang }: AdminDashboardViewProps) {
         setAuditBlocks(logsData.logs || []);
       }
     } catch (err) {
-      console.error("Failed to load audit ledger data:", err);
+      logUiDiagnostic("Failed to load audit ledger data", err);
       setTimedActionStatus(`${copy.ledgerLoadFailed}: ${getErrorMessage(err)}`, "danger");
     } finally {
       setCheckingLedger(false);
