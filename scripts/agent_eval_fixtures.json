@@ -1,67 +1,390 @@
 [
   {
-    "id": "conductor-telemetry-review",
+    "id": "code-review-conductor-telemetry",
+    "category": "code_review",
     "topic": "Review conductor telemetry implementation",
     "risk_level": "medium",
     "consensus_summary": "Decision: accept after focused tests and manifest validation pass.",
     "transcript": [
-      {
-        "agent": "Planner",
-        "role": "architect",
-        "content": "Plan keeps routing behavior unchanged."
-      },
-      {
-        "agent": "Auditor",
-        "role": "qa",
-        "content": "Decision: focused tests passed and no unresolved blocker remains."
-      }
+      { "agent": "Planner", "role": "architect", "content": "Plan keeps routing behavior unchanged." },
+      { "agent": "Auditor", "role": "qa", "content": "Decision: tests passed and no unresolved blocker remains." }
     ],
     "agents": [
-      {
-        "role": "architect",
-        "name": "Planner"
-      },
-      {
-        "role": "dev",
-        "name": "Builder"
-      },
-      {
-        "role": "qa",
-        "name": "Auditor"
-      }
+      { "role": "architect", "name": "Planner" },
+      { "role": "dev", "name": "Builder" },
+      { "role": "qa", "name": "Auditor" }
     ],
     "expected_decision": "accept"
   },
   {
-    "id": "high-risk-with-consensus",
-    "topic": "Approve high-risk swarm failover",
+    "id": "code-review-router-allowlist",
+    "category": "code_review",
+    "topic": "Review router allowlist intersection behavior",
+    "risk_level": "medium",
+    "consensus_summary": "Decision: accept because unknown tools are excluded and allowed tools remain available.",
+    "transcript": [
+      { "agent": "Auditor", "role": "qa", "content": "Decision: focused allowlist tests passed." }
+    ],
+    "agents": [
+      { "role": "architect", "name": "Planner" },
+      { "role": "programmer", "name": "Reviewer" },
+      { "role": "qa", "name": "Auditor" }
+    ],
+    "expected_decision": "accept"
+  },
+  {
+    "id": "code-review-memory-api",
+    "category": "code_review",
+    "topic": "Review long-term memory API compatibility",
+    "risk_level": "medium",
+    "consensus_summary": "Decision: accept after backwards compatibility and category preservation checks pass.",
+    "transcript": [
+      { "agent": "Reviewer", "role": "programmer", "content": "Existing record reconstruction remains compatible." },
+      { "agent": "Auditor", "role": "qa", "content": "Decision: memory API tests passed." }
+    ],
+    "agents": [
+      { "role": "programmer", "name": "Reviewer" },
+      { "role": "qa", "name": "Auditor" }
+    ],
+    "expected_decision": "accept"
+  },
+  {
+    "id": "code-review-viewer-console-health",
+    "category": "code_review",
+    "topic": "Review viewer console-health changes",
+    "risk_level": "low",
+    "consensus_summary": "Decision: accept because diagnostics are gated and UI build checks pass.",
+    "transcript": [
+      { "agent": "Auditor", "role": "qa", "content": "Decision: viewer build and UI smoke passed." }
+    ],
+    "agents": [
+      { "role": "dev", "name": "Frontend Reviewer" },
+      { "role": "qa", "name": "Auditor" }
+    ],
+    "expected_decision": "accept"
+  },
+  {
+    "id": "debug-sqlite-lock",
+    "category": "debug",
+    "topic": "Debug SQLite lock during concurrent memory writes",
+    "risk_level": "medium",
+    "consensus_summary": "Decision: accept after lock-guarded backend tests pass.",
+    "transcript": [
+      { "agent": "Planner", "role": "architect", "content": "Investigate write serialization first." },
+      { "agent": "Auditor", "role": "qa", "content": "Decision: concurrency tests passed." }
+    ],
+    "agents": [
+      { "role": "architect", "name": "Planner" },
+      { "role": "dev", "name": "Debugger" },
+      { "role": "qa", "name": "Auditor" }
+    ],
+    "expected_decision": "accept"
+  },
+  {
+    "id": "debug-provider-failover",
+    "category": "debug",
+    "topic": "Debug provider failure and failover ledger behavior",
+    "risk_level": "medium",
+    "consensus_summary": "Decision: accept because failover is audited and fallback route is deterministic.",
+    "transcript": [
+      { "agent": "Auditor", "role": "qa", "content": "Decision: provider failure path is covered." }
+    ],
+    "agents": [
+      { "role": "dev", "name": "Debugger" },
+      { "role": "cfo", "name": "Cost Auditor" },
+      { "role": "qa", "name": "Auditor" }
+    ],
+    "expected_decision": "accept"
+  },
+  {
+    "id": "debug-ui-build-chunk",
+    "category": "debug",
+    "topic": "Debug viewer bundle chunk budget regression",
+    "risk_level": "low",
+    "consensus_summary": "Decision: accept after route-level code splitting keeps the largest chunk below budget.",
+    "transcript": [
+      { "agent": "Auditor", "role": "qa", "content": "Decision: verify-ui chunk gate passed." }
+    ],
+    "agents": [
+      { "role": "dev", "name": "Frontend Debugger" },
+      { "role": "qa", "name": "Auditor" }
+    ],
+    "expected_decision": "accept"
+  },
+  {
+    "id": "debug-loop-approval",
+    "category": "debug",
+    "topic": "Debug loop continuation approval behavior",
+    "risk_level": "medium",
+    "consensus_summary": "Decision: accept because loop continuation remains gated outside pytest and deterministic inside tests.",
+    "transcript": [
+      { "agent": "Auditor", "role": "qa", "content": "Decision: loop gate behavior is verified." }
+    ],
+    "agents": [
+      { "role": "architect", "name": "Planner" },
+      { "role": "dev", "name": "Debugger" },
+      { "role": "qa", "name": "Auditor" }
+    ],
+    "expected_decision": "accept"
+  },
+  {
+    "id": "repo-nav-find-router-entry",
+    "category": "repo_navigation",
+    "topic": "Navigate repository to find router entrypoints",
+    "risk_level": "low",
+    "consensus_summary": "Decision: accept because router, provider, memory, and tests were identified with exact paths.",
+    "transcript": [
+      { "agent": "Auditor", "role": "qa", "content": "Decision: repository navigation evidence is complete." }
+    ],
+    "agents": [
+      { "role": "analyst", "name": "Navigator" },
+      { "role": "qa", "name": "Auditor" }
+    ],
+    "expected_decision": "accept"
+  },
+  {
+    "id": "repo-nav-find-viewer-flow",
+    "category": "repo_navigation",
+    "topic": "Navigate viewer control-plane components",
+    "risk_level": "low",
+    "consensus_summary": "Decision: accept because Admin, Topology, Settings, and shared primitives were mapped.",
+    "transcript": [
+      { "agent": "Auditor", "role": "qa", "content": "Decision: viewer surface map is actionable." }
+    ],
+    "agents": [
+      { "role": "analyst", "name": "Navigator" },
+      { "role": "dev", "name": "Frontend Mapper" },
+      { "role": "qa", "name": "Auditor" }
+    ],
+    "expected_decision": "accept"
+  },
+  {
+    "id": "repo-nav-find-pap-contracts",
+    "category": "repo_navigation",
+    "topic": "Navigate PAP manifest and skill contract boundaries",
+    "risk_level": "low",
+    "consensus_summary": "Decision: accept because .agent manifest, skill contracts, and tool manifest validation are located.",
+    "transcript": [
+      { "agent": "Auditor", "role": "qa", "content": "Decision: PAP boundary evidence is sufficient." }
+    ],
+    "agents": [
+      { "role": "analyst", "name": "Navigator" },
+      { "role": "qa", "name": "Auditor" }
+    ],
+    "expected_decision": "accept"
+  },
+  {
+    "id": "repo-nav-find-audit-ledger",
+    "category": "repo_navigation",
+    "topic": "Navigate audit ledger and consensus proof code",
+    "risk_level": "low",
+    "consensus_summary": "Decision: accept because AuditLedger, ProofOfConsensus, and relevant tests were mapped.",
+    "transcript": [
+      { "agent": "Auditor", "role": "qa", "content": "Decision: audit governance map is complete." }
+    ],
+    "agents": [
+      { "role": "analyst", "name": "Navigator" },
+      { "role": "qa", "name": "Auditor" }
+    ],
+    "expected_decision": "accept"
+  },
+  {
+    "id": "security-review-high-risk-consensus",
+    "category": "security_review",
+    "topic": "Review high-risk consensus requirement",
     "risk_level": "high",
     "consensus_summary": "Decision: accept with consensus certificate.",
     "transcript": [
-      {
-        "agent": "Auditor",
-        "role": "qa",
-        "content": "Decision: consensus certificate is present."
-      }
+      { "agent": "Auditor", "role": "qa", "content": "Decision: consensus certificate is present." }
     ],
     "agents": [
-      {
-        "role": "ceo",
-        "name": "CEO"
-      },
-      {
-        "role": "dev",
-        "name": "Builder"
-      },
-      {
-        "role": "qa",
-        "name": "Auditor"
-      }
+      { "role": "ceo", "name": "CEO" },
+      { "role": "dev", "name": "Builder" },
+      { "role": "qa", "name": "Auditor" }
     ],
     "consensus_certificate": {
-      "payload_hash": "fixture",
+      "payload_hash": "fixture-security-consensus",
       "approvals": ["ceo", "cto", "dev"]
     },
+    "expected_decision": "accept"
+  },
+  {
+    "id": "security-review-sandbox-scope",
+    "category": "security_review",
+    "topic": "Review sandbox scope guard behavior",
+    "risk_level": "high",
+    "consensus_summary": "Decision: accept because sensitive execution is consensus gated.",
+    "transcript": [
+      { "agent": "Auditor", "role": "qa", "content": "Decision: sandbox gate has consensus approval." }
+    ],
+    "agents": [
+      { "role": "cto", "name": "Security Planner" },
+      { "role": "dev", "name": "Builder" },
+      { "role": "qa", "name": "Auditor" }
+    ],
+    "consensus_certificate": {
+      "payload_hash": "fixture-sandbox-scope",
+      "approvals": ["ceo", "cto", "qa"]
+    },
+    "expected_decision": "accept"
+  },
+  {
+    "id": "security-review-auth-handshake",
+    "category": "security_review",
+    "topic": "Review collaboration handshake authentication",
+    "risk_level": "high",
+    "consensus_summary": "Decision: accept with consensus certificate and fail-closed authentication.",
+    "transcript": [
+      { "agent": "Auditor", "role": "qa", "content": "Decision: fail-closed auth checks passed." }
+    ],
+    "agents": [
+      { "role": "cto", "name": "Security Planner" },
+      { "role": "dev", "name": "Builder" },
+      { "role": "qa", "name": "Auditor" }
+    ],
+    "consensus_certificate": {
+      "payload_hash": "fixture-auth-handshake",
+      "approvals": ["ceo", "cto", "dev"]
+    },
+    "expected_decision": "accept"
+  },
+  {
+    "id": "security-review-secret-scan",
+    "category": "security_review",
+    "topic": "Review runtime tool manifest secrets scan",
+    "risk_level": "medium",
+    "consensus_summary": "Decision: accept because manifest validation and secrets scan pass.",
+    "transcript": [
+      { "agent": "Auditor", "role": "qa", "content": "Decision: tool manifest secrets scan passed." }
+    ],
+    "agents": [
+      { "role": "auditor", "name": "Security Auditor" },
+      { "role": "qa", "name": "Verifier" }
+    ],
+    "expected_decision": "accept"
+  },
+  {
+    "id": "long-context-fugu-research",
+    "category": "long_context_research",
+    "topic": "Synthesize Fugu-inspired conductor research into LAS plan",
+    "risk_level": "medium",
+    "consensus_summary": "Decision: accept because public-source constraints and LAS adoption plan are documented.",
+    "transcript": [
+      { "agent": "Planner", "role": "architect", "content": "Research separates absorbable ideas from proprietary claims." },
+      { "agent": "Auditor", "role": "qa", "content": "Decision: research handoff is source-grounded." }
+    ],
+    "agents": [
+      { "role": "architect", "name": "Planner" },
+      { "role": "analyst", "name": "Researcher" },
+      { "role": "qa", "name": "Auditor" }
+    ],
+    "expected_decision": "accept"
+  },
+  {
+    "id": "long-context-memory-summary",
+    "category": "long_context_research",
+    "topic": "Compress long agent thread into a reusable handoff",
+    "risk_level": "medium",
+    "consensus_summary": "Decision: accept because decisions, paths, errors, hashes, and remaining work are preserved.",
+    "transcript": [
+      { "agent": "Auditor", "role": "qa", "content": "Decision: handoff preserves required continuity." }
+    ],
+    "agents": [
+      { "role": "analyst", "name": "Summarizer" },
+      { "role": "qa", "name": "Auditor" }
+    ],
+    "expected_decision": "accept"
+  },
+  {
+    "id": "long-context-architecture-review",
+    "category": "long_context_research",
+    "topic": "Review conductor architecture across docs, router, memory, and UI plans",
+    "risk_level": "medium",
+    "consensus_summary": "Decision: accept because architecture boundaries and remaining gaps are explicit.",
+    "transcript": [
+      { "agent": "Auditor", "role": "qa", "content": "Decision: architecture review is complete." }
+    ],
+    "agents": [
+      { "role": "architect", "name": "Planner" },
+      { "role": "analyst", "name": "Researcher" },
+      { "role": "qa", "name": "Auditor" }
+    ],
+    "expected_decision": "accept"
+  },
+  {
+    "id": "long-context-policy-gap",
+    "category": "long_context_research",
+    "topic": "Analyze policy gate gaps for ultra mode and external APIs",
+    "risk_level": "medium",
+    "consensus_summary": "Decision: accept because policy gaps are classified and queued for implementation.",
+    "transcript": [
+      { "agent": "Auditor", "role": "qa", "content": "Decision: policy gap analysis is actionable." }
+    ],
+    "agents": [
+      { "role": "cto", "name": "Policy Planner" },
+      { "role": "analyst", "name": "Researcher" },
+      { "role": "qa", "name": "Auditor" }
+    ],
+    "expected_decision": "accept"
+  },
+  {
+    "id": "ui-smoke-topology-load",
+    "category": "ui_smoke",
+    "topic": "Verify topology dashboard loads meaningful state",
+    "risk_level": "low",
+    "consensus_summary": "Decision: accept because the topology surface renders and no blocking overlay is present.",
+    "transcript": [
+      { "agent": "Auditor", "role": "qa", "content": "Decision: UI smoke passed." }
+    ],
+    "agents": [
+      { "role": "dev", "name": "Frontend Worker" },
+      { "role": "qa", "name": "UI Auditor" }
+    ],
+    "expected_decision": "accept"
+  },
+  {
+    "id": "ui-smoke-admin-governance",
+    "category": "ui_smoke",
+    "topic": "Verify admin governance panel offline mock-service render",
+    "risk_level": "low",
+    "consensus_summary": "Decision: accept because mock-service governance render markers are present.",
+    "transcript": [
+      { "agent": "Auditor", "role": "qa", "content": "Decision: swarm governance UI smoke passed." }
+    ],
+    "agents": [
+      { "role": "dev", "name": "Frontend Worker" },
+      { "role": "qa", "name": "UI Auditor" }
+    ],
+    "expected_decision": "accept"
+  },
+  {
+    "id": "ui-smoke-settings-config",
+    "category": "ui_smoke",
+    "topic": "Verify settings page config feedback and language controls",
+    "risk_level": "low",
+    "consensus_summary": "Decision: accept because settings feedback is visible and no console-error path is required.",
+    "transcript": [
+      { "agent": "Auditor", "role": "qa", "content": "Decision: settings UI smoke passed." }
+    ],
+    "agents": [
+      { "role": "dev", "name": "Frontend Worker" },
+      { "role": "qa", "name": "UI Auditor" }
+    ],
+    "expected_decision": "accept"
+  },
+  {
+    "id": "ui-smoke-memory-manager",
+    "category": "ui_smoke",
+    "topic": "Verify long-term memory manager renders records and filters",
+    "risk_level": "low",
+    "consensus_summary": "Decision: accept because memory manager render path and filter controls are covered.",
+    "transcript": [
+      { "agent": "Auditor", "role": "qa", "content": "Decision: memory manager UI smoke passed." }
+    ],
+    "agents": [
+      { "role": "dev", "name": "Frontend Worker" },
+      { "role": "qa", "name": "UI Auditor" }
+    ],
     "expected_decision": "accept"
   }
 ]

@@ -49,6 +49,7 @@ def run_eval(fixtures_path: Path, workspace_path: Path) -> dict[str, Any]:
         results.append(
             {
                 "id": fixture["id"],
+                "category": fixture.get("category", "uncategorized"),
                 "completed": completed,
                 "cost_usd": 0.0,
                 "latency_ms": elapsed_ms,
@@ -62,6 +63,7 @@ def run_eval(fixtures_path: Path, workspace_path: Path) -> dict[str, Any]:
     return {
         "suite": "agent_golden_smoke",
         "fixtures": len(results),
+        "categories": sorted({str(fixture.get("category", "uncategorized")) for fixture in fixtures}),
         "passed": passed,
         "failed": len(results) - passed,
         "results": results,
