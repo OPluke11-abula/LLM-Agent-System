@@ -156,6 +156,7 @@
 | **Phase 61** | 6 tasks | 6 tasks | 100% Done |
 | **Phase 62** | 6 tasks | 6 tasks | 100% Done |
 | **Phase 63** | 6 tasks | 6 tasks | 100% Done |
+| **Phase 64** | 7 tasks | 0 tasks | 0% Pending |
 
 ---
 
@@ -236,6 +237,33 @@
 
 ### 63-06 Unified Policy Gate
 - [x] **[Security/Backend Programmer]** Bind ultra mode, browser/computer-use, safety scans, and external API actions to a single policy gate with scope guard, audit log, and ProofOfConsensus hooks. `UnifiedPolicyGate` now fail-closes PoC-gated actions, keeps safety scans audit-only but scope-guarded, records `policy_gate_decision` events in `AuditLedger`, and tightens `ConductorPlan` so ultra mode must use required ProofOfConsensus approval.
+
+---
+
+## PHASE 64 - PAP Workflow, Evidence Memory, and Review Gates
+
+User approved applying the LAS optimization plan from `docs/architecture/las-pap-collaboration-memory-security-plan.md`. Keep this phase aligned with the PAP protocol-side work in `D:\GitHub\Portable-Agent-Protocol\agent_tasks.md` Phase 6.
+
+### 64-01 Workflow Governance Scaffold
+- [ ] **[Architect/Documentation]** Add lightweight LAS workflow governance docs for source-of-truth order, risk policy, review protocol, and handoff schema.
+
+### 64-02 Workflow Manifest and Linter
+- [ ] **[Backend Programmer]** Add PAP-compatible workflow manifest schema, checkpoint schema, and read-only workflow linter.
+
+### 64-03 Evidence Memory MVP
+- [ ] **[Backend Programmer]** Add explicit memory ref packing, L1 atoms, L2 scenarios, L3 persona, and Mermaid canvas generation without hooks or daemons.
+
+### 64-04 Conductor Workflow Bridge
+- [ ] **[Backend Programmer]** Add optional workflow stage and evidence refs to `ConductorPlan` telemetry without changing routing/provider behavior.
+
+### 64-05 Review and Security Gate Schema
+- [ ] **[Security/Backend Programmer]** Add structured review/security findings schema and validator with high-risk trigger rules.
+
+### 64-06 PAP Contract Extensions
+- [ ] **[Protocol Architect]** Propose backward-compatible PAP fields for workflows, checkpoints, evidence refs, review gates, and memory layers.
+
+### 64-07 Viewer Workflow Surface
+- [ ] **[Frontend Programmer]** Surface workflow stage, checkpoint, evidence-ref, and review-gate state in the topology/conductor UI.
 
 ---
 
