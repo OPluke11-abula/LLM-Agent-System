@@ -156,7 +156,7 @@
 | **Phase 61** | 6 tasks | 6 tasks | 100% Done |
 | **Phase 62** | 6 tasks | 6 tasks | 100% Done |
 | **Phase 63** | 6 tasks | 6 tasks | 100% Done |
-| **Phase 64** | 7 tasks | 0 tasks | 0% Pending |
+| **Phase 64** | 7 tasks | 1 task | 14% In Progress |
 
 ---
 
@@ -245,7 +245,7 @@
 User approved applying the LAS optimization plan from `docs/architecture/las-pap-collaboration-memory-security-plan.md`. Keep this phase aligned with the PAP protocol-side work in `D:\GitHub\Portable-Agent-Protocol\agent_tasks.md` Phase 6.
 
 ### 64-01 Workflow Governance Scaffold
-- [ ] **[Architect/Documentation]** Add lightweight LAS workflow governance docs for source-of-truth order, risk policy, review protocol, and handoff schema.
+- [x] **[Architect/Documentation]** Add lightweight LAS workflow governance docs for source-of-truth order, risk policy, review protocol, and handoff schema. Added stage-specific governance docs under `docs/workflow/`, linked them from `.agent/workflows.md`, and documented the split in README English and Traditional Chinese sections.
 
 ### 64-02 Workflow Manifest and Linter
 - [ ] **[Backend Programmer]** Add PAP-compatible workflow manifest schema, checkpoint schema, and read-only workflow linter.

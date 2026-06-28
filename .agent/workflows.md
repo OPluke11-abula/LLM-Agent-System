@@ -2,6 +2,17 @@
 
 This file documents PAP-facing workflows for LAS.
 
+## Workflow Governance
+
+LAS uses small, stage-specific governance documents instead of a single large workflow prompt:
+
+- `docs/workflow/SOURCE_OF_TRUTH.md`: conflict resolution, evidence requirements, and scope rules.
+- `docs/workflow/RISK_POLICY.md`: low/medium/high risk classification, approval boundaries, and security defaults.
+- `docs/workflow/REVIEW_PROTOCOL.md`: review stance, finding requirements, and security review triggers.
+- `docs/workflow/HANDOFF_SCHEMA.md`: Markdown and JSON handoff fields plus onboarding order.
+
+Load only the document needed for the current stage. These files are workflow policy; they do not change runtime behavior by themselves.
+
 ## Bootstrap and Verify
 
 ```powershell
