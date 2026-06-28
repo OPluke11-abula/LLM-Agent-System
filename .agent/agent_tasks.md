@@ -155,7 +155,7 @@
 | **Phase 60** | 5 tasks | 5 tasks | 100% Done |
 | **Phase 61** | 6 tasks | 6 tasks | 100% Done |
 | **Phase 62** | 6 tasks | 6 tasks | 100% Done |
-| **Phase 63** | 6 tasks | 4 tasks | 67% In Progress |
+| **Phase 63** | 6 tasks | 5 tasks | 83% In Progress |
 
 ---
 
@@ -232,7 +232,7 @@
 - [x] **[QA/Verification]** Expand `scripts/agent_eval_fixtures.json` from smoke coverage to 20-50 golden tasks covering code review, debugging, repo navigation, security review, long-context research, and UI smoke.
 
 ### 63-05 Conductor Trace UI
-- [ ] **[Frontend Programmer]** Add dashboard visibility for conductor trace: task breakdown, model selection rationale, memory hits, verifier verdict, cost, and latency.
+- [x] **[Frontend Programmer]** Add dashboard visibility for conductor trace: task breakdown, model selection rationale, memory hits, verifier verdict, cost, and latency. Streamed router runs now emit `conductor_trace` telemetry, `topology_stream.py` mirrors it into topology nodes, and the React topology dashboard renders a Conductor Trace panel backed by topology, ledger, and telemetry state.
 
 ### 63-06 Unified Policy Gate
 - [ ] **[Security/Backend Programmer]** Bind ultra mode, browser/computer-use, safety scans, and external API actions to a single policy gate with scope guard, audit log, and ProofOfConsensus hooks.

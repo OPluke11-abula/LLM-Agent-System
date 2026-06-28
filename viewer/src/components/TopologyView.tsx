@@ -14,7 +14,7 @@ import { TOPOLOGY_NODE_TYPES } from "./nodes";
 import { Button, MetricTile, ProgressBar, StatusBadge, Surface, Tooltip } from "./ui/primitives";
 import { buildTopologyFlow, formatDuration, NODE_COLORS, summarizeTopology } from "../utils/topologyUtils";
 import { logUiDiagnostic } from "../utils/logger";
-import type { ActivityLogEntry, Lang, TopologyEvent, TopologyNodeData, TopologyState } from "../types";
+import type { ActivityLogEntry, ConductorTrace, Lang, TopologyEvent, TopologyNodeData, TopologyState } from "../types";
 
 type TopologyViewProps = {
   sessions: TopologyState[];
@@ -121,6 +121,158 @@ function JsonBlock({ value }: { value: unknown }) {
     >
       {JSON.stringify(value ?? null, null, 2)}
     </pre>
+  );
+}
+
+function asMetricRecord(value: unknown): Record<string, any> {
+  return value && typeof value === "object" ? value as Record<string, any> : {};
+}
+
+function isConductorTrace(value: unknown): value is ConductorTrace {
+  if (!value || typeof value !== "object") return false;
+  const trace = value as Partial<ConductorTrace>;
+  return typeof trace.task_id === "string" && Array.isArray(trace.subtasks) && Array.isArray(trace.selected_models);
+}
+
+function latestConductorTrace(session?: TopologyState) {
+  if (!session) return null;
+  for (const node of [...session.nodes].reverse()) {
+    if (isConductorTrace(node.payload?.conductor_trace)) {
+      return node.payload.conductor_trace;
+    }
+  }
+  return null;
+}
+
+function ConductorTracePanel({
+  trace,
+  telemetry,
+  ledger,
+  lang,
+}: {
+  trace: ConductorTrace | null;
+  telemetry: unknown;
+  ledger: { total_cost: number; cost_threshold: number } | null;
+  lang: Lang;
+}) {
+  const metric = asMetricRecord(telemetry);
+  const selectedModel = trace?.selected_models?.[0];
+  const verification = trace?.verification_strategy;
+  const latencyValue = metric.latency_ms ?? metric.latencyMs ?? metric.ws_latency_ms ?? metric.wsLatencyMs;
+  const latency = Number.isFinite(Number(latencyValue)) ? `${Number(latencyValue).toFixed(0)}ms` : "--";
+  const cost = ledger ? `$${ledger.total_cost.toFixed(5)}` : "--";
+  const costLimit = ledger?.cost_threshold ?? trace?.budget?.cost_limit ?? null;
+  const memoryHits = trace?.routing_memory_hints ?? [];
+  const verifierTone = verification?.approval_required ? "warning" : verification?.required ? "accent" : "success";
+
+  return (
+    <Surface className="group/conductor relative mx-3 mb-3 flex flex-col gap-2 p-3">
+      <div className="flex items-center justify-between">
+        <p className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: "var(--accent)" }}>
+          {lang === "zh" ? "Conductor Trace" : "Conductor Trace"}
+        </p>
+        <StatusBadge tone={trace ? "accent" : "warning"} className="text-[8px]">
+          {trace ? trace.execution_mode : "WAITING"}
+        </StatusBadge>
+      </div>
+
+      {trace ? (
+        <>
+          <div className="grid grid-cols-3 gap-1.5 text-center font-mono">
+            <MetricTile label={lang === "zh" ? "Memory" : "Memory"} value={memoryHits.length} tone={memoryHits.length > 0 ? "success" : "neutral"} className="p-1" />
+            <MetricTile label={lang === "zh" ? "Cost" : "Cost"} value={cost} tone="success" className="p-1" />
+            <MetricTile label={lang === "zh" ? "Latency" : "Latency"} value={latency} tone="accent" className="p-1" />
+          </div>
+
+          <div className="space-y-1.5 border-t pt-2 font-mono text-[8px]" style={{ borderColor: "var(--border-c)" }}>
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-bold uppercase tracking-[0.14em] t3">{lang === "zh" ? "Model" : "Model"}</span>
+              <span className="truncate text-right t1" title={selectedModel ? `${selectedModel.provider}/${selectedModel.model}` : ""}>
+                {selectedModel ? `${selectedModel.provider}/${selectedModel.model}` : "--"}
+              </span>
+            </div>
+            <p className="line-clamp-2 leading-relaxed t2">
+              {selectedModel?.selection_reason || trace.decision_rationale}
+            </p>
+          </div>
+
+          <div className="space-y-1.5 border-t pt-2" style={{ borderColor: "var(--border-c)" }}>
+            <div className="flex items-center justify-between">
+              <span className="text-[8px] font-bold uppercase tracking-[0.14em] t3">
+                {lang === "zh" ? "Verification" : "Verification"}
+              </span>
+              <StatusBadge tone={verifierTone} className="text-[8px]">
+                {verification?.kind ?? "none"}
+              </StatusBadge>
+            </div>
+            <p className="text-[8px] leading-relaxed t3">
+              {verification?.success_criteria?.[0] || (lang === "zh" ? "No verifier criteria published yet." : "No verifier criteria published yet.")}
+            </p>
+          </div>
+
+          <div className="space-y-1.5 border-t pt-2" style={{ borderColor: "var(--border-c)" }}>
+            <span className="text-[8px] font-bold uppercase tracking-[0.14em] t3">
+              {lang === "zh" ? "Task Breakdown" : "Task Breakdown"}
+            </span>
+            <div className="max-h-20 space-y-1 overflow-y-auto pr-1">
+              {trace.subtasks.slice(0, 4).map((subtask) => (
+                <div key={subtask.id} className="flex items-start justify-between gap-2 font-mono text-[8px]">
+                  <span className="min-w-0 flex-1 truncate t2" title={subtask.description || subtask.title}>
+                    {subtask.title}
+                  </span>
+                  <span className="shrink-0 t3">{subtask.role_id || "worker"}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-1.5 border-t pt-2" style={{ borderColor: "var(--border-c)" }}>
+            <div className="flex items-center justify-between font-mono text-[8px]">
+              <span className="font-bold uppercase tracking-[0.14em] t3">{lang === "zh" ? "Budget" : "Budget"}</span>
+              <span className="t2">
+                {trace.budget?.max_iterations ?? "--"} loops / {trace.budget?.max_tool_calls ?? "--"} tools
+              </span>
+            </div>
+            {costLimit !== null && (
+              <ProgressBar
+                value={ledger ? (ledger.total_cost / Math.max(costLimit, 0.00001)) * 100 : 0}
+                tone={ledger && ledger.total_cost > costLimit * 0.8 ? "warning" : "success"}
+              />
+            )}
+          </div>
+
+          {memoryHits.length > 0 && (
+            <div className="space-y-1.5 border-t pt-2" style={{ borderColor: "var(--border-c)" }}>
+              <span className="text-[8px] font-bold uppercase tracking-[0.14em] t3">
+                {lang === "zh" ? "Memory Hits" : "Memory Hits"}
+              </span>
+              <div className="max-h-20 space-y-1 overflow-y-auto pr-1 font-mono text-[8px]">
+                {memoryHits.slice(0, 3).map((hint) => (
+                  <div key={hint.record_id || `${hint.task_type}-${hint.latency_ms}`} className="flex items-center justify-between gap-2">
+                    <span className="truncate t2">{hint.task_type} / {hint.execution_mode}</span>
+                    <span style={{ color: hint.success ? "var(--success)" : "var(--danger)" }}>
+                      {hint.success ? "ok" : hint.error_type || "fail"} {hint.latency_ms}ms
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="rounded border p-3 text-[9px] leading-relaxed t3" style={{ background: "var(--bg-panel)", borderColor: "var(--border-c)" }}>
+          {lang === "zh"
+            ? "Waiting for a routed session to publish conductor task breakdown, model rationale, memory hints, verification, cost, and latency."
+            : "Waiting for a routed session to publish conductor task breakdown, model rationale, memory hints, verification, cost, and latency."}
+        </div>
+      )}
+
+      <Tooltip>
+        {lang === "zh"
+          ? "Conductor trace: shows the telemetry-only route plan emitted before provider execution."
+          : "Conductor trace: shows the telemetry-only route plan emitted before provider execution."}
+      </Tooltip>
+    </Surface>
   );
 }
 
@@ -579,6 +731,8 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
   }, [lastUpdatedSessionId, sessions]);
 
   const visibleSessions = sessions.filter((session) => visibleSessionIds.includes(session.session_id)).slice(0, 2);
+  const activeSession = visibleSessions[0] || sessions.find((session) => session.session_id === activeSessionId);
+  const conductorTrace = useMemo(() => latestConductorTrace(activeSession), [activeSession]);
   const aggregate = sessions.reduce(
     (acc, session) => ({
       nodes: acc.nodes + session.stats.total_nodes,
@@ -648,6 +802,13 @@ export function TopologyView({ sessions, lastUpdatedSessionId, activityEntries, 
                   : "Instructs the agent to compact active context and migrate threads. Copies pre-formatted English handoff prompt containing handoff_id to clipboard."}
               </Tooltip>
             </div>
+
+            <ConductorTracePanel
+              trace={conductorTrace}
+              telemetry={telemetryData?.metrics?.[0]}
+              ledger={ledgerData}
+              lang={lang}
+            />
 
             <Surface className="group/defrag relative mx-3 mb-3 flex flex-col gap-2 p-3">
               <div className="flex items-center justify-between">

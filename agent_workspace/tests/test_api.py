@@ -138,6 +138,30 @@ def test_topology_stream_ws_url_uses_explicit_credentials():
     assert key_url == "ws://localhost:8000/v1/collaboration/s123?api_key=explicit-key"
 
 
+def test_topology_stream_conductor_trace_payload_keeps_full_trace():
+    trace = {
+        "task_summary": "Add conductor trace visibility.",
+        "task_type": "ui_layout",
+        "execution_mode": "pro",
+        "selected_models": [
+            {
+                "provider": "google-genai",
+                "model": "gemini-2.5-flash",
+                "selection_reason": "Telemetry-only route mirrors current account.",
+            }
+        ],
+        "verification_strategy": {"kind": "verifier", "required": True},
+    }
+
+    payload = topology_stream.conductor_trace_payload(trace)
+
+    assert payload["title"] == "Conductor Trace"
+    assert payload["assigned_agent"] == "conductor"
+    assert payload["output"]["selected_model"] == "google-genai/gemini-2.5-flash"
+    assert payload["result_summary"] == "Verification: verifier"
+    assert payload["conductor_trace"] == trace
+
+
 def test_dashboard_ws_endpoint(api_client):
     """Verify that multi-dashboard WebSockets reject invalid roles and connect successfully under correct roles."""
     with api_client.websocket_connect("/v1/dashboard/session-ws-1/invalid_role") as websocket:

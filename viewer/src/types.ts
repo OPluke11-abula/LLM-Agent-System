@@ -225,6 +225,62 @@ export type TopologyNodeType = "session_root" | "agent" | "handoff" | "tool_call
 export type TopologyEdgeType = "handoff" | "tool" | "rbac" | "error" | "hitl";
 export type TopologyStatus = "todo" | "in_process" | "done" | "error" | "review" | "pending" | "running" | "completed" | "awaiting_approval";
 
+export type ConductorSubtaskTrace = {
+  id: string;
+  title: string;
+  description?: string;
+  role_id?: string;
+  depends_on?: string[];
+  status?: string;
+};
+
+export type ConductorSelectedModelTrace = {
+  role_id: string;
+  provider: string;
+  model: string;
+  account_id?: string | null;
+  selection_reason: string;
+};
+
+export type ConductorRouteOutcomeHintTrace = {
+  record_id: string;
+  task_type: string;
+  execution_mode: string;
+  success: boolean;
+  error_type?: string | null;
+  token_count: number;
+  latency_ms: number;
+  human_intervention_count: number;
+};
+
+export type ConductorTrace = {
+  schema_version?: string;
+  created_at?: string;
+  task_id: string;
+  task_summary: string;
+  execution_mode: string;
+  risk_level: string;
+  topology: string;
+  task_type: string;
+  intent: string;
+  subtasks: ConductorSubtaskTrace[];
+  selected_models: ConductorSelectedModelTrace[];
+  verification_strategy: {
+    kind: string;
+    required?: boolean;
+    approval_required?: boolean;
+    success_criteria?: string[];
+  };
+  budget: {
+    max_iterations?: number;
+    max_tool_calls?: number;
+    token_budget?: number | null;
+    cost_limit?: number | null;
+  };
+  routing_memory_hints: ConductorRouteOutcomeHintTrace[];
+  decision_rationale: string;
+};
+
 export type TopologyPayload = {
   name?: string;
   description?: string;
@@ -235,6 +291,7 @@ export type TopologyPayload = {
   human_notes?: string;
   token_used?: number;
   duration_ms?: number | null;
+  conductor_trace?: ConductorTrace;
   [key: string]: unknown;
 };
 

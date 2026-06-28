@@ -886,6 +886,13 @@ class AgentRouter:
             },
         )
 
+    def _conductor_trace_event(self, plan: ConductorPlan) -> dict[str, Any]:
+        return {
+            "type": "conductor_trace",
+            "session_id": self.session_id,
+            "trace": plan.model_dump(mode="json"),
+        }
+
     def _record_route_outcome(
         self,
         *,
@@ -1306,6 +1313,8 @@ class AgentRouter:
                 )
                 self._record_conductor_plan(span, conductor_plan)
                 messages = self._build_message_history(user_input)
+
+                yield self._conductor_trace_event(conductor_plan)
 
                 while iteration < self.max_iterations:
                     while self.is_paused(self.session_id):

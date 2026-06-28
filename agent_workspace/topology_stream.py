@@ -65,6 +65,35 @@ def tool_payload(name: str, arguments: dict[str, Any], result: Any = None, error
     }
 
 
+def conductor_trace_payload(trace: dict[str, Any]) -> dict[str, Any]:
+    selected_models = trace.get("selected_models") if isinstance(trace.get("selected_models"), list) else []
+    verification = trace.get("verification_strategy") if isinstance(trace.get("verification_strategy"), dict) else {}
+    model_label = "unknown"
+    if selected_models:
+        selected = selected_models[0]
+        if isinstance(selected, dict):
+            provider = str(selected.get("provider") or "unknown")
+            model = str(selected.get("model") or "unknown")
+            model_label = f"{provider}/{model}"
+
+    verifier_label = str(verification.get("kind") or "none")
+    return {
+        "title": "Conductor Trace",
+        "name": "conductor_trace",
+        "description": f"{trace.get('execution_mode', 'unknown')} route via {model_label}",
+        "assigned_agent": "conductor",
+        "result_summary": f"Verification: {verifier_label}",
+        "input": {"task_summary": trace.get("task_summary"), "task_type": trace.get("task_type")},
+        "output": {"selected_model": model_label, "verification": verifier_label},
+        "rbac_role": "standard",
+        "error_count": 0,
+        "human_notes": "",
+        "token_used": 0,
+        "duration_ms": None,
+        "conductor_trace": trace,
+    }
+
+
 def emit_session_root(emitter: TopologyEmitter, root_id: str, msg: str, status: str) -> None:
     emitter.emit(
         TopologyEvent.create(
@@ -277,6 +306,21 @@ async def run_stream(args: argparse.Namespace) -> int:
             router.resolve_approval(approved)
             print(f"Approval {'granted' if approved else 'denied'}.\nAgent: ", end="", flush=True)
             await publish_event("stdout", {"text": f"Approval {'granted' if approved else 'denied'}.\nAgent: "})
+
+        elif event_type == "conductor_trace":
+            trace = event.get("trace")
+            if isinstance(trace, dict):
+                trace_evt = TopologyEvent.create(
+                    session_id=session_id,
+                    node_id=f"conductor-{session_id}",
+                    parent_node_id=root_id,
+                    node_type="agent",
+                    edge_type="rbac",
+                    status="completed",
+                    payload=conductor_trace_payload(trace),
+                )
+                emitter.emit(trace_evt)
+                await publish_event("topology", trace_evt.to_dict())
 
         elif event_type == "done":
             emit_session_root(emitter, root_id, msg, "completed")
