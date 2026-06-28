@@ -156,7 +156,7 @@
 | **Phase 61** | 6 tasks | 6 tasks | 100% Done |
 | **Phase 62** | 6 tasks | 6 tasks | 100% Done |
 | **Phase 63** | 6 tasks | 6 tasks | 100% Done |
-| **Phase 64** | 7 tasks | 1 task | 14% In Progress |
+| **Phase 64** | 7 tasks | 2 tasks | 29% In Progress |
 
 ---
 
@@ -248,7 +248,7 @@ User approved applying the LAS optimization plan from `docs/architecture/las-pap
 - [x] **[Architect/Documentation]** Add lightweight LAS workflow governance docs for source-of-truth order, risk policy, review protocol, and handoff schema. Added stage-specific governance docs under `docs/workflow/`, linked them from `.agent/workflows.md`, and documented the split in README English and Traditional Chinese sections.
 
 ### 64-02 Workflow Manifest and Linter
-- [ ] **[Backend Programmer]** Add PAP-compatible workflow manifest schema, checkpoint schema, and read-only workflow linter.
+- [x] **[Backend Programmer]** Add PAP-compatible workflow manifest schema, checkpoint schema, and read-only workflow linter. Added `.agent/workflows/codex-development.yaml`, `spec/workflow-stage.schema.json`, `spec/checkpoint.schema.json`, and `agent_workspace/workflow_lint.py` with tests covering valid manifests, missing fields, unknown dependencies, and checkpoint workspace escapes.
 
 ### 64-03 Evidence Memory MVP
 - [ ] **[Backend Programmer]** Add explicit memory ref packing, L1 atoms, L2 scenarios, L3 persona, and Mermaid canvas generation without hooks or daemons.

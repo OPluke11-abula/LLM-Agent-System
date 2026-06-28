@@ -13,6 +13,22 @@ LAS uses small, stage-specific governance documents instead of a single large wo
 
 Load only the document needed for the current stage. These files are workflow policy; they do not change runtime behavior by themselves.
 
+## Codex Development Workflow Manifest
+
+The opt-in stage manifest lives at:
+
+```text
+.agent/workflows/codex-development.yaml
+```
+
+Validate it without executing any stage actions:
+
+```powershell
+.\.venv\Scripts\python.exe agent_workspace\workflow_lint.py --root . --workflow .agent\workflows\codex-development.yaml
+```
+
+The linter validates `spec/workflow-stage.schema.json` and optional checkpoint records against `spec/checkpoint.schema.json`, checks dependencies, and rejects workspace path escapes.
+
 ## Bootstrap and Verify
 
 ```powershell

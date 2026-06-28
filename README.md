@@ -45,6 +45,8 @@ The React topology dashboard now renders a Conductor Trace panel for streamed se
 
 Workflow governance is now split into short, stage-specific documents under `docs/workflow/`. `SOURCE_OF_TRUTH.md`, `RISK_POLICY.md`, `REVIEW_PROTOCOL.md`, and `HANDOFF_SCHEMA.md` define how agents resolve conflicting instructions, classify risk, review changes, and hand off work without loading a single oversized workflow prompt.
 
+The opt-in `codex-development` workflow manifest under `.agent/workflows/` models repo audit, PRD, SDD, spec, task inventory, atomic task, review, security gate, and handoff stages. `agent_workspace/workflow_lint.py` validates the manifest and checkpoint records in read-only mode, including dependency integrity and workspace path containment.
+
 ---
 
 ### 🗺️ Live Topological Dagre View
@@ -252,6 +254,8 @@ React topology dashboard 現在會為 streamed session 顯示 Conductor Trace pa
 `UnifiedPolicyGate` 現在集中處理高影響 runtime action 決策。Ultra mode、browser-use、computer-use 與 external API actions 必須具備有效的 ProofOfConsensus certificate，或已登錄的 consensus hash，gate 才會放行；safety scan 維持 audit-only，但同樣會經過 workspace/session/tenant scope guard。每次允許或拒絕都會以 `policy_gate_decision` event 寫入 `AuditLedger`，且 audit payload 只記錄 metadata key，不記錄 value，以降低秘密外洩風險。
 
 Workflow governance 現在拆成 `docs/workflow/` 底下的短文件：`SOURCE_OF_TRUTH.md`、`RISK_POLICY.md`、`REVIEW_PROTOCOL.md` 與 `HANDOFF_SCHEMA.md`。這些文件定義 agent 如何處理衝突指令、風險分級、review gate 與 handoff，而不需要每輪載入一整份過長 workflow prompt。
+
+`.agent/workflows/` 內的 opt-in `codex-development` workflow manifest 會描述 repo audit、PRD、SDD、spec、task inventory、atomic task、review、security gate 與 handoff stages。`agent_workspace/workflow_lint.py` 以唯讀模式驗證 manifest 與 checkpoint records，包含 dependency 完整性與 workspace path containment。
 
 ---
 
