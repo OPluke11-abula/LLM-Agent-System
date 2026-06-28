@@ -840,6 +840,9 @@ class AgentRouter:
         intent: str,
         resolved_tools: list[str],
         selected_account: dict[str, Any],
+        workflow_stage_id: str | None = None,
+        workflow_checkpoint_ref: str | None = None,
+        evidence_refs: list[str] | None = None,
     ) -> ConductorPlan:
         route_outcome_hints: list[dict[str, Any]] = []
         if self.long_term_memory:
@@ -863,6 +866,9 @@ class AgentRouter:
             max_tool_calls=self.max_tool_calls,
             long_term_enabled=self.long_term_memory is not None,
             route_outcome_hints=route_outcome_hints,
+            workflow_stage_id=workflow_stage_id,
+            workflow_checkpoint_ref=workflow_checkpoint_ref,
+            evidence_refs=evidence_refs,
         )
         self.last_conductor_plan = plan
         return plan
@@ -876,6 +882,12 @@ class AgentRouter:
         span.set_attribute("conductor.tool_allowlist_count", len(plan.tool_allowlist))
         span.set_attribute("conductor.selected_models", len(plan.selected_models))
         span.set_attribute("conductor.routing_memory_hints", len(plan.routing_memory_hints))
+        if plan.workflow_stage_id:
+            span.set_attribute("conductor.workflow_stage_id", plan.workflow_stage_id)
+        if plan.workflow_checkpoint_ref:
+            span.set_attribute("conductor.workflow_checkpoint_ref", plan.workflow_checkpoint_ref)
+        if plan.evidence_refs:
+            span.set_attribute("conductor.evidence_ref_count", len(plan.evidence_refs))
         logger.info(
             "Conductor plan created",
             extra={

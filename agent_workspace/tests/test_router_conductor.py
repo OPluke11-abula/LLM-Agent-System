@@ -5,6 +5,14 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 
+class RecordingSpan:
+    def __init__(self):
+        self.attributes = {}
+
+    def set_attribute(self, key, value):
+        self.attributes[key] = value
+
+
 def test_router_builds_conductor_plan_without_changing_tool_allowlist(tmp_path):
     agent_dir = tmp_path / ".agent"
     agent_dir.mkdir(parents=True)
@@ -61,6 +69,35 @@ def test_router_builds_conductor_trace_event(tmp_path):
     assert event["trace"]["task_type"] == "ui_layout"
     assert event["trace"]["selected_models"][0]["selection_reason"]
     assert event["trace"]["verification_strategy"]["kind"] == "verifier"
+
+
+def test_router_conductor_trace_and_span_include_workflow_metadata_when_present(tmp_path):
+    (tmp_path / "config.yaml").write_text("agent:\n  max_iterations: 5\n  max_tool_calls: 15\n", encoding="utf-8")
+
+    engine = AgentEngine(workspace_path=str(tmp_path), bypass_onboarding=True)
+    router = AgentRouter(engine, session_id="s-workflow", agent_name="tester")
+    plan = router._build_conductor_plan(
+        user_input="Run an atomic workflow task.",
+        task_type="compilation",
+        intent="TASK",
+        resolved_tools=["run_tests"],
+        selected_account={"id": "primary", "provider": "google-genai", "model": "gemini-2.5-flash"},
+        workflow_stage_id="atomic_task",
+        workflow_checkpoint_ref=".agent/checkpoints/TASK-0001.json",
+        evidence_refs=[".agent/memory/refs/TASK-0001.md"],
+    )
+    span = RecordingSpan()
+
+    router._record_conductor_plan(span, plan)
+    event = router._conductor_trace_event(plan)
+
+    assert event["trace"]["workflow_stage_id"] == "atomic_task"
+    assert event["trace"]["workflow_checkpoint_ref"] == ".agent/checkpoints/TASK-0001.json"
+    assert event["trace"]["evidence_refs"] == [".agent/memory/refs/TASK-0001.md"]
+    assert span.attributes["conductor.workflow_stage_id"] == "atomic_task"
+    assert span.attributes["conductor.workflow_checkpoint_ref"] == ".agent/checkpoints/TASK-0001.json"
+    assert span.attributes["conductor.evidence_ref_count"] == 1
+    assert plan.selected_models[0].model == "gemini-2.5-flash"
 
 
 def test_router_adds_route_outcome_hints_without_changing_selected_model(tmp_path):

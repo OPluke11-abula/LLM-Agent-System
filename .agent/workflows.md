@@ -29,6 +29,16 @@ Validate it without executing any stage actions:
 
 The linter validates `spec/workflow-stage.schema.json` and optional checkpoint records against `spec/checkpoint.schema.json`, checks dependencies, and rejects workspace path escapes.
 
+## Conductor Workflow Bridge
+
+`ConductorPlan` accepts optional workflow metadata for audit and topology correlation:
+
+- `workflow_stage_id`: stage id from `.agent/workflows/codex-development.yaml`.
+- `workflow_checkpoint_ref`: checkpoint record path or stable reference.
+- `evidence_refs`: raw evidence refs under `.agent/memory/refs/` or other validated workflow artifacts.
+
+Router telemetry and streamed topology payloads include these values when present. Missing workflow metadata is valid and keeps ordinary router runs unchanged. These fields do not alter model/provider selection, tool allowlists, or policy scoring.
+
 ## Evidence Memory Packing
 
 Long command output and review evidence can be explicitly packed into `.agent/memory/` without hooks or background capture:

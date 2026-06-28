@@ -45,6 +45,7 @@ class TopologyEvent:
         "handoff",
         "tool_call",
         "hitl_gate",
+        "workflow_stage",
         "error",
     }
     ALLOWED_EDGE_TYPES: ClassVar[set[str]] = {

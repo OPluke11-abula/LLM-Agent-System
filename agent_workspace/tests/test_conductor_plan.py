@@ -40,6 +40,35 @@ def test_conductor_plan_serializes_stable_default_plan():
     assert dumped["verification_strategy"]["kind"] == "verifier"
     assert dumped["budget"]["max_iterations"] == 5
     assert dumped["budget"]["max_tool_calls"] == 15
+    assert dumped["workflow_stage_id"] is None
+    assert dumped["workflow_checkpoint_ref"] is None
+    assert dumped["evidence_refs"] == []
+
+
+def test_conductor_plan_serializes_workflow_metadata_without_changing_selection():
+    plan = build_default_conductor_plan(
+        task_id="session-64:atomic_task",
+        task_summary="Implement a workflow bridge.",
+        session_id="session-64",
+        task_type="compilation",
+        intent="TASK",
+        resolved_tools=["run_tests"],
+        selected_account={"id": "primary", "provider": "google-genai", "model": "gemini-2.5-flash"},
+        max_iterations=5,
+        max_tool_calls=15,
+        workflow_stage_id="atomic_task",
+        workflow_checkpoint_ref=".agent/checkpoints/TASK-0001.json",
+        evidence_refs=[".agent/memory/refs/TASK-0001.md"],
+    )
+
+    dumped = plan.model_dump(mode="json")
+
+    assert dumped["workflow_stage_id"] == "atomic_task"
+    assert dumped["workflow_checkpoint_ref"] == ".agent/checkpoints/TASK-0001.json"
+    assert dumped["evidence_refs"] == [".agent/memory/refs/TASK-0001.md"]
+    assert dumped["selected_models"][0]["provider"] == "google-genai"
+    assert dumped["selected_models"][0]["model"] == "gemini-2.5-flash"
+    assert dumped["tool_allowlist"] == ["run_tests"]
 
 
 def test_conductor_plan_rejects_unknown_mode_and_topology():

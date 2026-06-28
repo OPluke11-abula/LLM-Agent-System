@@ -156,7 +156,7 @@
 | **Phase 61** | 6 tasks | 6 tasks | 100% Done |
 | **Phase 62** | 6 tasks | 6 tasks | 100% Done |
 | **Phase 63** | 6 tasks | 6 tasks | 100% Done |
-| **Phase 64** | 7 tasks | 3 tasks | 43% In Progress |
+| **Phase 64** | 7 tasks | 4 tasks | 57% In Progress |
 
 ---
 
@@ -254,7 +254,7 @@ User approved applying the LAS optimization plan from `docs/architecture/las-pap
 - [x] **[Backend Programmer]** Add explicit memory ref packing, L1 atoms, L2 scenarios, L3 persona, and Mermaid canvas generation without hooks or daemons. Added `agent_workspace/memory_pack.py`, traceable workflow memory record support in `LongTermMemoryStore`, focused tests, and `.agent/workflows.md` usage guidance.
 
 ### 64-04 Conductor Workflow Bridge
-- [ ] **[Backend Programmer]** Add optional workflow stage and evidence refs to `ConductorPlan` telemetry without changing routing/provider behavior.
+- [x] **[Backend Programmer]** Add optional workflow stage and evidence refs to `ConductorPlan` telemetry without changing routing/provider behavior. Added `workflow_stage_id`, `workflow_checkpoint_ref`, and `evidence_refs` to the telemetry-only plan, emitted them as optional OTel/router trace fields, bridged workflow-stage topology payloads, and kept provider selection/tool allowlists unchanged.
 
 ### 64-05 Review and Security Gate Schema
 - [ ] **[Security/Backend Programmer]** Add structured review/security findings schema and validator with high-risk trigger rules.

@@ -221,7 +221,7 @@ export type ThemeDefinition = {
   accentNode: string;
 };
 
-export type TopologyNodeType = "session_root" | "agent" | "handoff" | "tool_call" | "hitl_gate" | "error";
+export type TopologyNodeType = "session_root" | "agent" | "handoff" | "tool_call" | "hitl_gate" | "workflow_stage" | "error";
 export type TopologyEdgeType = "handoff" | "tool" | "rbac" | "error" | "hitl";
 export type TopologyStatus = "todo" | "in_process" | "done" | "error" | "review" | "pending" | "running" | "completed" | "awaiting_approval";
 
@@ -278,6 +278,9 @@ export type ConductorTrace = {
     cost_limit?: number | null;
   };
   routing_memory_hints: ConductorRouteOutcomeHintTrace[];
+  workflow_stage_id?: string | null;
+  workflow_checkpoint_ref?: string | null;
+  evidence_refs?: string[];
   decision_rationale: string;
 };
 

@@ -11,6 +11,7 @@ export const NODE_COLORS = {
   handoff: "#534AB7",
   tool_call: "#0F6E56",
   hitl_gate: "#993C1D",
+  workflow_stage: "#6B5B95",
   error: "#E24B4A",
 } as const;
 
@@ -50,6 +51,7 @@ export function topologyNodeDescription(event: TopologyEvent) {
   if (event.node_type === "session_root") return `Session ${event.session_id}`;
   if (event.node_type === "tool_call") return "Tool execution";
   if (event.node_type === "hitl_gate") return "Awaiting human approval";
+  if (event.node_type === "workflow_stage") return "Workflow stage telemetry";
   return event.node_type;
 }
 

@@ -68,6 +68,9 @@ def tool_payload(name: str, arguments: dict[str, Any], result: Any = None, error
 def conductor_trace_payload(trace: dict[str, Any]) -> dict[str, Any]:
     selected_models = trace.get("selected_models") if isinstance(trace.get("selected_models"), list) else []
     verification = trace.get("verification_strategy") if isinstance(trace.get("verification_strategy"), dict) else {}
+    evidence_refs = trace.get("evidence_refs") if isinstance(trace.get("evidence_refs"), list) else []
+    workflow_stage_id = trace.get("workflow_stage_id")
+    workflow_checkpoint_ref = trace.get("workflow_checkpoint_ref")
     model_label = "unknown"
     if selected_models:
         selected = selected_models[0]
@@ -77,14 +80,26 @@ def conductor_trace_payload(trace: dict[str, Any]) -> dict[str, Any]:
             model_label = f"{provider}/{model}"
 
     verifier_label = str(verification.get("kind") or "none")
+    result_summary = f"Verification: {verifier_label}"
+    if workflow_stage_id:
+        result_summary = f"Workflow stage: {workflow_stage_id} | {result_summary}"
     return {
-        "title": "Conductor Trace",
-        "name": "conductor_trace",
+        "title": "Workflow Stage" if workflow_stage_id else "Conductor Trace",
+        "name": str(workflow_stage_id or "conductor_trace"),
         "description": f"{trace.get('execution_mode', 'unknown')} route via {model_label}",
         "assigned_agent": "conductor",
-        "result_summary": f"Verification: {verifier_label}",
-        "input": {"task_summary": trace.get("task_summary"), "task_type": trace.get("task_type")},
-        "output": {"selected_model": model_label, "verification": verifier_label},
+        "result_summary": result_summary,
+        "input": {
+            "task_summary": trace.get("task_summary"),
+            "task_type": trace.get("task_type"),
+            "workflow_stage_id": workflow_stage_id,
+        },
+        "output": {
+            "selected_model": model_label,
+            "verification": verifier_label,
+            "workflow_checkpoint_ref": workflow_checkpoint_ref,
+            "evidence_ref_count": len(evidence_refs),
+        },
         "rbac_role": "standard",
         "error_count": 0,
         "human_notes": "",
@@ -314,7 +329,7 @@ async def run_stream(args: argparse.Namespace) -> int:
                     session_id=session_id,
                     node_id=f"conductor-{session_id}",
                     parent_node_id=root_id,
-                    node_type="agent",
+                    node_type="workflow_stage" if trace.get("workflow_stage_id") else "agent",
                     edge_type="rbac",
                     status="completed",
                     payload=conductor_trace_payload(trace),

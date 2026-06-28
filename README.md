@@ -49,6 +49,8 @@ The opt-in `codex-development` workflow manifest under `.agent/workflows/` model
 
 Evidence memory packing is available through `agent_workspace/memory_pack.py`. It explicitly copies selected raw output into `.agent/memory/refs/`, writes traceable L1 atoms, L2 scenarios, optional L3 persona notes, and Mermaid canvases, while keeping every summary tied to a `result_ref` and source hash.
 
+`ConductorPlan` can now carry optional workflow audit metadata: `workflow_stage_id`, `workflow_checkpoint_ref`, and `evidence_refs`. These fields are emitted through router telemetry and streamed topology payloads when present, including workflow-stage node support, but they remain audit-only and do not affect provider selection, tool resolution, or routing behavior.
+
 ---
 
 ### 🗺️ Live Topological Dagre View
@@ -260,6 +262,8 @@ Workflow governance 現在拆成 `docs/workflow/` 底下的短文件：`SOURCE_O
 `.agent/workflows/` 內的 opt-in `codex-development` workflow manifest 會描述 repo audit、PRD、SDD、spec、task inventory、atomic task、review、security gate 與 handoff stages。`agent_workspace/workflow_lint.py` 以唯讀模式驗證 manifest 與 checkpoint records，包含 dependency 完整性與 workspace path containment。
 
 Evidence memory packing 現在可透過 `agent_workspace/memory_pack.py` 明確執行。它會把指定 raw output 複製到 `.agent/memory/refs/`，寫入可追溯的 L1 atoms、L2 scenarios、可選 L3 persona notes 與 Mermaid canvases，並讓每個 summary 保留 `result_ref` 與 source hash。
+
+`ConductorPlan` 現在可以攜帶可選的 workflow audit metadata：`workflow_stage_id`、`workflow_checkpoint_ref` 與 `evidence_refs`。這些欄位在存在時會進入 router telemetry 與 streamed topology payload，並支援 workflow-stage node；但它們仍只作為審計資訊，不影響 provider selection、tool resolution 或 routing 行為。
 
 ---
 

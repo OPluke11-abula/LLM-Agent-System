@@ -134,6 +134,9 @@ class ConductorPlan(BaseModel):
     budget: ExecutionBudget
     fallbacks: list[FallbackRule] = Field(default_factory=list)
     routing_memory_hints: list[RouteOutcomeHint] = Field(default_factory=list)
+    workflow_stage_id: str | None = None
+    workflow_checkpoint_ref: str | None = None
+    evidence_refs: list[str] = Field(default_factory=list)
     decision_rationale: str
 
     @model_validator(mode="after")
@@ -280,6 +283,9 @@ def build_default_conductor_plan(
     long_term_enabled: bool = True,
     tenant_id: str | None = None,
     route_outcome_hints: list[dict[str, Any]] | None = None,
+    workflow_stage_id: str | None = None,
+    workflow_checkpoint_ref: str | None = None,
+    evidence_refs: list[str] | None = None,
 ) -> ConductorPlan:
     """Build a deterministic telemetry plan without changing runtime behavior."""
 
@@ -346,5 +352,8 @@ def build_default_conductor_plan(
             )
         ],
         routing_memory_hints=normalized_hints,
+        workflow_stage_id=workflow_stage_id,
+        workflow_checkpoint_ref=workflow_checkpoint_ref,
+        evidence_refs=list(evidence_refs or []),
         decision_rationale=decision_rationale,
     )

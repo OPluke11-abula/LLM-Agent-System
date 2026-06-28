@@ -162,6 +162,29 @@ def test_topology_stream_conductor_trace_payload_keeps_full_trace():
     assert payload["conductor_trace"] == trace
 
 
+def test_topology_stream_conductor_trace_payload_exposes_workflow_stage_refs():
+    trace = {
+        "task_summary": "Run an atomic workflow task.",
+        "task_type": "compilation",
+        "execution_mode": "pro",
+        "workflow_stage_id": "atomic_task",
+        "workflow_checkpoint_ref": ".agent/checkpoints/TASK-0001.json",
+        "evidence_refs": [".agent/memory/refs/TASK-0001.md"],
+        "selected_models": [{"provider": "google-genai", "model": "gemini-2.5-flash"}],
+        "verification_strategy": {"kind": "verifier", "required": True},
+    }
+
+    payload = topology_stream.conductor_trace_payload(trace)
+
+    assert payload["title"] == "Workflow Stage"
+    assert payload["name"] == "atomic_task"
+    assert payload["input"]["workflow_stage_id"] == "atomic_task"
+    assert payload["output"]["workflow_checkpoint_ref"] == ".agent/checkpoints/TASK-0001.json"
+    assert payload["output"]["evidence_ref_count"] == 1
+    assert payload["result_summary"] == "Workflow stage: atomic_task | Verification: verifier"
+    assert payload["conductor_trace"] == trace
+
+
 def test_dashboard_ws_endpoint(api_client):
     """Verify that multi-dashboard WebSockets reject invalid roles and connect successfully under correct roles."""
     with api_client.websocket_connect("/v1/dashboard/session-ws-1/invalid_role") as websocket:
