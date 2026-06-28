@@ -140,10 +140,13 @@ class ConductorPlan(BaseModel):
     def validate_high_risk_ultra_gate(self) -> "ConductorPlan":
         if (
             self.execution_mode == "ultra"
-            and self.risk_level == "high"
-            and not self.verification_strategy.approval_required
+            and (
+                self.verification_strategy.kind != "proof_of_consensus"
+                or not self.verification_strategy.required
+                or not self.verification_strategy.approval_required
+            )
         ):
-            raise ValueError("High-risk ultra plans require approval")
+            raise ValueError("Ultra plans require ProofOfConsensus approval")
         return self
 
 

@@ -235,7 +235,7 @@
 - [x] **[Frontend Programmer]** Add dashboard visibility for conductor trace: task breakdown, model selection rationale, memory hits, verifier verdict, cost, and latency. Streamed router runs now emit `conductor_trace` telemetry, `topology_stream.py` mirrors it into topology nodes, and the React topology dashboard renders a Conductor Trace panel backed by topology, ledger, and telemetry state.
 
 ### 63-06 Unified Policy Gate
-- [ ] **[Security/Backend Programmer]** Bind ultra mode, browser/computer-use, safety scans, and external API actions to a single policy gate with scope guard, audit log, and ProofOfConsensus hooks.
+- [x] **[Security/Backend Programmer]** Bind ultra mode, browser/computer-use, safety scans, and external API actions to a single policy gate with scope guard, audit log, and ProofOfConsensus hooks. `UnifiedPolicyGate` now fail-closes PoC-gated actions, keeps safety scans audit-only but scope-guarded, records `policy_gate_decision` events in `AuditLedger`, and tightens `ConductorPlan` so ultra mode must use required ProofOfConsensus approval.
 
 ---
 

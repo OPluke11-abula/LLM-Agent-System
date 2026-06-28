@@ -86,8 +86,8 @@ def test_conductor_plan_rejects_unknown_mode_and_topology():
         )
 
 
-def test_high_risk_ultra_plan_requires_approval_gate():
-    with pytest.raises(ValidationError, match="High-risk ultra plans require approval"):
+def test_high_risk_ultra_plan_requires_proof_of_consensus_approval_gate():
+    with pytest.raises(ValidationError, match="Ultra plans require ProofOfConsensus approval"):
         ConductorPlan(
             task_id="danger",
             task_summary="Rotate production credentials.",
@@ -117,6 +117,40 @@ def test_high_risk_ultra_plan_requires_approval_gate():
             budget=ExecutionBudget(max_iterations=5, max_tool_calls=10),
             fallbacks=[FallbackRule(trigger="provider_error", action="retry")],
             decision_rationale="high impact operation",
+        )
+
+
+def test_ultra_plan_rejects_non_consensus_verification_even_when_approved():
+    with pytest.raises(ValidationError, match="Ultra plans require ProofOfConsensus approval"):
+        ConductorPlan(
+            task_id="ultra-without-consensus",
+            task_summary="Run browser automation across external services.",
+            execution_mode="ultra",
+            risk_level="medium",
+            topology="debate_consensus",
+            task_type="browser_automation",
+            intent="TASK",
+            subtasks=[],
+            roles=[],
+            candidate_models=[ModelCandidate(provider="openai", model="gpt-5")],
+            selected_models=[
+                SelectedModel(
+                    role_id="worker",
+                    provider="openai",
+                    model="gpt-5",
+                    selection_reason="high reasoning capacity",
+                )
+            ],
+            tool_allowlist=["browser"],
+            memory_scope=MemoryScope(session_id="s1"),
+            verification_strategy=VerificationStrategy(
+                kind="verifier",
+                required=True,
+                approval_required=True,
+            ),
+            budget=ExecutionBudget(max_iterations=5, max_tool_calls=10),
+            fallbacks=[],
+            decision_rationale="ultra impact operation",
         )
 
 
