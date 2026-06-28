@@ -47,6 +47,8 @@ Workflow governance is now split into short, stage-specific documents under `doc
 
 The opt-in `codex-development` workflow manifest under `.agent/workflows/` models repo audit, PRD, SDD, spec, task inventory, atomic task, review, security gate, and handoff stages. `agent_workspace/workflow_lint.py` validates the manifest and checkpoint records in read-only mode, including dependency integrity and workspace path containment.
 
+Evidence memory packing is available through `agent_workspace/memory_pack.py`. It explicitly copies selected raw output into `.agent/memory/refs/`, writes traceable L1 atoms, L2 scenarios, optional L3 persona notes, and Mermaid canvases, while keeping every summary tied to a `result_ref` and source hash.
+
 ---
 
 ### 🗺️ Live Topological Dagre View
@@ -256,6 +258,8 @@ React topology dashboard 現在會為 streamed session 顯示 Conductor Trace pa
 Workflow governance 現在拆成 `docs/workflow/` 底下的短文件：`SOURCE_OF_TRUTH.md`、`RISK_POLICY.md`、`REVIEW_PROTOCOL.md` 與 `HANDOFF_SCHEMA.md`。這些文件定義 agent 如何處理衝突指令、風險分級、review gate 與 handoff，而不需要每輪載入一整份過長 workflow prompt。
 
 `.agent/workflows/` 內的 opt-in `codex-development` workflow manifest 會描述 repo audit、PRD、SDD、spec、task inventory、atomic task、review、security gate 與 handoff stages。`agent_workspace/workflow_lint.py` 以唯讀模式驗證 manifest 與 checkpoint records，包含 dependency 完整性與 workspace path containment。
+
+Evidence memory packing 現在可透過 `agent_workspace/memory_pack.py` 明確執行。它會把指定 raw output 複製到 `.agent/memory/refs/`，寫入可追溯的 L1 atoms、L2 scenarios、可選 L3 persona notes 與 Mermaid canvases，並讓每個 summary 保留 `result_ref` 與 source hash。
 
 ---
 

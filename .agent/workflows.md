@@ -29,6 +29,24 @@ Validate it without executing any stage actions:
 
 The linter validates `spec/workflow-stage.schema.json` and optional checkpoint records against `spec/checkpoint.schema.json`, checks dependencies, and rejects workspace path escapes.
 
+## Evidence Memory Packing
+
+Long command output and review evidence can be explicitly packed into `.agent/memory/` without hooks or background capture:
+
+```powershell
+.\.venv\Scripts\python.exe agent_workspace\memory_pack.py --root . --task TASK-0001 --input outputs\raw-test-output.txt --summary "Focused verification passed."
+```
+
+The packer writes:
+
+- `.agent/memory/refs/<task>.md` for raw evidence.
+- `.agent/memory/l1-atoms.jsonl` for traceable atom facts.
+- `.agent/memory/l2-scenarios/<task>.md` for scenario summaries.
+- `.agent/memory/l3-persona.md` only when a stable persona/preference is explicitly supplied.
+- `.agent/memory/canvases/<task>.mmd` for Mermaid node/ref navigation.
+
+Every generated atom includes a `result_ref` and `source_hash`; summaries are pointers to evidence, not replacements for evidence.
+
 ## Bootstrap and Verify
 
 ```powershell

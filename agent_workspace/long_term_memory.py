@@ -509,6 +509,64 @@ class LongTermMemoryStore:
         self._backend.write(session_id, record.id, asdict(record))
         return record
 
+    def add_workflow_memory(
+        self,
+        *,
+        session_id: str,
+        record_type: str,
+        summary: str,
+        payload: dict[str, Any],
+        citations: list[str] | None = None,
+        confidence: float = 1.0,
+        category: str | None = None,
+    ) -> LongTermMemoryRecord:
+        """Store traceable workflow memory records without replacing raw evidence."""
+
+        allowed_types = {
+            "evidence_ref",
+            "workflow_atom",
+            "workflow_scenario",
+            "workflow_persona",
+        }
+        if record_type not in allowed_types:
+            raise ValueError(f"Unsupported workflow memory record_type: {record_type}")
+
+        merged_payload = {"record_type": record_type, **payload}
+        source_hash = self._hash(
+            {
+                "session_id": session_id,
+                "summary": summary,
+                "payload": merged_payload,
+                "citations": citations or [],
+            }
+        )
+        record_id = f"workflow-{source_hash[:16]}"
+
+        existing = self._backend.read(session_id, record_id)
+        if existing is not None:
+            return LongTermMemoryRecord.from_dict(existing)
+
+        category_name = category or f"workflow/{record_type.replace('workflow_', '')}"
+        record = LongTermMemoryRecord(
+            id=record_id,
+            session_id=session_id,
+            created_at=self._now(),
+            source="workflow_memory",
+            source_hash=source_hash,
+            summary=summary,
+            keywords=self._keywords(summary),
+            message_count=0,
+            payload=merged_payload,
+            domain="workflow",
+            confidence=confidence,
+            citations=citations or [],
+            privacy_level="project",
+            category=category_name,
+        )
+        self._add_embedding_to_payload(record)
+        self._backend.write(session_id, record.id, asdict(record))
+        return record
+
     def delete_record(self, session_id: str, key: str) -> bool:
         """Hard delete a memory record."""
         return self._backend.delete(session_id, key)
