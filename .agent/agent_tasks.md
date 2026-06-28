@@ -157,6 +157,7 @@
 | **Phase 62** | 6 tasks | 6 tasks | 100% Done |
 | **Phase 63** | 6 tasks | 6 tasks | 100% Done |
 | **Phase 64** | 7 tasks | 4 tasks | 57% In Progress |
+| **Phase 65** | 5 tasks | 0 tasks | 0% Planned |
 
 ---
 
@@ -264,6 +265,27 @@ User approved applying the LAS optimization plan from `docs/architecture/las-pap
 
 ### 64-07 Viewer Workflow Surface
 - [ ] **[Frontend Programmer]** Surface workflow stage, checkpoint, evidence-ref, and review-gate state in the topology/conductor UI.
+
+---
+
+## PHASE 65 - Codebase Structural Memory and Impact Graph
+
+User approved adopting the applicable Codebase-Memory pattern for LAS as an internal, command-driven structural memory layer. Treat the external Codebase-Memory material as architecture research only unless a specific repository, license, and source review are provided later. Do not introduce background watchers, daemons, automatic conversation capture, or unreviewed MCP binaries in the MVP.
+
+### 65-01 Code Graph Schema and Read-Only Indexer
+- [ ] **[Backend Programmer]** Add a local code graph schema and read-only repository indexer that records files, modules, classes, functions, imports, calls, routes, configs, and tests into `.agent/codebase-memory/code_graph.sqlite` without changing runtime behavior.
+
+### 65-02 Code Graph Query Tools
+- [ ] **[Backend Programmer]** Add PAP-declared tools for `code_index_repo`, `code_search_symbol`, `code_trace_call_path`, `code_detect_change_impact`, `code_get_architecture`, and `code_get_snippet`, with caller allowlist enforcement and bounded outputs.
+
+### 65-03 Review and Security Gate Integration
+- [ ] **[Security/Backend Programmer]** Attach code graph evidence to review/security findings so high-risk findings can cite entrypoint, propagation, sink, impacted symbols, and linked tests instead of relying on prose-only claims.
+
+### 65-04 Conductor Code Graph Bridge
+- [ ] **[Backend Programmer]** Add optional `code_graph_refs` and `impact_summary` metadata to `ConductorPlan` telemetry so workflow stages can cite structural code evidence without changing provider selection, tool resolution, or routing policy.
+
+### 65-05 Viewer Structural Memory Surface
+- [ ] **[Frontend Programmer]** Surface graph-derived summaries in the topology/conductor UI, including impacted symbol count, changed-file fanout, linked tests, and security-relevant paths, while keeping raw evidence in local files.
 
 ---
 
