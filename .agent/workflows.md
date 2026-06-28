@@ -9,6 +9,7 @@ LAS uses small, stage-specific governance documents instead of a single large wo
 - `docs/workflow/SOURCE_OF_TRUTH.md`: conflict resolution, evidence requirements, and scope rules.
 - `docs/workflow/RISK_POLICY.md`: low/medium/high risk classification, approval boundaries, and security defaults.
 - `docs/workflow/REVIEW_PROTOCOL.md`: review stance, finding requirements, and security review triggers.
+- `docs/workflow/SECURITY_REVIEW_GATE.md`: structured security findings, high-risk triggers, and validator usage.
 - `docs/workflow/HANDOFF_SCHEMA.md`: Markdown and JSON handoff fields plus onboarding order.
 
 Load only the document needed for the current stage. These files are workflow policy; they do not change runtime behavior by themselves.
@@ -38,6 +39,16 @@ The linter validates `spec/workflow-stage.schema.json` and optional checkpoint r
 - `evidence_refs`: raw evidence refs under `.agent/memory/refs/` or other validated workflow artifacts.
 
 Router telemetry and streamed topology payloads include these values when present. Missing workflow metadata is valid and keeps ordinary router runs unchanged. These fields do not alter model/provider selection, tool allowlists, or policy scoring.
+
+## Review and Security Findings
+
+Structured review and security findings are validated by:
+
+```powershell
+.\.venv\Scripts\python.exe agent_workspace\review_findings_validate.py --root . --input docs\reviews\sample-security-findings.json
+```
+
+The validator checks `spec/review-findings.schema.json`, requires traceable entrypoint/sink/evidence paths, rejects workspace escapes, and enforces declared security triggers for high-risk paths.
 
 ## Evidence Memory Packing
 

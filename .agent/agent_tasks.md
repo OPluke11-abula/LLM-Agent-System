@@ -156,7 +156,7 @@
 | **Phase 61** | 6 tasks | 6 tasks | 100% Done |
 | **Phase 62** | 6 tasks | 6 tasks | 100% Done |
 | **Phase 63** | 6 tasks | 6 tasks | 100% Done |
-| **Phase 64** | 7 tasks | 4 tasks | 57% In Progress |
+| **Phase 64** | 7 tasks | 5 tasks | 71% In Progress |
 | **Phase 65** | 5 tasks | 0 tasks | 0% Planned |
 
 ---
@@ -258,7 +258,7 @@ User approved applying the LAS optimization plan from `docs/architecture/las-pap
 - [x] **[Backend Programmer]** Add optional workflow stage and evidence refs to `ConductorPlan` telemetry without changing routing/provider behavior. Added `workflow_stage_id`, `workflow_checkpoint_ref`, and `evidence_refs` to the telemetry-only plan, emitted them as optional OTel/router trace fields, bridged workflow-stage topology payloads, and kept provider selection/tool allowlists unchanged.
 
 ### 64-05 Review and Security Gate Schema
-- [ ] **[Security/Backend Programmer]** Add structured review/security findings schema and validator with high-risk trigger rules.
+- [x] **[Security/Backend Programmer]** Add structured review/security findings schema and validator with high-risk trigger rules. Added `spec/review-findings.schema.json`, `agent_workspace/review_findings_validate.py`, focused validator tests, `docs/workflow/SECURITY_REVIEW_GATE.md`, and a sample security findings artifact that enforces evidence traces, workspace-contained paths, concrete high/critical impact, and declared security triggers.
 
 ### 64-06 PAP Contract Extensions
 - [ ] **[Protocol Architect]** Propose backward-compatible PAP fields for workflows, checkpoints, evidence refs, review gates, and memory layers.
