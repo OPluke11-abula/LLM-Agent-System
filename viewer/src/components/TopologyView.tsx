@@ -128,6 +128,13 @@ function asMetricRecord(value: unknown): Record<string, any> {
   return value && typeof value === "object" ? value as Record<string, any> : {};
 }
 
+function compactWorkflowRef(value?: string | null) {
+  if (!value) return "--";
+  const normalized = value.replace(/\\/g, "/");
+  const parts = normalized.split("/").filter(Boolean);
+  return parts.slice(-2).join("/") || normalized;
+}
+
 function isConductorTrace(value: unknown): value is ConductorTrace {
   if (!value || typeof value !== "object") return false;
   const trace = value as Partial<ConductorTrace>;
@@ -164,6 +171,12 @@ function ConductorTracePanel({
   const costLimit = ledger?.cost_threshold ?? trace?.budget?.cost_limit ?? null;
   const memoryHits = trace?.routing_memory_hints ?? [];
   const verifierTone = verification?.approval_required ? "warning" : verification?.required ? "accent" : "success";
+  const workflowStage = trace?.workflow_stage_id || null;
+  const workflowCheckpoint = trace?.workflow_checkpoint_ref || null;
+  const evidenceRefs = trace?.evidence_refs ?? [];
+  const reviewGateTone = verification?.approval_required ? "warning" : evidenceRefs.length > 0 ? "success" : "neutral";
+  const reviewGateLabel = verification?.approval_required ? "review" : evidenceRefs.length > 0 ? "evidence" : "open";
+  const hasWorkflowSignal = Boolean(workflowStage || workflowCheckpoint || evidenceRefs.length > 0 || verification?.required);
 
   return (
     <Surface className="group/conductor relative mx-3 mb-3 flex flex-col gap-2 p-3">
@@ -208,6 +221,63 @@ function ConductorTracePanel({
             <p className="text-[8px] leading-relaxed t3">
               {verification?.success_criteria?.[0] || (lang === "zh" ? "No verifier criteria published yet." : "No verifier criteria published yet.")}
             </p>
+          </div>
+
+          <div className="space-y-1.5 border-t pt-2" style={{ borderColor: "var(--border-c)" }}>
+            <div className="flex items-center justify-between">
+              <span className="text-[8px] font-bold uppercase tracking-[0.14em] t3">
+                {lang === "zh" ? "Workflow Gate" : "Workflow Gate"}
+              </span>
+              <StatusBadge tone={reviewGateTone} className="text-[8px]">
+                {reviewGateLabel}
+              </StatusBadge>
+            </div>
+            <div className="grid grid-cols-3 gap-1.5 text-center font-mono">
+              <MetricTile
+                label={lang === "zh" ? "Stage" : "Stage"}
+                value={workflowStage ? workflowStage.split("-").slice(-1)[0] : "--"}
+                tone={workflowStage ? "accent" : "neutral"}
+                className="p-1"
+              />
+              <MetricTile
+                label={lang === "zh" ? "Checkpoint" : "Checkpoint"}
+                value={workflowCheckpoint ? "set" : "--"}
+                tone={workflowCheckpoint ? "success" : "neutral"}
+                className="p-1"
+              />
+              <MetricTile
+                label={lang === "zh" ? "Evidence" : "Evidence"}
+                value={evidenceRefs.length}
+                tone={evidenceRefs.length > 0 ? "success" : "neutral"}
+                className="p-1"
+              />
+            </div>
+            {hasWorkflowSignal ? (
+              <div className="space-y-1 font-mono text-[8px]">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="shrink-0 font-bold uppercase tracking-[0.14em] t3">{lang === "zh" ? "Stage" : "Stage"}</span>
+                  <span className="truncate text-right t2" title={workflowStage ?? ""}>{workflowStage ?? "--"}</span>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="shrink-0 font-bold uppercase tracking-[0.14em] t3">{lang === "zh" ? "Checkpoint" : "Checkpoint"}</span>
+                  <span className="truncate text-right t2" title={workflowCheckpoint ?? ""}>{compactWorkflowRef(workflowCheckpoint)}</span>
+                </div>
+                <div className="max-h-14 space-y-1 overflow-y-auto pr-1">
+                  {evidenceRefs.slice(0, 3).map((ref) => (
+                    <div key={ref} className="flex items-center justify-between gap-2">
+                      <span className="shrink-0 font-bold uppercase tracking-[0.14em] t3">{lang === "zh" ? "Ref" : "Ref"}</span>
+                      <span className="truncate text-right t2" title={ref}>{compactWorkflowRef(ref)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <p className="text-[8px] leading-relaxed t3">
+                {lang === "zh"
+                  ? "No workflow stage, checkpoint, or evidence refs published yet."
+                  : "No workflow stage, checkpoint, or evidence refs published yet."}
+              </p>
+            )}
           </div>
 
           <div className="space-y-1.5 border-t pt-2" style={{ borderColor: "var(--border-c)" }}>

@@ -156,7 +156,7 @@
 | **Phase 61** | 6 tasks | 6 tasks | 100% Done |
 | **Phase 62** | 6 tasks | 6 tasks | 100% Done |
 | **Phase 63** | 6 tasks | 6 tasks | 100% Done |
-| **Phase 64** | 7 tasks | 6 tasks | 86% In Progress |
+| **Phase 64** | 7 tasks | 7 tasks | 100% Done |
 | **Phase 65** | 5 tasks | 0 tasks | 0% Planned |
 
 ---
@@ -264,7 +264,7 @@ User approved applying the LAS optimization plan from `docs/architecture/las-pap
 - [x] **[Protocol Architect]** Propose and apply backward-compatible PAP fields for workflows, checkpoints, evidence refs, review gates, and memory layers. Studied upstream `OPluke11-abula/Portable-Agent-Protocol` at `3d0e1d2494812cda45181ba0c5338d9ec28bfd7d`, added LAS PAP entrypoints for tasks/routing/handoff, declared memory tiers, added `spec/runtime-interface.md` and `spec/security.md`, and aligned handoff packets with `pending_steps` plus checksum metadata while preserving legacy import compatibility.
 
 ### 64-07 Viewer Workflow Surface
-- [ ] **[Frontend Programmer]** Surface workflow stage, checkpoint, evidence-ref, and review-gate state in the topology/conductor UI.
+- [x] **[Frontend Programmer]** Surface workflow stage, checkpoint, evidence-ref, and review-gate state in the topology/conductor UI. Added a Workflow Gate section to `viewer/src/components/TopologyView.tsx` that renders `workflow_stage_id`, `workflow_checkpoint_ref`, evidence-ref count, and review-gate status from conductor trace metadata using existing viewer primitives.
 
 ---
 
