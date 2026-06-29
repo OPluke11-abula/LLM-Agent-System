@@ -246,6 +246,8 @@ agent_workspace/tool_manifest.json
 !.agent/memory/
 .agent/workflows/runs/*.json
 .agent/memory/handoff/*.json
+.agent/codebase-memory/*.sqlite
+.agent/codebase-memory/*.sqlite-*
 .agent/skills_acceptance_report.md
 
 # Local maintenance artifacts

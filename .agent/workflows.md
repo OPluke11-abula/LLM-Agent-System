@@ -121,6 +121,7 @@ Runtime-facing endpoints:
 python agent_workspace/tool_manifest.py sync
 python agent_workspace/tool_manifest.py validate
 python agent_workspace/pap_validate.py
+python agent_workspace/codebase_index.py --root .
 ```
 
 ## Topology Bridge

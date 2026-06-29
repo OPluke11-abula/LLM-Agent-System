@@ -157,7 +157,7 @@
 | **Phase 62** | 6 tasks | 6 tasks | 100% Done |
 | **Phase 63** | 6 tasks | 6 tasks | 100% Done |
 | **Phase 64** | 7 tasks | 7 tasks | 100% Done |
-| **Phase 65** | 5 tasks | 0 tasks | 0% Planned |
+| **Phase 65** | 5 tasks | 1 task | 20% In Progress |
 
 ---
 
@@ -273,7 +273,7 @@ User approved applying the LAS optimization plan from `docs/architecture/las-pap
 User approved adopting the applicable Codebase-Memory pattern for LAS as an internal, command-driven structural memory layer. Treat the external Codebase-Memory material as architecture research only unless a specific repository, license, and source review are provided later. Do not introduce background watchers, daemons, automatic conversation capture, or unreviewed MCP binaries in the MVP.
 
 ### 65-01 Code Graph Schema and Read-Only Indexer
-- [ ] **[Backend Programmer]** Add a local code graph schema and read-only repository indexer that records files, modules, classes, functions, imports, calls, routes, configs, and tests into `.agent/codebase-memory/code_graph.sqlite` without changing runtime behavior.
+- [x] **[Backend Programmer]** Add a local code graph schema and read-only repository indexer that records files, modules, classes, functions, imports, calls, routes, configs, and tests into `.agent/codebase-memory/code_graph.sqlite` without changing runtime behavior. Added `agent_workspace/codebase_index.py`, focused tests, `.gitignore` protection for generated SQLite files, and documentation in README plus `.agent/workflows.md`; verified it indexes the live LAS repo into a local SQLite graph without storing config values.
 
 ### 65-02 Code Graph Query Tools
 - [ ] **[Backend Programmer]** Add PAP-declared tools for `code_index_repo`, `code_search_symbol`, `code_trace_call_path`, `code_detect_change_impact`, `code_get_architecture`, and `code_get_snippet`, with caller allowlist enforcement and bounded outputs.
