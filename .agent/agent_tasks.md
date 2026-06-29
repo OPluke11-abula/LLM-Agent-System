@@ -157,7 +157,7 @@
 | **Phase 62** | 6 tasks | 6 tasks | 100% Done |
 | **Phase 63** | 6 tasks | 6 tasks | 100% Done |
 | **Phase 64** | 7 tasks | 7 tasks | 100% Done |
-| **Phase 65** | 5 tasks | 1 task | 20% In Progress |
+| **Phase 65** | 5 tasks | 2 tasks | 40% In Progress |
 
 ---
 
@@ -276,7 +276,7 @@ User approved adopting the applicable Codebase-Memory pattern for LAS as an inte
 - [x] **[Backend Programmer]** Add a local code graph schema and read-only repository indexer that records files, modules, classes, functions, imports, calls, routes, configs, and tests into `.agent/codebase-memory/code_graph.sqlite` without changing runtime behavior. Added `agent_workspace/codebase_index.py`, focused tests, `.gitignore` protection for generated SQLite files, and documentation in README plus `.agent/workflows.md`; verified it indexes the live LAS repo into a local SQLite graph without storing config values.
 
 ### 65-02 Code Graph Query Tools
-- [ ] **[Backend Programmer]** Add PAP-declared tools for `code_index_repo`, `code_search_symbol`, `code_trace_call_path`, `code_detect_change_impact`, `code_get_architecture`, and `code_get_snippet`, with caller allowlist enforcement and bounded outputs.
+- [x] **[Backend Programmer]** Add PAP-declared tools for `code_index_repo`, `code_search_symbol`, `code_trace_call_path`, `code_detect_change_impact`, `code_get_architecture`, and `code_get_snippet`, with caller allowlist enforcement and bounded outputs. Added `agent_workspace/skills/tool_codebase_memory.py`, generated and hardened six `.agent/skills/code_*.md` contracts, synced `.agent/agent.md` and `.agent/skills.md`, and added focused tests covering read-only queries, workspace path guards, runtime registration, and `AgentEngine.execute_tool()` allowlist denial.
 
 ### 65-03 Review and Security Gate Integration
 - [ ] **[Security/Backend Programmer]** Attach code graph evidence to review/security findings so high-risk findings can cite entrypoint, propagation, sink, impacted symbols, and linked tests instead of relying on prose-only claims.

@@ -48,6 +48,19 @@ def get_skill_contracts() -> List[Path]:
     ])
 
 
+def get_manifest_tools() -> List[str]:
+    """Read declared tools from .agent/agent.md front matter."""
+    manifest_path = PROJECT_ROOT / ".agent" / "agent.md"
+    content = manifest_path.read_text(encoding="utf-8")
+    parts = content.split("---", 2)
+    assert len(parts) >= 3, ".agent/agent.md is missing YAML front matter"
+    frontmatter = yaml.safe_load(parts[1])
+    assert isinstance(frontmatter, dict), ".agent/agent.md front matter must be a dictionary"
+    tools = frontmatter.get("tools", [])
+    assert isinstance(tools, list), ".agent/agent.md tools must be a list"
+    return tools
+
+
 def test_schema_file_exists():
     """Verify that the skill contract schema file exists."""
     assert SCHEMA_FILE.exists(), f"Schema file not found at {SCHEMA_FILE}"
@@ -56,9 +69,12 @@ def test_schema_file_exists():
 def test_skills_directory_not_empty():
     """Verify that skill contracts exist in the .agent/skills directory."""
     contracts = get_skill_contracts()
+    manifest_tools = get_manifest_tools()
     assert len(contracts) > 0, "No skill contracts found in .agent/skills/"
-    # We expect 19 standardized skill contracts
-    assert len(contracts) == 19, f"Expected 19 skill contracts, found {len(contracts)}"
+    assert len(contracts) == len(manifest_tools), (
+        f"Expected {len(manifest_tools)} skill contracts from .agent/agent.md, found {len(contracts)}"
+    )
+    assert {path.stem for path in contracts} == set(manifest_tools)
 
 
 @pytest.mark.parametrize("contract_path", get_skill_contracts(), ids=lambda p: p.stem)

@@ -18,6 +18,12 @@ skill contracts.
 | `calculate` | `agent_workspace/skills/example_skill_template.py` | `calculate` | `.agent/skills/calculate.md` |
 | `run_tests` | `agent_workspace/skills/system_verification.py` | `run_tests` | `.agent/skills/run_tests.md` |
 | `verify_workspace` | `agent_workspace/skills/system_verification.py` | `verify_workspace` | `.agent/skills/verify_workspace.md` |
+| `code_detect_change_impact` | `agent_workspace/skills/tool_codebase_memory.py` | `code_detect_change_impact` | `.agent/skills/code_detect_change_impact.md` |
+| `code_get_architecture` | `agent_workspace/skills/tool_codebase_memory.py` | `code_get_architecture` | `.agent/skills/code_get_architecture.md` |
+| `code_get_snippet` | `agent_workspace/skills/tool_codebase_memory.py` | `code_get_snippet` | `.agent/skills/code_get_snippet.md` |
+| `code_index_repo` | `agent_workspace/skills/tool_codebase_memory.py` | `code_index_repo` | `.agent/skills/code_index_repo.md` |
+| `code_search_symbol` | `agent_workspace/skills/tool_codebase_memory.py` | `code_search_symbol` | `.agent/skills/code_search_symbol.md` |
+| `code_trace_call_path` | `agent_workspace/skills/tool_codebase_memory.py` | `code_trace_call_path` | `.agent/skills/code_trace_call_path.md` |
 | `log_append` | `agent_workspace/skills/tool_log.py` | `log_append` | `.agent/skills/log_append.md` |
 | `log_archive_month` | `agent_workspace/skills/tool_log.py` | `log_archive_month` | `.agent/skills/log_archive_month.md` |
 | `log_compress_done` | `agent_workspace/skills/tool_log.py` | `log_compress_done` | `.agent/skills/log_compress_done.md` |

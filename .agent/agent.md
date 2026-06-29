@@ -32,6 +32,12 @@ tools:
   - calculate
   - run_tests
   - verify_workspace
+  - code_detect_change_impact
+  - code_get_architecture
+  - code_get_snippet
+  - code_index_repo
+  - code_search_symbol
+  - code_trace_call_path
   - log_append
   - log_archive_month
   - log_compress_done

@@ -57,6 +57,8 @@ The Conductor Trace panel now includes a Workflow Gate surface for workflow stag
 
 Codebase structural memory starts with a command-driven read-only indexer in `agent_workspace/codebase_index.py`. It scans source and config files into `.agent/codebase-memory/code_graph.sqlite`, recording files, modules, classes, functions, imports, calls, routes, config keys, and tests without installing external MCP binaries or saving config values.
 
+The code graph is exposed through PAP-declared read-only tools: `code_index_repo`, `code_search_symbol`, `code_trace_call_path`, `code_detect_change_impact`, `code_get_architecture`, and `code_get_snippet`. Each tool keeps output bounded and relies on the runtime allowlist enforced by `AgentEngine.execute_tool()`.
+
 ---
 
 ### 🗺️ Live Topological Dagre View
@@ -281,6 +283,8 @@ Structured review 與 security-gate 報告現在由 `agent_workspace/review_find
 Conductor Trace 面板現在新增 Workflow Gate surface，可顯示 workflow stage、checkpoint reference、evidence-ref 數量與 review-gate status。它直接消費 topology conductor trace 已發出的 `workflow_stage_id`、`workflow_checkpoint_ref` 與 `evidence_refs` metadata。
 
 Codebase structural memory 從命令驅動的 read-only indexer 開始，實作位於 `agent_workspace/codebase_index.py`。它會把 source 與 config files 掃入 `.agent/codebase-memory/code_graph.sqlite`，記錄 files、modules、classes、functions、imports、calls、routes、config keys 與 tests，不安裝外部 MCP binary，也不保存 config values。
+
+Code graph 現在也透過 PAP-declared read-only tools 暴露：`code_index_repo`、`code_search_symbol`、`code_trace_call_path`、`code_detect_change_impact`、`code_get_architecture` 與 `code_get_snippet`。每個 tool 都限制輸出大小，並依賴 `AgentEngine.execute_tool()` 的 runtime allowlist enforcement。
 
 ---
 
