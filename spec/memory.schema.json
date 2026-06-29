@@ -85,8 +85,9 @@
       ],
       "properties": {
         "task_state": {
-          "type": "string",
-          "description": "Brief description of the current task state."
+          "type": ["string", "object"],
+          "description": "Brief description of the current task state. LAS also accepts an object snapshot for backward-compatible exported task files.",
+          "additionalProperties": true
         },
         "pending_steps": {
           "type": "array",
@@ -101,6 +102,11 @@
           "type": "object",
           "description": "A dictionary snapshot of important key-value pairs from short/long-term memory.",
           "additionalProperties": true
+        },
+        "checksum": {
+          "type": "string",
+          "description": "Optional SHA-256 checksum over the canonical handoff payload.",
+          "pattern": "^[0-9a-f]{64}$"
         }
       }
     }

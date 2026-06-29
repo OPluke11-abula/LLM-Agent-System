@@ -156,7 +156,7 @@
 | **Phase 61** | 6 tasks | 6 tasks | 100% Done |
 | **Phase 62** | 6 tasks | 6 tasks | 100% Done |
 | **Phase 63** | 6 tasks | 6 tasks | 100% Done |
-| **Phase 64** | 7 tasks | 5 tasks | 71% In Progress |
+| **Phase 64** | 7 tasks | 6 tasks | 86% In Progress |
 | **Phase 65** | 5 tasks | 0 tasks | 0% Planned |
 
 ---
@@ -261,7 +261,7 @@ User approved applying the LAS optimization plan from `docs/architecture/las-pap
 - [x] **[Security/Backend Programmer]** Add structured review/security findings schema and validator with high-risk trigger rules. Added `spec/review-findings.schema.json`, `agent_workspace/review_findings_validate.py`, focused validator tests, `docs/workflow/SECURITY_REVIEW_GATE.md`, and a sample security findings artifact that enforces evidence traces, workspace-contained paths, concrete high/critical impact, and declared security triggers.
 
 ### 64-06 PAP Contract Extensions
-- [ ] **[Protocol Architect]** Propose backward-compatible PAP fields for workflows, checkpoints, evidence refs, review gates, and memory layers.
+- [x] **[Protocol Architect]** Propose and apply backward-compatible PAP fields for workflows, checkpoints, evidence refs, review gates, and memory layers. Studied upstream `OPluke11-abula/Portable-Agent-Protocol` at `3d0e1d2494812cda45181ba0c5338d9ec28bfd7d`, added LAS PAP entrypoints for tasks/routing/handoff, declared memory tiers, added `spec/runtime-interface.md` and `spec/security.md`, and aligned handoff packets with `pending_steps` plus checksum metadata while preserving legacy import compatibility.
 
 ### 64-07 Viewer Workflow Surface
 - [ ] **[Frontend Programmer]** Surface workflow stage, checkpoint, evidence-ref, and review-gate state in the topology/conductor UI.

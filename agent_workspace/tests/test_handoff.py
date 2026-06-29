@@ -3,6 +3,7 @@ import sys
 import tempfile
 import json
 import pytest
+import jsonschema
 from pathlib import Path
 
 # Add project root to sys.path
@@ -65,9 +66,14 @@ def test_handoff_export_and_import(mock_handoff_env):
     packet = json.loads(handoff_file.read_text(encoding="utf-8"))
     assert packet["protocol"] == "PAP-Handoff"
     assert packet["context_summary"] == context_summary
+    assert packet["pending_steps"] == ["Resume LAS session from exported handoff state."]
     assert packet["memory_snapshot"]["session_id"] == session_id
     assert packet["memory_snapshot"]["working_memory"] == session_memory
     assert "checksum" in packet
+
+    schema_path = Path(__file__).resolve().parents[2] / "spec" / "memory.schema.json"
+    memory_schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    jsonschema.validate(instance={"handoff": packet}, schema=memory_schema)
     
     # 3. Import and restore (remove session memory first to check restoration)
     session_file.unlink()
@@ -80,6 +86,48 @@ def test_handoff_export_and_import(mock_handoff_env):
     
     restored_memory = json.loads(session_file.read_text(encoding="utf-8"))
     assert restored_memory == session_memory
+
+
+def test_handoff_import_accepts_legacy_packet_without_pending_steps(mock_handoff_env):
+    import hashlib
+
+    temp_path = Path(mock_handoff_env)
+    workspace_path = temp_path / "agent_workspace"
+    handoff_id = "handoff-legacy"
+    memory_snapshot = {
+        "session_id": "legacy-session",
+        "working_memory": {"conversations": [{"user": "Legacy", "assistant": "OK"}]},
+    }
+    payload = {
+        "task_state": {},
+        "context_summary": "Legacy handoff packet before pending_steps.",
+        "memory_snapshot": memory_snapshot,
+    }
+    checksum = hashlib.sha256(
+        json.dumps(payload, sort_keys=True, ensure_ascii=False).encode("utf-8")
+    ).hexdigest()
+    packet = {
+        "protocol": "PAP-Handoff",
+        "version": "1.0.0",
+        "handoff_id": handoff_id,
+        "created_at": "2026-06-29T00:00:00+00:00",
+        **payload,
+        "checksum": checksum,
+    }
+    handoff_dir = temp_path / ".agent" / "memory" / "handoff"
+    handoff_dir.mkdir(parents=True, exist_ok=True)
+    (handoff_dir / f"{handoff_id}.json").write_text(
+        json.dumps(packet, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+    engine = AgentEngine(workspace_path=str(workspace_path))
+    imported_packet = engine.import_handoff(handoff_id=handoff_id)
+
+    restored = workspace_path / "memory" / "legacy-session.json"
+    assert imported_packet["handoff_id"] == handoff_id
+    assert restored.is_file()
+    assert json.loads(restored.read_text(encoding="utf-8")) == memory_snapshot["working_memory"]
 
 
 def test_handoff_checksum_tamper_detection(mock_handoff_env):

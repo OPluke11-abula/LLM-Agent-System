@@ -14,6 +14,16 @@ LAS uses small, stage-specific governance documents instead of a single large wo
 
 Load only the document needed for the current stage. These files are workflow policy; they do not change runtime behavior by themselves.
 
+## PAP Runtime and Security Contracts
+
+LAS carries PAP-aligned runtime and security contracts under `spec/`:
+
+- `spec/runtime-interface.md`: stable runtime methods, LAS mappings, and standard error codes.
+- `spec/security.md`: prompt, skill, memory, permission, and handoff-integrity security layers.
+- `spec/memory.schema.json`: memory and handoff packet schema, including LAS-compatible `task_state` snapshots and checksum metadata.
+
+Treat these documents as interoperability contracts. They guide adapters, validators, and future workflow execution without changing provider selection or task routing by themselves.
+
 ## Codex Development Workflow Manifest
 
 The opt-in stage manifest lives at:

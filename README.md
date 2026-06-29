@@ -235,6 +235,8 @@ LAS is fully aligned with the latest PAP v0.2.0 reference specification:
 * **Bootstrapping Onboarding State Machine**: Enforces a strict onboarding guard that blocks tool executions until the agent has read `agent.md`, `skills.md`, `agent_tasks.md`, and `handoff_guide.md` in order.
 * **Turn & Context Limit Exceeded Handoffs**: Automatically exports session handoffs and raises `HandoffRequired` (Exit Code `42`) to gracefully trigger host-level execution restarts.
 * **Automated Registry Sync**: Supports `cli.py --sync-pap` to validate local workspaces and synchronize standard skill definitions or templates automatically.
+* **Runtime & Security Interface Specs**: Adds `spec/runtime-interface.md` and `spec/security.md` as PAP-facing contracts for manifest loading, skill calls, memory access, workflow execution, standard errors, permission gates, and handoff integrity.
+* **PAP Handoff Packet Compatibility**: Handoff exports now include `pending_steps` and checksum metadata compatible with `spec/memory.schema.json`, while imports continue to accept legacy LAS packets when their legacy checksum verifies.
 
 ---
 
@@ -439,6 +441,8 @@ LAS 完整對齊了最新版的 PAP v0.2.0 參考實作：
 * **引導順序防禦狀態機**：強制要求智慧體在執行工具前，必須依序讀取 `agent.md` -> `skills.md` -> `agent_tasks.md` -> `handoff_guide.md` 才能解鎖工具。
 * **超限自動 Handoff 重啟**：當對話輪次或 context 字數超限時，自動導出 Handoff 封包並拋出 `HandoffRequired` 異常以 Exit Code `42` 退出，通知宿主重啟執行執行緒。
 * **自動化協定同步 CLI**：支援 `cli.py --sync-pap` 一鍵校驗本地工作區合約並自動對齊與引進標準 Skill 合約範本。
+* **Runtime 與安全接口規格**：新增 `spec/runtime-interface.md` 與 `spec/security.md`，作為 manifest 載入、skill 呼叫、memory 存取、workflow 執行、標準錯誤、權限閘門與 handoff 完整性的 PAP-facing 合約。
+* **PAP Handoff 封包相容性**：Handoff 匯出現在包含 `pending_steps` 與 checksum metadata，可通過 `spec/memory.schema.json`；匯入端仍會在 legacy checksum 驗證通過時接受舊版 LAS 封包。
 
 ---
 

@@ -56,6 +56,9 @@ protocol:
     prompts: .agent/prompts.md
     memory: .agent/memory.md
     workflows: .agent/workflows.md
+    tasks: .agent/agent_tasks.md
+    routing: .agent/routing.md
+    handoff: .agent/handoff_guide.md
   directories:
     core: .agent/core/
     skills: .agent/skills/
@@ -65,6 +68,11 @@ protocol:
     knowledge_base: .agent/knowledge_base/
 memory:
   backend: local
+  tiers:
+    ephemeral: in_memory
+    session: in_memory
+    persistent: sqlite
+    shared: sqlite
   path: agent_workspace/memory/
 prompts:
   path: .agent/prompts.md

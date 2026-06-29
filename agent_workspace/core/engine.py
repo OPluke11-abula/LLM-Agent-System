@@ -629,7 +629,12 @@ class AgentEngine:
         except ImportError as e:
             logger.warning("Failed to load SkillLoader: %s", e)
 
-    def export_handoff(self, session_id: str, context_summary: str) -> str:
+    def export_handoff(
+        self,
+        session_id: str,
+        context_summary: str,
+        pending_steps: list[str] | None = None,
+    ) -> str:
         """Export session working memory and agent task state into a standardized PAP handoff packet.
 
         Verifies state integrity with a SHA256 checksum and writes the packet
@@ -665,10 +670,12 @@ class AgentEngine:
             except Exception as e:
                 logger.warning("Failed to read session memory %s for handoff: %s", session_id, e)
         memory_snapshot["session_id"] = session_id
+        pending_steps = pending_steps or ["Resume LAS session from exported handoff state."]
 
         # 3. Calculate SHA256 Checksum
         payload = {
             "task_state": task_state,
+            "pending_steps": pending_steps,
             "context_summary": context_summary,
             "memory_snapshot": memory_snapshot
         }
@@ -683,6 +690,7 @@ class AgentEngine:
             "handoff_id": handoff_id,
             "created_at": datetime.now(timezone.utc).isoformat(),
             "task_state": task_state,
+            "pending_steps": pending_steps,
             "context_summary": context_summary,
             "memory_snapshot": memory_snapshot,
             "checksum": checksum
@@ -709,6 +717,9 @@ You are resuming a conversational thread in a fresh environment. The state of th
 
 ## Context Summary
 {context_summary}
+
+## Pending Steps
+{chr(10).join(f"- {step}" for step in pending_steps)}
 
 ## Structural State Inventory
 - **Tasks File**: `.agent/agent_tasks.md`
@@ -769,12 +780,15 @@ This handoff is part of the Federated Swarm Autonomous Handoff protocol. It enab
         context_summary = packet["context_summary"]
         memory_snapshot = packet["memory_snapshot"]
         checksum_expected = packet["checksum"]
+        pending_steps = packet.get("pending_steps")
 
         payload = {
             "task_state": task_state,
             "context_summary": context_summary,
             "memory_snapshot": memory_snapshot
         }
+        if isinstance(pending_steps, list):
+            payload["pending_steps"] = pending_steps
         serialized = json.dumps(payload, sort_keys=True, ensure_ascii=False).encode("utf-8")
         checksum_actual = hashlib.sha256(serialized).hexdigest()
 

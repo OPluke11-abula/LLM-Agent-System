@@ -36,20 +36,15 @@ For machine-readable handoffs, use these fields:
 
 ```json
 {
-  "objective": "",
-  "current_state": "",
-  "repos": [],
-  "branches": {},
-  "changed_files": [],
-  "decisions": [],
-  "verification": [],
+  "task_state": "",
   "pending_steps": [],
-  "risks": [],
-  "required_onboarding": [],
-  "suggested_skills": [],
-  "evidence_refs": []
+  "context_summary": "",
+  "memory_snapshot": {},
+  "checksum": ""
 }
 ```
+
+LAS may store `task_state` as a structured object for backward-compatible snapshots of `.agent/agent_tasks.md`. New `AgentEngine.export_handoff()` packets include `pending_steps` and calculate `checksum` over `task_state`, `pending_steps`, `context_summary`, and `memory_snapshot`.
 
 ## Evidence Rules
 
