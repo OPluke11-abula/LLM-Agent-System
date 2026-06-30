@@ -157,7 +157,7 @@
 | **Phase 62** | 6 tasks | 6 tasks | 100% Done |
 | **Phase 63** | 6 tasks | 6 tasks | 100% Done |
 | **Phase 64** | 7 tasks | 7 tasks | 100% Done |
-| **Phase 65** | 5 tasks | 2 tasks | 40% In Progress |
+| **Phase 65** | 5 tasks | 3 tasks | 60% In Progress |
 
 ---
 
@@ -279,7 +279,7 @@ User approved adopting the applicable Codebase-Memory pattern for LAS as an inte
 - [x] **[Backend Programmer]** Add PAP-declared tools for `code_index_repo`, `code_search_symbol`, `code_trace_call_path`, `code_detect_change_impact`, `code_get_architecture`, and `code_get_snippet`, with caller allowlist enforcement and bounded outputs. Added `agent_workspace/skills/tool_codebase_memory.py`, generated and hardened six `.agent/skills/code_*.md` contracts, synced `.agent/agent.md` and `.agent/skills.md`, and added focused tests covering read-only queries, workspace path guards, runtime registration, and `AgentEngine.execute_tool()` allowlist denial.
 
 ### 65-03 Review and Security Gate Integration
-- [ ] **[Security/Backend Programmer]** Attach code graph evidence to review/security findings so high-risk findings can cite entrypoint, propagation, sink, impacted symbols, and linked tests instead of relying on prose-only claims.
+- [x] **[Security/Backend Programmer]** Attach code graph evidence to review/security findings so high-risk findings can cite entrypoint, propagation, sink, impacted symbols, and linked tests instead of relying on prose-only claims. Added `code_graph_evidence` to `spec/review-findings.schema.json`, enforced high/critical graph evidence in `agent_workspace/review_findings_validate.py`, validated workspace containment for graph evidence paths, documented the security gate rule, and added focused validator tests.
 
 ### 65-04 Conductor Code Graph Bridge
 - [ ] **[Backend Programmer]** Add optional `code_graph_refs` and `impact_summary` metadata to `ConductorPlan` telemetry so workflow stages can cite structural code evidence without changing provider selection, tool resolution, or routing policy.

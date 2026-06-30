@@ -104,6 +104,9 @@ def _validate_workspace_paths(root: Path, report: dict[str, Any]) -> None:
                     trace["path"],
                     f"findings[{finding_index}].{field_name}[{trace_index}].path",
                 )
+        code_graph_evidence = finding.get("code_graph_evidence")
+        if code_graph_evidence:
+            _validate_code_graph_evidence_paths(root, finding_index, code_graph_evidence)
 
 
 def _validate_high_risk_rules(report: dict[str, Any]) -> None:
@@ -127,6 +130,53 @@ def _validate_high_risk_rules(report: dict[str, Any]) -> None:
             raise ReviewFindingsError(f"findings[{index}] high/critical severity requires concrete impact")
         if severity in HIGH_SEVERITIES and not declared_triggers:
             raise ReviewFindingsError(f"findings[{index}] high/critical severity requires security_triggers")
+        if severity in HIGH_SEVERITIES:
+            _validate_high_risk_code_graph_evidence(index, finding)
+
+
+def _validate_code_graph_evidence_paths(
+    root: Path,
+    finding_index: int,
+    code_graph_evidence: dict[str, Any],
+) -> None:
+    symbol_fields = ("entrypoint_symbol", "sink_symbol")
+    for field_name in symbol_fields:
+        symbol_ref = code_graph_evidence.get(field_name)
+        if symbol_ref:
+            _resolve_workspace_path(
+                root,
+                symbol_ref["path"],
+                f"findings[{finding_index}].code_graph_evidence.{field_name}.path",
+            )
+
+    list_fields = ("propagation_path", "impacted_symbols", "linked_tests")
+    for field_name in list_fields:
+        for item_index, item in enumerate(code_graph_evidence.get(field_name, [])):
+            _resolve_workspace_path(
+                root,
+                item["path"],
+                f"findings[{finding_index}].code_graph_evidence.{field_name}[{item_index}].path",
+            )
+
+
+def _validate_high_risk_code_graph_evidence(index: int, finding: dict[str, Any]) -> None:
+    code_graph_evidence = finding.get("code_graph_evidence")
+    if not code_graph_evidence:
+        raise ReviewFindingsError(f"findings[{index}] high/critical severity requires code_graph_evidence")
+
+    required_fields = (
+        "entrypoint_symbol",
+        "propagation_path",
+        "sink_symbol",
+        "impacted_symbols",
+        "linked_tests",
+    )
+    for field_name in required_fields:
+        value = code_graph_evidence.get(field_name)
+        if not value:
+            raise ReviewFindingsError(
+                f"findings[{index}].code_graph_evidence requires non-empty {field_name}"
+            )
 
 
 def _infer_path_triggers(paths: list[str]) -> set[str]:

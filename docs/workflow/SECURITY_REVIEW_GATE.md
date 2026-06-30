@@ -32,12 +32,14 @@ The artifact must follow `spec/review-findings.schema.json` and include traceabl
 - `impact`
 - `remediation`
 - `validation_status`
+- `code_graph_evidence` for high or critical findings, including entrypoint symbol, propagation path, sink symbol, impacted symbols, and linked tests
 
 ## Review Rules
 
 - The gate is report-only unless a caller explicitly asks to fix findings.
-- High or critical findings require concrete impact and declared security triggers.
+- High or critical findings require concrete impact, declared security triggers, and code graph evidence.
 - Evidence paths must stay inside the workspace.
+- Code graph evidence is structural support for review claims, not standalone proof; pair graph refs with concrete traces, impact, and validation status.
 - Defense-in-depth notes are not vulnerabilities unless they include a plausible abuse path and impact.
 - Do not include secrets or credential values in findings. Cite file paths, symbols, keys, or metadata names instead.
 - Do not execute third-party exploits or scan external systems.

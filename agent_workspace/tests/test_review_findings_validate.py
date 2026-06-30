@@ -59,6 +59,58 @@ def _valid_report() -> dict:
     }
 
 
+def _code_graph_evidence() -> dict:
+    return {
+        "entrypoint_symbol": {
+            "path": "agent_workspace/core/router.py",
+            "line": 12,
+            "symbol": "AgentRouter.route",
+            "qualified_name": "agent_workspace.core.router.AgentRouter.route",
+            "kind": "method",
+            "evidence_query": "code_search_symbol AgentRouter",
+            "description": "Code graph entrypoint for routing a caller request.",
+        },
+        "propagation_path": [
+            {
+                "caller": "AgentRouter.route",
+                "callee": "authorize_request",
+                "path": "agent_workspace/core/auth.py",
+                "line": 24,
+                "edge_type": "CALLS",
+                "evidence_query": "code_trace_call_path AgentRouter.route outbound",
+                "description": "Route handling propagates into the authorization check.",
+            }
+        ],
+        "sink_symbol": {
+            "path": "agent_workspace/core/auth.py",
+            "line": 24,
+            "symbol": "authorize_request",
+            "qualified_name": "agent_workspace.core.auth.authorize_request",
+            "kind": "function",
+            "evidence_query": "code_get_snippet authorize_request",
+            "description": "Authorization decision sink for the finding.",
+        },
+        "impacted_symbols": [
+            {
+                "path": "agent_workspace/core/router.py",
+                "line": 12,
+                "symbol": "AgentRouter.route",
+                "kind": "method",
+                "description": "Routing behavior is impacted by the authorization path.",
+            }
+        ],
+        "linked_tests": [
+            {
+                "path": "agent_workspace/tests/test_router.py",
+                "line": 5,
+                "symbol": "test_router_requires_authorization",
+                "kind": "test",
+                "description": "Regression test linked to the affected authorization route.",
+            }
+        ],
+    }
+
+
 def test_validate_review_findings_accepts_traceable_report(tmp_path):
     _touch_workspace_files(tmp_path)
     report = _write_json(tmp_path / "docs" / "reviews" / "TASK-0001-SECURITY.json", _valid_report())
@@ -68,6 +120,22 @@ def test_validate_review_findings_accepts_traceable_report(tmp_path):
     assert result.review_id == "TASK-0001-security"
     assert result.finding_count == 1
     assert result.security_trigger_count == 0
+
+
+def test_validate_review_findings_accepts_high_finding_with_code_graph_evidence(tmp_path):
+    _touch_workspace_files(tmp_path)
+    data = _valid_report()
+    data["risk_level"] = "high"
+    data["changed_paths"] = ["agent_workspace/core/auth.py"]
+    data["security_triggers"] = ["auth_or_authorization"]
+    data["findings"][0]["severity"] = "high"
+    data["findings"][0]["code_graph_evidence"] = _code_graph_evidence()
+    report = _write_json(tmp_path / "docs" / "reviews" / "TASK-0001-SECURITY.json", data)
+
+    result = validate_review_findings(tmp_path, report)
+
+    assert result.review_id == "TASK-0001-security"
+    assert result.security_trigger_count == 1
 
 
 def test_validate_review_findings_rejects_missing_evidence_trace(tmp_path):
@@ -89,6 +157,32 @@ def test_validate_review_findings_rejects_high_finding_without_concrete_impact(t
     report = _write_json(tmp_path / "docs" / "reviews" / "TASK-0001-SECURITY.json", data)
 
     with pytest.raises(ReviewFindingsError, match="concrete impact"):
+        validate_review_findings(tmp_path, report)
+
+
+def test_validate_review_findings_rejects_high_finding_without_code_graph_evidence(tmp_path):
+    _touch_workspace_files(tmp_path)
+    data = _valid_report()
+    data["changed_paths"] = ["agent_workspace/core/auth.py"]
+    data["security_triggers"] = ["auth_or_authorization"]
+    data["findings"][0]["severity"] = "high"
+    report = _write_json(tmp_path / "docs" / "reviews" / "TASK-0001-SECURITY.json", data)
+
+    with pytest.raises(ReviewFindingsError, match="requires code_graph_evidence"):
+        validate_review_findings(tmp_path, report)
+
+
+def test_validate_review_findings_rejects_high_finding_without_linked_tests(tmp_path):
+    _touch_workspace_files(tmp_path)
+    data = _valid_report()
+    data["changed_paths"] = ["agent_workspace/core/auth.py"]
+    data["security_triggers"] = ["auth_or_authorization"]
+    data["findings"][0]["severity"] = "high"
+    data["findings"][0]["code_graph_evidence"] = _code_graph_evidence()
+    data["findings"][0]["code_graph_evidence"]["linked_tests"] = []
+    report = _write_json(tmp_path / "docs" / "reviews" / "TASK-0001-SECURITY.json", data)
+
+    with pytest.raises(ReviewFindingsError, match="schema validation failed"):
         validate_review_findings(tmp_path, report)
 
 
@@ -122,4 +216,18 @@ def test_validate_review_findings_rejects_trace_path_workspace_escape(tmp_path):
     report = _write_json(tmp_path / "docs" / "reviews" / "TASK-0001-SECURITY.json", data)
 
     with pytest.raises(ReviewFindingsError, match="escapes workspace"):
+        validate_review_findings(tmp_path, report)
+
+
+def test_validate_review_findings_rejects_code_graph_evidence_workspace_escape(tmp_path):
+    _touch_workspace_files(tmp_path)
+    data = _valid_report()
+    data["changed_paths"] = ["agent_workspace/core/auth.py"]
+    data["security_triggers"] = ["auth_or_authorization"]
+    data["findings"][0]["severity"] = "high"
+    data["findings"][0]["code_graph_evidence"] = _code_graph_evidence()
+    data["findings"][0]["code_graph_evidence"]["impacted_symbols"][0]["path"] = "../outside.py"
+    report = _write_json(tmp_path / "docs" / "reviews" / "TASK-0001-SECURITY.json", data)
+
+    with pytest.raises(ReviewFindingsError, match="code_graph_evidence.*escapes workspace"):
         validate_review_findings(tmp_path, report)
