@@ -7,6 +7,8 @@ import { chromium } from "playwright";
 const viewerRoot = fileURLToPath(new URL("..", import.meta.url));
 const root = resolve(viewerRoot, "dist");
 const outputRoot = resolve(viewerRoot, "output", "ui-regression");
+const topologyViewPath = resolve(viewerRoot, "src", "components", "TopologyView.tsx");
+const topologyViewSource = readFileSync(topologyViewPath, "utf8");
 const port = Number(process.env.UI_VERIFY_PORT || 5175);
 const takeScreenshots = process.env.UI_VERIFY_SCREENSHOTS === "1" || process.argv.includes("--screenshots");
 const screenshotTimeoutMs = Number(process.env.UI_VERIFY_SCREENSHOT_TIMEOUT_MS || 20_000);
@@ -25,6 +27,24 @@ if (takeScreenshots && !edgePath) {
 }
 
 mkdirSync(outputRoot, { recursive: true });
+
+const topologyStructuralMemoryMarkers = [
+  "data-testid=\"structural-memory-surface\"",
+  "Structural Memory",
+  "code_graph_refs",
+  "impact_summary",
+  "security_relevant_paths",
+];
+
+function assertIncludes(source, token, label) {
+  if (!source.includes(token)) {
+    throw new Error(`${label} missing: ${token}`);
+  }
+}
+
+for (const marker of topologyStructuralMemoryMarkers) {
+  assertIncludes(topologyViewSource, marker, "topology structural memory source marker");
+}
 
 const contentTypes = {
   ".html": "text/html; charset=utf-8",
@@ -145,6 +165,15 @@ try {
   console.log(`largest js chunk: ${largest.name} ${largest.sizeKb.toFixed(2)} kB`);
   if (largest.sizeKb > 500) {
     throw new Error(`Largest JS chunk exceeds 500 kB: ${largest.sizeKb.toFixed(2)} kB`);
+  }
+
+  const topologyChunk = jsChunks.find((chunk) => chunk.name.startsWith("TopologyView-"));
+  if (!topologyChunk) {
+    throw new Error("TopologyView production chunk missing. Run `npm run build` first.");
+  }
+  const topologyChunkSource = readFileSync(join(assetsDir, topologyChunk.name), "utf8");
+  for (const marker of ["structural-memory-surface", "Structural Memory", "code_graph_refs", "impact_summary"]) {
+    assertIncludes(topologyChunkSource, marker, "topology structural memory production marker");
   }
 } finally {
   await new Promise((resolveClose) => server.close(resolveClose));

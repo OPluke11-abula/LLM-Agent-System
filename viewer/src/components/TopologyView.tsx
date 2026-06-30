@@ -135,6 +135,18 @@ function compactWorkflowRef(value?: string | null) {
   return parts.slice(-2).join("/") || normalized;
 }
 
+function safeCount(value: unknown) {
+  const count = Number(value ?? 0);
+  return Number.isFinite(count) && count > 0 ? count : 0;
+}
+
+function compactCodeGraphRef(path?: string | null, symbol?: string | null) {
+  const compactPath = compactWorkflowRef(path);
+  if (!symbol) return compactPath;
+  const compactSymbol = symbol.split(".").slice(-2).join(".");
+  return `${compactSymbol} @ ${compactPath}`;
+}
+
 function isConductorTrace(value: unknown): value is ConductorTrace {
   if (!value || typeof value !== "object") return false;
   const trace = value as Partial<ConductorTrace>;
@@ -174,9 +186,17 @@ function ConductorTracePanel({
   const workflowStage = trace?.workflow_stage_id || null;
   const workflowCheckpoint = trace?.workflow_checkpoint_ref || null;
   const evidenceRefs = trace?.evidence_refs ?? [];
+  const codeGraphRefs = trace?.code_graph_refs ?? [];
+  const impactSummary = trace?.impact_summary ?? null;
+  const changedFileCount = safeCount(impactSummary?.changed_file_count);
+  const impactedSymbolCount = safeCount(impactSummary?.impacted_symbol_count);
+  const linkedTestCount = safeCount(impactSummary?.linked_test_count);
+  const securityRelevantPaths = impactSummary?.security_relevant_paths ?? [];
   const reviewGateTone = verification?.approval_required ? "warning" : evidenceRefs.length > 0 ? "success" : "neutral";
   const reviewGateLabel = verification?.approval_required ? "review" : evidenceRefs.length > 0 ? "evidence" : "open";
   const hasWorkflowSignal = Boolean(workflowStage || workflowCheckpoint || evidenceRefs.length > 0 || verification?.required);
+  const hasStructuralSignal = Boolean(codeGraphRefs.length > 0 || impactSummary);
+  const structuralTone = securityRelevantPaths.length > 0 ? "warning" : codeGraphRefs.length > 0 ? "success" : "neutral";
 
   return (
     <Surface className="group/conductor relative mx-3 mb-3 flex flex-col gap-2 p-3">
@@ -276,6 +296,87 @@ function ConductorTracePanel({
                 {lang === "zh"
                   ? "No workflow stage, checkpoint, or evidence refs published yet."
                   : "No workflow stage, checkpoint, or evidence refs published yet."}
+              </p>
+            )}
+          </div>
+
+          <div
+            className="space-y-1.5 border-t pt-2"
+            style={{ borderColor: "var(--border-c)" }}
+            data-testid="structural-memory-surface"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[8px] font-bold uppercase tracking-[0.14em] t3">
+                {lang === "zh" ? "Structural Memory" : "Structural Memory"}
+              </span>
+              <StatusBadge tone={structuralTone} className="text-[8px]">
+                {codeGraphRefs.length > 0 ? "graph" : "open"}
+              </StatusBadge>
+            </div>
+            <div className="grid grid-cols-4 gap-1.5 text-center font-mono">
+              <MetricTile
+                label={lang === "zh" ? "Refs" : "Refs"}
+                value={codeGraphRefs.length}
+                tone={codeGraphRefs.length > 0 ? "success" : "neutral"}
+                className="p-1"
+              />
+              <MetricTile
+                label={lang === "zh" ? "Files" : "Files"}
+                value={changedFileCount}
+                tone={changedFileCount > 0 ? "accent" : "neutral"}
+                className="p-1"
+              />
+              <MetricTile
+                label={lang === "zh" ? "Symbols" : "Symbols"}
+                value={impactedSymbolCount}
+                tone={impactedSymbolCount > 0 ? "accent" : "neutral"}
+                className="p-1"
+              />
+              <MetricTile
+                label={lang === "zh" ? "Tests" : "Tests"}
+                value={linkedTestCount}
+                tone={linkedTestCount > 0 ? "success" : "neutral"}
+                className="p-1"
+              />
+            </div>
+            {hasStructuralSignal ? (
+              <div className="space-y-1 font-mono text-[8px]">
+                {impactSummary?.summary && (
+                  <p className="line-clamp-2 leading-relaxed t3" title={impactSummary.summary}>
+                    {impactSummary.summary}
+                  </p>
+                )}
+                <div className="max-h-20 space-y-1 overflow-y-auto pr-1">
+                  {codeGraphRefs.slice(0, 3).map((ref, index) => (
+                    <div key={`${ref.path}-${ref.symbol ?? index}`} className="flex items-center justify-between gap-2">
+                      <span className="shrink-0 font-bold uppercase tracking-[0.14em] t3">
+                        {ref.ref_type || "ref"}
+                      </span>
+                      <span
+                        className="truncate text-right t2"
+                        title={ref.qualified_name || ref.symbol || ref.path}
+                      >
+                        {compactCodeGraphRef(ref.path, ref.symbol)}
+                      </span>
+                    </div>
+                  ))}
+                  {securityRelevantPaths.slice(0, 3).map((path) => (
+                    <div key={path} className="flex items-center justify-between gap-2">
+                      <span className="shrink-0 font-bold uppercase tracking-[0.14em] t3">
+                        {lang === "zh" ? "Risk" : "Risk"}
+                      </span>
+                      <span className="truncate text-right t2" title={path}>
+                        {compactWorkflowRef(path)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <p className="text-[8px] leading-relaxed t3">
+                {lang === "zh"
+                  ? "No code graph refs or impact summary published yet."
+                  : "No code graph refs or impact summary published yet."}
               </p>
             )}
           </div>

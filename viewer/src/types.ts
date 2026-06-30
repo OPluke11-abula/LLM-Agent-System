@@ -253,6 +253,22 @@ export type ConductorRouteOutcomeHintTrace = {
   human_intervention_count: number;
 };
 
+export type ConductorCodeGraphRefTrace = {
+  path: string;
+  symbol?: string | null;
+  qualified_name?: string | null;
+  ref_type?: string;
+  description?: string;
+};
+
+export type ConductorImpactSummaryTrace = {
+  changed_file_count?: number;
+  impacted_symbol_count?: number;
+  linked_test_count?: number;
+  security_relevant_paths?: string[];
+  summary?: string;
+};
+
 export type ConductorTrace = {
   schema_version?: string;
   created_at?: string;
@@ -281,6 +297,8 @@ export type ConductorTrace = {
   workflow_stage_id?: string | null;
   workflow_checkpoint_ref?: string | null;
   evidence_refs?: string[];
+  code_graph_refs?: ConductorCodeGraphRefTrace[];
+  impact_summary?: ConductorImpactSummaryTrace | null;
   decision_rationale: string;
 };
 
