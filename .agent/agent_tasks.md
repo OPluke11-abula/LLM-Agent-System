@@ -158,6 +158,7 @@
 | **Phase 63** | 6 tasks | 6 tasks | 100% Done |
 | **Phase 64** | 7 tasks | 7 tasks | 100% Done |
 | **Phase 65** | 5 tasks | 5 tasks | 100% Done |
+| **Phase 66** | 7 tasks | 0 tasks | 0% Pending |
 
 ---
 
@@ -286,6 +287,35 @@ User approved adopting the applicable Codebase-Memory pattern for LAS as an inte
 
 ### 65-05 Viewer Structural Memory Surface
 - [x] **[Frontend Programmer]** Surface graph-derived summaries in the topology/conductor UI, including impacted symbol count, changed-file fanout, linked tests, and security-relevant paths, while keeping raw evidence in local files. Added the viewer `DESIGN.md` contract, typed `code_graph_refs` and `impact_summary`, rendered a Structural Memory surface inside `ConductorTracePanel`, and extended `verify-ui.mjs` to assert source and production chunk markers for the new surface.
+
+---
+
+## PHASE 66 - PAP Mainline Sync, Formal Semantics, and Conformance Upgrade
+
+Source refresh: re-read `OPluke11-abula/Portable-Agent-Protocol` after the user's PAP push. Treat `origin/main` commit `2b6d6e3d8ff24ae22b43e3001aee43c180f86357` as the current upstream PAP source of truth. The remote tree includes Phase 6 governance and LAS interop docs plus PAP surfaces not fully consumed by LAS yet: `docs/FORMAL_SEMANTICS.md`, `docs/HUB_SPEC.md`, `conformance/*.yaml`, `registry/index.json`, `spec/registry-schema.json`, `agent_runtime_ts/`, and the PAP review schema shape with `execution_policy.mode=report_only` and high/critical `exploit_path`.
+
+Keep this phase additive and compatibility-first. Do not replace existing LAS workflow/review/code-graph behavior in one sweep. Each task must preserve current `.agent` workspaces, keep external-state actions report-only by default, and verify with the LAS validation ladder: focused pytest, `agent_workspace/tool_manifest.py validate`, `git diff --check`, then `scripts/verify.cmd`.
+
+### 66-01 Upstream PAP Sync Matrix
+- [ ] **[Protocol Architect]** Add a source-grounded PAP sync matrix under `docs/architecture/` comparing PAP `2b6d6e3` artifacts to LAS current surfaces. Cover agent schema, memory tiers, schema evolution, workflow governance, review findings, registry/hub packaging, conformance YAML, TypeScript runtime stubs, and LAS-only code graph extensions. The matrix must classify each item as already aligned, additive LAS task, intentional deviation, or out of scope.
+
+### 66-02 Agent Manifest Formal Semantics
+- [ ] **[Backend Programmer]** Align LAS `spec/agent-schema.json`, `.agent/agent.md`, and `agent_workspace/pap_validate.py` with PAP formal semantics for `schema_evolution` and four memory tiers (`ephemeral`, `session`, `persistent`, `shared`). Add validation that accepts existing LAS manifests, rejects unsupported tier backends, and records strict-forward-compatibility expectations without enabling automatic self-mutation.
+
+### 66-03 PAP Conformance Runner
+- [ ] **[QA/Verification]** Build a small LAS conformance runner for upstream PAP `conformance/schema-validation.yaml` and `conformance/layout-validation.yaml`. Parse the YAML cases into local pytest fixtures, validate expected accept/reject behavior against `agent_workspace/pap_validate.py`, and document any upstream YAML format ambiguity as a tracked deviation instead of silently skipping cases.
+
+### 66-04 Registry and Hub Safety Gate
+- [ ] **[Backend Programmer]** Add read-only registry/hub validation support for PAP `spec/registry-schema.json`, `registry/index.json`, and `docs/HUB_SPEC.md`. Validate skill registry indexes, enforce public-packaging exclusions (`memory/`, `.env`, SQLite databases, logs, `.git/`), and add a report-only packaging audit command or validator before any future `pap hub pack` or clone behavior is considered.
+
+### 66-05 Review Findings Dual-Shape Compatibility
+- [ ] **[Security/Backend Programmer]** Upgrade LAS review/security validation to understand both the existing LAS `review_id`/trace/code-graph-evidence shape and the upstream PAP `report_id`/`execution_policy`/`source_trace`/`exploit_path` shape. High or critical findings must remain report-only, require concrete impact, require exploit path or code graph evidence, and preserve workspace-contained evidence paths.
+
+### 66-06 Evidence Memory Schema Parity
+- [ ] **[Backend Programmer]** Reconcile LAS `memory_pack.py` and `LongTermMemoryStore.add_workflow_memory()` with upstream PAP `evidence-memory.schema.json`. Add schema-backed checks for `l0_raw_evidence_refs`, `canonical_artifacts`, L1 atoms, L2 scenarios, L3 profile claims, and Mermaid canvas refs so each stored workflow memory record has a raw evidence ref, canonical artifact ref, or lower-level trace ref.
+
+### 66-07 Runtime Parity and TypeScript Surface Audit
+- [ ] **[QA/Architect]** Audit PAP `agent_runtime_ts/` against LAS Python runtime expectations without introducing a second runtime into LAS. Produce a parity checklist for engine initialization, tool routing, memory tier config, schema evolution handling, and MCP server declarations; add tests or docs only where they protect LAS/PAP compatibility, and keep TypeScript runtime execution out of the default LAS verify path unless explicitly approved.
 
 ---
 
