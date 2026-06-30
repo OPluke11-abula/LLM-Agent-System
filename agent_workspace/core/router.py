@@ -843,6 +843,8 @@ class AgentRouter:
         workflow_stage_id: str | None = None,
         workflow_checkpoint_ref: str | None = None,
         evidence_refs: list[str] | None = None,
+        code_graph_refs: list[dict[str, Any]] | None = None,
+        impact_summary: dict[str, Any] | None = None,
     ) -> ConductorPlan:
         route_outcome_hints: list[dict[str, Any]] = []
         if self.long_term_memory:
@@ -869,6 +871,8 @@ class AgentRouter:
             workflow_stage_id=workflow_stage_id,
             workflow_checkpoint_ref=workflow_checkpoint_ref,
             evidence_refs=evidence_refs,
+            code_graph_refs=code_graph_refs,
+            impact_summary=impact_summary,
         )
         self.last_conductor_plan = plan
         return plan
@@ -888,6 +892,16 @@ class AgentRouter:
             span.set_attribute("conductor.workflow_checkpoint_ref", plan.workflow_checkpoint_ref)
         if plan.evidence_refs:
             span.set_attribute("conductor.evidence_ref_count", len(plan.evidence_refs))
+        if plan.code_graph_refs:
+            span.set_attribute("conductor.code_graph_ref_count", len(plan.code_graph_refs))
+        if plan.impact_summary:
+            span.set_attribute("conductor.impact.changed_file_count", plan.impact_summary.changed_file_count)
+            span.set_attribute("conductor.impact.impacted_symbol_count", plan.impact_summary.impacted_symbol_count)
+            span.set_attribute("conductor.impact.linked_test_count", plan.impact_summary.linked_test_count)
+            span.set_attribute(
+                "conductor.impact.security_relevant_path_count",
+                len(plan.impact_summary.security_relevant_paths),
+            )
         logger.info(
             "Conductor plan created",
             extra={

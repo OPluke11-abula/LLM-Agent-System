@@ -85,6 +85,21 @@ def test_router_conductor_trace_and_span_include_workflow_metadata_when_present(
         workflow_stage_id="atomic_task",
         workflow_checkpoint_ref=".agent/checkpoints/TASK-0001.json",
         evidence_refs=[".agent/memory/refs/TASK-0001.md"],
+        code_graph_refs=[
+            {
+                "path": "agent_workspace/core/router.py",
+                "symbol": "AgentRouter._build_conductor_plan",
+                "ref_type": "entrypoint",
+                "description": "Router builds conductor telemetry.",
+            }
+        ],
+        impact_summary={
+            "changed_file_count": 1,
+            "impacted_symbol_count": 2,
+            "linked_test_count": 1,
+            "security_relevant_paths": ["agent_workspace/core/router.py"],
+            "summary": "Router telemetry metadata changed.",
+        },
     )
     span = RecordingSpan()
 
@@ -94,9 +109,16 @@ def test_router_conductor_trace_and_span_include_workflow_metadata_when_present(
     assert event["trace"]["workflow_stage_id"] == "atomic_task"
     assert event["trace"]["workflow_checkpoint_ref"] == ".agent/checkpoints/TASK-0001.json"
     assert event["trace"]["evidence_refs"] == [".agent/memory/refs/TASK-0001.md"]
+    assert event["trace"]["code_graph_refs"][0]["symbol"] == "AgentRouter._build_conductor_plan"
+    assert event["trace"]["impact_summary"]["impacted_symbol_count"] == 2
     assert span.attributes["conductor.workflow_stage_id"] == "atomic_task"
     assert span.attributes["conductor.workflow_checkpoint_ref"] == ".agent/checkpoints/TASK-0001.json"
     assert span.attributes["conductor.evidence_ref_count"] == 1
+    assert span.attributes["conductor.code_graph_ref_count"] == 1
+    assert span.attributes["conductor.impact.changed_file_count"] == 1
+    assert span.attributes["conductor.impact.impacted_symbol_count"] == 2
+    assert span.attributes["conductor.impact.linked_test_count"] == 1
+    assert span.attributes["conductor.impact.security_relevant_path_count"] == 1
     assert plan.selected_models[0].model == "gemini-2.5-flash"
 
 

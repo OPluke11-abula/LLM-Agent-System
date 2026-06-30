@@ -66,9 +66,18 @@ def tool_payload(name: str, arguments: dict[str, Any], result: Any = None, error
 
 
 def conductor_trace_payload(trace: dict[str, Any]) -> dict[str, Any]:
+    def _count(value: Any) -> int:
+        try:
+            count = int(value or 0)
+        except (TypeError, ValueError):
+            return 0
+        return count if count >= 0 else 0
+
     selected_models = trace.get("selected_models") if isinstance(trace.get("selected_models"), list) else []
     verification = trace.get("verification_strategy") if isinstance(trace.get("verification_strategy"), dict) else {}
     evidence_refs = trace.get("evidence_refs") if isinstance(trace.get("evidence_refs"), list) else []
+    code_graph_refs = trace.get("code_graph_refs") if isinstance(trace.get("code_graph_refs"), list) else []
+    impact_summary = trace.get("impact_summary") if isinstance(trace.get("impact_summary"), dict) else None
     workflow_stage_id = trace.get("workflow_stage_id")
     workflow_checkpoint_ref = trace.get("workflow_checkpoint_ref")
     model_label = "unknown"
@@ -83,6 +92,10 @@ def conductor_trace_payload(trace: dict[str, Any]) -> dict[str, Any]:
     result_summary = f"Verification: {verifier_label}"
     if workflow_stage_id:
         result_summary = f"Workflow stage: {workflow_stage_id} | {result_summary}"
+    if impact_summary:
+        impacted_symbols = _count(impact_summary.get("impacted_symbol_count"))
+        linked_tests = _count(impact_summary.get("linked_test_count"))
+        result_summary = f"{result_summary} | Impact: {impacted_symbols} symbol(s), {linked_tests} test(s)"
     return {
         "title": "Workflow Stage" if workflow_stage_id else "Conductor Trace",
         "name": str(workflow_stage_id or "conductor_trace"),
@@ -99,6 +112,8 @@ def conductor_trace_payload(trace: dict[str, Any]) -> dict[str, Any]:
             "verification": verifier_label,
             "workflow_checkpoint_ref": workflow_checkpoint_ref,
             "evidence_ref_count": len(evidence_refs),
+            "code_graph_ref_count": len(code_graph_refs),
+            "impact_summary": impact_summary,
         },
         "rbac_role": "standard",
         "error_count": 0,

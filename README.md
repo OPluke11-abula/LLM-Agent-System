@@ -49,7 +49,7 @@ The opt-in `codex-development` workflow manifest under `.agent/workflows/` model
 
 Evidence memory packing is available through `agent_workspace/memory_pack.py`. It explicitly copies selected raw output into `.agent/memory/refs/`, writes traceable L1 atoms, L2 scenarios, optional L3 persona notes, and Mermaid canvases, while keeping every summary tied to a `result_ref` and source hash.
 
-`ConductorPlan` can now carry optional workflow audit metadata: `workflow_stage_id`, `workflow_checkpoint_ref`, and `evidence_refs`. These fields are emitted through router telemetry and streamed topology payloads when present, including workflow-stage node support, but they remain audit-only and do not affect provider selection, tool resolution, or routing behavior.
+`ConductorPlan` can now carry optional workflow audit metadata: `workflow_stage_id`, `workflow_checkpoint_ref`, `evidence_refs`, `code_graph_refs`, and `impact_summary`. These fields are emitted through router telemetry and streamed topology payloads when present, including workflow-stage node support and structural code-evidence counts, but they remain audit-only and do not affect provider selection, tool resolution, or routing behavior.
 
 Structured review and security-gate reports are validated by `agent_workspace/review_findings_validate.py` against `spec/review-findings.schema.json`. Findings require entrypoint, sink, evidence, impact, remediation, and validation status; high-risk paths must declare security triggers and stay inside the workspace. High or critical findings also require code graph evidence for the entrypoint symbol, propagation path, sink symbol, impacted symbols, and linked tests.
 
@@ -276,7 +276,7 @@ Workflow governance 現在拆成 `docs/workflow/` 底下的短文件：`SOURCE_O
 
 Evidence memory packing 現在可透過 `agent_workspace/memory_pack.py` 明確執行。它會把指定 raw output 複製到 `.agent/memory/refs/`，寫入可追溯的 L1 atoms、L2 scenarios、可選 L3 persona notes 與 Mermaid canvases，並讓每個 summary 保留 `result_ref` 與 source hash。
 
-`ConductorPlan` 現在可以攜帶可選的 workflow audit metadata：`workflow_stage_id`、`workflow_checkpoint_ref` 與 `evidence_refs`。這些欄位在存在時會進入 router telemetry 與 streamed topology payload，並支援 workflow-stage node；但它們仍只作為審計資訊，不影響 provider selection、tool resolution 或 routing 行為。
+`ConductorPlan` 現在可以攜帶可選的 workflow audit metadata：`workflow_stage_id`、`workflow_checkpoint_ref`、`evidence_refs`、`code_graph_refs` 與 `impact_summary`。這些欄位在存在時會進入 router telemetry 與 streamed topology payload，並支援 workflow-stage node 與 structural code-evidence counts；但它們仍只作為審計資訊，不影響 provider selection、tool resolution 或 routing 行為。
 
 Structured review 與 security-gate 報告現在由 `agent_workspace/review_findings_validate.py` 依照 `spec/review-findings.schema.json` 驗證。Finding 必須包含 entrypoint、sink、evidence、impact、remediation 與 validation status；高風險路徑必須宣告 security triggers，且證據路徑必須留在 workspace 內。High 或 critical finding 也必須附上 code graph evidence，包含 entrypoint symbol、propagation path、sink symbol、impacted symbols 與 linked tests。
 

@@ -170,6 +170,21 @@ def test_topology_stream_conductor_trace_payload_exposes_workflow_stage_refs():
         "workflow_stage_id": "atomic_task",
         "workflow_checkpoint_ref": ".agent/checkpoints/TASK-0001.json",
         "evidence_refs": [".agent/memory/refs/TASK-0001.md"],
+        "code_graph_refs": [
+            {
+                "path": "agent_workspace/core/router.py",
+                "symbol": "AgentRouter._build_conductor_plan",
+                "ref_type": "entrypoint",
+                "description": "Router builds conductor telemetry.",
+            }
+        ],
+        "impact_summary": {
+            "changed_file_count": 1,
+            "impacted_symbol_count": 2,
+            "linked_test_count": 1,
+            "security_relevant_paths": ["agent_workspace/core/router.py"],
+            "summary": "Router telemetry metadata changed.",
+        },
         "selected_models": [{"provider": "google-genai", "model": "gemini-2.5-flash"}],
         "verification_strategy": {"kind": "verifier", "required": True},
     }
@@ -181,7 +196,12 @@ def test_topology_stream_conductor_trace_payload_exposes_workflow_stage_refs():
     assert payload["input"]["workflow_stage_id"] == "atomic_task"
     assert payload["output"]["workflow_checkpoint_ref"] == ".agent/checkpoints/TASK-0001.json"
     assert payload["output"]["evidence_ref_count"] == 1
-    assert payload["result_summary"] == "Workflow stage: atomic_task | Verification: verifier"
+    assert payload["output"]["code_graph_ref_count"] == 1
+    assert payload["output"]["impact_summary"]["impacted_symbol_count"] == 2
+    assert (
+        payload["result_summary"]
+        == "Workflow stage: atomic_task | Verification: verifier | Impact: 2 symbol(s), 1 test(s)"
+    )
     assert payload["conductor_trace"] == trace
 
 

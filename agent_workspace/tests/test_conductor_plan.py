@@ -43,6 +43,8 @@ def test_conductor_plan_serializes_stable_default_plan():
     assert dumped["workflow_stage_id"] is None
     assert dumped["workflow_checkpoint_ref"] is None
     assert dumped["evidence_refs"] == []
+    assert dumped["code_graph_refs"] == []
+    assert dumped["impact_summary"] is None
 
 
 def test_conductor_plan_serializes_workflow_metadata_without_changing_selection():
@@ -69,6 +71,46 @@ def test_conductor_plan_serializes_workflow_metadata_without_changing_selection(
     assert dumped["selected_models"][0]["provider"] == "google-genai"
     assert dumped["selected_models"][0]["model"] == "gemini-2.5-flash"
     assert dumped["tool_allowlist"] == ["run_tests"]
+
+
+def test_conductor_plan_serializes_code_graph_metadata_without_changing_selection():
+    plan = build_default_conductor_plan(
+        task_id="session-65:atomic_task",
+        task_summary="Review changed code graph evidence.",
+        session_id="session-65",
+        task_type="compilation",
+        intent="TASK",
+        resolved_tools=["code_search_symbol", "run_tests"],
+        selected_account={"id": "primary", "provider": "google-genai", "model": "gemini-2.5-flash"},
+        max_iterations=5,
+        max_tool_calls=15,
+        workflow_stage_id="review",
+        code_graph_refs=[
+            {
+                "path": "agent_workspace/core/router.py",
+                "symbol": "AgentRouter._build_conductor_plan",
+                "qualified_name": "agent_workspace.core.router.AgentRouter._build_conductor_plan",
+                "ref_type": "entrypoint",
+                "description": "Router builds the telemetry-only conductor plan.",
+            }
+        ],
+        impact_summary={
+            "changed_file_count": 2,
+            "impacted_symbol_count": 3,
+            "linked_test_count": 2,
+            "security_relevant_paths": ["agent_workspace/core/router.py"],
+            "summary": "Audit-only code graph metadata for workflow review.",
+        },
+    )
+
+    dumped = plan.model_dump(mode="json")
+
+    assert dumped["code_graph_refs"][0]["symbol"] == "AgentRouter._build_conductor_plan"
+    assert dumped["impact_summary"]["impacted_symbol_count"] == 3
+    assert dumped["impact_summary"]["linked_test_count"] == 2
+    assert plan.selected_models[0].provider == "google-genai"
+    assert plan.selected_models[0].model == "gemini-2.5-flash"
+    assert plan.tool_allowlist == ["code_search_symbol", "run_tests"]
 
 
 def test_conductor_plan_rejects_unknown_mode_and_topology():

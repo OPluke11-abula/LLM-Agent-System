@@ -110,6 +110,26 @@ class RouteOutcomeHint(BaseModel):
     human_intervention_count: int = Field(default=0, ge=0)
 
 
+class CodeGraphRef(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    path: str
+    symbol: str | None = None
+    qualified_name: str | None = None
+    ref_type: str = "code_graph"
+    description: str = ""
+
+
+class ImpactSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    changed_file_count: int = Field(default=0, ge=0)
+    impacted_symbol_count: int = Field(default=0, ge=0)
+    linked_test_count: int = Field(default=0, ge=0)
+    security_relevant_paths: list[str] = Field(default_factory=list)
+    summary: str = ""
+
+
 class ConductorPlan(BaseModel):
     """Audit-friendly plan describing how LAS intends to orchestrate a task."""
 
@@ -137,6 +157,8 @@ class ConductorPlan(BaseModel):
     workflow_stage_id: str | None = None
     workflow_checkpoint_ref: str | None = None
     evidence_refs: list[str] = Field(default_factory=list)
+    code_graph_refs: list[CodeGraphRef] = Field(default_factory=list)
+    impact_summary: ImpactSummary | None = None
     decision_rationale: str
 
     @model_validator(mode="after")
@@ -286,6 +308,8 @@ def build_default_conductor_plan(
     workflow_stage_id: str | None = None,
     workflow_checkpoint_ref: str | None = None,
     evidence_refs: list[str] | None = None,
+    code_graph_refs: list[dict[str, Any]] | None = None,
+    impact_summary: dict[str, Any] | None = None,
 ) -> ConductorPlan:
     """Build a deterministic telemetry plan without changing runtime behavior."""
 
@@ -355,5 +379,7 @@ def build_default_conductor_plan(
         workflow_stage_id=workflow_stage_id,
         workflow_checkpoint_ref=workflow_checkpoint_ref,
         evidence_refs=list(evidence_refs or []),
+        code_graph_refs=list(code_graph_refs or []),
+        impact_summary=ImpactSummary(**impact_summary) if impact_summary else None,
         decision_rationale=decision_rationale,
     )

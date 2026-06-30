@@ -157,7 +157,7 @@
 | **Phase 62** | 6 tasks | 6 tasks | 100% Done |
 | **Phase 63** | 6 tasks | 6 tasks | 100% Done |
 | **Phase 64** | 7 tasks | 7 tasks | 100% Done |
-| **Phase 65** | 5 tasks | 3 tasks | 60% In Progress |
+| **Phase 65** | 5 tasks | 4 tasks | 80% In Progress |
 
 ---
 
@@ -282,7 +282,7 @@ User approved adopting the applicable Codebase-Memory pattern for LAS as an inte
 - [x] **[Security/Backend Programmer]** Attach code graph evidence to review/security findings so high-risk findings can cite entrypoint, propagation, sink, impacted symbols, and linked tests instead of relying on prose-only claims. Added `code_graph_evidence` to `spec/review-findings.schema.json`, enforced high/critical graph evidence in `agent_workspace/review_findings_validate.py`, validated workspace containment for graph evidence paths, documented the security gate rule, and added focused validator tests.
 
 ### 65-04 Conductor Code Graph Bridge
-- [ ] **[Backend Programmer]** Add optional `code_graph_refs` and `impact_summary` metadata to `ConductorPlan` telemetry so workflow stages can cite structural code evidence without changing provider selection, tool resolution, or routing policy.
+- [x] **[Backend Programmer]** Add optional `code_graph_refs` and `impact_summary` metadata to `ConductorPlan` telemetry so workflow stages can cite structural code evidence without changing provider selection, tool resolution, or routing policy. Added audit-only Pydantic metadata models, threaded them through router conductor trace events and bounded span counts, exposed graph ref counts plus impact summaries in topology payloads, and covered the bridge with focused plan/router/topology tests.
 
 ### 65-05 Viewer Structural Memory Surface
 - [ ] **[Frontend Programmer]** Surface graph-derived summaries in the topology/conductor UI, including impacted symbol count, changed-file fanout, linked tests, and security-relevant paths, while keeping raw evidence in local files.
