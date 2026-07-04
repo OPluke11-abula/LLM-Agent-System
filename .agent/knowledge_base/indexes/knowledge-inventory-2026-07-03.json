@@ -1,0 +1,70 @@
+{
+  "generated": "2026-07-03",
+  "root": "D:/GitHub/LLM-Agent-System/.agent/knowledge_base",
+  "purpose": "Token-saving local inventory for ranking LAS knowledge notes before reading them.",
+  "contains_full_text": false,
+  "ranking_order": [
+    "exact_title",
+    "path_segment",
+    "heading",
+    "wikilink",
+    "search_cue",
+    "body_search_fallback"
+  ],
+  "entries": [
+    {
+      "path": "projects/LLM-Agent-System.md",
+      "type": "project",
+      "title": "LLM Agent System",
+      "cues": ["LAS overview", "architecture", "commands", "routes", "symbols", "project intake"]
+    },
+    {
+      "path": "workflows/query-memory.md",
+      "type": "workflow",
+      "title": "Query Memory Workflow",
+      "cues": ["query", "local memory", "answer contract", "verified now", "not verified"]
+    },
+    {
+      "path": "workflows/semantic-retrieval-pilot.md",
+      "type": "workflow",
+      "title": "Semantic Retrieval Pilot Workflow",
+      "cues": ["semantic retrieval", "local text inventory", "embeddings", "Smart Connections", "plugin risks"]
+    },
+    {
+      "path": "workflows/local-knowledge-inventory.md",
+      "type": "workflow",
+      "title": "Local Knowledge Inventory Workflow",
+      "cues": ["inventory", "ranking", "title weighting", "path weighting", "headings", "wikilinks"]
+    },
+    {
+      "path": "workflows/evidence-capture.md",
+      "type": "workflow",
+      "title": "Evidence Capture Workflow",
+      "cues": ["evidence", "command output", "verification", "captured output", "proof"]
+    },
+    {
+      "path": "workflows/session-journal.md",
+      "type": "workflow",
+      "title": "Session Journal Workflow",
+      "cues": ["session journal", "low-token start", "next agent", "changed on disk"]
+    },
+    {
+      "path": "known-issues/memory-must-not-replace-verification.md",
+      "type": "known_issue",
+      "title": "Known Issue - Memory Must Not Replace Verification",
+      "cues": ["stale memory", "live verification", "proof", "current state"]
+    },
+    {
+      "path": "decisions/local-markdown-agent-os.md",
+      "type": "decision",
+      "title": "Decision - Local Markdown Agent OS",
+      "cues": ["local Markdown", "agent OS", "decision", "revisit criteria"]
+    },
+    {
+      "path": "handoffs/session-journal-2026-07-03-obsidian-las-workflows.md",
+      "type": "handoff",
+      "title": "Session Journal - Obsidian LAS Workflows - 2026-07-03",
+      "cues": ["session journal", "Obsidian LAS workflows", "next agent start"]
+    }
+  ]
+}
