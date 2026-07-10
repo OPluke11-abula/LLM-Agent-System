@@ -15,6 +15,11 @@ if str(workspace_parent) not in sys.path:
     sys.path.insert(0, str(workspace_parent))
 
 from agent_workspace.long_term_memory import LongTermMemoryStore
+from agent_workspace.evidence_memory_validate import (
+    EvidenceMemoryBuildInput,
+    build_evidence_memory_document,
+    validate_evidence_memory_document,
+)
 
 
 TASK_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
@@ -26,6 +31,7 @@ class MemoryPackResult:
     atom_id: str
     result_ref: str
     canvas_ref: str
+    evidence_memory_ref: str
     source_hash: str
 
 
@@ -67,6 +73,7 @@ def pack_evidence(
     scenario_path = scenarios_dir / f"{task_id}.md"
     persona_path = memory_root / "l3-persona.md"
     canvas_path = canvases_dir / f"{task_id}.mmd"
+    evidence_memory_path = memory_root / "evidence-memory.json"
 
     ref_path.write_text(raw_text, encoding="utf-8")
 
@@ -126,6 +133,25 @@ def pack_evidence(
         ),
         encoding="utf-8",
     )
+    evidence_memory_ref = _relative_posix(root_path, evidence_memory_path)
+    evidence_memory = build_evidence_memory_document(
+        EvidenceMemoryBuildInput(
+            task_id=task_id,
+            atom_id=atom_id,
+            result_ref=result_ref,
+            canvas_ref=canvas_ref,
+            source_path=_relative_or_absolute(root_path, source_path),
+            source_hash=source_hash,
+            fact=fact,
+            scenario=scenario_text,
+            persona=persona,
+        )
+    )
+    evidence_memory_path.write_text(
+        json.dumps(evidence_memory, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    validate_evidence_memory_document(root_path, evidence_memory_path)
 
     if store_long_term:
         store = LongTermMemoryStore(root_path / "memory", backend_name="sqlite")
@@ -152,6 +178,7 @@ def pack_evidence(
         atom_id=atom_id,
         result_ref=result_ref,
         canvas_ref=canvas_ref,
+        evidence_memory_ref=evidence_memory_ref,
         source_hash=source_hash,
     )
 

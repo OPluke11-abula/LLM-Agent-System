@@ -5,12 +5,22 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
+from typing import Any, Final
 import yaml
 import jsonschema
 
 # Reference protocol and runtime version defaults
 PROTOCOL_VERSION = "1.0.0"
 RUNTIME_VERSION = "0.5.0"
+MEMORY_TIER_BACKENDS: Final[dict[str, frozenset[str]]] = {
+    "ephemeral": frozenset({"in_memory", "none"}),
+    "session": frozenset({"in_memory", "local", "redis"}),
+    "persistent": frozenset({"local", "json", "sqlite", "vector"}),
+    "shared": frozenset({"none", "sqlite", "postgres", "redis"}),
+}
+SCHEMA_EVOLUTION_KEYS: Final[frozenset[str]] = frozenset(
+    {"allow_self_evolution", "strict_forward_compatibility"}
+)
 
 
 def parse_version(v_str: str) -> tuple[int, int, int]:
@@ -35,6 +45,50 @@ def extract_frontmatter(manifest_path: Path) -> str:
     if len(parts) < 3:
         raise ValueError(f"{manifest_path} does not contain YAML front matter")
     return parts[1]
+
+
+def _require_mapping(value: Any, field_name: str) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        raise ValueError(f"{field_name} must be an object")
+    return value
+
+
+def _validate_memory_tiers(config: dict[str, Any]) -> None:
+    memory = config.get("memory")
+    if memory is None:
+        return
+
+    tiers = _require_mapping(_require_mapping(memory, "memory").get("tiers", {}), "memory.tiers")
+    unknown_tiers = sorted(set(tiers) - set(MEMORY_TIER_BACKENDS))
+    if unknown_tiers:
+        raise ValueError(f"Unsupported memory tier(s): {', '.join(unknown_tiers)}")
+
+    for tier_name, backend in tiers.items():
+        if backend not in MEMORY_TIER_BACKENDS[tier_name]:
+            allowed = ", ".join(sorted(MEMORY_TIER_BACKENDS[tier_name]))
+            raise ValueError(
+                f"Unsupported backend for memory.tiers.{tier_name}: {backend}. "
+                f"Allowed backends: {allowed}"
+            )
+
+
+def _validate_schema_evolution(config: dict[str, Any]) -> None:
+    schema_evolution = config.get("schema_evolution")
+    if schema_evolution is None:
+        return
+
+    evolution = _require_mapping(schema_evolution, "schema_evolution")
+    unknown_keys = sorted(set(evolution) - SCHEMA_EVOLUTION_KEYS)
+    if unknown_keys:
+        raise ValueError(f"Unsupported schema_evolution field(s): {', '.join(unknown_keys)}")
+
+    allow_self_evolution = evolution.get("allow_self_evolution", False)
+    strict_forward_compatibility = evolution.get("strict_forward_compatibility", True)
+    if allow_self_evolution and not strict_forward_compatibility:
+        raise ValueError(
+            "schema_evolution.strict_forward_compatibility must remain true "
+            "when allow_self_evolution is enabled"
+        )
 
 
 def validate(root: Path) -> None:
@@ -63,6 +117,9 @@ def validate(root: Path) -> None:
         jsonschema.validate(instance=config, schema=schema)
     except jsonschema.exceptions.ValidationError as e:
         raise ValueError(f"Schema validation failed: {e.message}") from e
+
+    _validate_memory_tiers(config)
+    _validate_schema_evolution(config)
 
     # 2. Semantic version checks
     proto_ver = config.get("protocol_version", "1.0.0")

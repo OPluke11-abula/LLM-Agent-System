@@ -83,7 +83,7 @@ for (const endpoint of requiredCalibrationEndpoints) {
   assertIncludes(calibrationSource, endpoint, "calibration API endpoint");
 }
 
-for (const token of ["generateMemberSignature", "payload_hash", "VALIDATOR_CREDENTIALS"]) {
+for (const token of ["generateMemberSignature", "payload_hash", "VALIDATOR_ROLES"]) {
   assertIncludes(calibrationSource, token, "cryptographic vote binding");
 }
 

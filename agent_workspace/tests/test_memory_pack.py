@@ -3,6 +3,10 @@ from pathlib import Path
 
 from agent_workspace.long_term_memory import LongTermMemoryStore
 from agent_workspace.memory_pack import pack_evidence
+from agent_workspace.evidence_memory_validate import (
+    EvidenceMemoryValidationError,
+    validate_evidence_memory_document,
+)
 
 
 def test_pack_evidence_writes_ref_atom_scenario_persona_and_canvas(tmp_path):
@@ -24,6 +28,7 @@ def test_pack_evidence_writes_ref_atom_scenario_persona_and_canvas(tmp_path):
     scenario_path = tmp_path / ".agent" / "memory" / "l2-scenarios" / "TASK-0001.md"
     persona_path = tmp_path / ".agent" / "memory" / "l3-persona.md"
     canvas_path = tmp_path / result.canvas_ref
+    evidence_memory_path = tmp_path / result.evidence_memory_ref
 
     assert ref_path.read_text(encoding="utf-8").endswith("pytest output\n5 passed\n")
 
@@ -47,6 +52,15 @@ def test_pack_evidence_writes_ref_atom_scenario_persona_and_canvas(tmp_path):
     assert result.atom_id in canvas_text
     assert result.result_ref in canvas_text
     assert "TASK-0001" in canvas_text
+
+    evidence_memory = json.loads(evidence_memory_path.read_text(encoding="utf-8"))
+    assert evidence_memory["l0_raw_evidence_refs"][-1]["path"] == result.result_ref
+    assert evidence_memory["canonical_artifacts"][-1]["evidence_refs"] == [f"raw-TASK-0001"]
+    assert evidence_memory["l1_atoms"][-1]["canonical_artifact_refs"] == ["artifact-TASK-0001"]
+    assert evidence_memory["l2_scenarios"][-1]["atom_refs"] == [result.atom_id]
+    assert evidence_memory["l3_profile_claims"][-1]["evidence_refs"] == [f"raw-TASK-0001"]
+    assert evidence_memory["mermaid_canvas_refs"][-1]["path"] == result.canvas_ref
+    assert validate_evidence_memory_document(tmp_path, evidence_memory_path).record_count == 6
 
 
 def test_pack_evidence_rejects_workspace_escape_for_task_id(tmp_path):
@@ -88,5 +102,24 @@ def test_workflow_memory_record_uses_traceable_record_type(tmp_path):
         assert stored["payload"]["record_type"] == "workflow_atom"
         assert stored["payload"]["result_ref"] == ".agent/memory/refs/TASK-0001.md"
         assert stored["citations"] == [".agent/memory/refs/TASK-0001.md"]
+    finally:
+        store.close()
+
+
+def test_workflow_memory_record_rejects_untraceable_payload(tmp_path):
+    store = LongTermMemoryStore(tmp_path / "memory", backend_name="sqlite")
+    try:
+        try:
+            store.add_workflow_memory(
+                session_id="session-workflow",
+                record_type="workflow_atom",
+                summary="Untraceable atom.",
+                payload={"task_id": "TASK-0001"},
+                citations=[],
+            )
+        except EvidenceMemoryValidationError as error:
+            assert "raw evidence, canonical artifact, or lower-level trace" in str(error)
+        else:
+            raise AssertionError("workflow memory without trace refs should be rejected")
     finally:
         store.close()

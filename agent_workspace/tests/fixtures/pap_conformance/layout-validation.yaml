@@ -1,0 +1,20 @@
+tests:
+  - name: "Accept default layout structure"
+    input:
+      filesystem:
+        ".agent/agent.md": "..."
+        ".agent/persona.md": "..."
+        ".agent/memory.md": "..."
+        ".agent/skills/": []
+        ".agent/workflows/": []
+        ".agent/knowledge/": []
+    expected_behavior: "accept"
+
+  - name: "Reject missing critical files"
+    input:
+      filesystem:
+        ".agent/agent.md": "..."
+        ".agent/skills/": []
+        ".agent/workflows/": []
+        ".agent/knowledge/": []
+    expected_behavior: "reject_with_error"

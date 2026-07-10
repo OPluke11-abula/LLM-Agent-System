@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PromptCalibrationDashboard } from "./PromptCalibrationDashboard";
 import { Button, MetricTile, ProgressBar, StatusBadge, Surface, toneForStatus } from "./ui/primitives";
+import { adminApiUrl, adminJsonHeaders, adminWsUrl } from "../services/adminRuntimeAuth";
 import type { Lang } from "../types";
 
 type Tone = "success" | "warning" | "danger";
+type CockpitTone = "neutral" | "accent" | "success" | "warning" | "danger";
 
 export type SwarmReplayEvent = {
   id: string;
@@ -420,25 +422,18 @@ function readArray(value: unknown, keys: string[]) {
   return [];
 }
 
-const API_BASE_URL = "http://localhost:8000";
-const ADMIN_API_KEY = "key-admin";
-
 function apiUrl(path: string) {
-  return `${API_BASE_URL}${path}`;
+  return adminApiUrl(path);
 }
 
 function wsUrl(path: string) {
-  const url = new URL(path, API_BASE_URL);
-  url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
-  url.searchParams.set("api_key", ADMIN_API_KEY);
-  return url.toString();
+  return adminWsUrl(path);
 }
 
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     headers: {
-      "Content-Type": "application/json",
-      "x-api-key": ADMIN_API_KEY,
+      ...adminJsonHeaders(),
       ...(options?.headers ?? {}),
     },
     ...options,
@@ -713,6 +708,196 @@ function deriveGatewayAlerts(peers: PeerNode[]) {
       }]
       : [];
   });
+}
+
+function checkpointCompletion(sessions: SwarmSession[]) {
+  const total = sessions.reduce((sum, session) => sum + Math.max(1, session.total), 0);
+  const completed = sessions.reduce((sum, session) => sum + session.completed, 0);
+  return { completed, total, percent: total > 0 ? Math.round((completed / total) * 100) : 0 };
+}
+
+function hasRiskyPeer(peer: PeerNode) {
+  const status = peer.status.toLowerCase();
+  return !peer.mtls || status.includes("signature") || status.includes("offline") || status.includes("failed") || status.includes("error");
+}
+
+function statusLabel(tone: CockpitTone) {
+  if (tone === "success") return "SAFE";
+  if (tone === "danger") return "BLOCKED";
+  if (tone === "warning") return "REVIEW REQUIRED";
+  return "OBSERVE";
+}
+
+function GovernanceSecurityCockpit({
+  copy,
+  nodes,
+  sessions,
+  peers,
+  billing,
+  mtlsStatus,
+  countdownSeconds,
+  alerts,
+  revokedCertificates,
+  proof,
+  validation,
+  healthLogs,
+}: {
+  copy: GovernanceCopy;
+  nodes: SwarmNode[];
+  sessions: SwarmSession[];
+  peers: PeerNode[];
+  billing: BillingStatus;
+  mtlsStatus: MTLSTunnelStatus;
+  countdownSeconds: number;
+  alerts: GatewayAlert[];
+  revokedCertificates: RevokedCertificate[];
+  proof: AuditProof | null;
+  validation: ProofValidation | null;
+  healthLogs: HealthLog[];
+}) {
+  const checkpoints = checkpointCompletion(sessions);
+  const riskyPeers = peers.filter(hasRiskyPeer);
+  const mtlsStatusValue = normalizeMTLSStatus(mtlsStatus.status, countdownSeconds);
+  const proofTone: CockpitTone = validation ? (validation.valid ? "success" : "danger") : proof ? "warning" : "neutral";
+  const consensusTone: CockpitTone = sessions.some((session) => session.status === "blocked" || session.status === "failed")
+    ? "danger"
+    : checkpoints.percent >= 75
+      ? "success"
+      : "warning";
+  const tunnelTone: CockpitTone = mtlsStatusValue === "expired" || mtlsStatusValue === "revoked" || riskyPeers.some((peer) => peer.status.toLowerCase().includes("signature"))
+    ? "danger"
+    : mtlsStatusValue === "expiring" || riskyPeers.length > 0 || alerts.length > 0 || revokedCertificates.length > 0
+      ? "warning"
+      : "success";
+  const overallTone: CockpitTone = [proofTone, tunnelTone, consensusTone].includes("danger")
+    ? "danger"
+    : [proofTone, tunnelTone, consensusTone].includes("warning")
+      ? "warning"
+      : "success";
+
+  const gates: Array<{ label: string; tone: CockpitTone; detail: string }> = [
+    {
+      label: "Proof-of-Consensus",
+      tone: consensusTone,
+      detail: `${checkpoints.completed}/${checkpoints.total} checkpoints complete across ${sessions.length} active session${sessions.length === 1 ? "" : "s"}.`,
+    },
+    {
+      label: "mTLS tunnel trust",
+      tone: tunnelTone,
+      detail: `${riskyPeers.length} peer${riskyPeers.length === 1 ? "" : "s"} need review; cert state is ${mtlsStatusValue}.`,
+    },
+    {
+      label: "Audit proof path",
+      tone: proofTone,
+      detail: validation ? validation.message : proof ? `${proof.merkleProof.length} Merkle step${proof.merkleProof.length === 1 ? "" : "s"} loaded.` : "No proof loaded yet.",
+    },
+    {
+      label: "Cost safety policy",
+      tone: billing.policy === "strict_limit" ? "success" : "warning",
+      detail: billing.policy === "strict_limit" ? "Strict quota blocks runaway spend." : "Auto-downscale is active; review high-risk operations before escalation.",
+    },
+  ];
+
+  const findings = [
+    ...alerts.map((alert) => ({ id: alert.id, tone: alert.tone as CockpitTone, label: alert.peerId, detail: alert.message })),
+    ...revokedCertificates.slice(0, 3).map((certificate) => ({
+      id: certificate.certSha,
+      tone: "warning" as CockpitTone,
+      label: "Revoked certificate",
+      detail: truncateFingerprint(certificate.certSha),
+    })),
+    ...(validation && !validation.valid ? [{ id: "proof-validation", tone: "danger" as CockpitTone, label: "Proof rejected", detail: validation.message }] : []),
+  ];
+
+  const timeline = proof?.merkleProof.length
+    ? proof.merkleProof.map((step, index) => ({ id: `${step.hash}-${index}`, label: `${index + 1}. ${step.position}`, detail: step.hash }))
+    : healthLogs.slice(0, 4).map((log) => ({ id: log.id, label: log.timestamp, detail: log.message }));
+
+  return (
+    <Surface as="section" elevated className="governance-cockpit flex flex-col gap-4 p-4" data-testid="governance-security-cockpit">
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] accent-text">GOVERNANCE RISK COCKPIT</p>
+          <h2 className="mt-2 text-3xl font-semibold leading-none t1 sm:text-4xl">Security Cockpit</h2>
+          <p className="mt-3 max-w-3xl text-sm leading-relaxed t2">
+            Consensus state, approval gates, audit proof paths, tunnel trust, findings, and revoked certificates in one operational scan.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:w-[36rem]">
+          <MetricTile label="Posture" value={statusLabel(overallTone)} tone={overallTone} />
+          <MetricTile label="Nodes" value={nodes.length} tone={nodes.length > 0 ? "success" : "warning"} />
+          <MetricTile label="Findings" value={findings.length} tone={findings.length > 0 ? "warning" : "success"} />
+          <MetricTile label="Revoked" value={revokedCertificates.length} tone={revokedCertificates.length > 0 ? "warning" : "success"} />
+        </div>
+      </div>
+
+      <div className="governance-cockpit-grid">
+        <Surface className="governance-risk-panel p-3">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-[10px] font-bold uppercase tracking-[0.14em] t3">Approval Gates</p>
+            <StatusBadge tone={overallTone}>{statusLabel(overallTone)}</StatusBadge>
+          </div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {gates.map((gate) => (
+              <div key={gate.label} className="governance-gate-card rounded-lg border p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-xs font-semibold t1">{gate.label}</h3>
+                  <StatusBadge tone={gate.tone}>{statusLabel(gate.tone)}</StatusBadge>
+                </div>
+                <p className="mt-2 text-[11px] leading-relaxed t2">{gate.detail}</p>
+              </div>
+            ))}
+          </div>
+        </Surface>
+
+        <Surface className="p-3">
+          <p className="text-[10px] font-bold uppercase tracking-[0.14em] t3">Audit Ledger Timeline</p>
+          <div className="mt-3 space-y-2">
+            {timeline.length > 0 ? timeline.map((item) => (
+              <div key={item.id} className="governance-timeline-row rounded-lg border px-3 py-2">
+                <p className="font-mono text-[10px] t3">{item.label}</p>
+                <p className="mt-1 truncate text-xs t2" title={item.detail}>{item.detail}</p>
+              </div>
+            )) : <p className="text-sm t3">{copy.noData}</p>}
+          </div>
+        </Surface>
+
+        <Surface className="p-3">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-[10px] font-bold uppercase tracking-[0.14em] t3">Security Findings</p>
+            <StatusBadge tone={findings.length > 0 ? "warning" : "success"}>{findings.length}</StatusBadge>
+          </div>
+          <div className="mt-3 space-y-2">
+            {findings.length > 0 ? findings.slice(0, 6).map((finding) => (
+              <div key={finding.id} className="governance-finding-row rounded-lg border px-3 py-2">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="truncate text-xs font-semibold t1">{finding.label}</p>
+                  <StatusBadge tone={finding.tone}>{statusLabel(finding.tone)}</StatusBadge>
+                </div>
+                <p className="mt-1 text-[11px] leading-relaxed t2">{finding.detail}</p>
+              </div>
+            )) : <p className="text-sm t3">No active findings.</p>}
+          </div>
+        </Surface>
+
+        <Surface className="p-3">
+          <p className="text-[10px] font-bold uppercase tracking-[0.14em] t3">Proof Verification Path</p>
+          <div className="mt-3 grid gap-2">
+            <div className="governance-proof-card rounded-lg border p-3">
+              <div className="flex items-center justify-between gap-3">
+                <p className="truncate font-mono text-[11px] t1" title={proof?.eventId ?? "no event"}>{proof?.eventId ?? "No proof event loaded"}</p>
+                <StatusBadge tone={proofTone}>{statusLabel(proofTone)}</StatusBadge>
+              </div>
+              <p className="mt-2 truncate font-mono text-[10px] t3" title={proof?.root ?? "no root"}>{proof?.root ?? "No Merkle root available"}</p>
+              <p className="mt-2 text-[11px] leading-relaxed t2">
+                {proof ? `${proof.merkleProof.length} Merkle proof steps and ${proof.zkKeys.length} ZK key entries are ready for inspection.` : "Load an audit event to inspect Merkle and ZK proof evidence."}
+              </p>
+            </div>
+          </div>
+        </Surface>
+      </div>
+    </Surface>
+  );
 }
 
 function mapReplay(raw: unknown): SwarmReplayEvent[] {
@@ -1359,7 +1544,7 @@ export function ReplayPlaybackWidget({
   );
 }
 
-export function SwarmGovernanceConsole({
+function useSwarmGovernanceController({
   lang,
   onStatus,
 }: {
@@ -1714,6 +1899,118 @@ export function SwarmGovernanceConsole({
     }
   }
 
+  return {
+    billing,
+    blockHash,
+    copy,
+    countdownSeconds,
+    drawerOpen,
+    gatewayAlerts,
+    groupedNodes,
+    healthLogs,
+    lang,
+    loading,
+    meteredUsage,
+    mtlsStatus,
+    nodes,
+    onStatus,
+    peers,
+    policyLoading,
+    proof,
+    proofEventId,
+    proofLoading,
+    proofModalOpen,
+    reinstatedCertSha,
+    reinstatingCertSha,
+    resumeLoading,
+    revokedCertificates,
+    revokingPeerId,
+    rotationLoading,
+    sessions,
+    validation,
+    validationLoading,
+    copyCertificate,
+    loadGovernanceData,
+    loadProof,
+    reinstateCertificate,
+    resumeSession,
+    revokePeer,
+    rotateKeys,
+    scaleRole,
+    setBlockHash,
+    setDrawerOpen,
+    setProofEventId,
+    setProofModalOpen,
+    updatePolicy,
+    verifyProof,
+  };
+}
+
+type SwarmGovernanceController = ReturnType<typeof useSwarmGovernanceController>;
+
+export function SwarmGovernanceConsole({
+  lang,
+  onStatus,
+}: {
+  lang: Lang;
+  onStatus: (message: string, tone?: Tone) => void;
+}) {
+  const controller = useSwarmGovernanceController({ lang, onStatus });
+
+  return <SwarmGovernanceConsoleShell controller={controller} />;
+}
+
+function SwarmGovernanceConsoleShell({
+  controller,
+}: {
+  readonly controller: SwarmGovernanceController;
+}) {
+  const {
+    billing,
+    blockHash,
+    copy,
+    countdownSeconds,
+    drawerOpen,
+    gatewayAlerts,
+    groupedNodes,
+    healthLogs,
+    lang,
+    loading,
+    meteredUsage,
+    mtlsStatus,
+    nodes,
+    onStatus,
+    peers,
+    policyLoading,
+    proof,
+    proofEventId,
+    proofLoading,
+    proofModalOpen,
+    reinstatedCertSha,
+    reinstatingCertSha,
+    resumeLoading,
+    revokedCertificates,
+    revokingPeerId,
+    rotationLoading,
+    sessions,
+    validation,
+    validationLoading,
+    copyCertificate,
+    loadGovernanceData,
+    loadProof,
+    reinstateCertificate,
+    resumeSession,
+    revokePeer,
+    rotateKeys,
+    scaleRole,
+    setBlockHash,
+    setDrawerOpen,
+    setProofEventId,
+    setProofModalOpen,
+    updatePolicy,
+    verifyProof,
+  } = controller;
+
   return (
     <Surface as="section" elevated className="flex flex-col gap-4 p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -1725,6 +2022,21 @@ export function SwarmGovernanceConsole({
           {loading ? `${copy.refresh}...` : copy.refresh}
         </Button>
       </div>
+
+      <GovernanceSecurityCockpit
+        copy={copy}
+        nodes={nodes}
+        sessions={sessions}
+        peers={peers}
+        billing={billing}
+        mtlsStatus={mtlsStatus}
+        countdownSeconds={countdownSeconds}
+        alerts={gatewayAlerts}
+        revokedCertificates={revokedCertificates}
+        proof={proof}
+        validation={validation}
+        healthLogs={healthLogs}
+      />
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
         <SwarmNodeMonitor

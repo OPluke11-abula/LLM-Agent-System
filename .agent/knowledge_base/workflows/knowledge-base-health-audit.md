@@ -41,6 +41,10 @@ The audit checks:
 - empty Markdown notes
 - task-facing notes not linked from `index.md`
 - unresolved Obsidian wikilinks
+- missing required knowledge-base directories
+- handoffs without a next-read section
+- decisions without a revisit condition
+- known issues without verification guidance
 - potential credential-like strings
 - missing or invalid `indexes/knowledge-inventory-latest.json`
 - `contains_full_text` accidentally changing away from `false`

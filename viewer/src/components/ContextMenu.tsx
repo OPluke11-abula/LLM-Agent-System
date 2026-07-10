@@ -18,7 +18,14 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
   const top = Math.min(y, window.innerHeight - 320);
 
   return (
-    <div className="fixed inset-0 z-40" onClick={onClose} onContextMenu={(event) => event.preventDefault()}>
+    <div className="fixed inset-0 z-40">
+      <button
+        type="button"
+        aria-label="Close context menu"
+        className="absolute inset-0 cursor-default border-0 bg-transparent p-0"
+        onClick={onClose}
+        onContextMenu={(event) => event.preventDefault()}
+      />
       <div
         className="control-surface absolute w-56 p-1.5"
         style={{

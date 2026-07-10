@@ -1,18 +1,22 @@
-"""Validate structured LAS/PAP review and security finding reports."""
-
 from __future__ import annotations
 
 import argparse
 import json
 from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
-from typing import Any
+from typing import Any, assert_never
 
 import jsonschema
 
 
 class ReviewFindingsError(ValueError):
-    """Raised when a review findings report is invalid."""
+    pass
+
+
+class ReviewFindingsShape(StrEnum):
+    LAS = "las"
+    PAP = "pap"
 
 
 @dataclass(frozen=True)
@@ -22,6 +26,8 @@ class ReviewFindingsResult:
     security_trigger_count: int
 
 
+LAS_SCHEMA_NAME = "review-findings.schema.json"
+PAP_SCHEMA_NAME = "pap-review-findings.schema.json"
 HIGH_SEVERITIES = {"high", "critical"}
 PLACEHOLDER_IMPACTS = {"", "n/a", "na", "none", "tbd", "todo", "unknown"}
 HIGH_RISK_PATH_PATTERNS: tuple[tuple[str, str], ...] = (
@@ -49,17 +55,27 @@ HIGH_RISK_PATH_PATTERNS: tuple[tuple[str, str], ...] = (
 
 
 def validate_review_findings(root: str | Path, input_path: str | Path) -> ReviewFindingsResult:
-    """Validate a review/security findings JSON file without executing any review action."""
-
     root_path = Path(root).resolve()
     report_path = _resolve_existing_file(root_path, input_path, "review findings")
     report = _read_json_mapping(report_path)
-    _validate_schema(root_path, report)
-    _validate_workspace_paths(root_path, report)
-    _validate_high_risk_rules(report)
+    shape = _detect_report_shape(report)
+
+    match shape:
+        case ReviewFindingsShape.LAS:
+            _validate_schema(root_path, LAS_SCHEMA_NAME, report)
+            _validate_las_workspace_paths(root_path, report)
+            _validate_las_high_risk_rules(report)
+            report_id = str(report["review_id"])
+        case ReviewFindingsShape.PAP:
+            _validate_schema(root_path, PAP_SCHEMA_NAME, report)
+            _validate_pap_workspace_paths(root_path, report)
+            _validate_pap_high_risk_rules(report)
+            report_id = str(report["report_id"])
+        case unreachable:
+            assert_never(unreachable)
 
     return ReviewFindingsResult(
-        review_id=str(report["review_id"]),
+        review_id=report_id,
         finding_count=len(report.get("findings", [])),
         security_trigger_count=len(report.get("security_triggers", [])),
     )
@@ -75,12 +91,24 @@ def _read_json_mapping(path: Path) -> dict[str, Any]:
     return data
 
 
-def _validate_schema(root: Path, report: dict[str, Any]) -> None:
-    schema_path = root / "spec" / "review-findings.schema.json"
+def _detect_report_shape(report: dict[str, Any]) -> ReviewFindingsShape:
+    has_las_id = "review_id" in report
+    has_pap_id = "report_id" in report
+    if has_las_id and has_pap_id:
+        raise ReviewFindingsError("report must not mix review_id and report_id")
+    if has_las_id:
+        return ReviewFindingsShape.LAS
+    if has_pap_id:
+        return ReviewFindingsShape.PAP
+    raise ReviewFindingsError("report must declare review_id or report_id")
+
+
+def _validate_schema(root: Path, schema_name: str, report: dict[str, Any]) -> None:
+    schema_path = root / "spec" / schema_name
     if not schema_path.is_file():
-        schema_path = Path(__file__).resolve().parents[1] / "spec" / "review-findings.schema.json"
+        schema_path = Path(__file__).resolve().parents[1] / "spec" / schema_name
     if not schema_path.is_file():
-        raise ReviewFindingsError("schema not found: review-findings.schema.json")
+        raise ReviewFindingsError(f"schema not found: {schema_name}")
 
     schema = json.loads(schema_path.read_text(encoding="utf-8"))
     validator = jsonschema.Draft7Validator(schema)
@@ -91,7 +119,7 @@ def _validate_schema(root: Path, report: dict[str, Any]) -> None:
         raise ReviewFindingsError(f"schema validation failed at {location}: {first.message}")
 
 
-def _validate_workspace_paths(root: Path, report: dict[str, Any]) -> None:
+def _validate_las_workspace_paths(root: Path, report: dict[str, Any]) -> None:
     for path_value in report.get("changed_paths", []):
         _resolve_workspace_path(root, path_value, "changed_path")
 
@@ -109,7 +137,22 @@ def _validate_workspace_paths(root: Path, report: dict[str, Any]) -> None:
             _validate_code_graph_evidence_paths(root, finding_index, code_graph_evidence)
 
 
-def _validate_high_risk_rules(report: dict[str, Any]) -> None:
+def _validate_pap_workspace_paths(root: Path, report: dict[str, Any]) -> None:
+    for finding_index, finding in enumerate(report.get("findings", [])):
+        for field_name in ("source_trace", "exploit_path"):
+            traces = finding.get(field_name, [])
+            for trace_index, trace in enumerate(traces):
+                _resolve_workspace_path(
+                    root,
+                    trace["path"],
+                    f"findings[{finding_index}].{field_name}[{trace_index}].path",
+                )
+        code_graph_evidence = finding.get("code_graph_evidence")
+        if code_graph_evidence:
+            _validate_code_graph_evidence_paths(root, finding_index, code_graph_evidence)
+
+
+def _validate_las_high_risk_rules(report: dict[str, Any]) -> None:
     findings = report.get("findings", [])
     declared_triggers = set(report.get("security_triggers", []))
     inferred_triggers = _infer_path_triggers(report.get("changed_paths", []))
@@ -132,6 +175,23 @@ def _validate_high_risk_rules(report: dict[str, Any]) -> None:
             raise ReviewFindingsError(f"findings[{index}] high/critical severity requires security_triggers")
         if severity in HIGH_SEVERITIES:
             _validate_high_risk_code_graph_evidence(index, finding)
+
+
+def _validate_pap_high_risk_rules(report: dict[str, Any]) -> None:
+    for index, finding in enumerate(report.get("findings", [])):
+        severity = finding.get("severity")
+        impact = str(finding.get("impact", "")).strip().lower()
+        if severity in HIGH_SEVERITIES and impact in PLACEHOLDER_IMPACTS:
+            raise ReviewFindingsError(f"findings[{index}] high/critical severity requires concrete impact")
+        if severity in HIGH_SEVERITIES:
+            exploit_path = finding.get("exploit_path", [])
+            code_graph_evidence = finding.get("code_graph_evidence")
+            if not exploit_path and not code_graph_evidence:
+                raise ReviewFindingsError(
+                    f"findings[{index}] high/critical severity requires exploit_path or code_graph_evidence"
+                )
+            if code_graph_evidence:
+                _validate_high_risk_code_graph_evidence(index, finding)
 
 
 def _validate_code_graph_evidence_paths(

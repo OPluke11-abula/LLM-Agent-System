@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Route, Routes } from "react-router-dom";
 import {
@@ -10,6 +10,7 @@ import {
   T,
 } from "./constants";
 import { Sidebar } from "./components/Sidebar";
+import { CommandPalette } from "./components/CommandPalette";
 import { useActivityLog } from "./hooks/useActivityLog";
 import { usePersistedState } from "./hooks/usePersistedState";
 import { useTopology } from "./hooks/useTopology";
@@ -27,6 +28,9 @@ const RulesView = lazy(() => import("./components/RulesView").then((module) => (
 const LongTermMemoryView = lazy(() =>
   import("./components/LongTermMemoryView").then((module) => ({ default: module.LongTermMemoryView })),
 );
+const IntelligenceMapView = lazy(() =>
+  import("./components/IntelligenceMapView").then((module) => ({ default: module.IntelligenceMapView })),
+);
 const SettingsView = lazy(() =>
   import("./components/SettingsView").then((module) => ({ default: module.SettingsView })),
 );
@@ -35,6 +39,9 @@ const TaskFlowView = lazy(() =>
 );
 const TopologyView = lazy(() =>
   import("./components/TopologyView").then((module) => ({ default: module.TopologyView })),
+);
+const MissionControlView = lazy(() =>
+  import("./components/MissionControlView").then((module) => ({ default: module.MissionControlView })),
 );
 
 function PageFallback() {
@@ -55,8 +62,9 @@ export default function App() {
   const [agentsEnabled, setAgentsEnabled] = usePersistedState("mods_agents_enabled", false);
   const [activeSkills, setActiveSkills] = usePersistedState<Record<string, boolean>>("mods_skills", {});
   const [hasOnboarded, setHasOnboarded] = usePersistedState("has_onboarded", false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const { activityEntries, recordActivity, clearActivityLog } = useActivityLog();
-  const { sessionList, hasTopology, lastUpdatedSessionId } = useTopology();
+  const { sessionList, lastUpdatedSessionId } = useTopology();
 
   const fallbackMemory = activeWorkspaceId === DEFAULT_WORKSPACES[0].id ? DEFAULT_MEMORY : EMPTY_MEMORY;
   const {
@@ -148,37 +156,58 @@ export default function App() {
   return (
     <div className="app-frame bg-grid relative h-screen w-full overflow-hidden font-sans">
       <div className="relative z-10 flex h-full flex-col md:flex-row">
-        <Sidebar t={t} relaunchOnboarding={() => setHasOnboarded(false)} />
+        <Sidebar
+          t={t}
+          relaunchOnboarding={() => setHasOnboarded(false)}
+          onOpenCommandPalette={() => setCommandPaletteOpen(true)}
+        />
         <main className="min-h-0 min-w-0 flex-1 overflow-hidden p-4 md:ml-64 md:h-screen md:p-5">
           <Suspense fallback={<PageFallback />}>
             <Routes>
               <Route
                 path="/"
                 element={
-                  hasTopology ? (
-                    <TopologyView
-                      sessions={sessionList}
-                      lastUpdatedSessionId={lastUpdatedSessionId}
-                      activityEntries={activityEntries}
-                      onClearActivityLog={clearActivityLog}
-                      lang={lang}
-                    />
-                  ) : (
-                    <TaskFlowView
-                      memory={activeMemory}
-                      workspaces={workspaces}
-                      activeWorkspaceId={activeWorkspaceId}
-                      setActiveWorkspaceId={setActiveWorkspaceId}
-                      onStatusChange={handleStatusChange}
-                      onDescriptionChange={handleDescriptionChange}
-                      onAddSubtask={handleAddSubtask}
-                      onDeleteTask={handleDeleteTask}
-                      activityEntries={activityEntries}
-                      onClearActivityLog={clearActivityLog}
-                      t={t}
-                      lang={lang}
-                    />
-                  )
+                  <MissionControlView
+                    memory={activeMemory}
+                    workspaces={workspaces}
+                    activeWorkspaceId={activeWorkspaceId}
+                    sessions={sessionList}
+                    lastUpdatedSessionId={lastUpdatedSessionId}
+                    activityEntries={activityEntries}
+                    onClearActivityLog={clearActivityLog}
+                    lang={lang}
+                  />
+                }
+              />
+              <Route
+                path="/topology"
+                element={
+                  <TopologyView
+                    sessions={sessionList}
+                    lastUpdatedSessionId={lastUpdatedSessionId}
+                    activityEntries={activityEntries}
+                    onClearActivityLog={clearActivityLog}
+                    lang={lang}
+                  />
+                }
+              />
+              <Route
+                path="/tasks"
+                element={
+                  <TaskFlowView
+                    memory={activeMemory}
+                    workspaces={workspaces}
+                    activeWorkspaceId={activeWorkspaceId}
+                    setActiveWorkspaceId={setActiveWorkspaceId}
+                    onStatusChange={handleStatusChange}
+                    onDescriptionChange={handleDescriptionChange}
+                    onAddSubtask={handleAddSubtask}
+                    onDeleteTask={handleDeleteTask}
+                    activityEntries={activityEntries}
+                    onClearActivityLog={clearActivityLog}
+                    t={t}
+                    lang={lang}
+                  />
                 }
               />
               <Route path="/rules" element={<RulesView t={t} rules={rules} setRules={setRules} />} />
@@ -228,10 +257,22 @@ export default function App() {
                   />
                 }
               />
+              <Route
+                path="/intelligence"
+                element={
+                  <IntelligenceMapView
+                    memory={activeMemory}
+                    sessions={sessionList}
+                    lastUpdatedSessionId={lastUpdatedSessionId}
+                    lang={lang}
+                  />
+                }
+              />
             </Routes>
           </Suspense>
         </main>
       </div>
+      <CommandPalette open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen} lang={lang} />
     </div>
   );
 }

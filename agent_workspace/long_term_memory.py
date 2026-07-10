@@ -33,6 +33,11 @@ from typing import Any
 
 from memory_backends import MemoryBackend, SQLiteBackend, create_backend
 
+try:
+    from agent_workspace.evidence_memory_validate import validate_workflow_memory_record
+except ModuleNotFoundError:
+    from evidence_memory_validate import validate_workflow_memory_record
+
 
 SCHEMA_VERSION = "1.0.0"
 DEFAULT_FILENAME = "long_term_memory.json"        # kept for reference only
@@ -522,14 +527,7 @@ class LongTermMemoryStore:
     ) -> LongTermMemoryRecord:
         """Store traceable workflow memory records without replacing raw evidence."""
 
-        allowed_types = {
-            "evidence_ref",
-            "workflow_atom",
-            "workflow_scenario",
-            "workflow_persona",
-        }
-        if record_type not in allowed_types:
-            raise ValueError(f"Unsupported workflow memory record_type: {record_type}")
+        validate_workflow_memory_record(record_type=record_type, payload=payload, citations=citations)
 
         merged_payload = {"record_type": record_type, **payload}
         source_hash = self._hash(

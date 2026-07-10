@@ -23,6 +23,7 @@ import { Button, MetricTile, StatusBadge, Surface } from "./ui/primitives";
 import type {
   ActivityLogEntry,
   AgentMemory,
+  AgentTask,
   Lang,
   TaskNodeData,
   TaskNodeLabels,
@@ -57,6 +58,17 @@ type ContextMenuState = {
 type DraftState = {
   taskId: string;
   description: string;
+};
+
+type FlatTask = ReturnType<typeof flattenTasks>[number];
+
+type TaskIntelligence = {
+  owner: string;
+  blocker: string;
+  evidence: string;
+  linkedFiles: string[];
+  verificationCommand: string;
+  handoffStatus: string;
 };
 
 type LocalizedCopy = {
@@ -95,6 +107,24 @@ type LocalizedCopy = {
   exportNoTasks: string;
   emptyWorkspace: string;
   closePanel: string;
+  cockpitTitle: string;
+  cockpitSubtitle: string;
+  timeline: string;
+  graphWorkspace: string;
+  intelligence: string;
+  ownerAgent: string;
+  blocker: string;
+  evidence: string;
+  linkedFiles: string;
+  verificationCommand: string;
+  handoffStatus: string;
+  noSelection: string;
+  noLinkedFiles: string;
+  noEvidence: string;
+  noBlocker: string;
+  handoffReady: string;
+  handoffRunning: string;
+  handoffWaiting: string;
 };
 
 const LOCAL_COPY: Record<Lang, LocalizedCopy> = {
@@ -139,6 +169,24 @@ const LOCAL_COPY: Record<Lang, LocalizedCopy> = {
     exportNoTasks: "目前沒有任務。",
     emptyWorkspace: "此工作區尚無任務。請在設定中指定 JSON 路徑，或讓 AI 代理寫入資料。",
     closePanel: "關閉",
+    cockpitTitle: "Task Flow 2.0",
+    cockpitSubtitle: "時間線、依賴圖與任務情報集中在同一個工作區。",
+    timeline: "任務時間線",
+    graphWorkspace: "依賴圖工作區",
+    intelligence: "任務情報",
+    ownerAgent: "Owner agent",
+    blocker: "Blocker",
+    evidence: "Evidence",
+    linkedFiles: "Linked files",
+    verificationCommand: "Verification command",
+    handoffStatus: "Handoff status",
+    noSelection: "選取任務或使用搜尋結果中的第一個任務。",
+    noLinkedFiles: "尚未偵測到 linked files。",
+    noEvidence: "尚未附加 evidence。",
+    noBlocker: "目前沒有未完成依賴。",
+    handoffReady: "Ready for handoff",
+    handoffRunning: "Keep full context",
+    handoffWaiting: "Waiting for dependencies",
   },
   en: {
     total: "Total Tasks",
@@ -181,6 +229,24 @@ const LOCAL_COPY: Record<Lang, LocalizedCopy> = {
     exportNoTasks: "No tasks yet.",
     emptyWorkspace: "No tasks in this workspace yet. Set the JSON path in Settings or let an AI agent write data.",
     closePanel: "Close",
+    cockpitTitle: "Task Flow 2.0",
+    cockpitSubtitle: "Timeline, dependency graph, and task intelligence in one workspace.",
+    timeline: "Task timeline",
+    graphWorkspace: "Dependency graph workspace",
+    intelligence: "Task intelligence",
+    ownerAgent: "Owner agent",
+    blocker: "Blocker",
+    evidence: "Evidence",
+    linkedFiles: "Linked files",
+    verificationCommand: "Verification command",
+    handoffStatus: "Handoff status",
+    noSelection: "Select a task or use the first matching result.",
+    noLinkedFiles: "No linked files detected yet.",
+    noEvidence: "No evidence attached yet.",
+    noBlocker: "No incomplete dependency.",
+    handoffReady: "Ready for handoff",
+    handoffRunning: "Keep full context",
+    handoffWaiting: "Waiting for dependencies",
   },
   ja: {
     total: "総タスク",
@@ -223,6 +289,24 @@ const LOCAL_COPY: Record<Lang, LocalizedCopy> = {
     exportNoTasks: "タスクはありません。",
     emptyWorkspace: "このワークスペースにはまだタスクがありません。設定で JSON パスを指定するか、AI エージェントにデータを書き込ませてください。",
     closePanel: "閉じる",
+    cockpitTitle: "Task Flow 2.0",
+    cockpitSubtitle: "タイムライン、依存グラフ、タスク情報を一つの作業面に集約します。",
+    timeline: "タスクタイムライン",
+    graphWorkspace: "依存グラフ",
+    intelligence: "タスク情報",
+    ownerAgent: "Owner agent",
+    blocker: "Blocker",
+    evidence: "Evidence",
+    linkedFiles: "Linked files",
+    verificationCommand: "Verification command",
+    handoffStatus: "Handoff status",
+    noSelection: "タスクを選択するか、最初の一致結果を使用します。",
+    noLinkedFiles: "linked files は未検出です。",
+    noEvidence: "evidence は未添付です。",
+    noBlocker: "未完了の依存関係はありません。",
+    handoffReady: "Ready for handoff",
+    handoffRunning: "Keep full context",
+    handoffWaiting: "Waiting for dependencies",
   },
   fr: {
     total: "Total Tâches",
@@ -265,6 +349,24 @@ const LOCAL_COPY: Record<Lang, LocalizedCopy> = {
     exportNoTasks: "Aucune tâche.",
     emptyWorkspace: "Aucune tâche dans cet espace. Définissez le chemin JSON dans Paramètres ou laissez un agent IA écrire les données.",
     closePanel: "Fermer",
+    cockpitTitle: "Task Flow 2.0",
+    cockpitSubtitle: "Timeline, graphe de dépendances et intelligence de tâche dans un workspace.",
+    timeline: "Timeline tâches",
+    graphWorkspace: "Graphe dépendances",
+    intelligence: "Intelligence tâche",
+    ownerAgent: "Owner agent",
+    blocker: "Blocker",
+    evidence: "Evidence",
+    linkedFiles: "Linked files",
+    verificationCommand: "Verification command",
+    handoffStatus: "Handoff status",
+    noSelection: "Sélectionnez une tâche ou le premier résultat.",
+    noLinkedFiles: "Aucun linked file détecté.",
+    noEvidence: "Aucune evidence attachée.",
+    noBlocker: "Aucune dépendance incomplète.",
+    handoffReady: "Ready for handoff",
+    handoffRunning: "Keep full context",
+    handoffWaiting: "Waiting for dependencies",
   },
 };
 
@@ -293,7 +395,71 @@ function buildVisualState(
   );
 }
 
-export function TaskFlowView({
+function dependencyId(dependency: AgentTask["dependencies"][number]) {
+  return typeof dependency === "string" ? dependency : dependency.id;
+}
+
+function dependencyCategory(dependency: AgentTask["dependencies"][number]) {
+  return typeof dependency === "string" ? "dependency" : dependency.category ?? "dependency";
+}
+
+function toneForTaskStatus(status: TaskStatus) {
+  if (status === "completed") return "success";
+  if (status === "in_progress") return "accent";
+  return "warning";
+}
+
+function inferOwner(task: FlatTask) {
+  const haystack = `${task.id} ${task.description} ${task.ai_feedback ?? ""}`.toLowerCase();
+  if (haystack.includes("frontend") || haystack.includes("viewer") || haystack.includes("react") || haystack.includes("ui")) return "Frontend Programmer";
+  if (haystack.includes("security") || haystack.includes("risk") || haystack.includes("audit")) return "Security Reviewer";
+  if (haystack.includes("schema") || haystack.includes("pap") || haystack.includes("contract")) return "Protocol Architect";
+  if (haystack.includes("test") || haystack.includes("verify") || haystack.includes("qa")) return "QA / Verification";
+  if (haystack.includes("doc") || haystack.includes("design") || haystack.includes("plan")) return "Architect / Designer";
+  return "Active agent";
+}
+
+function extractLinkedFiles(task: FlatTask) {
+  const source = `${task.description}\n${task.ai_feedback ?? ""}`;
+  const backtickMatches = Array.from(source.matchAll(/`([^`]+\.[A-Za-z0-9]+)`/g)).map((match) => match[1]);
+  const pathMatches = source.match(/(?:[\w.-]+\/)+[\w.-]+\.[A-Za-z0-9]+/g) ?? [];
+  return Array.from(new Set([...backtickMatches, ...pathMatches])).slice(0, 5);
+}
+
+function buildTaskIntelligence(task: FlatTask | null, flatTasks: FlatTask[], local: LocalizedCopy): TaskIntelligence | null {
+  if (!task) return null;
+  const dependencies = task.dependencies ?? [];
+  const blockingDependency = dependencies
+    .map((dependency) => flatTasks.find((candidate) => candidate.id === dependencyId(dependency)))
+    .find((candidate) => candidate && candidate.status !== "completed");
+  const dependencyCategories = dependencies.map(dependencyCategory);
+  const evidenceBits = [
+    task.ai_feedback ? "AI feedback" : "",
+    dependencyCategories.includes("data_flow") ? "data-flow edge" : "",
+    dependencyCategories.includes("feedback_loop") ? "feedback loop" : "",
+    dependencies.length > 0 ? `${dependencies.length} dependency refs` : "",
+  ].filter(Boolean);
+  const linkedFiles = extractLinkedFiles(task);
+  const owner = inferOwner(task);
+  const haystack = `${task.id} ${task.description} ${task.ai_feedback ?? ""}`.toLowerCase();
+  const verificationCommand =
+    haystack.includes("viewer") || haystack.includes("react") || haystack.includes("ui")
+      ? "npm.cmd --prefix viewer run build"
+      : haystack.includes("pap") || haystack.includes("contract")
+        ? "python agent_workspace/pap_validate.py .agent/agent.md"
+        : ".\\scripts\\verify.cmd";
+
+  return {
+    owner,
+    blocker: blockingDependency ? `${blockingDependency.id} · ${blockingDependency.description}` : local.noBlocker,
+    evidence: evidenceBits.length > 0 ? evidenceBits.join(" · ") : local.noEvidence,
+    linkedFiles,
+    verificationCommand,
+    handoffStatus: task.status === "completed" ? local.handoffReady : task.status === "in_progress" ? local.handoffRunning : local.handoffWaiting,
+  };
+}
+
+function useTaskFlowController({
   memory,
   workspaces,
   activeWorkspaceId,
@@ -363,13 +529,11 @@ export function TaskFlowView({
         const zoom = 0.55;
         const minX = Math.min(...nodes.map((node) => node.position.x));
         const minY = Math.min(...nodes.map((node) => node.position.y));
-        const maxY = Math.max(...nodes.map((node) => node.position.y + 155));
-        const graphCenterY = (minY + maxY) / 2;
 
         void flowInstance.setViewport(
           {
             x: 40 - minX * zoom,
-            y: container.clientHeight / 2 - graphCenterY * zoom,
+            y: 64 - minY * zoom,
             zoom,
           },
           { duration },
@@ -444,8 +608,16 @@ export function TaskFlowView({
   }, [fitFlowToView]);
 
   const selectedTask = selectedTaskId
-    ? nodes.find((node) => node.id === selectedTaskId)?.data ?? null
+    ? flatTasks.find((task) => task.id === selectedTaskId) ?? null
     : null;
+  const focusTask =
+    selectedTask ??
+    matchedTasks.find((task) => task.status === "in_progress") ??
+    matchedTasks.find((task) => task.status === "pending") ??
+    matchedTasks[0] ??
+    null;
+  const focusIntelligence = buildTaskIntelligence(focusTask, flatTasks, local);
+  const timelineTasks = matchedTasks.slice(0, 10);
 
   const contextTask = contextMenu
     ? flatTasks.find((task) => task.id === contextMenu.taskId) ?? null
@@ -590,244 +762,394 @@ export function TaskFlowView({
       ]
     : [];
 
+  return {
+    memory,
+    workspaces,
+    activeWorkspaceId,
+    setActiveWorkspaceId,
+    activityEntries,
+    onClearActivityLog,
+    t,
+    lang,
+    nodes,
+    edges,
+    onNodesChange,
+    onEdgesChange,
+    flowContainerRef,
+    setFlowInstance,
+    selectedTaskId,
+    setSelectedTaskId,
+    contextMenu,
+    setContextMenu,
+    filter,
+    setFilter,
+    search,
+    setSearch,
+    editDraft,
+    setEditDraft,
+    subtaskDraft,
+    setSubtaskDraft,
+    deleteTargetId,
+    setDeleteTargetId,
+    exportStatus,
+    local,
+    total,
+    matchedTasks,
+    focusTask,
+    focusIntelligence,
+    timelineTasks,
+    stats,
+    contextItems,
+    submitDescriptionChange,
+    submitSubtask,
+    confirmDeleteTask,
+    handleExport,
+  };
+}
+
+type TaskFlowController = ReturnType<typeof useTaskFlowController>;
+
+export function TaskFlowView(props: TaskFlowViewProps) {
+  const controller = useTaskFlowController(props);
+
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto xl:overflow-hidden">
-      {workspaces.length > 0 && (
-        <div className="flex flex-shrink-0 flex-wrap gap-2">
-          {workspaces.map((workspace) => (
+    <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto">
+      <TaskFlowWorkspaceTabs controller={controller} />
+      <TaskFlowHero controller={controller} />
+      <TaskFlowStats controller={controller} />
+      <TaskFlowControls controller={controller} />
+      <TaskFlowTimeline controller={controller} />
+      <div className="grid min-h-[560px] gap-3 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <TaskFlowCanvas controller={controller} />
+        <TaskIntelligencePanel controller={controller} />
+      </div>
+      <ActivityLog entries={controller.activityEntries} lang={controller.lang} onClear={controller.onClearActivityLog} />
+      <TaskFlowModals controller={controller} />
+    </div>
+  );
+}
+
+function TaskFlowWorkspaceTabs({ controller }: { readonly controller: TaskFlowController }) {
+  const { activeWorkspaceId, setActiveWorkspaceId, workspaces } = controller;
+
+  if (workspaces.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="flex flex-shrink-0 flex-wrap gap-2">
+      {workspaces.map((workspace) => (
+        <Button
+          key={workspace.id}
+          type="button"
+          onClick={() => setActiveWorkspaceId(workspace.id)}
+          variant={workspace.id === activeWorkspaceId ? "primary" : "quiet"}
+          className="flex flex-col items-start px-3 py-2 text-xs"
+        >
+          <span>
+            {workspace.name} · {workspace.lang}
+          </span>
+          {workspace.path && (
+            <span className="mt-0.5 font-mono text-xs opacity-60">
+              {workspace.path}
+            </span>
+          )}
+        </Button>
+      ))}
+    </div>
+  );
+}
+
+function TaskFlowHero({ controller }: { readonly controller: TaskFlowController }) {
+  const { focusTask, local } = controller;
+
+  return (
+    <Surface elevated className="task-flow-hero flex min-h-[8rem] flex-col justify-center gap-3 p-4 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] accent-text">{local.graphWorkspace}</p>
+        <h1 className="mt-1 text-2xl font-semibold t1 sm:text-3xl">{local.cockpitTitle}</h1>
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed t2">{local.cockpitSubtitle}</p>
+      </div>
+      <StatusBadge tone={focusTask ? toneForTaskStatus(focusTask.status) : "warning"}>
+        {focusTask ? focusTask.status.replace("_", " ") : local.exportNoTasks}
+      </StatusBadge>
+    </Surface>
+  );
+}
+
+function TaskFlowStats({ controller }: { readonly controller: TaskFlowController }) {
+  const { local, stats } = controller;
+
+  return (
+    <div className="grid gap-3 md:grid-cols-4">
+      {stats.map((stat) => (
+        <MetricTile
+          key={stat.label}
+          label={stat.label}
+          value={stat.value}
+          tone={stat.label === local.completionRate ? "accent" : "neutral"}
+          className="p-4"
+        />
+      ))}
+    </div>
+  );
+}
+
+function TaskFlowControls({ controller }: { readonly controller: TaskFlowController }) {
+  const { exportStatus, filter, handleExport, local, matchedTasks, search, setFilter, setSearch, total } = controller;
+  const filterOptions = ["all", "pending", "in_progress", "completed"] as const satisfies readonly FilterStatus[];
+
+  return (
+    <Surface elevated className="flex flex-col gap-3 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] t3">{local.searchLabel}</p>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {exportStatus && <StatusBadge tone="success">{exportStatus}</StatusBadge>}
+          <p className="text-xs t2">
+            {local.matchingCount} {matchedTasks.length} / {total}
+          </p>
+          <div className="flex flex-wrap items-center gap-1.5 rounded-lg border p-1" style={{ borderColor: "var(--border-c)", background: "var(--bg-card)" }}>
+            <span className="hidden px-2 text-[10px] font-semibold uppercase tracking-[0.14em] t3 sm:inline">{local.exportLabel}</span>
+            <Button type="button" onClick={() => handleExport("json")} variant="primary" className="rounded-md px-2.5 py-1.5">
+              {local.exportJson}
+            </Button>
+            <Button type="button" onClick={() => handleExport("markdown")} variant="quiet" className="rounded-md px-2.5 py-1.5">
+              <span className="hidden sm:inline">{local.exportMarkdown}</span>
+              <span className="sm:hidden">MD</span>
+            </Button>
+          </div>
+        </div>
+      </div>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+        <input
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder={local.searchPlaceholder}
+          className="field-input w-full rounded-lg px-4 py-3 text-sm outline-none"
+        />
+        <div className="flex flex-wrap gap-2">
+          {filterOptions.map((status) => (
             <Button
-              key={workspace.id}
+              key={status}
               type="button"
-              onClick={() => setActiveWorkspaceId(workspace.id)}
-              variant={workspace.id === activeWorkspaceId ? "primary" : "quiet"}
-              className="flex flex-col items-start px-3 py-2 text-xs"
+              onClick={() => setFilter(status)}
+              variant={filter === status ? "primary" : "quiet"}
+              className="px-3 py-2"
             >
-              <span>
-                {workspace.name} · {workspace.lang}
-              </span>
-              {workspace.path && (
-                <span className="mt-0.5 font-mono opacity-60" style={{ fontSize: "9px" }}>
-                  {workspace.path}
-                </span>
-              )}
+              {local.filters[status]}
             </Button>
           ))}
         </div>
+      </div>
+    </Surface>
+  );
+}
+
+function TaskFlowTimeline({ controller }: { readonly controller: TaskFlowController }) {
+  const { focusTask, local, matchedTasks, setSelectedTaskId, timelineTasks } = controller;
+
+  return (
+    <Surface as="section" className="task-timeline-surface p-4" data-testid="task-flow-timeline">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[10px] font-bold uppercase tracking-[0.14em] t3">{local.timeline}</p>
+        <StatusBadge tone="accent">{timelineTasks.length} / {matchedTasks.length}</StatusBadge>
+      </div>
+      <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+        {timelineTasks.length === 0 ? (
+          <p className="text-xs t3">{local.noMatches}</p>
+        ) : (
+          timelineTasks.map((task, index) => {
+            const selected = focusTask?.id === task.id;
+            return (
+              <button
+                key={task.id}
+                type="button"
+                onClick={() => setSelectedTaskId(task.id)}
+                className={`task-timeline-item min-w-[12rem] rounded-lg border p-3 text-left transition-all ${selected ? "task-timeline-item-active" : ""}`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-mono text-[10px] t3">{String(index + 1).padStart(2, "0")} · {task.id}</span>
+                  <StatusBadge tone={toneForTaskStatus(task.status)}>{task.status.replace("_", " ")}</StatusBadge>
+                </div>
+                <p className="mt-2 line-clamp-2 text-xs font-semibold leading-relaxed t1">{task.description}</p>
+                <p className="mt-2 text-[10px] t3">{inferOwner(task)}</p>
+              </button>
+            );
+          })
+        )}
+      </div>
+    </Surface>
+  );
+}
+
+function TaskFlowCanvas({ controller }: { readonly controller: TaskFlowController }) {
+  const {
+    contextItems,
+    contextMenu,
+    edges,
+    flowContainerRef,
+    local,
+    matchedTasks,
+    memory,
+    nodes,
+    onEdgesChange,
+    onNodesChange,
+    setContextMenu,
+    setFlowInstance,
+    setSelectedTaskId,
+  } = controller;
+
+  return (
+    <div
+      ref={flowContainerRef}
+      className="flow-canvas relative min-h-[420px] overflow-hidden rounded-lg border xl:min-h-[560px]"
+      style={{ borderColor: "var(--border-c)" }}
+    >
+      {memory.tasks.length === 0 && (
+        <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center px-6 text-center">
+          <StatusBadge tone="warning">{local.exportNoTasks}</StatusBadge>
+          <p className="mt-4 max-w-md text-sm font-semibold leading-relaxed t2">{local.emptyWorkspace}</p>
+        </div>
       )}
 
-      <div className="grid gap-3 md:grid-cols-4">
-        {stats.map((stat) => (
-          <MetricTile
-            key={stat.label}
-            label={stat.label}
-            value={stat.value}
-            tone={stat.label === local.completionRate ? "accent" : "neutral"}
-            className="p-4"
-          />
-        ))}
+      {memory.tasks.length > 0 && matchedTasks.length === 0 && (
+        <Surface className="absolute top-4 left-1/2 z-20 -translate-x-1/2 px-4 py-2 text-xs font-semibold t2">
+          {local.noMatches}
+        </Surface>
+      )}
+
+      <ReactFlow
+        className="h-full w-full"
+        nodes={nodes}
+        edges={edges}
+        onInit={setFlowInstance}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onNodeClick={(_, node: Node<TaskNodeData>) => {
+          setSelectedTaskId(node.id);
+          setContextMenu(null);
+        }}
+        onNodeContextMenu={(event, node: Node<TaskNodeData>) => {
+          event.preventDefault();
+          setSelectedTaskId(node.id);
+          setContextMenu({
+            x: event.clientX,
+            y: event.clientY,
+            taskId: node.id,
+          });
+        }}
+        onPaneClick={() => {
+          setSelectedTaskId(null);
+          setContextMenu(null);
+        }}
+        fitView
+        minZoom={0.55}
+        maxZoom={1.4}
+        fitViewOptions={{
+          padding: 0.14,
+          includeHiddenNodes: true,
+          minZoom: 0.55,
+          maxZoom: 1.05,
+        }}
+        nodeTypes={TASK_NODE_TYPES}
+      >
+        <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="var(--grid)" />
+      </ReactFlow>
+
+      {contextMenu && <ContextMenu x={contextMenu.x} y={contextMenu.y} items={contextItems} onClose={() => setContextMenu(null)} />}
+    </div>
+  );
+}
+
+function TaskIntelligencePanel({ controller }: { readonly controller: TaskFlowController }) {
+  const { focusIntelligence, focusTask, local, t } = controller;
+
+  return (
+    <Surface as="aside" className="task-intelligence-panel p-4" data-testid="task-intelligence-panel">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.14em] t3">{local.intelligence}</p>
+          <h2 className="mt-1 line-clamp-2 text-sm font-semibold t1">{focusTask?.description ?? local.noSelection}</h2>
+        </div>
+        {focusTask && <StatusBadge tone={toneForTaskStatus(focusTask.status)}>{focusTask.status.replace("_", " ")}</StatusBadge>}
       </div>
 
-      <Surface elevated className="flex flex-col gap-3 p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] t3">{local.searchLabel}</p>
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            {exportStatus && <StatusBadge tone="success">{exportStatus}</StatusBadge>}
-            <p className="text-xs t2">
-              {local.matchingCount} {matchedTasks.length} / {total}
+      {focusTask && focusIntelligence ? (
+        <div className="mt-4 space-y-4">
+          <div>
+            <p className="text-[9px] font-bold uppercase tracking-[0.12em] t3">{t.taskId}</p>
+            <Surface className="mt-1 px-3 py-2 font-mono text-xs" style={{ color: "var(--accent-strong)" }}>{focusTask.id}</Surface>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <MetricTile label={local.ownerAgent} value={focusIntelligence.owner} className="p-3" />
+            <MetricTile label={local.handoffStatus} value={focusIntelligence.handoffStatus} tone={focusTask.status === "completed" ? "success" : "warning"} className="p-3" />
+          </div>
+          <div>
+            <p className="text-[9px] font-bold uppercase tracking-[0.12em] t3">{local.blocker}</p>
+            <p className="mt-1 rounded-lg border px-3 py-2 text-xs leading-relaxed t2" style={{ borderColor: "var(--border-c)", background: "var(--bg-muted)" }}>
+              {focusIntelligence.blocker}
             </p>
-            <div className="flex flex-wrap items-center gap-1.5 rounded-lg border p-1" style={{ borderColor: "var(--border-c)", background: "var(--bg-card)" }}>
-              <span className="hidden px-2 text-[10px] font-semibold uppercase tracking-[0.14em] t3 sm:inline">{local.exportLabel}</span>
-              <Button
-                type="button"
-                onClick={() => handleExport("json")}
-                variant="primary"
-                className="rounded-md px-2.5 py-1.5"
-              >
-                {local.exportJson}
-              </Button>
-              <Button
-                type="button"
-                onClick={() => handleExport("markdown")}
-                variant="quiet"
-                className="rounded-md px-2.5 py-1.5"
-              >
-                <span className="hidden sm:inline">{local.exportMarkdown}</span>
-                <span className="sm:hidden">MD</span>
-              </Button>
-            </div>
           </div>
-        </div>
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder={local.searchPlaceholder}
-            className="field-input w-full rounded-lg px-4 py-3 text-sm outline-none"
-          />
-          <div className="flex flex-wrap gap-2">
-            {(["all", "pending", "in_progress", "completed"] as FilterStatus[]).map((status) => (
-              <Button
-                key={status}
-                type="button"
-                onClick={() => setFilter(status)}
-                variant={filter === status ? "primary" : "quiet"}
-                className="px-3 py-2"
-              >
-                {local.filters[status]}
-              </Button>
-            ))}
+          <div>
+            <p className="text-[9px] font-bold uppercase tracking-[0.12em] t3">{local.evidence}</p>
+            <p className="mt-1 rounded-lg border px-3 py-2 text-xs leading-relaxed t2" style={{ borderColor: "var(--border-c)", background: "var(--bg-muted)" }}>
+              {focusIntelligence.evidence}
+            </p>
           </div>
-        </div>
-      </Surface>
-
-      <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_160px] gap-3 2xl:grid-cols-[minmax(0,1fr)_320px] 2xl:grid-rows-none">
-        <div
-          ref={flowContainerRef}
-          className="flow-canvas relative min-h-[320px] overflow-hidden rounded-lg border xl:min-h-0"
-          style={{ borderColor: "var(--border-c)" }}
-        >
-        {memory.tasks.length === 0 && (
-          <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center px-6 text-center">
-            <StatusBadge tone="warning">{local.exportNoTasks}</StatusBadge>
-            <p className="mt-4 max-w-md text-sm font-semibold leading-relaxed t2">{local.emptyWorkspace}</p>
-          </div>
-        )}
-
-        {memory.tasks.length > 0 && matchedTasks.length === 0 && (
-          <Surface className="absolute top-4 left-1/2 z-20 -translate-x-1/2 px-4 py-2 text-xs font-semibold t2">
-            {local.noMatches}
-          </Surface>
-        )}
-
-        <ReactFlow
-          className="h-full w-full"
-          nodes={nodes}
-          edges={edges}
-          onInit={setFlowInstance}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onNodeClick={(_, node: Node<TaskNodeData>) => {
-            setSelectedTaskId(node.id);
-            setContextMenu(null);
-          }}
-          onNodeContextMenu={(event, node: Node<TaskNodeData>) => {
-            event.preventDefault();
-            setSelectedTaskId(node.id);
-            setContextMenu({
-              x: event.clientX,
-              y: event.clientY,
-              taskId: node.id,
-            });
-          }}
-          onPaneClick={() => {
-            setSelectedTaskId(null);
-            setContextMenu(null);
-          }}
-          fitView
-          minZoom={0.55}
-          maxZoom={1.4}
-          fitViewOptions={{
-            padding: 0.14,
-            includeHiddenNodes: true,
-            minZoom: 0.55,
-            maxZoom: 1.05,
-          }}
-          nodeTypes={TASK_NODE_TYPES}
-        >
-          <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="var(--grid)" />
-        </ReactFlow>
-
-        <aside
-          className={`absolute top-0 right-0 flex h-full w-80 flex-col border-l transition-transform duration-300 ease-out ${
-            selectedTask ? "translate-x-0" : "translate-x-full"
-          }`}
-          style={{ background: "var(--bg-panel)", borderColor: "var(--border-c)" }}
-        >
-          {selectedTask && (
-            <>
-              <div
-                className="flex flex-shrink-0 items-center justify-between border-b px-5 pt-5 pb-4"
-                style={{ borderColor: "var(--border-c)" }}
-              >
-                <h3 className="text-sm font-semibold" style={{ color: "var(--t1)" }}>
-                  {t.taskDetails}
-                </h3>
-                <Button
-                  type="button"
-                  onClick={() => setSelectedTaskId(null)}
-                  variant="quiet"
-                  className="px-2 py-1"
-                >
-                  {local.closePanel}
-                </Button>
+          <div>
+            <p className="text-[9px] font-bold uppercase tracking-[0.12em] t3">{local.linkedFiles}</p>
+            {focusIntelligence.linkedFiles.length > 0 ? (
+              <div className="mt-2 space-y-1">
+                {focusIntelligence.linkedFiles.map((file) => (
+                  <p key={file} className="truncate rounded-md border px-2 py-1.5 font-mono text-[10px] t2" title={file} style={{ borderColor: "var(--border-c)", background: "var(--bg-muted)" }}>{file}</p>
+                ))}
               </div>
-              <div className="flex-1 space-y-5 overflow-y-auto px-5 py-4">
-                <div>
-                  <label className="t3 text-[9px] font-bold uppercase tracking-widest">{t.taskId}</label>
-                  <Surface className="mt-1 px-3 py-2 font-mono text-xs" style={{ color: "var(--accent-strong)" }}>
-                    {selectedTask.id}
-                  </Surface>
-                </div>
-                <div>
-                  <label className="t3 text-[9px] font-bold uppercase tracking-widest">{t.desc}</label>
-                  <p className="mt-1 text-sm leading-relaxed t1">{selectedTask.description}</p>
-                </div>
-                <div>
-                  <label className="t3 text-[9px] font-bold uppercase tracking-widest">{t.deps}</label>
-                  {selectedTask.dependencies.length > 0 ? (
-                    <ul className="mt-2 space-y-1">
-                      {selectedTask.dependencies.map((dependency) => {
-                        const depId = typeof dependency === "string" ? dependency : dependency.id;
-                        const category = typeof dependency === "string" ? "" : ` (${dependency.category})`;
-                        return (
-                          <li
-                            key={depId}
-                            className="rounded-lg border px-3 py-1.5 font-mono text-xs"
-                            style={{ background: "var(--bg-card)", color: "var(--accent-strong)", borderColor: "var(--border-c)" }}
-                          >
-                            {depId}{category}
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  ) : (
-                    <p className="mt-1 text-xs italic t3">{t.noDeps}</p>
-                  )}
-                </div>
-                {selectedTask.ai_feedback && (
-                  <div>
-                    <div className="flex items-center justify-between gap-3">
-                      <label className="text-[9px] font-bold uppercase tracking-widest" style={{ color: "var(--accent)" }}>
-                        {t.aiFeedback}
-                      </label>
-                      <Button
-                        type="button"
-                        onClick={() => copyText(selectedTask.ai_feedback ?? "")}
-                        variant="quiet"
-                        className="px-2 py-1"
-                        title={t.copy}
-                      >
-                        {t.copy}
-                      </Button>
-                    </div>
-                    <Surface className="mt-2 p-4" style={{ background: "var(--accent-bg)" }}>
-                      <p className="text-xs leading-relaxed" style={{ color: "var(--t1)", whiteSpace: "pre-wrap" }}>
-                        {selectedTask.ai_feedback}
-                      </p>
-                    </Surface>
-                  </div>
-                )}
+            ) : (
+              <p className="mt-1 text-xs italic t3">{local.noLinkedFiles}</p>
+            )}
+          </div>
+          <div>
+            <p className="text-[9px] font-bold uppercase tracking-[0.12em] t3">{local.verificationCommand}</p>
+            <pre className="mt-1 truncate rounded-lg border px-3 py-2 text-[11px] t2" title={focusIntelligence.verificationCommand} style={{ borderColor: "var(--border-c)", background: "var(--bg-base)" }}>{focusIntelligence.verificationCommand}</pre>
+          </div>
+          <div>
+            <p className="text-[9px] font-bold uppercase tracking-[0.12em] t3">{t.deps}</p>
+            {focusTask.dependencies.length > 0 ? (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {focusTask.dependencies.map((dependency) => {
+                  const depId = dependencyId(dependency);
+                  return <StatusBadge key={depId} tone="neutral">{depId}</StatusBadge>;
+                })}
               </div>
-            </>
-          )}
-        </aside>
-
-          {contextMenu && <ContextMenu x={contextMenu.x} y={contextMenu.y} items={contextItems} onClose={() => setContextMenu(null)} />}
+            ) : (
+              <p className="mt-1 text-xs italic t3">{t.noDeps}</p>
+            )}
+          </div>
         </div>
+      ) : (
+        <p className="mt-4 text-sm leading-relaxed t2">{local.noSelection}</p>
+      )}
+    </Surface>
+  );
+}
 
-        <ActivityLog entries={activityEntries} lang={lang} onClear={onClearActivityLog} />
-      </div>
+function TaskFlowModals({ controller }: { readonly controller: TaskFlowController }) {
+  const {
+    confirmDeleteTask,
+    deleteTargetId,
+    editDraft,
+    local,
+    setDeleteTargetId,
+    setEditDraft,
+    setSubtaskDraft,
+    submitDescriptionChange,
+    submitSubtask,
+    subtaskDraft,
+    t,
+  } = controller;
 
+  return (
+    <>
       {editDraft && (
         <Modal
           title={local.editTitle}
@@ -881,6 +1203,6 @@ export function TaskFlowView({
           </Surface>
         </Modal>
       )}
-    </div>
+    </>
   );
 }

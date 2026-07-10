@@ -59,6 +59,7 @@ export function ModsView({
         </div>
         <button
           type="button"
+          aria-label={t.agentsMdToggle}
           onClick={() => setAgentsEnabled((current) => !current)}
           className="relative h-6 w-12 flex-shrink-0 rounded-full transition-colors duration-300"
           style={{

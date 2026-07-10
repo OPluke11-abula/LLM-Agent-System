@@ -62,6 +62,7 @@ export function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
       </p>
 
       <select
+        aria-label={`Set status for task ${data.id}`}
         value={data.status}
         onClick={(event) => event.stopPropagation()}
         onChange={(event) => data.onStatusChange(data.id, event.target.value as TaskStatus)}

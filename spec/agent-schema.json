@@ -76,9 +76,18 @@
     "schema_evolution": {
       "type": "object",
       "description": "Rules governing how the agent can mutate its own configuration (e.g., skills, workflows) to ensure stability in a multi-agent environment.",
+      "additionalProperties": false,
       "properties": {
-        "allow_self_evolution": { "type": "boolean", "default": false },
-        "strict_forward_compatibility": { "type": "boolean", "description": "If true, skill mutations must be forward-compatible to prevent breaking dependent agents.", "default": true }
+        "allow_self_evolution": {
+          "type": "boolean",
+          "description": "Records whether manifest-driven self evolution is allowed. This declaration does not execute automatic self-mutation.",
+          "default": false
+        },
+        "strict_forward_compatibility": {
+          "type": "boolean",
+          "description": "If true, skill mutations must be forward-compatible to prevent breaking dependent agents.",
+          "default": true
+        }
       }
     },
     "mcp_servers": {

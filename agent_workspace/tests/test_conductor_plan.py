@@ -8,9 +8,11 @@ from agent_workspace.core.conductor import (
     MemoryScope,
     ModelCandidate,
     SelectedModel,
+    TokenEfficientProfile,
     VerificationStrategy,
     build_default_conductor_plan,
 )
+from agent_workspace.core.token_efficient_profile import HandoffThresholds
 
 
 def test_conductor_plan_serializes_stable_default_plan():
@@ -45,6 +47,7 @@ def test_conductor_plan_serializes_stable_default_plan():
     assert dumped["evidence_refs"] == []
     assert dumped["code_graph_refs"] == []
     assert dumped["impact_summary"] is None
+    assert dumped["token_efficient_profile"] is None
 
 
 def test_conductor_plan_serializes_workflow_metadata_without_changing_selection():
@@ -111,6 +114,43 @@ def test_conductor_plan_serializes_code_graph_metadata_without_changing_selectio
     assert plan.selected_models[0].provider == "google-genai"
     assert plan.selected_models[0].model == "gemini-2.5-flash"
     assert plan.tool_allowlist == ["code_search_symbol", "run_tests"]
+
+
+def test_conductor_plan_serializes_optional_token_efficient_profile_without_changing_selection():
+    profile = TokenEfficientProfile(
+        bounded_memory_retrieval_limit=3,
+        prefer_code_graph_lookup=True,
+        max_tool_payload_tokens=4000,
+        verification_profile="focused",
+        handoff_thresholds=HandoffThresholds(
+            history_message_count=24,
+            changed_file_count=8,
+            evidence_ref_count=6,
+            context_token_count=20000,
+        ),
+    )
+    plan = build_default_conductor_plan(
+        task_id="session-70:compilation",
+        task_summary="Add an advisory token-efficient profile.",
+        session_id="session-70",
+        task_type="compilation",
+        intent="TASK",
+        resolved_tools=["code_search_symbol", "run_tests"],
+        selected_account={"id": "primary", "provider": "google-genai", "model": "gemini-2.5-flash"},
+        max_iterations=5,
+        max_tool_calls=15,
+        token_efficient_profile=profile,
+    )
+
+    dumped = plan.model_dump(mode="json")
+
+    assert dumped["token_efficient_profile"]["bounded_memory_retrieval_limit"] == 3
+    assert dumped["token_efficient_profile"]["prefer_code_graph_lookup"] is True
+    assert dumped["token_efficient_profile"]["max_tool_payload_tokens"] == 4000
+    assert dumped["token_efficient_profile"]["verification_profile"] == "focused"
+    assert dumped["token_efficient_profile"]["handoff_thresholds"]["context_token_count"] == 20000
+    assert plan.selected_models[0].provider == "google-genai"
+    assert plan.selected_models[0].model == "gemini-2.5-flash"
 
 
 def test_conductor_plan_rejects_unknown_mode_and_topology():

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button, ProgressBar, StatusBadge, Surface, toneForStatus } from "./ui/primitives";
+import { adminApiUrl, adminJsonHeaders } from "../services/adminRuntimeAuth";
 import type { Lang } from "../types";
 
 type Tone = "success" | "warning" | "danger";
@@ -198,21 +199,12 @@ const fallbackProposals: GovernanceProposal[] = [
   },
 ];
 
-const API_BASE_URL = "http://localhost:8000";
-const ADMIN_API_KEY = "key-admin";
-const VALIDATOR_SECRETS: Record<string, string> = {
-  ceo: "poc-secret-ceo-key-92834",
-  cto: "poc-secret-cto-key-83749",
-  dev: "poc-secret-dev-key-10293",
-  qa: "poc-secret-qa-key-58291",
-  cfo: "poc-secret-cfo-key-47284",
-};
-const VALIDATOR_CREDENTIALS = [
-  { role: "ceo", label: "CEO", credential: "sha256:ceo-92834" },
-  { role: "cto", label: "CTO", credential: "sha256:cto-83749" },
-  { role: "dev", label: "Developer", credential: "sha256:dev-10293" },
-  { role: "qa", label: "QA", credential: "sha256:qa-58291" },
-  { role: "cfo", label: "CFO", credential: "sha256:cfo-47284" },
+const VALIDATOR_ROLES = [
+  { role: "ceo", label: "CEO" },
+  { role: "cto", label: "CTO" },
+  { role: "dev", label: "Developer" },
+  { role: "qa", label: "QA" },
+  { role: "cfo", label: "CFO" },
 ];
 
 const fallbackRules: PromptRule[] = [
@@ -282,8 +274,7 @@ function readArray(value: unknown, keys: string[]) {
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     headers: {
-      "Content-Type": "application/json",
-      "x-api-key": ADMIN_API_KEY,
+      ...adminJsonHeaders(),
       ...(options?.headers ?? {}),
     },
     ...options,
@@ -292,10 +283,6 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
     throw new Error(`${response.status} ${response.statusText}`);
   }
   return response.json() as Promise<T>;
-}
-
-function apiUrl(path: string) {
-  return `${API_BASE_URL}${path}`;
 }
 
 function mapVote(value: unknown): VoteState {
@@ -385,8 +372,7 @@ async function proposalPayloadHash(proposal: GovernanceProposal) {
 
 async function generateMemberSignature(role: string, payloadHash: string) {
   const normalizedRole = role.toLowerCase();
-  const secret = VALIDATOR_SECRETS[normalizedRole] ?? "poc-secret-fallback";
-  return sha256Hex(`${normalizedRole}:${payloadHash}:${secret}`);
+  return sha256Hex(`${normalizedRole}:${payloadHash}:browser-demo-signature`);
 }
 
 function mapLogs(raw: unknown): CalibrationLog[] {
@@ -439,6 +425,275 @@ function anomalyTone(severity: AnomalyEvent["severity"]) {
   return "success";
 }
 
+function PromptCalibrationHeader({
+  copy,
+  onRefresh,
+}: {
+  copy: CalibrationCopy;
+  onRefresh: () => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <h2 className="text-xs font-black uppercase tracking-[0.14em] t1">{copy.title}</h2>
+        <p className="mt-1 max-w-3xl text-xs t3">{copy.subtitle}</p>
+      </div>
+      <Button onClick={onRefresh} variant="quiet">
+        {copy.rules}
+      </Button>
+    </div>
+  );
+}
+
+function ProposalQueuePanel({
+  copy,
+  proposals,
+  selectedProposalId,
+  voteLoading,
+  onSelect,
+  onVote,
+}: {
+  copy: CalibrationCopy;
+  proposals: readonly GovernanceProposal[];
+  selectedProposalId: string;
+  voteLoading: VoteChoice | null;
+  onSelect: (proposalId: string) => void;
+  onVote: (choice: VoteChoice) => void;
+}) {
+  return (
+    <Surface className="flex flex-col gap-3 p-3 xl:col-span-4">
+      <h3 className="text-[10px] font-black uppercase tracking-[0.14em] t2">{copy.proposals}</h3>
+      <div className="flex max-h-[310px] flex-col gap-2 overflow-y-auto pr-1">
+        {proposals.map(proposal => (
+          <Button
+            key={proposal.id}
+            type="button"
+            onClick={() => onSelect(proposal.id)}
+            variant="quiet"
+            className="w-full p-3 text-left"
+            style={{
+              borderColor: proposal.id === selectedProposalId ? "var(--accent)" : "var(--border-c)",
+              background: proposal.id === selectedProposalId ? "var(--accent-bg)" : "var(--bg-muted)",
+            }}
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="truncate text-xs font-semibold t1">{proposal.title}</p>
+                <p className="mt-1 text-[10px] t3">{proposal.category}</p>
+              </div>
+              <StatusBadge tone={toneForStatus(proposal.status)}>{proposal.status}</StatusBadge>
+            </div>
+            <p className="mt-2 line-clamp-2 text-[10px] t3">{proposal.summary}</p>
+          </Button>
+        ))}
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <Button onClick={() => onVote("approve")} disabled={voteLoading !== null} variant="primary">
+          {voteLoading === "approve" ? copy.voting : copy.approve}
+        </Button>
+        <Button onClick={() => onVote("reject")} disabled={voteLoading !== null} variant="danger">
+          {voteLoading === "reject" ? copy.voting : copy.reject}
+        </Button>
+      </div>
+    </Surface>
+  );
+}
+
+function ConsensusPanel({
+  copy,
+  selectedProposal,
+  selectedValidatorRole,
+  voteTotals,
+  onSelectValidator,
+}: {
+  copy: CalibrationCopy;
+  selectedProposal: GovernanceProposal;
+  selectedValidatorRole: string;
+  voteTotals: {
+    approved: number;
+    rejected: number;
+    pending: number;
+    approvePercent: number;
+    rejectPercent: number;
+  };
+  onSelectValidator: (role: string) => void;
+}) {
+  return (
+    <Surface className="flex flex-col gap-3 p-3 xl:col-span-4">
+      <h3 className="text-[10px] font-black uppercase tracking-[0.14em] t2">Consensus Voting Progress</h3>
+      <div className="grid grid-cols-1 gap-2 rounded-lg border p-3" style={{ borderColor: "var(--border-c)", background: "var(--bg-muted)" }}>
+        <div>
+          <div className="mb-1 flex items-center justify-between font-mono text-[10px] t3">
+            <span>Approve {voteTotals.approved}</span>
+            <span>{voteTotals.approvePercent.toFixed(0)}%</span>
+          </div>
+          <ProgressBar value={voteTotals.approvePercent} tone="success" />
+        </div>
+        <div>
+          <div className="mb-1 flex items-center justify-between font-mono text-[10px] t3">
+            <span>Reject {voteTotals.rejected}</span>
+            <span>{voteTotals.rejectPercent.toFixed(0)}%</span>
+          </div>
+          <ProgressBar value={voteTotals.rejectPercent} tone="danger" />
+        </div>
+        <p className="font-mono text-[10px] t3">{copy.pending} {voteTotals.pending}</p>
+      </div>
+      <div className="grid grid-cols-1 gap-2">
+        {selectedProposal.votes.map(vote => (
+          <div key={`${selectedProposal.id}-${vote.node}`} className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-lg border p-2" style={{ borderColor: "var(--border-c)" }}>
+            <div className="min-w-0">
+              <p className="truncate font-mono text-xs font-semibold t1">{vote.node}</p>
+              <p className="text-[10px] t3">{vote.role}</p>
+              {vote.signature && <p className="truncate font-mono text-[9px] t3">{vote.signature.slice(0, 18)}...</p>}
+            </div>
+            <StatusBadge tone={voteTone(vote.vote)}>{vote.vote === "pending" ? copy.pending : vote.vote}</StatusBadge>
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-1 gap-1.5">
+        {VALIDATOR_ROLES.map(credential => (
+          <Button
+            key={credential.role}
+            type="button"
+            onClick={() => onSelectValidator(credential.role)}
+            variant="quiet"
+            className="grid grid-cols-[1fr_auto] gap-2 px-2 py-1.5 text-left"
+            style={{
+              borderColor: selectedValidatorRole === credential.role ? "var(--accent)" : "var(--border-c)",
+              background: selectedValidatorRole === credential.role ? "var(--accent-bg)" : "transparent",
+            }}
+          >
+            <span className="font-mono text-[10px] font-semibold t2">{credential.label}</span>
+            <span className="font-mono text-[9px] t3">{credential.role}</span>
+          </Button>
+        ))}
+      </div>
+      <div className="mt-auto rounded-lg border p-3" style={{ borderColor: "var(--border-c)", background: "var(--bg-muted)" }}>
+        <p className="text-[10px] font-bold uppercase tracking-[0.12em] t3">{selectedProposal.id}</p>
+        <p className="mt-1 truncate font-mono text-[10px] t3">{selectedProposal.payloadHash || "payload hash pending"}</p>
+        <p className="mt-1 text-xs t2">{selectedProposal.summary}</p>
+      </div>
+    </Surface>
+  );
+}
+
+function RulesPanel({
+  copy,
+  rules,
+  selectedRuleId,
+  onSelect,
+}: {
+  copy: CalibrationCopy;
+  rules: readonly PromptRule[];
+  selectedRuleId: string;
+  onSelect: (ruleId: string) => void;
+}) {
+  return (
+    <Surface className="flex flex-col gap-3 p-3 xl:col-span-4">
+      <h3 className="text-[10px] font-black uppercase tracking-[0.14em] t2">{copy.rules}</h3>
+      <div className="flex max-h-[310px] flex-col gap-2 overflow-y-auto pr-1">
+        {rules.map(rule => (
+          <Button
+            key={rule.id}
+            type="button"
+            onClick={() => onSelect(rule.id)}
+            variant="quiet"
+            className="w-full p-3 text-left"
+            style={{
+              borderColor: rule.id === selectedRuleId ? "var(--accent)" : "var(--border-c)",
+              background: rule.id === selectedRuleId ? "var(--accent-bg)" : "var(--bg-muted)",
+            }}
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="truncate text-xs font-semibold t1">{rule.title}</p>
+                <p className="mt-1 text-[10px] t3">{rule.category}</p>
+              </div>
+              <span className="font-mono text-[10px] t2">{copy.weight} {rule.weight.toFixed(2)}</span>
+            </div>
+          </Button>
+        ))}
+      </div>
+    </Surface>
+  );
+}
+
+function RuleDiffPanel({ copy, selectedRule, diff }: { copy: CalibrationCopy; selectedRule: PromptRule; diff: ReturnType<typeof changedLines> }) {
+  return (
+    <Surface className="flex flex-col gap-3 p-3 xl:col-span-7">
+      <h3 className="text-[10px] font-black uppercase tracking-[0.14em] t2">{copy.diff}</h3>
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <div className="min-h-[170px] rounded-lg border p-3" style={{ borderColor: "var(--border-c)", background: "var(--bg-muted)" }}>
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] t3">{copy.before}</p>
+          <p className="font-mono text-[11px] leading-relaxed t2">{selectedRule.before}</p>
+        </div>
+        <div className="min-h-[170px] rounded-lg border p-3" style={{ borderColor: "color-mix(in srgb, var(--accent) 36%, transparent)", background: "var(--bg-muted)" }}>
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] t3">{copy.after}</p>
+          <p className="font-mono text-[11px] leading-relaxed">
+            {diff.after.map((word, index) => (
+              <span
+                key={`${word}-${index}`}
+                className="mr-1 rounded px-0.5"
+                style={{
+                  color: diff.changed.has(word) ? "var(--accent-strong)" : "var(--t2)",
+                  background: diff.changed.has(word) ? "var(--accent-bg)" : "transparent",
+                }}
+              >
+                {word}
+              </span>
+            ))}
+          </p>
+        </div>
+      </div>
+    </Surface>
+  );
+}
+
+function CalibrationLogsPanel({ copy, logs }: { copy: CalibrationCopy; logs: readonly CalibrationLog[] }) {
+  return (
+    <Surface className="flex flex-col gap-3 p-3 xl:col-span-5">
+      <h3 className="text-[10px] font-black uppercase tracking-[0.14em] t2">{copy.logs}</h3>
+      <div className="flex max-h-[190px] flex-col gap-2 overflow-y-auto pr-1">
+        {logs.map(log => (
+          <div key={log.id} className="rounded-lg border p-3" style={{ borderColor: "var(--border-c)" }}>
+            <div className="flex items-start justify-between gap-2">
+              <p className="font-mono text-[10px] t3">{log.timestamp}</p>
+              <StatusBadge tone="warning">{copy.trigger}</StatusBadge>
+            </div>
+            <p className="mt-1 text-xs font-semibold t1">{log.trigger}</p>
+            <p className="mt-1 text-[10px] t3">{log.ruleId}: {log.result}</p>
+          </div>
+        ))}
+      </div>
+    </Surface>
+  );
+}
+
+function AnomalyPanel({ copy, anomalies }: { copy: CalibrationCopy; anomalies: readonly AnomalyEvent[] }) {
+  return (
+    <Surface className="flex flex-col gap-3 p-3">
+      <h3 className="text-[10px] font-black uppercase tracking-[0.14em] t2">{copy.anomalies}</h3>
+      <div className="grid grid-cols-1 gap-2 lg:grid-cols-3">
+        {anomalies.map(anomaly => (
+          <div key={anomaly.id} className="rounded-lg border p-3" style={{ borderColor: "var(--border-c)", background: "var(--bg-muted)" }}>
+            <div className="flex items-start justify-between gap-2">
+              <p className="font-mono text-[10px] t3">{anomaly.timestamp}</p>
+              <StatusBadge tone={anomalyTone(anomaly.severity)}>{anomaly.severity}</StatusBadge>
+            </div>
+            <p className="mt-2 text-xs font-semibold t1">{anomaly.title}</p>
+            <div className="mt-3 flex items-center justify-between gap-2">
+              <span className="truncate font-mono text-[10px] t3">{anomaly.mitigationRule}</span>
+              <StatusBadge tone={anomaly.mitigated ? "success" : "warning"}>
+                {anomaly.mitigated ? copy.mitigated : copy.unmitigated}
+              </StatusBadge>
+            </div>
+          </div>
+        ))}
+      </div>
+    </Surface>
+  );
+}
+
 export function PromptCalibrationDashboard({
   lang,
   onStatus,
@@ -460,7 +715,7 @@ export function PromptCalibrationDashboard({
   const selectedRule = rules.find(rule => rule.id === selectedRuleId) ?? rules[0];
   const diff = useMemo(() => changedLines(selectedRule.before, selectedRule.after), [selectedRule]);
   const voteTotals = useMemo(() => {
-    const total = Math.max(VALIDATOR_CREDENTIALS.length, selectedProposal.votes.length, 1);
+    const total = Math.max(VALIDATOR_ROLES.length, selectedProposal.votes.length, 1);
     const approved = selectedProposal.votes.filter(vote => vote.vote === "approve").length;
     const rejected = selectedProposal.votes.filter(vote => vote.vote === "reject").length;
     return {
@@ -474,8 +729,8 @@ export function PromptCalibrationDashboard({
 
   const loadCalibrationData = useCallback(async () => {
     const [rulesResult, anomalyResult] = await Promise.allSettled([
-      fetchJson<unknown>(apiUrl("/v1/swarm/governance/rules")),
-      fetchJson<unknown>(apiUrl("/v1/audit/logs")),
+      fetchJson<unknown>(adminApiUrl("/v1/swarm/governance/rules")),
+      fetchJson<unknown>(adminApiUrl("/v1/audit/logs")),
     ]);
 
     let usedFallback = false;
@@ -518,7 +773,7 @@ export function PromptCalibrationDashboard({
       const role = selectedValidatorRole.toLowerCase();
       const payloadHash = await proposalPayloadHash(selectedProposal);
       const signature = await generateMemberSignature(role, payloadHash);
-      await fetchJson<unknown>(apiUrl("/v1/swarm/governance/vote"), {
+      await fetchJson<unknown>(adminApiUrl("/v1/swarm/governance/vote"), {
         method: "POST",
         body: JSON.stringify({
           proposal_id: selectedProposal.id,
@@ -549,202 +804,33 @@ export function PromptCalibrationDashboard({
 
   return (
     <Surface as="section" elevated className="flex flex-col gap-4 p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-xs font-black uppercase tracking-[0.14em] t1">{copy.title}</h2>
-          <p className="mt-1 max-w-3xl text-xs t3">{copy.subtitle}</p>
-        </div>
-        <Button onClick={loadCalibrationData} variant="quiet">
-          {copy.rules}
-        </Button>
+      <PromptCalibrationHeader copy={copy} onRefresh={loadCalibrationData} />
+
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+        <ProposalQueuePanel
+          copy={copy}
+          proposals={proposals}
+          selectedProposalId={selectedProposal.id}
+          voteLoading={voteLoading}
+          onSelect={setSelectedProposalId}
+          onVote={castVote}
+        />
+        <ConsensusPanel
+          copy={copy}
+          selectedProposal={selectedProposal}
+          selectedValidatorRole={selectedValidatorRole}
+          voteTotals={voteTotals}
+          onSelectValidator={setSelectedValidatorRole}
+        />
+        <RulesPanel copy={copy} rules={rules} selectedRuleId={selectedRule.id} onSelect={setSelectedRuleId} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-        <Surface className="flex flex-col gap-3 p-3 xl:col-span-4">
-          <h3 className="text-[10px] font-black uppercase tracking-[0.14em] t2">{copy.proposals}</h3>
-          <div className="flex max-h-[310px] flex-col gap-2 overflow-y-auto pr-1">
-            {proposals.map(proposal => (
-              <Button
-                key={proposal.id}
-                type="button"
-                onClick={() => setSelectedProposalId(proposal.id)}
-                variant="quiet"
-                className="w-full p-3 text-left"
-                style={{
-                  borderColor: proposal.id === selectedProposal.id ? "var(--accent)" : "var(--border-c)",
-                  background: proposal.id === selectedProposal.id ? "var(--accent-bg)" : "var(--bg-muted)",
-                }}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="truncate text-xs font-semibold t1">{proposal.title}</p>
-                    <p className="mt-1 text-[10px] t3">{proposal.category}</p>
-                  </div>
-                  <StatusBadge tone={toneForStatus(proposal.status)}>{proposal.status}</StatusBadge>
-                </div>
-                <p className="mt-2 line-clamp-2 text-[10px] t3">{proposal.summary}</p>
-              </Button>
-            ))}
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <Button onClick={() => castVote("approve")} disabled={voteLoading !== null} variant="primary">
-              {voteLoading === "approve" ? copy.voting : copy.approve}
-            </Button>
-            <Button onClick={() => castVote("reject")} disabled={voteLoading !== null} variant="danger">
-              {voteLoading === "reject" ? copy.voting : copy.reject}
-            </Button>
-          </div>
-        </Surface>
-
-        <Surface className="flex flex-col gap-3 p-3 xl:col-span-4">
-          <h3 className="text-[10px] font-black uppercase tracking-[0.14em] t2">Consensus Voting Progress</h3>
-          <div className="grid grid-cols-1 gap-2 rounded-lg border p-3" style={{ borderColor: "var(--border-c)", background: "var(--bg-muted)" }}>
-            <div>
-              <div className="mb-1 flex items-center justify-between font-mono text-[10px] t3">
-                <span>Approve {voteTotals.approved}</span>
-                <span>{voteTotals.approvePercent.toFixed(0)}%</span>
-              </div>
-              <ProgressBar value={voteTotals.approvePercent} tone="success" />
-            </div>
-            <div>
-              <div className="mb-1 flex items-center justify-between font-mono text-[10px] t3">
-                <span>Reject {voteTotals.rejected}</span>
-                <span>{voteTotals.rejectPercent.toFixed(0)}%</span>
-              </div>
-              <ProgressBar value={voteTotals.rejectPercent} tone="danger" />
-            </div>
-            <p className="font-mono text-[10px] t3">{copy.pending} {voteTotals.pending}</p>
-          </div>
-          <div className="grid grid-cols-1 gap-2">
-            {selectedProposal.votes.map(vote => (
-              <div key={`${selectedProposal.id}-${vote.node}`} className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-lg border p-2" style={{ borderColor: "var(--border-c)" }}>
-                <div className="min-w-0">
-                  <p className="truncate font-mono text-xs font-semibold t1">{vote.node}</p>
-                  <p className="text-[10px] t3">{vote.role}</p>
-                  {vote.signature && <p className="truncate font-mono text-[9px] t3">{vote.signature.slice(0, 18)}...</p>}
-                </div>
-                <StatusBadge tone={voteTone(vote.vote)}>{vote.vote === "pending" ? copy.pending : vote.vote}</StatusBadge>
-              </div>
-            ))}
-          </div>
-          <div className="grid grid-cols-1 gap-1.5">
-            {VALIDATOR_CREDENTIALS.map(credential => (
-              <Button
-                key={credential.role}
-                type="button"
-                onClick={() => setSelectedValidatorRole(credential.role)}
-                variant="quiet"
-                className="grid grid-cols-[1fr_auto] gap-2 px-2 py-1.5 text-left"
-                style={{
-                  borderColor: selectedValidatorRole === credential.role ? "var(--accent)" : "var(--border-c)",
-                  background: selectedValidatorRole === credential.role ? "var(--accent-bg)" : "transparent",
-                }}
-              >
-                <span className="font-mono text-[10px] font-semibold t2">{credential.label}</span>
-                <span className="font-mono text-[9px] t3">{credential.credential}</span>
-              </Button>
-            ))}
-          </div>
-          <div className="mt-auto rounded-lg border p-3" style={{ borderColor: "var(--border-c)", background: "var(--bg-muted)" }}>
-            <p className="text-[10px] font-bold uppercase tracking-[0.12em] t3">{selectedProposal.id}</p>
-            <p className="mt-1 truncate font-mono text-[10px] t3">{selectedProposal.payloadHash || "payload hash pending"}</p>
-            <p className="mt-1 text-xs t2">{selectedProposal.summary}</p>
-          </div>
-        </Surface>
-
-        <Surface className="flex flex-col gap-3 p-3 xl:col-span-4">
-          <h3 className="text-[10px] font-black uppercase tracking-[0.14em] t2">{copy.rules}</h3>
-          <div className="flex max-h-[310px] flex-col gap-2 overflow-y-auto pr-1">
-            {rules.map(rule => (
-              <Button
-                key={rule.id}
-                type="button"
-                onClick={() => setSelectedRuleId(rule.id)}
-                variant="quiet"
-                className="w-full p-3 text-left"
-                style={{
-                  borderColor: rule.id === selectedRule.id ? "var(--accent)" : "var(--border-c)",
-                  background: rule.id === selectedRule.id ? "var(--accent-bg)" : "var(--bg-muted)",
-                }}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="truncate text-xs font-semibold t1">{rule.title}</p>
-                    <p className="mt-1 text-[10px] t3">{rule.category}</p>
-                  </div>
-                  <span className="font-mono text-[10px] t2">{copy.weight} {rule.weight.toFixed(2)}</span>
-                </div>
-              </Button>
-            ))}
-          </div>
-        </Surface>
+        <RuleDiffPanel copy={copy} selectedRule={selectedRule} diff={diff} />
+        <CalibrationLogsPanel copy={copy} logs={logs} />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-        <Surface className="flex flex-col gap-3 p-3 xl:col-span-7">
-          <h3 className="text-[10px] font-black uppercase tracking-[0.14em] t2">{copy.diff}</h3>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <div className="min-h-[170px] rounded-lg border p-3" style={{ borderColor: "var(--border-c)", background: "var(--bg-muted)" }}>
-              <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] t3">{copy.before}</p>
-              <p className="font-mono text-[11px] leading-relaxed t2">{selectedRule.before}</p>
-            </div>
-            <div className="min-h-[170px] rounded-lg border p-3" style={{ borderColor: "color-mix(in srgb, var(--accent) 36%, transparent)", background: "var(--bg-muted)" }}>
-              <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] t3">{copy.after}</p>
-              <p className="font-mono text-[11px] leading-relaxed">
-                {diff.after.map((word, index) => (
-                  <span
-                    key={`${word}-${index}`}
-                    className="mr-1 rounded px-0.5"
-                    style={{
-                      color: diff.changed.has(word) ? "var(--accent-strong)" : "var(--t2)",
-                      background: diff.changed.has(word) ? "var(--accent-bg)" : "transparent",
-                    }}
-                  >
-                    {word}
-                  </span>
-                ))}
-              </p>
-            </div>
-          </div>
-        </Surface>
-
-        <Surface className="flex flex-col gap-3 p-3 xl:col-span-5">
-          <h3 className="text-[10px] font-black uppercase tracking-[0.14em] t2">{copy.logs}</h3>
-          <div className="flex max-h-[190px] flex-col gap-2 overflow-y-auto pr-1">
-            {logs.map(log => (
-              <div key={log.id} className="rounded-lg border p-3" style={{ borderColor: "var(--border-c)" }}>
-                <div className="flex items-start justify-between gap-2">
-                  <p className="font-mono text-[10px] t3">{log.timestamp}</p>
-                  <StatusBadge tone="warning">{copy.trigger}</StatusBadge>
-                </div>
-                <p className="mt-1 text-xs font-semibold t1">{log.trigger}</p>
-                <p className="mt-1 text-[10px] t3">{log.ruleId}: {log.result}</p>
-              </div>
-            ))}
-          </div>
-        </Surface>
-      </div>
-
-      <Surface className="flex flex-col gap-3 p-3">
-        <h3 className="text-[10px] font-black uppercase tracking-[0.14em] t2">{copy.anomalies}</h3>
-        <div className="grid grid-cols-1 gap-2 lg:grid-cols-3">
-          {anomalies.map(anomaly => (
-            <div key={anomaly.id} className="rounded-lg border p-3" style={{ borderColor: "var(--border-c)", background: "var(--bg-muted)" }}>
-              <div className="flex items-start justify-between gap-2">
-                <p className="font-mono text-[10px] t3">{anomaly.timestamp}</p>
-                <StatusBadge tone={anomalyTone(anomaly.severity)}>{anomaly.severity}</StatusBadge>
-              </div>
-              <p className="mt-2 text-xs font-semibold t1">{anomaly.title}</p>
-              <div className="mt-3 flex items-center justify-between gap-2">
-                <span className="truncate font-mono text-[10px] t3">{anomaly.mitigationRule}</span>
-                <StatusBadge tone={anomaly.mitigated ? "success" : "warning"}>
-                  {anomaly.mitigated ? copy.mitigated : copy.unmitigated}
-                </StatusBadge>
-              </div>
-            </div>
-          ))}
-        </div>
-      </Surface>
+      <AnomalyPanel copy={copy} anomalies={anomalies} />
     </Surface>
   );
 }

@@ -7,6 +7,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from .token_efficient_profile import TokenEfficientProfile
+
 
 ExecutionMode = Literal["fast", "pro", "ultra"]
 RiskLevel = Literal["low", "medium", "high"]
@@ -151,6 +153,7 @@ class ConductorPlan(BaseModel):
     tool_allowlist: list[str] = Field(default_factory=list)
     memory_scope: MemoryScope
     verification_strategy: VerificationStrategy
+    token_efficient_profile: TokenEfficientProfile | None = None
     budget: ExecutionBudget
     fallbacks: list[FallbackRule] = Field(default_factory=list)
     routing_memory_hints: list[RouteOutcomeHint] = Field(default_factory=list)
@@ -310,6 +313,7 @@ def build_default_conductor_plan(
     evidence_refs: list[str] | None = None,
     code_graph_refs: list[dict[str, Any]] | None = None,
     impact_summary: dict[str, Any] | None = None,
+    token_efficient_profile: TokenEfficientProfile | None = None,
 ) -> ConductorPlan:
     """Build a deterministic telemetry plan without changing runtime behavior."""
 
@@ -364,6 +368,7 @@ def build_default_conductor_plan(
             tenant_id=tenant_id,
         ),
         verification_strategy=verification,
+        token_efficient_profile=token_efficient_profile,
         budget=ExecutionBudget(
             max_iterations=max_iterations,
             max_tool_calls=max_tool_calls,

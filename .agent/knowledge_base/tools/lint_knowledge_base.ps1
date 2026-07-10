@@ -86,7 +86,19 @@ function Resolve-WikilinkPath {
 $rootPath = Resolve-KnowledgeRoot
 $findings = New-Object System.Collections.Generic.List[object]
 $indexPath = Join-Path $rootPath 'index.md'
+$logPath = Join-Path $rootPath 'log.md'
 $latestInventoryPath = Join-Path $rootPath 'indexes\knowledge-inventory-latest.json'
+
+if (-not (Test-Path -LiteralPath $logPath)) {
+    Add-Finding $findings 'High' 'missing-log' 'log.md' 'Knowledge base log.md is missing.'
+}
+
+$requiredDirectories = @('projects', 'workflows', 'handoffs', 'decisions', 'known-issues', 'exports', 'raw', 'templates', 'wiki')
+foreach ($directory in $requiredDirectories) {
+    if (-not (Test-Path -LiteralPath (Join-Path $rootPath $directory) -PathType Container)) {
+        Add-Finding $findings 'High' 'missing-required-directory' $directory 'Required knowledge-base directory is missing.'
+    }
+}
 
 $indexedPathSet = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
 if (-not (Test-Path -LiteralPath $indexPath)) {
@@ -116,7 +128,7 @@ foreach ($file in $markdownFiles) {
     if (-not $stemIndex.ContainsKey($stem)) { $stemIndex[$stem] = New-Object System.Collections.Generic.List[string] }
     [void]$stemIndex[$stem].Add($file.FullName)
 }
-$indexedDirs = @('projects', 'workflows', 'decisions', 'known-issues', 'evidence', 'handoffs', 'exports')
+$indexedDirs = @('projects', 'workflows', 'decisions', 'known-issues', 'evidence', 'handoffs', 'exports', 'templates', 'wiki')
 foreach ($file in $markdownFiles) {
     $relative = Get-RelativePath -RootPath $rootPath -Path $file.FullName
     $slashRelative = $relative.Replace('\', '/')
@@ -128,7 +140,7 @@ foreach ($file in $markdownFiles) {
         $topDir = ($slashRelative -split '/')[0]
         $slashWithoutExt = $slashRelative -replace '\.md$', ''
         if ($indexedDirs -contains $topDir -and $indexText -and -not ($indexedPathSet.Contains($slashRelative) -or $indexedPathSet.Contains($slashWithoutExt))) {
-            Add-Finding $findings 'Medium' 'not-linked-from-index' $slashRelative 'Task-facing note is not linked from index.md.'
+            Add-Finding $findings 'Medium' 'orphan-note' $slashRelative 'Task-facing note is not linked from index.md.'
         }
     }
 
@@ -136,6 +148,22 @@ foreach ($file in $markdownFiles) {
     $secretPattern = '(?i)(authorization:\s*bearer\s+[A-Za-z0-9._-]{8,}|\bsk-[A-Za-z0-9]{8,}|\b(api[_-]?key|secret|token|password|cookie)\b\s*[:=]\s*[^\s`''"]{4,})'
     if ($text -match $secretPattern) {
         Add-Finding $findings 'High' 'potential-secret-string' $slashRelative 'Potential credential-like string found; inspect before sharing or committing.'
+    }
+
+    $topDir = ($slashRelative -split '/')[0]
+    if ($topDir -eq 'handoffs' -and $text -notmatch '(?m)^##\s+(Next Agent Should Read|Next Agent Start Here|Read Order)\s*$') {
+        Add-Finding $findings 'Medium' 'weak-handoff-read-order' $slashRelative 'Handoff needs Next Agent Should Read, Next Agent Start Here, or Read Order guidance.'
+    }
+    if ($topDir -eq 'decisions') {
+        if ($text -notmatch '(?m)^##\s+Decision\s*$') {
+            Add-Finding $findings 'Medium' 'weak-decision-statement' $slashRelative 'Decision note needs a Decision section.'
+        }
+        if ($text -notmatch '(?m)^##\s+Revisit When\s*$') {
+            Add-Finding $findings 'Medium' 'weak-decision-revisit' $slashRelative 'Decision note needs a Revisit When section.'
+        }
+    }
+    if ($topDir -eq 'known-issues' -and $text -notmatch '(?m)^##\s+(Verification|Verification Guidance|Next Checks)\s*$') {
+        Add-Finding $findings 'Medium' 'weak-known-issue-verification' $slashRelative 'Known issue needs verification guidance.'
     }
 
     foreach ($match in [regex]::Matches($text, '\[\[([^\]]+)\]\]')) {

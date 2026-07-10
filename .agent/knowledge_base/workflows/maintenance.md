@@ -7,13 +7,26 @@ Run a read-only health check so `.agent/knowledge_base/` remains useful without 
 ## Checks
 
 - Required root files exist: `index.md`, `log.md`.
-- Important subdirectories exist: `projects/`, `workflows/`, `handoffs/`, `decisions/`, `known-issues/`, `exports/`, `raw/`, `templates/`.
-- Important links resolve to existing Markdown files.
-- Project notes include verification caveats.
-- Handoffs include `Next Agent Should Read`.
-- Decisions include revisit conditions.
-- Known issues include verification guidance.
-- Notes do not contain common credential patterns.
+- Required subdirectories exist: `projects/`, `workflows/`, `handoffs/`, `decisions/`, `known-issues/`, `exports/`, `raw/`, `templates/`, and `wiki/`.
+- Index links resolve and task-facing notes are not orphaned from `index.md`.
+- Obsidian wikilinks resolve to existing local notes.
+- Markdown notes are non-empty.
+- Handoffs include `Next Agent Should Read`, `Next Agent Start Here`, or a generated `Read Order`.
+- Decisions include both `Decision` and `Revisit When` sections.
+- Known issues include `Verification`, `Verification Guidance`, or `Next Checks`.
+- Notes do not contain common credential-like patterns.
+
+## Command
+
+Run the shared, read-only health audit after knowledge-base changes:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\.agent\knowledge_base\tools\lint_knowledge_base.ps1 -FailOn High
+```
+
+Use `-Format Json` when a report needs machine-readable findings. Treat `High`
+and `Critical` findings as blockers; record `Medium` findings before choosing a
+narrow repair.
 
 ## Modification Policy
 

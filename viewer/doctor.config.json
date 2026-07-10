@@ -1,0 +1,17 @@
+{
+  "$schema": "https://react.doctor/schema/config.json",
+  "blocking": "none",
+  "noScore": true,
+  "share": false,
+  "warnings": true,
+  "ignore": {
+    "files": [
+      "dist/**",
+      "node_modules/**",
+      "src-tauri/target/**"
+    ]
+  },
+  "categories": {
+    "Security": "error"
+  }
+}

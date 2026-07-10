@@ -21,6 +21,7 @@ This memory is orientation, not proof. Always verify current repo, code graph, c
 - [[workflows/inventory-backed-query]]
 - [[workflows/context-pack-builder]]
 - [[workflows/context-pack-validation]]
+- [[workflows/visual-reference-moodboard]]
 - [[workflows/agent-start-preflight]]
 - [[workflows/preflight-adoption-guide]]
 - [[workflows/knowledge-base-health-audit]]
@@ -44,6 +45,11 @@ This memory is orientation, not proof. Always verify current repo, code graph, c
 - [[workflows/handoff]]
 - [[workflows/maintenance]]
 - [[workflows/evidence-capture]]
+- [[workflows/evidence-memory-bridge]]
+- [[workflows/code-graph-bridge]]
+- [[workflows/agent-report-contract]]
+- [[workflows/token-efficient-work-mode]]
+- [[workflows/context-budget-preflight]]
 - [[workflows/semantic-retrieval-pilot]]
 - [[workflows/session-journal]]
 - [[workflows/local-knowledge-inventory]]
@@ -51,6 +57,7 @@ This memory is orientation, not proof. Always verify current repo, code graph, c
 - [[workflows/inventory-backed-query]]
 - [[workflows/context-pack-builder]]
 - [[workflows/context-pack-validation]]
+- [[workflows/visual-reference-moodboard]]
 - [[workflows/agent-start-preflight]]
 - [[workflows/preflight-adoption-guide]]
 - [[workflows/knowledge-base-health-audit]]
@@ -59,6 +66,17 @@ This memory is orientation, not proof. Always verify current repo, code graph, c
 - [[workflows/obsidian-vault-health-audit]]
 - [[workflows/obsidian-log-link-repair]]
 - [[workflows/inventory-ranking-tuning]]
+
+## Wiki
+
+- Future durable concept notes should be written under `wiki/`.
+
+## Templates
+
+- [[templates/handoff-report]]
+- [[templates/evidence-memory-summary]]
+- [[templates/agent-report]]
+- [[templates/query-memory-report]]
 
 ## Decisions
 
@@ -113,6 +131,9 @@ This memory is orientation, not proof. Always verify current repo, code graph, c
 - [[exports/obsidian-root-scratch-triage-flow-report-2026-07-04]]
 - [[exports/knowledge-base-git-hygiene-flow-report-2026-07-04]]
 - [[exports/explicit-kb-commit-package-dry-run-report-2026-07-04]]
+- [[exports/phase-67-design-critique-flow-report-2026-07-07]]
+- [[exports/phase-71-las-viewer-art-direction-packet-2026-07-07]]
+- [[exports/phase-71-screen-composition-studies-2026-07-07]]
 ## Verification Commands
 
 Use the smallest relevant check first:

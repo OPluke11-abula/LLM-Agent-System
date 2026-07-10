@@ -4,12 +4,16 @@ import type { TranslationMessages } from "../types";
 type SidebarProps = {
   t: TranslationMessages;
   relaunchOnboarding?: () => void;
+  onOpenCommandPalette?: () => void;
 };
 
-export function Sidebar({ t, relaunchOnboarding }: SidebarProps) {
+export function Sidebar({ t, relaunchOnboarding, onOpenCommandPalette }: SidebarProps) {
   const location = useLocation();
   const items = [
-    { label: t.taskFlow, to: "/", kicker: "Flow" },
+    { label: t.appTitle, to: "/", kicker: "Live" },
+    { label: t.taskFlow, to: "/tasks", kicker: "Flow" },
+    { label: "Topology", to: "/topology", kicker: "Graph" },
+    { label: "Intelligence", to: "/intelligence", kicker: "Map" },
     { label: t.memoryTitle, to: "/memory", kicker: "Brain" },
     { label: t.rules, to: "/rules", kicker: "Policy" },
     { label: t.mods, to: "/mods", kicker: "Skills" },
@@ -42,9 +46,19 @@ export function Sidebar({ t, relaunchOnboarding }: SidebarProps) {
             </span>
           </div>
         </div>
+        {onOpenCommandPalette && (
+          <button
+            type="button"
+            onClick={onOpenCommandPalette}
+            className="quiet-button flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold"
+          >
+            <span>Command Palette</span>
+            <span className="font-mono text-[10px] t3">Ctrl K</span>
+          </button>
+        )}
       </div>
 
-      <nav className="grid grid-cols-2 gap-1.5 sm:grid-cols-5 md:block md:flex-1 md:space-y-1.5">
+      <nav className="grid grid-cols-2 gap-1.5 sm:grid-cols-4 md:block md:flex-1 md:space-y-1.5">
         {items.map(({ label, to, kicker }) => {
           const active = location.pathname === to;
 

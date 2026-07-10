@@ -77,6 +77,45 @@ def test_schema_validation_success(temp_workspace):
     run_pap_validate(temp_workspace)  # Should run without raising exceptions
 
 
+def test_las_manifest_formal_semantics_accepts_existing_workspace():
+    workspace_root = Path(__file__).resolve().parents[2]
+
+    run_pap_validate(workspace_root)
+
+
+def test_memory_tier_unknown_name_rejected(temp_workspace):
+    manifest_p = temp_workspace / ".agent" / "agent.md"
+    parts = manifest_p.read_text(encoding="utf-8").split("---", 2)
+    config = yaml.safe_load(parts[1])
+    config["memory"] = {
+        "tiers": {
+            "ephemeral": "in_memory",
+            "session": "in_memory",
+            "persistent": "sqlite",
+            "shared": "sqlite",
+            "archival": "sqlite",
+        }
+    }
+    manifest_p.write_text(f"---\n{yaml.safe_dump(config)}---\n# Test", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="Unsupported memory tier"):
+        run_pap_validate(temp_workspace)
+
+
+def test_schema_evolution_self_evolution_requires_strict_forward_compatibility(temp_workspace):
+    manifest_p = temp_workspace / ".agent" / "agent.md"
+    parts = manifest_p.read_text(encoding="utf-8").split("---", 2)
+    config = yaml.safe_load(parts[1])
+    config["schema_evolution"] = {
+        "allow_self_evolution": True,
+        "strict_forward_compatibility": False,
+    }
+    manifest_p.write_text(f"---\n{yaml.safe_dump(config)}---\n# Test", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="strict_forward_compatibility"):
+        run_pap_validate(temp_workspace)
+
+
 def test_schema_validation_failure(temp_workspace):
     """Verify schema mismatch throws a ValueError."""
     agent_dir = temp_workspace / ".agent"

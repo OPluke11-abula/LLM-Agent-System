@@ -5,6 +5,8 @@ import {
   ReactFlow,
   useEdgesState,
   useNodesState,
+  type Edge,
+  type Node,
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { Button, ProgressBar, StatusBadge, Surface, toneForStatus } from "./ui/primitives";
@@ -13,6 +15,7 @@ import {
   SwarmGovernanceConsole,
   type SwarmReplayEvent,
 } from "./SwarmGovernanceConsole";
+import { adminAuthHeaders, adminJsonHeaders, adminWsUrl } from "../services/adminRuntimeAuth";
 import { logUiDiagnostic } from "../utils/logger";
 import type { Lang, TranslationMessages } from "../types";
 
@@ -42,6 +45,42 @@ type AuditBlock = {
   timestamp: string;
   tenant_id: string;
 };
+
+const SWARM_AGENTS = ["CEO", "Developer", "QA", "CFO"] as const;
+
+type SwarmAgent = (typeof SWARM_AGENTS)[number];
+type SwarmNodeData = { readonly label: SwarmAgent };
+type SwarmEdgeData = Record<string, never>;
+
+const SWARM_AGENT_POSITIONS: Record<SwarmAgent, { readonly x: number; readonly y: number }> = {
+  CEO: { x: 120, y: 60 },
+  Developer: { x: 380, y: 60 },
+  QA: { x: 250, y: 220 },
+  CFO: { x: 500, y: 220 },
+};
+
+const INITIAL_SWARM_NODES: readonly Node<SwarmNodeData>[] = SWARM_AGENTS.map(agent => ({
+  id: agent,
+  data: { label: agent },
+  position: SWARM_AGENT_POSITIONS[agent],
+  style: {
+    background: "var(--bg-card)",
+    borderColor: "var(--border-c)",
+    color: "var(--t1)",
+    borderRadius: "12px",
+    padding: "10px 16px",
+    fontSize: "13px",
+    fontWeight: "bold",
+    borderWidth: "1.5px",
+  },
+}));
+
+const INITIAL_SWARM_EDGES: readonly Edge<SwarmEdgeData>[] = [
+  { id: "ceo-dev", source: "CEO", target: "Developer", animated: false, style: { stroke: "var(--border-c)", strokeWidth: 1.5 } },
+  { id: "dev-qa", source: "Developer", target: "QA", animated: false, style: { stroke: "var(--border-c)", strokeWidth: 1.5 } },
+  { id: "qa-cfo", source: "QA", target: "CFO", animated: false, style: { stroke: "var(--border-c)", strokeWidth: 1.5 } },
+  { id: "cfo-ceo", source: "CFO", target: "CEO", animated: false, style: { stroke: "var(--border-c)", strokeWidth: 1.5 } },
+];
 
 type AdminCopy = {
   intro: string;
@@ -291,7 +330,7 @@ function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
 
-export function AdminDashboardView({ t, lang }: AdminDashboardViewProps) {
+function useAdminDashboardController({ t, lang }: AdminDashboardViewProps) {
   const copy = ADMIN_COPY[lang];
   const [tenants, setTenants] = useState<TenantInfo[]>([]);
   const [loadingTenants, setLoadingTenants] = useState(true);
@@ -304,8 +343,8 @@ export function AdminDashboardView({ t, lang }: AdminDashboardViewProps) {
   const [hijackText, setHijackText] = useState("");
   const [showHijackInput, setShowHijackInput] = useState(false);
   const [wsConnected, setWsConnected] = useState(false);
-  const [swarmNodes, setSwarmNodes, onSwarmNodesChange] = useNodesState([]);
-  const [swarmEdges, setSwarmEdges, onSwarmEdgesChange] = useEdgesState([]);
+  const [swarmNodes, setSwarmNodes, onSwarmNodesChange] = useNodesState<SwarmNodeData>([...INITIAL_SWARM_NODES]);
+  const [swarmEdges, setSwarmEdges, onSwarmEdgesChange] = useEdgesState<SwarmEdgeData>([...INITIAL_SWARM_EDGES]);
   const [lastInteractedAgent, setLastInteractedAgent] = useState<string | null>(null);
   const [activeTelemetry, setActiveTelemetry] = useState<{
     latencyMs: number;
@@ -331,7 +370,7 @@ export function AdminDashboardView({ t, lang }: AdminDashboardViewProps) {
   const fetchTenants = useCallback(async () => {
     try {
       const resp = await fetch("http://localhost:8000/v1/admin/tenants", {
-        headers: { "x-api-key": "key-admin" }
+        headers: adminAuthHeaders(),
       });
       if (!resp.ok) {
         throw new Error(`Failed to load tenants: ${resp.statusText}`);
@@ -352,12 +391,12 @@ export function AdminDashboardView({ t, lang }: AdminDashboardViewProps) {
     setCheckingLedger(true);
     try {
       const statusResp = await fetch("http://localhost:8000/v1/audit/status", {
-        headers: { "x-api-key": "key-admin" }
+        headers: adminAuthHeaders(),
       });
       const statusData = await statusResp.json();
       
       const logsResp = await fetch("http://localhost:8000/v1/audit/logs", {
-        headers: { "x-api-key": "key-admin" }
+        headers: adminAuthHeaders(),
       });
       const logsData = await logsResp.json();
 
@@ -381,10 +420,7 @@ export function AdminDashboardView({ t, lang }: AdminDashboardViewProps) {
     try {
       const resp = await fetch("http://localhost:8000/v1/admin/tenants/rotate-key", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": "key-admin"
-        },
+        headers: adminJsonHeaders(),
         body: JSON.stringify({ tenant_id: tenantId })
       });
       const data = await resp.json();
@@ -402,10 +438,7 @@ export function AdminDashboardView({ t, lang }: AdminDashboardViewProps) {
     try {
       const resp = await fetch("http://localhost:8000/v1/admin/tenants/update-subscription", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": "key-admin"
-        },
+        headers: adminJsonHeaders(),
         body: JSON.stringify({ tenant_id: tenantId, status })
       });
       const data = await resp.json();
@@ -422,7 +455,7 @@ export function AdminDashboardView({ t, lang }: AdminDashboardViewProps) {
     try {
       const resp = await fetch(`http://localhost:8000/v1/sessions/${selectedSessionId}/pause`, {
         method: "POST",
-        headers: { "x-api-key": "key-admin" }
+        headers: adminAuthHeaders(),
       });
       const data = await resp.json();
       if (data.status === "success") {
@@ -437,7 +470,7 @@ export function AdminDashboardView({ t, lang }: AdminDashboardViewProps) {
     try {
       const resp = await fetch(`http://localhost:8000/v1/sessions/${selectedSessionId}/resume`, {
         method: "POST",
-        headers: { "x-api-key": "key-admin" }
+        headers: adminAuthHeaders(),
       });
       const data = await resp.json();
       if (data.status === "success") {
@@ -453,10 +486,7 @@ export function AdminDashboardView({ t, lang }: AdminDashboardViewProps) {
     try {
       const resp = await fetch(`http://localhost:8000/v1/sessions/${selectedSessionId}/hijack`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": "key-admin"
-        },
+        headers: adminJsonHeaders(),
         body: JSON.stringify({ hijack_value: hijackText })
       });
       const data = await resp.json();
@@ -511,157 +541,123 @@ export function AdminDashboardView({ t, lang }: AdminDashboardViewProps) {
   }, [fetchTenants, fetchLedger]);
 
   useEffect(() => {
-    let ws: WebSocket | null = null;
-    let mockInterval: ReturnType<typeof window.setInterval> | null = null;
-    let currentActiveIdx = 0;
+    const ws = new WebSocket(adminWsUrl(`/v1/collaboration/${selectedSessionId}`));
 
-    const agents = ["CEO", "Developer", "QA", "CFO"];
-    const positions = [
-      { x: 120, y: 60 },
-      { x: 380, y: 60 },
-      { x: 250, y: 220 },
-      { x: 500, y: 220 }
-    ];
+    ws.onopen = () => {
+      setWsConnected(true);
+      ws.send(JSON.stringify({ handshake: "bypass" }));
+      ws.send(JSON.stringify({ action: "subscribe", channel: "logs" }));
+      ws.send(JSON.stringify({ action: "subscribe", channel: "topology" }));
+    };
 
-    const initialNodes = agents.map((agent, i) => ({
-      id: agent,
-      data: { label: agent },
-      position: positions[i],
-      style: {
-        background: "var(--bg-card)",
-        borderColor: "var(--border-c)",
-        color: "var(--t1)",
-        borderRadius: "12px",
-        padding: "10px 16px",
-        fontSize: "13px",
-        fontWeight: "bold",
-        borderWidth: "1.5px"
-      }
-    }));
+    ws.onmessage = (event) => {
+      try {
+        const rawData = JSON.parse(event.data);
+        if (rawData.payload) {
+          const payload = rawData.payload;
+          const fromAgent = payload.agent || "CEO";
+          const messageText = payload.event || "Debate Round Tick";
+          const delay = rawData.duration_ms || 450;
+          const tokenCost = (rawData.token_used || 180) * 0.00015;
 
-    const initialEdges = [
-      { id: "ceo-dev", source: "CEO", target: "Developer", animated: false, style: { stroke: "var(--border-c)", strokeWidth: 1.5 } },
-      { id: "dev-qa", source: "Developer", target: "QA", animated: false, style: { stroke: "var(--border-c)", strokeWidth: 1.5 } },
-      { id: "qa-cfo", source: "QA", target: "CFO", animated: false, style: { stroke: "var(--border-c)", strokeWidth: 1.5 } },
-      { id: "cfo-ceo", source: "CFO", target: "CEO", animated: false, style: { stroke: "var(--border-c)", strokeWidth: 1.5 } }
-    ];
+          setLastInteractedAgent(fromAgent);
+          setActiveTelemetry({
+            latencyMs: delay,
+            billingUsd: tokenCost,
+            lastMessage: messageText
+          });
 
-    setSwarmNodes(initialNodes);
-    setSwarmEdges(initialEdges);
+          setSwarmNodes(nodes =>
+            nodes.map(node => ({
+              ...node,
+              style: {
+                ...node.style,
+                borderColor: node.id === fromAgent ? "var(--accent)" : "var(--border-c)",
+                boxShadow: node.id === fromAgent ? "var(--shadow-card), var(--ring)" : "var(--shadow-card)"
+              }
+            }))
+          );
 
-    try {
-      ws = new WebSocket(`ws://localhost:8000/v1/collaboration/${selectedSessionId}?api_key=key-admin`);
-      
-      ws.onopen = () => {
-        setWsConnected(true);
-        ws?.send(JSON.stringify({ handshake: "bypass" }));
-        ws?.send(JSON.stringify({ action: "subscribe", channel: "logs" }));
-        ws?.send(JSON.stringify({ action: "subscribe", channel: "topology" }));
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const rawData = JSON.parse(event.data);
-          if (rawData.payload) {
-            const payload = rawData.payload;
-            const fromAgent = payload.agent || "CEO";
-            const messageText = payload.event || "Debate Round Tick";
-            const delay = rawData.duration_ms || 450;
-            const tokenCost = (rawData.token_used || 180) * 0.00015;
-
-            setLastInteractedAgent(fromAgent);
-            setActiveTelemetry({
-              latencyMs: delay,
-              billingUsd: tokenCost,
-              lastMessage: messageText
-            });
-
-            setSwarmNodes(nodes =>
-              nodes.map(node => ({
-                ...node,
-                style: {
-                  ...node.style,
-                  borderColor: node.id === fromAgent ? "var(--accent)" : "var(--border-c)",
-                  boxShadow: node.id === fromAgent ? "var(--shadow-card), var(--ring)" : "var(--shadow-card)"
-                }
-              }))
-            );
-
-            setSwarmEdges(edges =>
-              edges.map(edge => ({
-                ...edge,
-                animated: edge.source === fromAgent,
-                style: {
-                  ...edge.style,
-                  stroke: edge.source === fromAgent ? "var(--accent)" : "var(--border-c)",
-                  strokeWidth: edge.source === fromAgent ? 2.5 : 1.5
-                }
-              }))
-            );
-          }
-        } catch {
-          return;
+          setSwarmEdges(edges =>
+            edges.map(edge => ({
+              ...edge,
+              animated: edge.source === fromAgent,
+              style: {
+                ...edge.style,
+                stroke: edge.source === fromAgent ? "var(--accent)" : "var(--border-c)",
+                strokeWidth: edge.source === fromAgent ? 2.5 : 1.5
+              }
+            }))
+          );
         }
-      };
+      } catch (error) {
+        logUiDiagnostic("Failed to parse collaboration WebSocket payload", error);
+      }
+    };
 
-      ws.onclose = () => {
-        setWsConnected(false);
-      };
-      ws.onerror = () => {
-        setWsConnected(false);
-      };
-    } catch (err) {
+    ws.onclose = () => {
       setWsConnected(false);
-    }
-
-    if (!wsConnected) {
-      mockInterval = setInterval(() => {
-        if (swarmStatus === "paused") return;
-
-        const currentAgent = agents[currentActiveIdx];
-        const nextActiveIdx = (currentActiveIdx + 1) % agents.length;
-        const targetAgent = agents[nextActiveIdx];
-
-        setLastInteractedAgent(currentAgent);
-        setActiveTelemetry({
-          latencyMs: 400 + Math.floor(Math.random() * 300),
-          billingUsd: 0.012 + Math.random() * 0.02,
-          lastMessage: copy.debateMessage(currentAgent, targetAgent)
-        });
-
-        setSwarmNodes(nodes =>
-          nodes.map(node => ({
-            ...node,
-            className: "",
-            style: {
-              ...node.style,
-              borderColor: node.id === currentAgent ? "var(--accent)" : "var(--border-c)",
-              boxShadow: node.id === currentAgent ? "var(--shadow-card), var(--ring)" : "var(--shadow-card)"
-            }
-          }))
-        );
-
-        setSwarmEdges(edges =>
-          edges.map(edge => ({
-            ...edge,
-            animated: edge.source === currentAgent,
-            style: {
-              ...edge.style,
-              stroke: edge.source === currentAgent ? "var(--accent)" : "var(--border-c)",
-              strokeWidth: edge.source === currentAgent ? 2.5 : 1.5
-            }
-          }))
-        );
-
-        currentActiveIdx = nextActiveIdx;
-      }, 3000);
-    }
+    };
+    ws.onerror = () => {
+      setWsConnected(false);
+    };
 
     return () => {
-      if (ws) ws.close();
-      if (mockInterval) clearInterval(mockInterval);
+      ws.close();
     };
-  }, [copy, selectedSessionId, wsConnected, swarmStatus]);
+  }, [selectedSessionId, setSwarmEdges, setSwarmNodes]);
+
+  useEffect(() => {
+    if (wsConnected) {
+      return;
+    }
+
+    let currentActiveIdx = 0;
+    const mockInterval = window.setInterval(() => {
+      if (swarmStatus === "paused") return;
+
+      const currentAgent = SWARM_AGENTS[currentActiveIdx] ?? "CEO";
+      const nextActiveIdx = (currentActiveIdx + 1) % SWARM_AGENTS.length;
+      const targetAgent = SWARM_AGENTS[nextActiveIdx] ?? "CEO";
+
+      setLastInteractedAgent(currentAgent);
+      setActiveTelemetry({
+        latencyMs: 400 + Math.floor(Math.random() * 300),
+        billingUsd: 0.012 + Math.random() * 0.02,
+        lastMessage: copy.debateMessage(currentAgent, targetAgent)
+      });
+
+      setSwarmNodes(nodes =>
+        nodes.map(node => ({
+          ...node,
+          className: "",
+          style: {
+            ...node.style,
+            borderColor: node.id === currentAgent ? "var(--accent)" : "var(--border-c)",
+            boxShadow: node.id === currentAgent ? "var(--shadow-card), var(--ring)" : "var(--shadow-card)"
+          }
+        }))
+      );
+
+      setSwarmEdges(edges =>
+        edges.map(edge => ({
+          ...edge,
+          animated: edge.source === currentAgent,
+          style: {
+            ...edge.style,
+            stroke: edge.source === currentAgent ? "var(--accent)" : "var(--border-c)",
+            strokeWidth: edge.source === currentAgent ? 2.5 : 1.5
+          }
+        }))
+      );
+
+      currentActiveIdx = nextActiveIdx;
+    }, 3000);
+
+    return () => {
+      window.clearInterval(mockInterval);
+    };
+  }, [copy, setSwarmEdges, setSwarmNodes, swarmStatus, wsConnected]);
 
   useEffect(() => {
     if (auditBlocks.length === 0) {
@@ -728,282 +724,427 @@ export function AdminDashboardView({ t, lang }: AdminDashboardViewProps) {
     });
   };
 
+  return {
+    actionStatus,
+    activeTelemetry,
+    auditBlocks,
+    auditStatus,
+    checkingLedger,
+    copy,
+    errorTenants,
+    hijackText,
+    lang,
+    lastInteractedAgent,
+    ledgerEdges,
+    ledgerNodes,
+    loadingTenants,
+    rotatedKeyInfo,
+    selectedSessionId,
+    showHijackInput,
+    swarmEdges,
+    swarmNodes,
+    swarmStatus,
+    t,
+    tenants,
+    wsConnected,
+    fetchLedger,
+    fetchTenants,
+    handleHijackInput,
+    handlePauseSwarm,
+    handleReplayEvent,
+    handleResumeSwarm,
+    handleRotateKey,
+    handleUpdateSubscription,
+    onLedgerEdgesChange,
+    onLedgerNodesChange,
+    onSwarmEdgesChange,
+    onSwarmNodesChange,
+    setHijackText,
+    setLoadingTenants,
+    setShowHijackInput,
+    setTimedActionStatus,
+    simulateTamper,
+  };
+}
+
+type AdminDashboardController = ReturnType<typeof useAdminDashboardController>;
+
+export function AdminDashboardView(props: AdminDashboardViewProps) {
+  const controller = useAdminDashboardController(props);
+
+  return <AdminDashboardShell controller={controller} />;
+}
+
+function AdminDashboardShell({
+  controller,
+}: {
+  readonly controller: AdminDashboardController;
+}) {
+  const { lang, setTimedActionStatus } = controller;
+
   return (
     <div className="flex h-full flex-col gap-4 overflow-y-auto pr-2">
-      <div className="flex justify-between items-center border-b pb-3" style={{ borderColor: "var(--border-c)" }}>
-        <div>
-          <h1 className="text-xl font-black t1">{t.adminConsole}</h1>
-          <p className="text-xs t3 mt-0.5">{copy.intro}</p>
-        </div>
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          {actionStatus && <StatusBadge tone={actionStatus.tone}>{actionStatus.message}</StatusBadge>}
-          <Button
-            onClick={() => {
-              setLoadingTenants(true);
-              void fetchTenants();
-              void fetchLedger();
-            }}
-            variant="quiet"
-            className="px-3 py-1.5"
-          >
-            {copy.refresh}
-          </Button>
-        </div>
-      </div>
-
-      <Surface as="section" elevated className="flex flex-col gap-3 p-4">
-        <h2 className="text-xs font-black uppercase tracking-[0.14em] t1">{t.billingPlans}</h2>
-        {loadingTenants ? (
-          <div className="text-center text-xs py-4 t3">{copy.loadingTenants}</div>
-        ) : errorTenants ? (
-          <div className="text-center text-xs py-4" style={{ color: "var(--danger)" }}>{copy.errorPrefix}: {errorTenants}</div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {tenants.map(tenant => (
-              <Surface
-                key={tenant.tenant_id}
-                className="relative flex flex-col gap-3 p-4"
-              >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <span className="text-xs font-black t1">{tenant.tenant_id}</span>
-                    <p className="mt-0.5 max-w-[150px] truncate font-mono text-[9px] t3">
-                      {copy.stripeLabel}: {tenant.stripe_subscription_id || copy.none}
-                    </p>
-                  </div>
-                  <StatusBadge tone={toneForStatus(tenant.status)}>
-                    {tenant.status}
-                  </StatusBadge>
-                </div>
-
-                <div className="flex flex-col gap-1 text-[10px]">
-                  <span className="font-bold t3 uppercase tracking-[0.08em]">{t.apiKeyRotation}</span>
-                  <div className="flex items-center gap-1.5">
-                    <input
-                      type="text"
-                      readOnly
-                      value={rotatedKeyInfo[tenant.tenant_id] || tenant.api_key}
-                      className="field-input min-w-0 flex-1 rounded px-2 py-1 font-mono text-[10px]"
-                    />
-                    <Button
-                      onClick={() => handleRotateKey(tenant.tenant_id)}
-                      className="px-2.5 py-1 text-[10px]"
-                      title={copy.rotateTitle}
-                    >
-                      {copy.rotate}
-                    </Button>
-                  </div>
-                  {rotatedKeyInfo[tenant.tenant_id] && (
-                    <span className="text-[8px] font-bold" style={{ color: "var(--warning)" }}>{copy.keyRotated}</span>
-                  )}
-                </div>
-
-                <div className="flex flex-col gap-1 text-[10px] mt-1">
-                  <div className="flex justify-between font-bold">
-                    <span className="t3 uppercase tracking-[0.08em]">{t.realTimeUsage}</span>
-                    <span className="font-mono t3">
-                      {tenant.tokens_last_minute} / {copy.tpmLimit}
-                    </span>
-                  </div>
-                  <ProgressBar
-                    value={(tenant.tokens_last_minute / 5000) * 100}
-                    tone={tenant.tokens_last_minute >= 4000 ? "danger" : tenant.tokens_last_minute >= 2500 ? "warning" : "accent"}
-                  />
-                  <div className="mt-0.5 flex justify-between text-[8px] t3">
-                    <span>{copy.totalTokens}: {tenant.total_tokens.toLocaleString()} tokens</span>
-                    <span>{copy.cost}: ${tenant.total_cost_usd.toFixed(4)}</span>
-                  </div>
-                </div>
-
-                {tenant.tenant_id !== "admin_tenant" && (
-                  <div className="flex gap-1 border-t pt-2.5 mt-1 border-dashed" style={{ borderColor: "var(--border-c)" }}>
-                    <Button
-                      onClick={() => handleUpdateSubscription(tenant.tenant_id, "active")}
-                      variant="primary"
-                      className="flex-1 py-1 text-[9px]"
-                    >
-                      {copy.active}
-                    </Button>
-                    <Button
-                      onClick={() => handleUpdateSubscription(tenant.tenant_id, "frozen")}
-                      variant="warning"
-                      className="flex-1 py-1 text-[9px]"
-                    >
-                      {copy.freeze}
-                    </Button>
-                    <Button
-                      onClick={() => handleUpdateSubscription(tenant.tenant_id, "canceled")}
-                      variant="danger"
-                      className="flex-1 py-1 text-[9px]"
-                    >
-                      {copy.cancel}
-                    </Button>
-                  </div>
-                )}
-              </Surface>
-            ))}
-          </div>
-        )}
-      </Surface>
-
+      <AdminDashboardHeader controller={controller} />
+      <TenantBillingSection controller={controller} />
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <Surface as="section" elevated className="relative flex min-h-[460px] flex-col gap-3 p-4 lg:col-span-7">
-          <div className="flex justify-between items-center">
-            <div>
-              <h2 className="text-xs font-black uppercase tracking-[0.14em] t1">{t.liveInterceptor}</h2>
-              <p className="text-[10px] t3 mt-0.5">{copy.sessionLabel}: {selectedSessionId}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <StatusBadge tone={wsConnected ? "success" : "warning"}>
-                {wsConnected ? copy.wsLive : copy.offlineSimulation}
-              </StatusBadge>
-            </div>
-          </div>
-
-          <div className="flow-canvas relative min-h-[280px] flex-1 overflow-hidden rounded-lg border" style={{ borderColor: "var(--border-c)" }}>
-            <ReactFlow
-              nodes={swarmNodes}
-              edges={swarmEdges}
-              onNodesChange={onSwarmNodesChange}
-              onEdgesChange={onSwarmEdgesChange}
-              fitView
-              minZoom={0.2}
-              maxZoom={1.5}
-            >
-              <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="var(--grid)" />
-            </ReactFlow>
-
-            <Surface className="absolute bottom-3 left-3 z-10 flex max-w-[280px] flex-col gap-1 p-2.5 text-[9px]">
-              <div className="flex justify-between font-bold t2">
-                <span>{copy.lastNode}: <strong style={{ color: "var(--accent)" }}>{lastInteractedAgent || copy.none}</strong></span>
-                <span>{copy.latency}: <strong style={{ color: "var(--accent)" }}>{activeTelemetry.latencyMs}ms</strong></span>
-              </div>
-              <p className="mt-0.5 truncate t3">{activeTelemetry.lastMessage || copy.swarmInitialized}</p>
-              <div className="mt-1 flex items-center justify-between border-t pt-1 font-mono t3" style={{ borderColor: "var(--border-c)" }}>
-                <span>{copy.markupApplied}</span>
-                <span className="font-bold" style={{ color: "var(--success)" }}>${activeTelemetry.billingUsd.toFixed(4)} USD</span>
-              </div>
-            </Surface>
-            <ReplayPlaybackWidget
-              sessionId={selectedSessionId}
-              lang={lang}
-              onReplayEvent={handleReplayEvent}
-            />
-          </div>
-
-          <div className="flex gap-2">
-            <Button
-              onClick={handlePauseSwarm}
-              variant={swarmStatus === "paused" ? "warning" : "quiet"}
-              className="flex-1"
-            >
-              {t.pauseSwarm}
-            </Button>
-            <Button
-              onClick={handleResumeSwarm}
-              variant={swarmStatus === "running" ? "primary" : "quiet"}
-              className="flex-1"
-            >
-              {t.resumeSwarm}
-            </Button>
-            <Button
-              onClick={() => setShowHijackInput(!showHijackInput)}
-              className="flex-1"
-            >
-              {t.hijackInput}
-            </Button>
-          </div>
-
-          {showHijackInput && (
-            <Surface className="absolute inset-x-4 bottom-16 z-20 flex flex-col gap-2 p-3">
-              <div className="flex items-center justify-between border-b pb-1.5" style={{ borderColor: "var(--border-c)" }}>
-                <span className="text-[10px] font-bold t2">{copy.hitlTitle}</span>
-                <Button onClick={() => setShowHijackInput(false)} className="px-2 py-1 text-[10px]">{copy.close}</Button>
-              </div>
-              <textarea
-                value={hijackText}
-                onChange={e => setHijackText(e.target.value)}
-                placeholder={copy.hitlPlaceholder}
-                className="field-input h-16 resize-none rounded p-2 font-mono text-xs"
-              />
-              <Button
-                onClick={handleHijackInput}
-                variant="primary"
-                className="w-full"
-              >
-                {copy.submitHijack}
-              </Button>
-            </Surface>
-          )}
-        </Surface>
-
-        <Surface as="section" elevated className="relative flex min-h-[460px] flex-col gap-3 p-4 lg:col-span-5">
-          <div className="flex justify-between items-center">
-            <div>
-              <h2 className="text-xs font-black uppercase tracking-[0.14em] t1">{t.ledgerVisualizer}</h2>
-              <p className="text-[9px] t3 mt-0.5">{copy.ledgerSubtitle}</p>
-            </div>
-            <StatusBadge tone={auditStatus.valid ? "success" : "danger"}>
-              {auditStatus.valid ? copy.healthy : copy.tampered}
-            </StatusBadge>
-          </div>
-
-          <Surface className="flex flex-col gap-1 p-3 text-[10px]">
-            <div className="flex justify-between">
-              <span className="t3">{copy.merkleRoot}:</span>
-              <span className="max-w-[170px] truncate font-mono t2" title={auditStatus.merkle_root}>
-                {auditStatus.merkle_root || "0x00000000000000000000"}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="t3">{copy.blockValidationCount}:</span>
-              <span className="font-mono font-bold t2">{auditBlocks.length} {copy.blocksVerified}</span>
-            </div>
-            {auditStatus.tampered_id !== null && (
-              <div className="mt-1.5 flex items-center gap-1.5 border-t pt-2 font-bold" style={{ borderColor: "color-mix(in srgb, var(--danger) 28%, transparent)", color: "var(--danger)" }}>
-                <span className="text-[12px]">!</span>
-                <span>{copy.auditBreach} #{auditStatus.tampered_id}.</span>
-              </div>
-            )}
-          </Surface>
-
-          <div className="flow-canvas relative min-h-[220px] flex-1 overflow-hidden rounded-lg border" style={{ borderColor: "var(--border-c)" }}>
-            <ReactFlow
-              nodes={ledgerNodes}
-              edges={ledgerEdges}
-              onNodesChange={onLedgerNodesChange}
-              onEdgesChange={onLedgerEdgesChange}
-              fitView
-              minZoom={0.15}
-              maxZoom={1.3}
-            >
-              <Background variant={BackgroundVariant.Dots} gap={15} size={1} color="var(--grid)" />
-            </ReactFlow>
-          </div>
-
-          <div className="flex gap-2">
-            <Button
-              onClick={fetchLedger}
-              disabled={checkingLedger}
-              className="flex-1"
-            >
-              {checkingLedger ? copy.verifying : copy.verifyChain}
-            </Button>
-            <Button
-              onClick={simulateTamper}
-              variant="danger"
-              className="flex-1"
-            >
-              {copy.simulateTamper}
-            </Button>
-          </div>
-        </Surface>
+        <LiveInterceptorSection controller={controller} />
+        <AuditLedgerSection controller={controller} />
       </div>
-
       <SwarmGovernanceConsole
         lang={lang}
         onStatus={setTimedActionStatus}
       />
     </div>
+  );
+}
+
+function AdminDashboardHeader({
+  controller,
+}: {
+  readonly controller: AdminDashboardController;
+}) {
+  const { actionStatus, copy, fetchLedger, fetchTenants, setLoadingTenants, t } = controller;
+
+  return (
+    <div className="flex justify-between items-center border-b pb-3" style={{ borderColor: "var(--border-c)" }}>
+      <div>
+        <h1 className="text-xl font-black t1">{t.adminConsole}</h1>
+        <p className="text-xs t3 mt-0.5">{copy.intro}</p>
+      </div>
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        {actionStatus && <StatusBadge tone={actionStatus.tone}>{actionStatus.message}</StatusBadge>}
+        <Button
+          onClick={() => {
+            setLoadingTenants(true);
+            void fetchTenants();
+            void fetchLedger();
+          }}
+          variant="quiet"
+          className="px-3 py-1.5"
+        >
+          {copy.refresh}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function TenantBillingSection({
+  controller,
+}: {
+  readonly controller: AdminDashboardController;
+}) {
+  const {
+    copy,
+    errorTenants,
+    handleRotateKey,
+    handleUpdateSubscription,
+    loadingTenants,
+    rotatedKeyInfo,
+    t,
+    tenants,
+  } = controller;
+
+  return (
+    <Surface as="section" elevated className="flex flex-col gap-3 p-4">
+      <h2 className="text-xs font-black uppercase tracking-[0.14em] t1">{t.billingPlans}</h2>
+      {loadingTenants ? (
+        <div className="text-center text-xs py-4 t3">{copy.loadingTenants}</div>
+      ) : errorTenants ? (
+        <div className="text-center text-xs py-4" style={{ color: "var(--danger)" }}>{copy.errorPrefix}: {errorTenants}</div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {tenants.map(tenant => (
+            <Surface
+              key={tenant.tenant_id}
+              className="relative flex flex-col gap-3 p-4"
+            >
+              <div className="flex justify-between items-start">
+                <div>
+                  <span className="text-xs font-black t1">{tenant.tenant_id}</span>
+                  <p className="mt-0.5 max-w-[150px] truncate font-mono text-[9px] t3">
+                    {copy.stripeLabel}: {tenant.stripe_subscription_id || copy.none}
+                  </p>
+                </div>
+                <StatusBadge tone={toneForStatus(tenant.status)}>
+                  {tenant.status}
+                </StatusBadge>
+              </div>
+
+              <div className="flex flex-col gap-1 text-[10px]">
+                <span id={`api-key-rotation-${tenant.tenant_id}`} className="font-bold t3 uppercase tracking-[0.08em]">{t.apiKeyRotation}</span>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="text"
+                    readOnly
+                    aria-labelledby={`api-key-rotation-${tenant.tenant_id}`}
+                    value={rotatedKeyInfo[tenant.tenant_id] || tenant.api_key}
+                    className="field-input min-w-0 flex-1 rounded px-2 py-1 font-mono text-[10px]"
+                  />
+                  <Button
+                    onClick={() => handleRotateKey(tenant.tenant_id)}
+                    className="px-2.5 py-1 text-[10px]"
+                    title={copy.rotateTitle}
+                  >
+                    {copy.rotate}
+                  </Button>
+                </div>
+                {rotatedKeyInfo[tenant.tenant_id] && (
+                  <span className="text-[8px] font-bold" style={{ color: "var(--warning)" }}>{copy.keyRotated}</span>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-1 text-[10px] mt-1">
+                <div className="flex justify-between font-bold">
+                  <span className="t3 uppercase tracking-[0.08em]">{t.realTimeUsage}</span>
+                  <span className="font-mono t3">
+                    {tenant.tokens_last_minute} / {copy.tpmLimit}
+                  </span>
+                </div>
+                <ProgressBar
+                  value={(tenant.tokens_last_minute / 5000) * 100}
+                  tone={tenant.tokens_last_minute >= 4000 ? "danger" : tenant.tokens_last_minute >= 2500 ? "warning" : "accent"}
+                />
+                <div className="mt-0.5 flex justify-between text-[8px] t3">
+                  <span>{copy.totalTokens}: {tenant.total_tokens.toLocaleString()} tokens</span>
+                  <span>{copy.cost}: ${tenant.total_cost_usd.toFixed(4)}</span>
+                </div>
+              </div>
+
+              {tenant.tenant_id !== "admin_tenant" && (
+                <div className="flex gap-1 border-t pt-2.5 mt-1 border-dashed" style={{ borderColor: "var(--border-c)" }}>
+                  <Button
+                    onClick={() => handleUpdateSubscription(tenant.tenant_id, "active")}
+                    variant="primary"
+                    className="flex-1 py-1 text-[9px]"
+                  >
+                    {copy.active}
+                  </Button>
+                  <Button
+                    onClick={() => handleUpdateSubscription(tenant.tenant_id, "frozen")}
+                    variant="warning"
+                    className="flex-1 py-1 text-[9px]"
+                  >
+                    {copy.freeze}
+                  </Button>
+                  <Button
+                    onClick={() => handleUpdateSubscription(tenant.tenant_id, "canceled")}
+                    variant="danger"
+                    className="flex-1 py-1 text-[9px]"
+                  >
+                    {copy.cancel}
+                  </Button>
+                </div>
+              )}
+            </Surface>
+          ))}
+        </div>
+      )}
+    </Surface>
+  );
+}
+
+function LiveInterceptorSection({
+  controller,
+}: {
+  readonly controller: AdminDashboardController;
+}) {
+  const {
+    activeTelemetry,
+    copy,
+    hijackText,
+    lang,
+    lastInteractedAgent,
+    selectedSessionId,
+    showHijackInput,
+    swarmEdges,
+    swarmNodes,
+    swarmStatus,
+    t,
+    wsConnected,
+    handleHijackInput,
+    handlePauseSwarm,
+    handleReplayEvent,
+    handleResumeSwarm,
+    onSwarmEdgesChange,
+    onSwarmNodesChange,
+    setHijackText,
+    setShowHijackInput,
+  } = controller;
+
+  return (
+    <Surface as="section" elevated className="relative flex min-h-[460px] flex-col gap-3 p-4 lg:col-span-7">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-xs font-black uppercase tracking-[0.14em] t1">{t.liveInterceptor}</h2>
+          <p className="text-[10px] t3 mt-0.5">{copy.sessionLabel}: {selectedSessionId}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <StatusBadge tone={wsConnected ? "success" : "warning"}>
+            {wsConnected ? copy.wsLive : copy.offlineSimulation}
+          </StatusBadge>
+        </div>
+      </div>
+
+      <div className="flow-canvas relative min-h-[280px] flex-1 overflow-hidden rounded-lg border" style={{ borderColor: "var(--border-c)" }}>
+        <ReactFlow
+          nodes={swarmNodes}
+          edges={swarmEdges}
+          onNodesChange={onSwarmNodesChange}
+          onEdgesChange={onSwarmEdgesChange}
+          fitView
+          minZoom={0.2}
+          maxZoom={1.5}
+        >
+          <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="var(--grid)" />
+        </ReactFlow>
+
+        <Surface className="absolute bottom-3 left-3 z-10 flex max-w-[280px] flex-col gap-1 p-2.5 text-[9px]">
+          <div className="flex justify-between font-bold t2">
+            <span>{copy.lastNode}: <strong style={{ color: "var(--accent)" }}>{lastInteractedAgent || copy.none}</strong></span>
+            <span>{copy.latency}: <strong style={{ color: "var(--accent)" }}>{activeTelemetry.latencyMs}ms</strong></span>
+          </div>
+          <p className="mt-0.5 truncate t3">{activeTelemetry.lastMessage || copy.swarmInitialized}</p>
+          <div className="mt-1 flex items-center justify-between border-t pt-1 font-mono t3" style={{ borderColor: "var(--border-c)" }}>
+            <span>{copy.markupApplied}</span>
+            <span className="font-bold" style={{ color: "var(--success)" }}>${activeTelemetry.billingUsd.toFixed(4)} USD</span>
+          </div>
+        </Surface>
+        <ReplayPlaybackWidget
+          sessionId={selectedSessionId}
+          lang={lang}
+          onReplayEvent={handleReplayEvent}
+        />
+      </div>
+
+      <div className="flex gap-2">
+        <Button
+          onClick={handlePauseSwarm}
+          variant={swarmStatus === "paused" ? "warning" : "quiet"}
+          className="flex-1"
+        >
+          {t.pauseSwarm}
+        </Button>
+        <Button
+          onClick={handleResumeSwarm}
+          variant={swarmStatus === "running" ? "primary" : "quiet"}
+          className="flex-1"
+        >
+          {t.resumeSwarm}
+        </Button>
+        <Button
+          onClick={() => setShowHijackInput(!showHijackInput)}
+          className="flex-1"
+        >
+          {t.hijackInput}
+        </Button>
+      </div>
+
+      {showHijackInput && (
+        <Surface className="absolute inset-x-4 bottom-16 z-20 flex flex-col gap-2 p-3">
+          <div className="flex items-center justify-between border-b pb-1.5" style={{ borderColor: "var(--border-c)" }}>
+            <span className="text-[10px] font-bold t2">{copy.hitlTitle}</span>
+            <Button onClick={() => setShowHijackInput(false)} className="px-2 py-1 text-[10px]">{copy.close}</Button>
+          </div>
+          <textarea
+            value={hijackText}
+            onChange={e => setHijackText(e.target.value)}
+            placeholder={copy.hitlPlaceholder}
+            className="field-input h-16 resize-none rounded p-2 font-mono text-xs"
+          />
+          <Button
+            onClick={handleHijackInput}
+            variant="primary"
+            className="w-full"
+          >
+            {copy.submitHijack}
+          </Button>
+        </Surface>
+      )}
+    </Surface>
+  );
+}
+
+function AuditLedgerSection({
+  controller,
+}: {
+  readonly controller: AdminDashboardController;
+}) {
+  const {
+    auditBlocks,
+    auditStatus,
+    checkingLedger,
+    copy,
+    fetchLedger,
+    ledgerEdges,
+    ledgerNodes,
+    onLedgerEdgesChange,
+    onLedgerNodesChange,
+    simulateTamper,
+    t,
+  } = controller;
+
+  return (
+    <Surface as="section" elevated className="relative flex min-h-[460px] flex-col gap-3 p-4 lg:col-span-5">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-xs font-black uppercase tracking-[0.14em] t1">{t.ledgerVisualizer}</h2>
+          <p className="text-[9px] t3 mt-0.5">{copy.ledgerSubtitle}</p>
+        </div>
+        <StatusBadge tone={auditStatus.valid ? "success" : "danger"}>
+          {auditStatus.valid ? copy.healthy : copy.tampered}
+        </StatusBadge>
+      </div>
+
+      <Surface className="flex flex-col gap-1 p-3 text-[10px]">
+        <div className="flex justify-between">
+          <span className="t3">{copy.merkleRoot}:</span>
+          <span className="max-w-[170px] truncate font-mono t2" title={auditStatus.merkle_root}>
+            {auditStatus.merkle_root || "0x00000000000000000000"}
+          </span>
+        </div>
+        <div className="flex justify-between">
+          <span className="t3">{copy.blockValidationCount}:</span>
+          <span className="font-mono font-bold t2">{auditBlocks.length} {copy.blocksVerified}</span>
+        </div>
+        {auditStatus.tampered_id !== null && (
+          <div className="mt-1.5 flex items-center gap-1.5 border-t pt-2 font-bold" style={{ borderColor: "color-mix(in srgb, var(--danger) 28%, transparent)", color: "var(--danger)" }}>
+            <span className="text-[12px]">!</span>
+            <span>{copy.auditBreach} #{auditStatus.tampered_id}.</span>
+          </div>
+        )}
+      </Surface>
+
+      <div className="flow-canvas relative min-h-[220px] flex-1 overflow-hidden rounded-lg border" style={{ borderColor: "var(--border-c)" }}>
+        <ReactFlow
+          nodes={ledgerNodes}
+          edges={ledgerEdges}
+          onNodesChange={onLedgerNodesChange}
+          onEdgesChange={onLedgerEdgesChange}
+          fitView
+          minZoom={0.15}
+          maxZoom={1.3}
+        >
+          <Background variant={BackgroundVariant.Dots} gap={15} size={1} color="var(--grid)" />
+        </ReactFlow>
+      </div>
+
+      <div className="flex gap-2">
+        <Button
+          onClick={fetchLedger}
+          disabled={checkingLedger}
+          className="flex-1"
+        >
+          {checkingLedger ? copy.verifying : copy.verifyChain}
+        </Button>
+        <Button
+          onClick={simulateTamper}
+          variant="danger"
+          className="flex-1"
+        >
+          {copy.simulateTamper}
+        </Button>
+      </div>
+    </Surface>
   );
 }
