@@ -363,6 +363,15 @@ Design review must assess:
 - reduced-motion behavior
 - vibe-coded risk
 
+Major design phases use the independent review gate in
+`.agent/knowledge_base/workflows/independent-design-review-gate.md`. The gate
+scores coherence, craft, hierarchy, typography, color, spacing, motion,
+accessibility, and vibe-coded risk against fresh desktop/mobile evidence. Scores
+below the acceptance threshold and observable defects become stable, owned tasks
+in `.agent/agent_tasks.md`; prose-only findings cannot close or defer the gate.
+The implementer may run a provisional self-review but cannot independently mark
+the phase as passed.
+
 A passing build or screenshot script is not proof of visual quality. Code-only polish cannot close a design finding when the design packet requires visual assets, composition studies, or a design review.
 
 ## 15. Source Design Artifacts
@@ -373,4 +382,5 @@ This contract is derived from:
 - `.agent/knowledge_base/exports/phase-71-las-viewer-art-direction-packet-2026-07-07.md`
 - `.agent/knowledge_base/workflows/visual-reference-moodboard.md`
 - `.agent/knowledge_base/workflows/visual-asset-illustration-pipeline.md`
+- `.agent/knowledge_base/workflows/independent-design-review-gate.md`
 - `.agent/knowledge_base/exports/phase-71-screen-composition-studies-2026-07-07.md`

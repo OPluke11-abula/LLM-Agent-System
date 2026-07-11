@@ -12,6 +12,16 @@
 
 ## 2026-07-11
 
+- phase-71-07-independent-design-review-gate: added
+  [[workflows/independent-design-review-gate]] and
+  [[templates/design-review-report]] with reviewer-independence rules, fresh
+  evidence requirements, a weighted rubric for coherence, craft, hierarchy,
+  typography, color, spacing, motion, accessibility, and vibe-coded risk, plus
+  hard-fail conditions and a stable finding-to-task contract. Linked the gate
+  from `viewer/DESIGN.md`. Verification: PASS - the knowledge-base health audit
+  found 0 findings, PAP workspace validation passed, and `git diff --check`
+  passed for the task paths.
+
 - phase-71-06-visual-asset-and-illustration-pipeline: added
   [[workflows/visual-asset-illustration-pipeline]] with a least-complex-medium
   decision matrix for generated bitmap, diagram, screenshot, SVG, canvas, and

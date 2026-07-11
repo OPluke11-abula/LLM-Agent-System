@@ -21,7 +21,7 @@
 | 68 | 8 | 8 | 100% Done | React Doctor advisory gate complete |
 | 69 | 8 | 8 | 100% Done | Local knowledge base and agent memory OS complete |
 | 70 | 8 | 8 | 100% Done | Token-efficient advisory rollout complete |
-| 71 | 8 | 6 | 75% In Progress | Continue `71-07` independent design review gate |
+| 71 | 8 | 7 | 87% In Progress | Continue `71-08` design-agent viewer integration |
 
 Execution order:
 
@@ -345,7 +345,7 @@ session state automatically.
 
 ## Phase 71 - Professional Design Agent and Art Direction Pipeline
 
-Status: `[~]` 6/8 complete. Design-first work is partially advanced but should
+Status: `[~]` 7/8 complete. Design-first work is partially advanced but should
 not displace Phase 68 unless explicitly reprioritized.
 
 ### 71-01 Professional Design Agent Role Contract
@@ -385,9 +385,13 @@ not displace Phase 68 unless explicitly reprioritized.
   acceptance. Linked the concise production contract into `viewer/DESIGN.md`.
 
 ### 71-07 Independent Design Review Gate
-- [ ] **[Design QA]** Add review gate scoring coherence, craft, hierarchy,
+- [x] **[Design QA]** Add review gate scoring coherence, craft, hierarchy,
   typography, color, spacing, motion, accessibility, and vibe-coded risk. Track
   findings as tasks.
+  Progress: added [[workflows/independent-design-review-gate]] and
+  [[templates/design-review-report]] with reviewer independence, current-evidence
+  requirements, a weighted nine-dimension rubric, hard-fail conditions, stable
+  finding IDs, and an owned task schema for every score below acceptance.
 
 ### 71-08 Design-Agent Viewer Integration
 - [ ] **[Frontend/Design Systems Programmer]** Surface current art direction,

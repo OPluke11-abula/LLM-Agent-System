@@ -23,6 +23,7 @@ This memory is orientation, not proof. Always verify current repo, code graph, c
 - [[workflows/context-pack-validation]]
 - [[workflows/visual-reference-moodboard]]
 - [[workflows/visual-asset-illustration-pipeline]]
+- [[workflows/independent-design-review-gate]]
 - [[workflows/agent-start-preflight]]
 - [[workflows/preflight-adoption-guide]]
 - [[workflows/knowledge-base-health-audit]]
@@ -53,6 +54,7 @@ This memory is orientation, not proof. Always verify current repo, code graph, c
 - [[workflows/token-efficient-work-mode]]
 - [[workflows/token-efficient-rollout]]
 - [[workflows/verification-profiles]]
+- [[workflows/independent-design-review-gate]]
 - [[workflows/handoff-first-long-session]]
 - [[workflows/context-budget-preflight]]
 - [[workflows/semantic-retrieval-pilot]]
@@ -82,6 +84,7 @@ This memory is orientation, not proof. Always verify current repo, code graph, c
 - [[templates/evidence-memory-summary]]
 - [[templates/agent-report]]
 - [[templates/query-memory-report]]
+- [[templates/design-review-report]]
 
 ## Decisions
 
