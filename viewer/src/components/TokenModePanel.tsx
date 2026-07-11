@@ -1,11 +1,12 @@
+import { DesignAgentPanel } from "./DesignAgentPanel";
 import { MetricTile, ProgressBar, StatusBadge, Surface } from "./ui/primitives";
 import type { AgentTask, Lang, TopologyState } from "../types";
 
 type TokenModePanelProps = {
-  session: TopologyState | null;
-  nextTask: AgentTask | null;
-  lang: Lang;
-  compact?: boolean;
+  readonly session: TopologyState | null;
+  readonly nextTask: AgentTask | null;
+  readonly lang: Lang;
+  readonly compact?: boolean;
 };
 
 type TokenModeCopy = {
@@ -113,7 +114,8 @@ export function TokenModePanel({ session, nextTask, lang, compact = false }: Tok
   const mode = trace?.execution_mode || "token_efficient";
 
   return (
-    <Surface as="section" elevated className={`token-mode-panel ${compact ? "token-mode-panel-compact" : ""} p-4 sm:p-5`} data-testid="token-mode-panel">
+    <>
+      <Surface as="section" elevated className={`token-mode-panel ${compact ? "token-mode-panel-compact" : ""} p-4 sm:p-5`} data-testid="token-mode-panel">
       <div className={`flex flex-col gap-4 ${compact ? "" : "xl:flex-row xl:items-start xl:justify-between"}`}>
         <div className="min-w-0">
           <p className="text-[10px] font-bold uppercase tracking-[0.14em] accent-text">{copy.eyebrow}</p>
@@ -160,6 +162,8 @@ export function TokenModePanel({ session, nextTask, lang, compact = false }: Tok
           )}
         </div>
       </div>
-    </Surface>
+      </Surface>
+      <DesignAgentPanel session={session} lang={lang} />
+    </>
   );
 }

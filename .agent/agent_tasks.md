@@ -21,11 +21,11 @@
 | 68 | 8 | 8 | 100% Done | React Doctor advisory gate complete |
 | 69 | 8 | 8 | 100% Done | Local knowledge base and agent memory OS complete |
 | 70 | 8 | 8 | 100% Done | Token-efficient advisory rollout complete |
-| 71 | 8 | 7 | 87% In Progress | Continue `71-08` design-agent viewer integration |
+| 71 | 8 | 8 | 100% Done | Professional design-agent pipeline complete |
 
 Execution order:
 
-1. Continue remaining Phase 71 work unless the user explicitly reprioritizes.
+1. No implementation phase remains queued; await explicit user direction.
 
 ## Completed Phase Rollup
 
@@ -345,8 +345,8 @@ session state automatically.
 
 ## Phase 71 - Professional Design Agent and Art Direction Pipeline
 
-Status: `[~]` 7/8 complete. Design-first work is partially advanced but should
-not displace Phase 68 unless explicitly reprioritized.
+Status: `[x]` 8/8 complete. The professional design-agent pipeline is available
+from art direction through independent review and viewer integration.
 
 ### 71-01 Professional Design Agent Role Contract
 - [x] **[Design Director/Protocol Architect]** Added
@@ -394,9 +394,14 @@ not displace Phase 68 unless explicitly reprioritized.
   finding IDs, and an owned task schema for every score below acceptance.
 
 ### 71-08 Design-Agent Viewer Integration
-- [ ] **[Frontend/Design Systems Programmer]** Surface current art direction,
+- [x] **[Frontend/Design Systems Programmer]** Surface current art direction,
   approved design packet, open design findings, screenshot evidence, unresolved
   taste debt, and next design-first task inside LAS.
+  Progress: added a responsive, localized `DesignAgentPanel` backed by the live
+  topology WebSocket boundary. It presents the approved art direction and packet,
+  populated finding/evidence/debt metrics, evidence references, and the next
+  design-specific task. Desktop, tablet, English mobile, Chinese mobile, and
+  Japanese mobile evidence passed two independent design-review lanes.
 
 ---
 

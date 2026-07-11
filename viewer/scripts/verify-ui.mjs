@@ -11,6 +11,8 @@ const topologyViewPath = resolve(viewerRoot, "src", "components", "TopologyView.
 const topologyViewSource = readFileSync(topologyViewPath, "utf8");
 const tokenModePanelPath = resolve(viewerRoot, "src", "components", "TokenModePanel.tsx");
 const tokenModePanelSource = readFileSync(tokenModePanelPath, "utf8");
+const designAgentPanelPath = resolve(viewerRoot, "src", "components", "DesignAgentPanel.tsx");
+const designAgentPanelSource = readFileSync(designAgentPanelPath, "utf8");
 const port = Number(process.env.UI_VERIFY_PORT || 5175);
 const takeScreenshots = process.env.UI_VERIFY_SCREENSHOTS === "1" || process.argv.includes("--screenshots");
 const screenshotTimeoutMs = Number(process.env.UI_VERIFY_SCREENSHOT_TIMEOUT_MS || 20_000);
@@ -84,6 +86,84 @@ const visualFixtureState = {
   },
 };
 
+const designTopologyFixture = {
+  schema_version: "1.0.0",
+  project_name: "LAS Design Operations",
+  summary: "Current art direction, review findings, evidence, and design debt.",
+  session_id: "visual-design-session",
+  started_at: "2026-07-11T10:00:00Z",
+  updated_at: "2026-07-11T10:05:00Z",
+  stats: {
+    total_nodes: 2,
+    completed: 0,
+    running: 0,
+    pending: 2,
+    errors: 0,
+    total_tokens: 1200,
+    total_duration_ms: 5000,
+  },
+  nodes: [
+    {
+      id: "DESIGN-20260711-01",
+      title: "Resolve Design Agent hierarchy finding",
+      status: "review",
+      assigned_agent: "Design QA",
+      description: "Refine visual hierarchy and spacing for the Design Agent evidence surface.",
+      result_summary: "Independent review remains open.",
+      created_at: "2026-07-11T10:00:00Z",
+      updated_at: "2026-07-11T10:05:00Z",
+      event_id: "design-event-1",
+      timestamp: "2026-07-11T10:05:00Z",
+      session_id: "visual-design-session",
+      node_id: "design-node-1",
+      parent_node_id: null,
+      node_type: "workflow_stage",
+      edge_type: null,
+      payload: {
+        conductor_trace: {
+          task_id: "phase-71-08",
+          task_summary: "Integrate Design Agent state into Mission Control",
+          execution_mode: "token_efficient",
+          risk_level: "low",
+          topology: "sequential",
+          task_type: "frontend",
+          intent: "implementation",
+          subtasks: [],
+          selected_models: [],
+          verification_strategy: { kind: "surface" },
+          budget: { token_budget: 12000 },
+          routing_memory_hints: [],
+          evidence_refs: [
+            "viewer/output/ui-regression/design-agent-desktop.png",
+            "viewer/output/ui-regression/design-agent-mobile.png",
+          ],
+          impact_summary: { changed_file_count: 3, linked_test_count: 1 },
+          decision_rationale: "Keep design state visible beside operational context.",
+        },
+      },
+    },
+    {
+      id: "DESIGN-20260711-02",
+      title: "Close responsive design evidence",
+      status: "pending",
+      assigned_agent: "Frontend QA",
+      description: "Capture responsive visual evidence and close the remaining taste debt.",
+      result_summary: "Awaiting desktop, tablet, and mobile review.",
+      created_at: "2026-07-11T10:01:00Z",
+      updated_at: "2026-07-11T10:05:00Z",
+      event_id: "design-event-2",
+      timestamp: "2026-07-11T10:05:00Z",
+      session_id: "visual-design-session",
+      node_id: "design-node-2",
+      parent_node_id: "design-node-1",
+      node_type: "workflow_stage",
+      edge_type: "handoff",
+      payload: {},
+    },
+  ],
+  edges: [],
+};
+
 const fixtureScript = Object.entries(visualFixtureState)
   .map(([key, value]) => `localStorage.setItem(${JSON.stringify(key)}, ${JSON.stringify(JSON.stringify(value))});`)
   .join("\n");
@@ -116,6 +196,22 @@ const tokenModeSourceMarkers = [
 
 for (const marker of tokenModeSourceMarkers) {
   assertIncludes(tokenModePanelSource, marker, "token mode source marker");
+}
+
+const designAgentSourceMarkers = [
+  "data-testid=\"design-agent-panel\"",
+  "Cognitive Operations Atlas",
+  "Approved design packet",
+  "Open design findings",
+  "Screenshot evidence",
+  "Unresolved taste debt",
+  "Next design-first task",
+  "design-findings-count",
+  "design-evidence-ref",
+];
+
+for (const marker of designAgentSourceMarkers) {
+  assertIncludes(designAgentPanelSource, marker, "design agent source marker");
 }
 
 const contentTypes = {
@@ -167,9 +263,14 @@ const server = createServer((request, response) => {
 await new Promise((resolveListen) => server.listen(port, "127.0.0.1", resolveListen));
 
 const scenarios = [
-  { name: "dashboard-desktop", route: "/", onboarded: true, width: 1280, height: 900, nextActionRail: true, interactionProbe: true },
-  { name: "dashboard-tablet", route: "/", onboarded: true, width: 768, height: 1024, nextActionRail: true },
-  { name: "dashboard-mobile", route: "/", onboarded: true, width: 375, height: 812, nextActionRail: true },
+  { name: "dashboard-desktop", route: "/", onboarded: true, width: 1280, height: 900, nextActionRail: true, designAgentPanel: true, interactionProbe: true },
+  { name: "dashboard-tablet", route: "/", onboarded: true, width: 768, height: 1024, nextActionRail: true, designAgentPanel: true },
+  { name: "dashboard-mobile", route: "/", onboarded: true, width: 375, height: 812, nextActionRail: true, designAgentPanel: true },
+  { name: "design-agent-desktop", route: "/", onboarded: true, width: 1280, height: 900, designAgentPanel: true, scrollToDesignAgentPanel: true },
+  { name: "design-agent-tablet", route: "/", onboarded: true, width: 768, height: 1024, designAgentPanel: true, scrollToDesignAgentPanel: true },
+  { name: "design-agent-mobile", route: "/", onboarded: true, width: 375, height: 1200, designAgentPanel: true, scrollToDesignAgentPanel: true },
+  { name: "design-agent-zh-mobile", route: "/", onboarded: true, lang: "zh", width: 375, height: 1200, designAgentPanel: true, scrollToDesignAgentPanel: true },
+  { name: "design-agent-ja-mobile", route: "/", onboarded: true, lang: "ja", width: 375, height: 1200, designAgentPanel: true, scrollToDesignAgentPanel: true },
   { name: "next-action-rail-mobile", route: "/", onboarded: true, width: 375, height: 812, nextActionRail: true, scrollToRail: true },
   { name: "task-flow-desktop", route: "/#/tasks", onboarded: true, width: 1280, height: 900, taskFlow: true },
   { name: "task-flow-tablet", route: "/#/tasks", onboarded: true, width: 768, height: 1024, taskFlow: true },
@@ -234,7 +335,7 @@ try {
 
   for (const scenario of takeScreenshots ? scenarios : []) {
     const screenshotPath = join(outputRoot, `${scenario.name}.png`);
-    const url = `http://127.0.0.1:${port}/__seed?route=${encodeURIComponent(scenario.route)}&onboarded=${scenario.onboarded}`;
+    const url = `http://127.0.0.1:${port}/__seed?route=${encodeURIComponent(scenario.route)}&onboarded=${scenario.onboarded}&lang=${encodeURIComponent(scenario.lang ?? "en")}`;
 
     let browser;
     try {
@@ -259,6 +360,43 @@ try {
       });
       const page = await context.newPage();
       page.setDefaultTimeout(screenshotTimeoutMs);
+      if (scenario.designAgentPanel) {
+        await page.addInitScript(({ payload }) => {
+          class FixtureWebSocket extends EventTarget {
+            static CONNECTING = 0;
+            static OPEN = 1;
+            static CLOSING = 2;
+            static CLOSED = 3;
+
+            readyState = FixtureWebSocket.CONNECTING;
+            onopen = null;
+            onmessage = null;
+            onclose = null;
+            onerror = null;
+
+            constructor() {
+              super();
+              queueMicrotask(() => {
+                this.readyState = FixtureWebSocket.OPEN;
+                this.onopen?.(new Event("open"));
+                this.onmessage?.(new MessageEvent("message", { data: payload }));
+              });
+            }
+
+            send() {}
+
+            close() {
+              this.readyState = FixtureWebSocket.CLOSED;
+            }
+          }
+
+          Object.defineProperty(window, "WebSocket", {
+            configurable: true,
+            value: FixtureWebSocket,
+            writable: true,
+          });
+        }, { payload: JSON.stringify(designTopologyFixture) });
+      }
       await page.goto(url, { waitUntil: "domcontentloaded", timeout: screenshotTimeoutMs });
       await page.locator("body").waitFor({ state: "visible", timeout: screenshotTimeoutMs });
       await page.waitForTimeout(1000);
@@ -267,6 +405,34 @@ try {
         await rail.waitFor({ state: "visible", timeout: screenshotTimeoutMs });
         if (scenario.scrollToRail) {
           await rail.scrollIntoViewIfNeeded({ timeout: screenshotTimeoutMs });
+          await page.waitForTimeout(300);
+        }
+      }
+      if (scenario.designAgentPanel) {
+        const designAgentPanel = page.getByTestId("design-agent-panel");
+        await designAgentPanel.waitFor({ state: "visible", timeout: screenshotTimeoutMs });
+        const panelWidth = await designAgentPanel.evaluate((node) => ({
+          clientWidth: node.clientWidth,
+          scrollWidth: node.scrollWidth,
+        }));
+        if (panelWidth.scrollWidth > panelWidth.clientWidth) {
+          throw new Error(`${scenario.name} design agent panel overflows horizontally: ${panelWidth.scrollWidth}px > ${panelWidth.clientWidth}px`);
+        }
+        const expectedDesignValues = [
+          ["design-findings-count", "2"],
+          ["design-evidence-count", "2"],
+          ["design-debt-count", "2"],
+          ["design-evidence-ref", "viewer/output/ui-regression/design-agent-desktop.png"],
+          ["design-next-task", "Refine visual hierarchy and spacing for the Design Agent evidence surface."],
+        ];
+        for (const [testId, expectedValue] of expectedDesignValues) {
+          const actualValue = (await designAgentPanel.getByTestId(testId).textContent())?.trim() ?? "";
+          if (actualValue !== expectedValue) {
+            throw new Error(`${scenario.name} ${testId} mismatch: expected ${expectedValue}, received ${actualValue}`);
+          }
+        }
+        if (scenario.scrollToDesignAgentPanel) {
+          await designAgentPanel.evaluate((node) => node.scrollIntoView({ block: "start", inline: "nearest" }));
           await page.waitForTimeout(300);
         }
       }
@@ -295,7 +461,11 @@ try {
         await page.keyboard.press("Tab");
         await page.getByRole("link", { name: "Task Flow Flow" }).hover({ timeout: screenshotTimeoutMs });
       }
-      await page.screenshot({ path: screenshotPath, fullPage: true, timeout: screenshotTimeoutMs });
+      if (scenario.scrollToDesignAgentPanel) {
+        await page.getByTestId("design-agent-panel").screenshot({ path: screenshotPath, timeout: screenshotTimeoutMs });
+      } else {
+        await page.screenshot({ path: screenshotPath, fullPage: true, timeout: screenshotTimeoutMs });
+      }
       await context.close();
     } catch (error) {
       if (strictScreenshots) {

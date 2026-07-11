@@ -2,6 +2,14 @@
 
 ## 2026-07-11
 
+- phase-71-08-design-agent-viewer-integration: added a responsive, localized
+  `DesignAgentPanel` that surfaces the approved art direction and packet plus
+  live topology-backed open design findings, screenshot evidence, taste debt,
+  evidence references, and the next design-specific task. Verification: PASS -
+  the production build and UI verifier passed; populated desktop, tablet,
+  English mobile, Chinese mobile, and Japanese mobile evidence passed two
+  independent reviewers; and `scripts\\verify.cmd` completed successfully.
+
 - phase-70-08-governance-tests-and-rollout: added focused governance coverage
   for profile selection, broad-read justification, verification-profile mapping,
   report-only preflight behavior, and handoff thresholds. Added
