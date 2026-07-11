@@ -10,6 +10,17 @@
   compiled, the no-excuse audit found no violations, and the knowledge-base
   audit found 0 findings.
 
+## 2026-07-11
+
+- phase-71-06-visual-asset-and-illustration-pipeline: added
+  [[workflows/visual-asset-illustration-pipeline]] with a least-complex-medium
+  decision matrix for generated bitmap, diagram, screenshot, SVG, canvas, and
+  Figma artifacts. Defined local storage and provenance, accessible equivalents,
+  responsive cropping, optimization, and fresh-build screenshot acceptance, and
+  linked the production contract into `viewer/DESIGN.md`. Verification: PASS -
+  the knowledge-base health audit found 0 findings, PAP workspace validation
+  passed, and `git diff --check` passed for the task paths.
+
 ## 2026-07-10
 
 - phase-70-07-viewer-token-mode-surface: added the responsive Mission Control

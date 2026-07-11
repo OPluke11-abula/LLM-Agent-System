@@ -22,6 +22,7 @@ This memory is orientation, not proof. Always verify current repo, code graph, c
 - [[workflows/context-pack-builder]]
 - [[workflows/context-pack-validation]]
 - [[workflows/visual-reference-moodboard]]
+- [[workflows/visual-asset-illustration-pipeline]]
 - [[workflows/agent-start-preflight]]
 - [[workflows/preflight-adoption-guide]]
 - [[workflows/knowledge-base-health-audit]]

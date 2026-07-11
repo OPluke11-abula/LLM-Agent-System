@@ -21,7 +21,7 @@
 | 68 | 8 | 8 | 100% Done | React Doctor advisory gate complete |
 | 69 | 8 | 8 | 100% Done | Local knowledge base and agent memory OS complete |
 | 70 | 8 | 8 | 100% Done | Token-efficient advisory rollout complete |
-| 71 | 8 | 5 | 62% In Progress | Continue `71-06` visual asset and illustration pipeline |
+| 71 | 8 | 6 | 75% In Progress | Continue `71-07` independent design review gate |
 
 Execution order:
 
@@ -345,7 +345,7 @@ session state automatically.
 
 ## Phase 71 - Professional Design Agent and Art Direction Pipeline
 
-Status: `[~]` 5/8 complete. Design-first work is partially advanced but should
+Status: `[~]` 6/8 complete. Design-first work is partially advanced but should
 not displace Phase 68 unless explicitly reprioritized.
 
 ### 71-01 Professional Design Agent Role Contract
@@ -375,10 +375,14 @@ not displace Phase 68 unless explicitly reprioritized.
   `Cognitive Operations Atlas` implementation contract.
 
 ### 71-06 Visual Asset and Illustration Pipeline
-- [ ] **[Visual Designer/Asset Pipeline]** Define when LAS should use generated
+- [x] **[Visual Designer/Asset Pipeline]** Define when LAS should use generated
   bitmap assets, diagrams, screenshots, SVG/canvas compositions, or Figma mockups.
   Add local storage, accessibility, responsive cropping, optimization, and
   screenshot verification constraints.
+  Progress: added [[workflows/visual-asset-illustration-pipeline]] with an asset
+  choice matrix, provenance and local-storage contract, semantic fallbacks,
+  responsive crop rules, optimization gates, and fresh-build screenshot
+  acceptance. Linked the concise production contract into `viewer/DESIGN.md`.
 
 ### 71-07 Independent Design Review Gate
 - [ ] **[Design QA]** Add review gate scoring coherence, craft, hierarchy,

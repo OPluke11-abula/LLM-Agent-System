@@ -325,6 +325,19 @@ Every visual asset must have:
 - Loading and empty state.
 - Reduced-motion equivalent if animated.
 
+Choose the least complex medium that preserves meaning: DOM/CSS before SVG,
+SVG before canvas, and canvas before generated bitmap. Diagrams explain
+relationships; screenshots prove current behavior; Figma mockups review
+composition before implementation and are never runtime dependencies. Canvas
+must have a synchronized semantic DOM equivalent, and raster crops must preserve
+the focal object and safety-relevant state on desktop and mobile.
+
+Production assets must be local, provenance-recorded, deterministically named,
+optimized for their rendered size, and verified against a fresh build. The full
+decision matrix, storage rules, accessibility contract, responsive crop gate,
+optimization gate, and screenshot acceptance procedure are defined in
+`.agent/knowledge_base/workflows/visual-asset-illustration-pipeline.md`.
+
 Do not copy protected brand assets, logos, proprietary UI compositions, or distinctive trade dress.
 
 ## 14. Verification And Design QA
@@ -359,4 +372,5 @@ This contract is derived from:
 - `.agent/knowledge_base/exports/phase-67-design-critique-flow-report-2026-07-07.md`
 - `.agent/knowledge_base/exports/phase-71-las-viewer-art-direction-packet-2026-07-07.md`
 - `.agent/knowledge_base/workflows/visual-reference-moodboard.md`
+- `.agent/knowledge_base/workflows/visual-asset-illustration-pipeline.md`
 - `.agent/knowledge_base/exports/phase-71-screen-composition-studies-2026-07-07.md`
