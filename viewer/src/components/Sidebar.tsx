@@ -58,7 +58,7 @@ export function Sidebar({ t, relaunchOnboarding, onOpenCommandPalette }: Sidebar
         )}
       </div>
 
-      <nav className="grid grid-cols-2 gap-1.5 sm:grid-cols-4 md:block md:flex-1 md:space-y-1.5">
+      <nav className="grid grid-cols-2 gap-1 sm:grid-cols-4 md:block md:flex-1 md:space-y-1.5">
         {items.map(({ label, to, kicker }) => {
           const active = location.pathname === to;
 
@@ -67,9 +67,9 @@ export function Sidebar({ t, relaunchOnboarding, onOpenCommandPalette }: Sidebar
               key={to}
               to={to}
               aria-current={active ? "page" : undefined}
-              className={`nav-link ${active ? "nav-link-active" : ""} group flex min-w-0 items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-sm font-medium`}
+              className={`nav-link ${active ? "nav-link-active" : ""} group flex min-w-0 items-center justify-between gap-3 rounded-lg px-3 py-2 text-sm font-medium`}
             >
-              <span className="min-w-0 truncate">{label}</span>
+              <span className="min-w-0 break-words leading-tight">{label}</span>
               <span className="shrink-0 text-right text-[9px] font-semibold uppercase tracking-[0.14em] opacity-45 group-hover:opacity-70">
                 {kicker}
               </span>

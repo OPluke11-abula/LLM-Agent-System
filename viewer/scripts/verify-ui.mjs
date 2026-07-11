@@ -9,6 +9,8 @@ const root = resolve(viewerRoot, "dist");
 const outputRoot = resolve(process.env.UI_VERIFY_OUTPUT_DIR || resolve(viewerRoot, "output", "ui-regression"));
 const topologyViewPath = resolve(viewerRoot, "src", "components", "TopologyView.tsx");
 const topologyViewSource = readFileSync(topologyViewPath, "utf8");
+const tokenModePanelPath = resolve(viewerRoot, "src", "components", "TokenModePanel.tsx");
+const tokenModePanelSource = readFileSync(tokenModePanelPath, "utf8");
 const port = Number(process.env.UI_VERIFY_PORT || 5175);
 const takeScreenshots = process.env.UI_VERIFY_SCREENSHOTS === "1" || process.argv.includes("--screenshots");
 const screenshotTimeoutMs = Number(process.env.UI_VERIFY_SCREENSHOT_TIMEOUT_MS || 20_000);
@@ -102,6 +104,18 @@ function assertIncludes(source, token, label) {
 
 for (const marker of topologyStructuralMemoryMarkers) {
   assertIncludes(topologyViewSource, marker, "topology structural memory source marker");
+}
+
+const tokenModeSourceMarkers = [
+  "data-testid=\"token-mode-panel\"",
+  "Largest contributors",
+  "Recommended next action",
+  "Verification profile",
+  "handoffRecommended",
+];
+
+for (const marker of tokenModeSourceMarkers) {
+  assertIncludes(tokenModePanelSource, marker, "token mode source marker");
 }
 
 const contentTypes = {

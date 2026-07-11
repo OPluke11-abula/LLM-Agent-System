@@ -1,6 +1,50 @@
 # LAS Agent Knowledge Log
 
+## 2026-07-11
+
+- phase-70-08-governance-tests-and-rollout: added focused governance coverage
+  for profile selection, broad-read justification, verification-profile mapping,
+  report-only preflight behavior, and handoff thresholds. Added
+  [[workflows/token-efficient-rollout]] as the explicit advisory-only rollout
+  contract. Verification: PASS - 20 focused tests passed, changed Python files
+  compiled, the no-excuse audit found no violations, and the knowledge-base
+  audit found 0 findings.
+
 ## 2026-07-10
+
+- phase-70-07-viewer-token-mode-surface: added the responsive Mission Control
+  `TokenModePanel` rail for work mode, context estimate, largest contributors,
+  next action, verification profile, and handoff recommendation. Added source
+  markers, accessible progress semantics, and responsive navigation tightening.
+  Verification: PASS - `npm.cmd --prefix viewer run build`, `verify:ui`,
+  `verify:ui:screenshots`, `test:swarm-ui`, and `scripts\\verify.cmd` passed;
+  fresh desktop/tablet/mobile visual QA captured the updated rail.
+
+- phase-70-06-handoff-first-long-session-gate: extended the report-only context
+  preflight with observed history, changed-file, and evidence-ref counts plus
+  ordered handoff reasons, and added [[workflows/handoff-first-long-session]].
+  Verification: PASS - 18 focused tests passed, changed Python files compiled,
+  no-excuse audit found no violations, KB audit found 0 findings, PAP validation
+  passed, and `git diff --check` passed.
+
+- phase-70-05-layered-verification-profiles: added
+  [[workflows/verification-profiles]] mapping focused, surface, full, and release
+  profiles to targeted tests, viewer checks, screenshot QA, `git diff --check`,
+  and `scripts\\verify.cmd`. Verification: PASS - knowledge-base health audit
+  found 0 findings, PAP workspace validation passed, and `git diff --check`
+  passed.
+
+- phase-70-04-structural-lookup-first-router: added
+  [[workflows/structural-lookup-first]] to prioritize code-graph symbols,
+  caller/callee traces, bounded live snippets, and narrow literal search before
+  broad reads. Verification: PASS - knowledge-base health audit found 0
+  findings, PAP workspace validation passed, and `git diff --check` passed.
+
+- phase-70-03-context-budget-preflight: added report-only context budget estimation
+  using existing token counters for system prompt, messages, memory, tool schemas,
+  task context, memory refs, and code graph refs. Verification: PASS - focused
+  Phase 70 tests ran 17 tests successfully, the knowledge-base health audit found
+  0 findings, PAP workspace validation passed, and `git diff --check` passed.
 
 - phase-70-02-conductor-token-efficient-plan-profile: added typed optional `TokenEfficientProfile` and `HandoffThresholds` models under `agent_workspace/core/token_efficient_profile.py`, wired them into `ConductorPlan` and `build_default_conductor_plan`, and kept the profile telemetry-only until later consumers exist. Verification: PASS - ConductorPlan and router regressions ran 15 tests successfully, the new module passed the no-excuse audit, changed Python files compiled, and `git diff --check` passed.
 

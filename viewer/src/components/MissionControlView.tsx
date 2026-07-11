@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { ActivityLog } from "./ActivityLog";
 import { NextActionRail } from "./NextActionRail";
 import { Button, MetricTile, ProgressBar, StatusBadge, Surface, toneForStatus } from "./ui/primitives";
+import { TokenModePanel } from "./TokenModePanel";
 import type { ActivityLogEntry, AgentMemory, AgentTask, Lang, TopologyEvent, TopologyState, Workspace } from "../types";
 
 type MissionControlViewProps = {
@@ -260,7 +261,7 @@ function ConductorPanel({ event, copy }: { event: TopologyEvent | null; copy: (t
         <MetricTile label={copy.evidence} value={trace?.evidence_refs?.length ?? 0} tone="accent" />
         <MetricTile label="Tests" value={trace?.impact_summary?.linked_test_count ?? 0} tone="success" />
       </div>
-      <ProgressBar className="mt-4" value={total ? (completed / total) * 100 : 0} tone={trace?.risk_level === "high" ? "danger" : "accent"} />
+      <ProgressBar ariaLabel={copy.verification} className="mt-4" value={total ? (completed / total) * 100 : 0} tone={trace?.risk_level === "high" ? "danger" : "accent"} />
       <p className="mt-3 line-clamp-3 text-xs leading-relaxed t2">{trace?.decision_rationale ?? event?.description ?? "Runtime trace will appear after conductor planning."}</p>
     </Surface>
   );
@@ -321,9 +322,11 @@ export function MissionControlView({
                 <MetricTile label="Running" value={taskStats.running} tone="accent" />
                 <MetricTile label="Done" value={taskStats.completed} tone="success" />
               </div>
-              <ProgressBar className="mt-4" value={verificationScore} tone={verificationScore === 100 ? "success" : "accent"} />
+              <ProgressBar ariaLabel={copy.verification} className="mt-4" value={verificationScore} tone={verificationScore === 100 ? "success" : "accent"} />
               <p className="mt-3 break-all text-[10px] font-mono t3" title={workspace?.path}>{workspace?.name ?? activeWorkspaceId} · {workspace?.path || "default workspace"}</p>
             </Surface>
+
+            <TokenModePanel session={session} nextTask={taskStats.nextTask} lang={lang} compact />
 
             <NextActionRail
               lang={lang}

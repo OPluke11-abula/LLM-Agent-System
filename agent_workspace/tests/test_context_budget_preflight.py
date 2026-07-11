@@ -28,3 +28,35 @@ def test_preflight_reports_component_totals_and_advisory_reduction_without_trimm
     assert report.handoff_recommended is True
     assert report.report_only is True
     assert report.trimming_applied is False
+
+
+def test_preflight_recommends_handoff_for_history_change_and_evidence_thresholds():
+    report = build_context_budget_preflight(
+        system_prompt="system",
+        messages=[{"role": "user", "content": "request"}],
+        memory_context="memory",
+        tool_schemas=[],
+        task_context="task",
+        memory_refs=[],
+        code_graph_refs=[],
+        changed_file_count=3,
+        evidence_ref_count=2,
+        profile=TokenEfficientProfile(
+            handoff_thresholds=HandoffThresholds(
+                history_message_count=1,
+                changed_file_count=2,
+                evidence_ref_count=2,
+                context_token_count=10_000,
+            ),
+        ),
+    )
+
+    assert report.history_message_count == 1
+    assert report.changed_file_count == 3
+    assert report.evidence_ref_count == 2
+    assert report.handoff_recommended is True
+    assert report.handoff_reasons == [
+        "history_message_count",
+        "changed_file_count",
+        "evidence_ref_count",
+    ]

@@ -28,6 +28,7 @@ type ProgressBarProps = {
   value: number;
   tone?: Tone;
   className?: string;
+  ariaLabel?: string;
 };
 
 export function cx(...classes: Array<string | false | null | undefined>) {
@@ -109,10 +110,17 @@ export function MetricTile({ label, value, tone = "neutral", className }: Metric
   );
 }
 
-export function ProgressBar({ value, tone = "accent", className }: ProgressBarProps) {
+export function ProgressBar({ value, tone = "accent", className, ariaLabel = "Progress" }: ProgressBarProps) {
   const width = Math.max(0, Math.min(100, value));
   return (
-    <div className={cx("progress-track", className)}>
+    <div
+      className={cx("progress-track", className)}
+      role="progressbar"
+      aria-label={ariaLabel}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={width}
+    >
       <div
         className="progress-fill"
         style={{

@@ -20,14 +20,12 @@
 | 67 | 8 | 8 | 100% Done | Visual QA and verification gate complete |
 | 68 | 8 | 8 | 100% Done | React Doctor advisory gate complete |
 | 69 | 8 | 8 | 100% Done | Local knowledge base and agent memory OS complete |
-| 70 | 8 | 2 | 25% In Progress | Continue `70-03` report-only context budget preflight |
-| 71 | 8 | 5 | 62% In Progress | Hold `71-06` to `71-08` until queue permits |
+| 70 | 8 | 8 | 100% Done | Token-efficient advisory rollout complete |
+| 71 | 8 | 5 | 62% In Progress | Continue `71-06` visual asset and illustration pipeline |
 
 Execution order:
 
-1. Continue Phase 70 now that Phases 67 to 69 are closed.
-2. Then continue remaining Phase 71 work unless the user
-   explicitly reprioritizes.
+1. Continue remaining Phase 71 work unless the user explicitly reprioritizes.
 
 ## Completed Phase Rollup
 
@@ -271,7 +269,7 @@ proven.
 
 ## Phase 70 - Token-Efficient Agent Work Mode
 
-Status: `[~]` 2/8 complete. Apply the token-saving operating model to LAS as an
+  Status: `[x]` 8/8 complete. The token-saving operating model is available as an
 advisory/report-only work mode. Do not archive, delete, compact, or mutate
 session state automatically.
 
@@ -294,34 +292,56 @@ session state automatically.
   routing selection.
 
 ### 70-03 Report-Only Context Budget Preflight
-- [ ] **[Backend Programmer]** Add preflight cost estimates using existing token
-  counters, tool schemas, memory refs, task context, and code graph refs. Output
-  totals and reductions without trimming automatically.
+  - [x] **[Backend Programmer]** Add preflight cost estimates using existing token
+    counters, tool schemas, memory refs, task context, and code graph refs. Output
+    totals and reductions without trimming automatically.
+  - Progress: added the report-only `ContextBudgetReport` and
+    `build_context_budget_preflight` helper using existing token counters, with
+    explicit memory/code-graph reference counts, advisory reduction estimates,
+    and handoff threshold reporting. No trimming or session mutation occurs.
 
 ### 70-04 Structural Lookup First Router
-- [ ] **[Backend/Tooling Programmer]** Add workflow/helper rules that prefer
-  code graph lookup, bounded snippets, and narrow search before broad file reads;
-  record broad-read justification.
+  - [x] **[Backend/Tooling Programmer]** Add workflow/helper rules that prefer
+    code graph lookup, bounded snippets, and narrow search before broad file reads;
+    record broad-read justification.
+  - Progress: added [[workflows/structural-lookup-first]] with an advisory lookup
+    order, bounded-read fallback, explicit broad-read justification fields, and
+    live-source evidence rules. Linked it from the knowledge-base index.
 
 ### 70-05 Layered Verification Profiles
-- [ ] **[QA/Tooling Programmer]** Define `focused`, `surface`, `full`, and
-  `release` verification profiles mapped to focused pytest, viewer build,
-  screenshot QA, `git diff --check`, and `scripts\verify.cmd`.
+  - [x] **[QA/Tooling Programmer]** Define `focused`, `surface`, `full`, and
+    `release` verification profiles mapped to focused pytest, viewer build,
+    screenshot QA, `git diff --check`, and `scripts\verify.cmd`.
+  - Progress: added [[workflows/verification-profiles]] with advisory profile
+    selection, exact command mappings, screenshot escalation, and evidence rules
+    for focused, surface, full, and release gates.
 
 ### 70-06 Handoff-First Long Session Gate
-- [ ] **[Workflow Programmer]** Add report-only handoff recommendation when
-  history, changed-file count, evidence refs, or estimated context cost exceeds
-  thresholds.
+  - [x] **[Workflow Programmer]** Add report-only handoff recommendation when
+    history, changed-file count, evidence refs, or estimated context cost exceeds
+    thresholds.
+  - Progress: extended the report-only context preflight with history, changed
+    file, evidence-ref, and context-token threshold reasons, and added
+    [[workflows/handoff-first-long-session]] for the recommendation and handoff
+    procedure.
 
 ### 70-07 Viewer Token Mode Surface
-- [ ] **[Frontend Programmer]** Surface work mode, context estimate, largest
-  contributors, recommended next action, verification profile, and handoff
-  recommendation in Mission Control or Intelligence Map.
+  - [x] **[Frontend Programmer]** Surface work mode, context estimate, largest
+    contributors, recommended next action, verification profile, and handoff
+    recommendation in Mission Control or Intelligence Map.
+  - Progress: added the responsive `TokenModePanel` instrument rail with live
+    topology token totals, contributor ranking, next-action guidance, verification
+    profile, handoff state, localized copy, and accessible context progress.
+    Added source markers and responsive screenshot coverage to `verify-ui.mjs`.
 
 ### 70-08 Governance, Tests, and Rollout
-- [ ] **[QA/Architect]** Add tests for report-only preflight, profile selection,
-  broad-read justification, verification-profile mapping, and handoff thresholds.
-  Roll out advisory-only first.
+  - [x] **[QA/Architect]** Add tests for report-only preflight, profile selection,
+    broad-read justification, verification-profile mapping, and handoff thresholds.
+    Roll out advisory-only first.
+  - Progress: added focused governance tests for supported profile selection,
+    broad-read justification fields, live verification mappings, and the explicit
+    [[workflows/token-efficient-rollout]] contract. Existing preflight and
+    threshold tests remain part of the rollout matrix; enforcement stays off.
 
 ## Phase 71 - Professional Design Agent and Art Direction Pipeline
 

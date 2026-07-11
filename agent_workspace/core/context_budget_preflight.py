@@ -16,9 +16,13 @@ class ContextBudgetReport(BaseModel):
     estimated_total_tokens: int = Field(ge=0)
     estimated_reduction_tokens: int = Field(ge=0)
     estimated_reduction_ratio: float = Field(ge=0, le=1)
+    history_message_count: int = Field(ge=0)
+    changed_file_count: int = Field(ge=0)
+    evidence_ref_count: int = Field(ge=0)
     memory_ref_count: int = Field(ge=0)
     code_graph_ref_count: int = Field(ge=0)
     handoff_recommended: bool
+    handoff_reasons: list[str]
     report_only: Literal[True] = True
     trimming_applied: Literal[False] = False
 
@@ -32,6 +36,8 @@ def build_context_budget_preflight(
     task_context: str,
     memory_refs: list[str],
     code_graph_refs: list[str],
+    changed_file_count: int = 0,
+    evidence_ref_count: int = 0,
     profile: TokenEfficientProfile | None = None,
     model_name: str | None = None,
 ) -> ContextBudgetReport:
@@ -57,14 +63,29 @@ def build_context_budget_preflight(
             average_memory_tokens = math.ceil(components["memory_context"] / len(memory_refs))
             reduction += average_memory_tokens * excess_refs
     reduction = min(total, reduction)
-    handoff_threshold = profile.handoff_thresholds.context_token_count if profile and profile.handoff_thresholds else None
+    history_message_count = len(messages)
+    thresholds = profile.handoff_thresholds if profile else None
+    handoff_reasons: list[str] = []
+    if thresholds:
+        if thresholds.history_message_count is not None and history_message_count >= thresholds.history_message_count:
+            handoff_reasons.append("history_message_count")
+        if thresholds.changed_file_count is not None and changed_file_count >= thresholds.changed_file_count:
+            handoff_reasons.append("changed_file_count")
+        if thresholds.evidence_ref_count is not None and evidence_ref_count >= thresholds.evidence_ref_count:
+            handoff_reasons.append("evidence_ref_count")
+        if thresholds.context_token_count is not None and total >= thresholds.context_token_count:
+            handoff_reasons.append("context_token_count")
 
     return ContextBudgetReport(
         component_tokens=components,
         estimated_total_tokens=total,
         estimated_reduction_tokens=reduction,
         estimated_reduction_ratio=reduction / total if total else 0,
+        history_message_count=history_message_count,
+        changed_file_count=changed_file_count,
+        evidence_ref_count=evidence_ref_count,
         memory_ref_count=len(memory_refs),
         code_graph_ref_count=len(code_graph_refs),
-        handoff_recommended=handoff_threshold is not None and total >= handoff_threshold,
+        handoff_recommended=bool(handoff_reasons),
+        handoff_reasons=handoff_reasons,
     )
