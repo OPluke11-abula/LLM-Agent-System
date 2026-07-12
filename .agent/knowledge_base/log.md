@@ -1,5 +1,17 @@
 # LAS Agent Knowledge Log
 
+## 2026-07-12
+
+- release-0.1.1-wrap-up-and-hygiene: verified the completed local queue and
+  zero open GitHub issues, removed tracked debug/test artifacts, expanded
+  local-tool and environment ignore rules, corrected the compact queue pointer,
+  refreshed the root and viewer READMEs, and built the Windows 0.1.1 NSIS
+  installer. Review: [[exports/release-0.1.1-five-core-rules-review-2026-07-12]].
+  Verification: PASS - focused AgentEngine tests passed, the viewer
+  production build passed, the NSIS bundle completed, artifact SHA-256 was
+  recorded, and `scripts\\verify.cmd` completed successfully. MSI bundling was
+  not claimed: WiX ICE validation could not access Windows Installer correctly.
+
 ## 2026-07-11
 
 - phase-71-08-design-agent-viewer-integration: added a responsive, localized

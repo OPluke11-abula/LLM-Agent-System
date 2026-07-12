@@ -142,6 +142,7 @@ This memory is orientation, not proof. Always verify current repo, code graph, c
 - [[exports/phase-67-design-critique-flow-report-2026-07-07]]
 - [[exports/phase-71-las-viewer-art-direction-packet-2026-07-07]]
 - [[exports/phase-71-screen-composition-studies-2026-07-07]]
+- [[exports/release-0.1.1-five-core-rules-review-2026-07-12]]
 ## Verification Commands
 
 Use the smallest relevant check first:

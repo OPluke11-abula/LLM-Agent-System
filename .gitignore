@@ -271,3 +271,38 @@ viewer/dist/
 viewer/.tmp/
 viewer/src-tauri/target/
 viewer/src-tauri/gen/
+
+# Developer-local AI tools and structural indexes
+.agents/
+.claude/
+.codex/
+.codegraph/
+.continue/
+.cursor/
+.gemini/
+.omo/
+.windsurf/
+.aider*
+
+# Local editors and operating-system metadata
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+*~
+
+# Local environment variants and temporary files
+.env.*
+!.env.example
+!.env.template
+*.tmp
+*.temp
+*.bak
+*.orig
+*.rej
+tmp_*.md
+.uv-cache/
+.venv-*/

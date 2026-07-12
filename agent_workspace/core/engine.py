@@ -952,23 +952,3 @@ def test_dynamic_run():
             if skill_file_path.is_file():
                 os.remove(skill_file_path)
             raise RuntimeError(f"Dynamic skill loading failed: {e}") from e
-
-
-if __name__ == "__main__":
-    import json
-
-    engine = AgentEngine(workspace_path=os.path.dirname(os.path.dirname(__file__)))
-    print(engine.summary())
-
-    print("\n--- Rendered System Prompt Preview ---")
-    prompt = engine.render_prompt(
-        {
-            "current_time": "2026-05-16T11:30:00+08:00",
-            "context_status": "OK",
-            "user_input": "Hello, calculate something for me.",
-        }
-    )
-    print(prompt[:500])
-
-    print("\n--- Tool Schemas ---")
-    print(json.dumps(engine.get_tool_schemas(), indent=2, ensure_ascii=False))

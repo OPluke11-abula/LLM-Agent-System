@@ -106,8 +106,8 @@ details, use `.agent/workflows.md`.
 
 - Start from `.agent/agent_tasks.md` `Current Queue State`.
 - Preserve queue order unless the user explicitly reprioritizes.
-- As of the compacted task queue, return to Phase `68-02` before continuing
-  Phase 71 implementation work.
+- The compacted task queue currently has no pending implementation phase.
+  Start new work only from an explicitly approved queue entry or user request.
 
 ## External-State Guardrails
 
