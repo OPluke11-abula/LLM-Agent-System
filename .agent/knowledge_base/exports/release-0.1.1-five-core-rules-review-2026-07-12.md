@@ -48,7 +48,7 @@ had no open GitHub issues at review time.
 - Viewer production build: passed.
 - Tauri NSIS bundle: passed for version 0.1.1.
 - Installer SHA-256:
-  `18448AB860EAA2BD795CA4DE5BA2F80682E1150369C0212423A1BCFE752BABA5`.
+  `1D4A47DA57E60D641EFE729E7F347DBABCAE84033D1AF0EF45220CE0B6C49B47`.
 - `scripts\verify.cmd`: passed, including Python compilation, full pytest,
   PAP validation, 25 tool contracts, secrets scan, viewer build, UI checks, and
   swarm UI tests.

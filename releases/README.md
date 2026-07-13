@@ -8,7 +8,7 @@
 | Platform | Windows x64 |
 | Format | NSIS installer |
 | Authenticode signature | **Not signed** |
-| SHA-256 | `18448AB860EAA2BD795CA4DE5BA2F80682E1150369C0212423A1BCFE752BABA5` |
+| SHA-256 | `1D4A47DA57E60D641EFE729E7F347DBABCAE84033D1AF0EF45220CE0B6C49B47` |
 
 Verify the tracked file before execution:
 
