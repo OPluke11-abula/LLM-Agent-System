@@ -838,54 +838,14 @@ class DynamicCodeGenerator:
 
     def generate_and_load_skill(self, name: str, code_content: str) -> bool:
         """Audit, validate, run automated test gate, and dynamically load the new skill."""
-        import ast
         import sys
         import os
         from pathlib import Path
         import subprocess
+        from agent_workspace.core.sandbox import validate_generated_skill, validate_skill_name
 
-        # 1. AST Security Audit
-        try:
-            tree = ast.parse(code_content)
-        except SyntaxError as e:
-            raise ValueError(f"Syntax error in generated code: {e}")
-
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Call):
-                func_name = ""
-                if isinstance(node.func, ast.Name):
-                    func_name = node.func.id
-                elif isinstance(node.func, ast.Attribute):
-                    func_name = node.func.attr
-
-                if func_name in {"eval", "exec", "compile", "system", "popen", "subprocess", "run"}:
-                    raise PermissionError(f"Security violation: unsafe execution call '{func_name}' detected")
-
-        # 2. Verify Tool Contract Structure
-        has_model = False
-        model_name = ""
-        for node in tree.body:
-            if isinstance(node, ast.ClassDef):
-                for base in node.bases:
-                    if isinstance(base, ast.Name) and base.id == "BaseModel":
-                        has_model = True
-                        model_name = node.name
-                        break
-
-        if not has_model:
-            raise ValueError("Generated skill must define a Pydantic BaseModel argument class")
-
-        has_func = False
-        for node in tree.body:
-            if isinstance(node, ast.FunctionDef) and not node.name.startswith("_"):
-                if node.args.args:
-                    first_arg = node.args.args[0]
-                    if first_arg.annotation and isinstance(first_arg.annotation, ast.Name) and first_arg.annotation.id == model_name:
-                        has_func = True
-                        break
-
-        if not has_func:
-            raise ValueError("Generated skill must define a public function whose first parameter is annotated with the Pydantic BaseModel")
+        validate_skill_name(name)
+        _, model_name = validate_generated_skill(code_content)
 
         # Ensure directories exist
         skills_dir = Path(self.workspace_path) / "skills"
@@ -915,7 +875,7 @@ def test_dynamic_run():
         python_exe = sys.executable or "C:\\Users\\luke2\\AppData\\Local\\Programs\\Python\\Python314\\python.exe"
         try:
             res = subprocess.run(
-                [python_exe, "-m", "pytest", str(test_file_path)],
+                [python_exe, "-I", "-m", "pytest", str(test_file_path)],
                 capture_output=True,
                 text=True,
                 timeout=10

@@ -38,13 +38,12 @@ def execute_skill(args: UnsafeArgs) -> str:
     # 2. Test subprocess injection
     bad_code_sub = """
 from pydantic import BaseModel
-import subprocess
 
 class UnsafeArgs(BaseModel):
     command: str
 
 def execute_skill(args: UnsafeArgs) -> str:
-    subprocess.run(["ls"])
+    run(["ls"])
     return "done"
 """
     with pytest.raises(PermissionError, match="Security violation: unsafe execution call 'run' detected"):
@@ -65,7 +64,7 @@ def execute_skill(args: InvalidArgs) -> str:
     from agent_workspace.core.discussion_room import ProofOfConsensus
 
     with patch.object(ProofOfConsensus, "is_consensus_approved", return_value=True):
-        with pytest.raises(ValueError, match="Synthesized skill must define a Pydantic BaseModel argument class"):
+        with pytest.raises(ValueError, match="Generated skill must define a Pydantic BaseModel argument class"):
             synthesizer.synthesize_and_register_skill(MagicMock(), "invalid_skill_no_model", bad_code_no_model)
 
 
@@ -85,7 +84,7 @@ def execute_skill(args) -> str:
     from agent_workspace.core.discussion_room import ProofOfConsensus
 
     with patch.object(ProofOfConsensus, "is_consensus_approved", return_value=True):
-        with pytest.raises(ValueError, match="Synthesized skill must define a public function whose first parameter is annotated with the Pydantic BaseModel"):
+        with pytest.raises(ValueError, match="Generated skill must define a public function whose first parameter is annotated with the Pydantic BaseModel"):
             synthesizer.synthesize_and_register_skill(MagicMock(), "invalid_skill_no_arg_type", bad_code_no_arg_type)
 
 
@@ -127,4 +126,19 @@ def my_synthesized_tool(args: ValidArgs) -> str:
             # Verify registered call
             assert mock_engine._register_functions_from_module.called
             mock_engine._register_functions_from_module.assert_called_with(mock_module)
+
+
+def test_synthesis_rejects_traversal_name(temp_workspace):
+    synthesizer = DynamicSkillSynthesizer(temp_workspace)
+    code = """
+from pydantic import BaseModel
+
+class Args(BaseModel):
+    value: int
+
+def safe_tool(args: Args) -> int:
+    return args.value
+"""
+    with pytest.raises(ValueError, match="simple Python identifier"):
+        synthesizer.synthesize_and_register_skill(MagicMock(), "../escape", code)
 

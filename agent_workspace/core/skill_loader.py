@@ -179,28 +179,14 @@ class DynamicSkillSynthesizer:
 
     def synthesize_and_register_skill(self, engine: Any, name: str, code_content: str) -> bool:
         """Audits, validates, saves, and hot-loads a new custom skill (Task 24-02)."""
-        import ast
         import sys
         import logging
         import hashlib
         from pathlib import Path
+        from agent_workspace.core.sandbox import validate_generated_skill, validate_skill_name
         
-        # 1. AST Security Audit
-        try:
-            tree = ast.parse(code_content)
-        except SyntaxError as e:
-            raise ValueError(f"Syntax error in generated code: {e}")
-
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Call):
-                func_name = ""
-                if isinstance(node.func, ast.Name):
-                    func_name = node.func.id
-                elif isinstance(node.func, ast.Attribute):
-                    func_name = node.func.attr
-
-                if func_name in {"eval", "exec", "compile", "system", "popen", "subprocess", "run"}:
-                    raise PermissionError(f"Security violation: unsafe execution call '{func_name}' detected")
+        validate_skill_name(name)
+        _, model_name = validate_generated_skill(code_content)
 
         # Swarm Proof-of-Consensus Signature Verification
         payload_hash = hashlib.sha256(code_content.encode("utf-8")).hexdigest()
@@ -209,33 +195,6 @@ class DynamicSkillSynthesizer:
         if not ProofOfConsensus.is_consensus_approved(self.workspace_path, payload_hash):
             raise PermissionError("Security violation: dynamic script execution rejected. Swarm signature verification failed.")
 
-        # 2. Verify Tool Contract Structure
-        has_model = False
-        model_name = ""
-        for node in tree.body:
-            if isinstance(node, ast.ClassDef):
-                for base in node.bases:
-                    if isinstance(base, ast.Name) and base.id == "BaseModel":
-                        has_model = True
-                        model_name = node.name
-                        break
-
-        if not has_model:
-            raise ValueError("Synthesized skill must define a Pydantic BaseModel argument class")
-
-        has_func = False
-        for node in tree.body:
-            if isinstance(node, ast.FunctionDef) and not node.name.startswith("_"):
-                if node.args.args:
-                    first_arg = node.args.args[0]
-                    if first_arg.annotation and isinstance(first_arg.annotation, ast.Name) and first_arg.annotation.id == model_name:
-                        has_func = True
-                        break
-
-        if not has_func:
-            raise ValueError("Synthesized skill must define a public function whose first parameter is annotated with the Pydantic BaseModel")
-
-        # 3. Save validated custom skill
         skills_dir = Path(self.workspace_path) / "skills"
         skills_dir.mkdir(parents=True, exist_ok=True)
         skill_file_path = skills_dir / f"{name}.py"

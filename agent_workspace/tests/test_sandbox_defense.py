@@ -31,19 +31,19 @@ def test_ast_sandbox_blockades(tmp_path, monkeypatch):
     monkeypatch.setattr(ProofOfConsensus, "is_consensus_approved", lambda ws, h: True)
 
     # 1. Block Import
-    with pytest.raises(PermissionError, match="Import of blocked module"):
+    with pytest.raises(PermissionError, match="in-process sandbox execution is disabled"):
         SandboxGuard.execute_safe(str(tmp_path), "import socket")
 
     # 2. Block name references like socket
-    with pytest.raises(PermissionError, match="Reference to blocked name"):
+    with pytest.raises(PermissionError, match="in-process sandbox execution is disabled"):
         SandboxGuard.execute_safe(str(tmp_path), "x = socket")
 
     # 3. Block attribute accesses
-    with pytest.raises(PermissionError, match="Access to blocked attribute"):
+    with pytest.raises(PermissionError, match="in-process sandbox execution is disabled"):
         SandboxGuard.execute_safe(str(tmp_path), "y = obj.connect")
 
     # 4. Block blocked strings
-    with pytest.raises(PermissionError, match="Blocked string literal containing"):
+    with pytest.raises(PermissionError, match="in-process sandbox execution is disabled"):
         SandboxGuard.execute_safe(str(tmp_path), "z = '__globals__'")
 
 def test_safe_open_traversal(tmp_path):

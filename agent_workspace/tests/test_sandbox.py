@@ -29,7 +29,7 @@ def test_sandbox_guard_rejects_missing_consensus(temp_workspace):
     with pytest.raises(PermissionError, match="Consensus signature verification failed"):
         SandboxGuard.execute_safe(temp_workspace, code)
 
-def test_sandbox_guard_allows_consensus_approved(temp_workspace):
+def test_sandbox_guard_rejects_consensus_approved_without_docker(temp_workspace):
     code = "result = 40 + 2"
     import hashlib
     payload_hash = hashlib.sha256(code.encode("utf-8")).hexdigest()
@@ -37,9 +37,8 @@ def test_sandbox_guard_allows_consensus_approved(temp_workspace):
     cert = ProofOfConsensus.create_consensus_certificate(payload_hash, ["ceo", "cto", "dev"])
     ProofOfConsensus.register_consensus(temp_workspace, payload_hash, cert)
     
-    locals_out = SandboxGuard.execute_safe(temp_workspace, code)
-    assert locals_out["result"] == 42
-    assert "__builtins__" not in locals_out
+    with pytest.raises(PermissionError, match="in-process sandbox execution is disabled"):
+        SandboxGuard.execute_safe(temp_workspace, code)
 
 def test_sandbox_guard_ast_blocks_imports(temp_workspace):
     # Try importing blocked module 'os'
@@ -50,7 +49,7 @@ def test_sandbox_guard_ast_blocks_imports(temp_workspace):
     cert = ProofOfConsensus.create_consensus_certificate(payload_hash, ["ceo", "cto", "dev"])
     ProofOfConsensus.register_consensus(temp_workspace, payload_hash, cert)
     
-    with pytest.raises(PermissionError, match="Import of blocked module 'os' detected"):
+    with pytest.raises(PermissionError, match="in-process sandbox execution is disabled"):
         SandboxGuard.execute_safe(temp_workspace, code_import_os)
 
     # Try importing from blocked module
@@ -59,7 +58,7 @@ def test_sandbox_guard_ast_blocks_imports(temp_workspace):
     cert2 = ProofOfConsensus.create_consensus_certificate(payload_hash2, ["ceo", "cto", "dev"])
     ProofOfConsensus.register_consensus(temp_workspace, payload_hash2, cert2)
     
-    with pytest.raises(PermissionError, match="Import from blocked module 'sys' detected"):
+    with pytest.raises(PermissionError, match="in-process sandbox execution is disabled"):
         SandboxGuard.execute_safe(temp_workspace, code_import_from)
 
 def test_sandbox_guard_ast_blocks_unsafe_builtins(temp_workspace):
@@ -70,5 +69,5 @@ def test_sandbox_guard_ast_blocks_unsafe_builtins(temp_workspace):
     cert = ProofOfConsensus.create_consensus_certificate(payload_hash, ["ceo", "cto", "dev"])
     ProofOfConsensus.register_consensus(temp_workspace, payload_hash, cert)
     
-    with pytest.raises(PermissionError, match="Unsafe call to 'eval' detected"):
+    with pytest.raises(PermissionError, match="in-process sandbox execution is disabled"):
         SandboxGuard.execute_safe(temp_workspace, code_eval)

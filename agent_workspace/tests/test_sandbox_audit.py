@@ -104,16 +104,8 @@ def test_sandbox_docker_fallback_to_ast(temp_workspace, mock_docker_sys_module):
         # Force exceptions on CLI to ensure fallback
         mock_run.side_effect = Exception("No Docker CLI")
         
-        # Call with sandbox_type="docker"
-        # It should log warning and execute using AST mode
-        res = SandboxGuard.execute_safe(temp_workspace, code, sandbox_type="docker")
-        assert res["result"] == 300
-        
-        # Verify it logged to AuditLedger as an "ast" sandbox type or recorded the event properly
-        ledger = AuditLedger(temp_workspace)
-        logs = ledger.get_logs("system_call")
-        assert len(logs) > 0
-        assert logs[-1]["payload"]["sandbox_type"] == "ast"
+        with pytest.raises(RuntimeError, match="Docker sandbox unavailable"):
+            SandboxGuard.execute_safe(temp_workspace, code, sandbox_type="docker")
 
 def test_sandbox_docker_success_mock(temp_workspace, mock_docker_sys_module):
     code = "print('Hello Docker')"
@@ -145,7 +137,14 @@ def test_sandbox_docker_success_mock(temp_workspace, mock_docker_sys_module):
     kwargs = mock_client.containers.run.call_args[1]
     assert kwargs["image"] == "python:3.11-slim"
     assert kwargs["mem_limit"] == "128m"
+    assert kwargs["nano_cpus"] == 500_000_000
+    assert kwargs["pids_limit"] == 64
     assert kwargs["network_mode"] == "none"
+    assert kwargs["read_only"] is True
+    assert kwargs["cap_drop"] == ["ALL"]
+    assert kwargs["security_opt"] == ["no-new-privileges:true"]
+    assert kwargs["tmpfs"] == {"/tmp": "rw,noexec,nosuid,size=16m"}
+    assert kwargs["user"] == "65532:65532"
     assert kwargs["detach"] is True
 
 def test_audit_endpoints(api_client, temp_workspace):

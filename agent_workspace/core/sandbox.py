@@ -180,6 +180,55 @@ def make_safe_open(workspace_path: str):
     return safe_open
 
 
+def validate_generated_skill(code_content: str) -> tuple[ast.AST, str]:
+    try:
+        tree = ast.parse(code_content)
+    except SyntaxError as exc:
+        raise ValueError(f"Syntax error in generated code: {exc}") from exc
+
+    allowed_imports = {"pydantic", "typing", "typing_extensions"}
+    blocked_calls = {"eval", "exec", "compile", "system", "popen", "run", "__import__"}
+    model_name = ""
+    has_function = False
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            module = node.module if isinstance(node, ast.ImportFrom) else None
+            names = [alias.name for alias in node.names]
+            roots = [module] if module else names
+            if any(root and root.split(".")[0] not in allowed_imports for root in roots):
+                raise PermissionError("Security violation: generated skill imports are restricted")
+            if any(alias.startswith("_") for alias in names):
+                raise PermissionError("Security violation: private generated-skill import")
+        elif isinstance(node, ast.Call):
+            call_name = node.func.id if isinstance(node.func, ast.Name) else node.func.attr if isinstance(node.func, ast.Attribute) else ""
+            if call_name in blocked_calls:
+                raise PermissionError(f"Security violation: unsafe execution call '{call_name}' detected")
+        elif isinstance(node, ast.Attribute) and node.attr.startswith("_"):
+            raise PermissionError("Security violation: private generated-skill attribute")
+        elif isinstance(node, ast.Name) and node.id.startswith("__"):
+            raise PermissionError("Security violation: private generated-skill name")
+
+    for node in tree.body:
+        if isinstance(node, ast.ClassDef):
+            if any(isinstance(base, ast.Name) and base.id == "BaseModel" for base in node.bases):
+                model_name = node.name
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and not node.name.startswith("_"):
+            if node.args.args and node.args.args[0].annotation:
+                annotation = node.args.args[0].annotation
+                if isinstance(annotation, ast.Name) and annotation.id == model_name:
+                    has_function = True
+    if not model_name:
+        raise ValueError("Generated skill must define a Pydantic BaseModel argument class")
+    if not has_function:
+        raise ValueError("Generated skill must define a public function whose first parameter is annotated with the Pydantic BaseModel")
+    return tree, model_name
+
+
+def validate_skill_name(name: str) -> None:
+    if not name.isidentifier() or len(name) > 64:
+        raise ValueError("Generated skill name must be a simple Python identifier")
+
+
 class SandboxGuard:
     """Safely isolates and executes dynamically generated dynamic tasks, workflow custom scripts, and code blocks under a Zero-Trust policy."""
 
@@ -191,6 +240,13 @@ class SandboxGuard:
     allowed_executions = 0
     last_execution_status = "none"
 
+    DOCKER_IMAGE = os.environ.get("LAS_SANDBOX_IMAGE", "python:3.11-slim")
+    MEMORY_LIMIT = "128m"
+    CPU_LIMIT = 500_000_000
+    PIDS_LIMIT = 64
+    TIMEOUT_SECONDS = 10.0
+    MAX_OUTPUT_BYTES = 1_048_576
+
     @classmethod
     def execute_safe(
         cls,
@@ -201,11 +257,6 @@ class SandboxGuard:
         sandbox_type: str = "ast",
         tenant_id: str = "default_tenant"
     ) -> Dict[str, Any]:
-        """
-        Executes code_content under a restricted, zero-trust sandbox.
-        Supports 'ast' or 'docker' modes, with graceful fallback.
-        Requires signature verification from ProofOfConsensus.
-        """
         cls.total_executions += 1
 
         # 1. Consensus Verification
@@ -236,331 +287,136 @@ class SandboxGuard:
                 pass
             raise PermissionError("Security violation: Sandbox execution blocked. Consensus signature verification failed.")
 
-        # Determine resolved sandbox type and handle Docker checks
-        resolved_sandbox_type = sandbox_type.lower()
-        if resolved_sandbox_type == "docker":
-            docker_available = False
-            client = None
+        if sandbox_type.lower() != "docker":
+            cls.blocked_executions += 1
+            cls.last_execution_status = "blocked"
+            raise PermissionError(
+                "Security violation: in-process sandbox execution is disabled; "
+                "use sandbox_type='docker'."
+            )
+
+        import subprocess
+
+        docker_client = None
+        try:
+            import docker
+            docker_client = docker.from_env()
+            docker_client.ping()
+        except Exception as exc:
+            docker_client = None
+            logger.debug("Docker SDK unavailable: %s", exc)
+
+        if docker_client is None:
             try:
-                import docker
-                client = docker.from_env()
-                client.ping()
-                docker_available = True
-            except Exception:
-                pass
-
-            # Check CLI fallback possibility
-            docker_cli_available = False
-            if not docker_available:
-                import subprocess
-                try:
-                    res = subprocess.run(["docker", "info"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                    if res.returncode == 0:
-                        docker_cli_available = True
-                except Exception:
-                    pass
-
-            if not docker_available and not docker_cli_available:
-                logger.warning("[SandboxGuard] Docker sandbox requested but Docker is unavailable. Falling back to AST.")
-                resolved_sandbox_type = "ast"
-
-        # 2. Execute Docker Sandbox
-        if resolved_sandbox_type == "docker":
-            import base64
-            import subprocess
-            encoded_code = base64.b64encode(code_content.encode("utf-8")).decode("utf-8")
-            exit_code = -1
-            stdout = ""
-            stderr = ""
-            cpu_overhead = 0.0
-            mem_overhead_mb = 0.0
-
-            # Try SDK first
-            try:
-                import docker
-                client = docker.from_env()
-                container = client.containers.run(
-                    image="python:3.11-slim",
-                    command=["sh", "-c", f"echo {encoded_code} | base64 -d | python"],
-                    mem_limit="128m",
-                    network_mode="none",
-                    detach=True,
-                    stdout=True,
-                    stderr=True
+                probe = subprocess.run(
+                    ["docker", "info"],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    check=False,
+                    timeout=5.0,
+                )
+            except Exception as exc:
+                probe = None
+                logger.debug("Docker CLI unavailable: %s", exc)
+            if probe is None or probe.returncode != 0:
+                cls.blocked_executions += 1
+                cls.last_execution_status = "blocked"
+                raise RuntimeError(
+                    "Docker sandbox unavailable; refusing in-process execution."
                 )
 
-                # Query stats before waiting
+        image = os.environ.get("LAS_SANDBOX_IMAGE", cls.DOCKER_IMAGE)
+        if not image:
+            raise RuntimeError("LAS_SANDBOX_IMAGE must identify a trusted sandbox image")
+        command = ["python", "-I", "-B", "-c", code_content]
+        container = None
+        exit_code = -1
+        stdout = ""
+        stderr = ""
+        try:
+            if docker_client is not None:
+                container = docker_client.containers.run(
+                    image=image,
+                    command=command,
+                    mem_limit=cls.MEMORY_LIMIT,
+                    nano_cpus=cls.CPU_LIMIT,
+                    pids_limit=cls.PIDS_LIMIT,
+                    network_mode="none",
+                    read_only=True,
+                    cap_drop=["ALL"],
+                    security_opt=["no-new-privileges:true"],
+                    tmpfs={"/tmp": "rw,noexec,nosuid,size=16m"},
+                    user="65532:65532",
+                    detach=True,
+                    stdout=True,
+                    stderr=True,
+                )
+                result = container.wait(timeout=cls.TIMEOUT_SECONDS)
+                exit_code = int(result.get("StatusCode", 1))
+                stdout = container.logs(stdout=True, stderr=False).decode("utf-8", "replace")
+                stderr = container.logs(stdout=False, stderr=True).decode("utf-8", "replace")
+            else:
+                result = subprocess.run(
+                    [
+                        "docker", "run", "--rm", "--init",
+                        "--memory", cls.MEMORY_LIMIT,
+                        "--cpus", "0.5",
+                        "--pids-limit", str(cls.PIDS_LIMIT),
+                        "--network", "none", "--read-only",
+                        "--cap-drop", "ALL",
+                        "--security-opt", "no-new-privileges:true",
+                        "--tmpfs", "/tmp:rw,noexec,nosuid,size=16m",
+                        "--user", "65532:65532", image, *command,
+                    ],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    check=False,
+                    timeout=cls.TIMEOUT_SECONDS,
+                )
+                exit_code = result.returncode
+                stdout = result.stdout
+                stderr = result.stderr
+        except Exception as exc:
+            cls.blocked_executions += 1
+            cls.last_execution_status = "failed"
+            raise RuntimeError(f"Docker sandbox execution failed: {exc}") from exc
+        finally:
+            if container is not None:
                 try:
-                    stats = container.stats(stream=False)
-                    mem_use = stats.get("memory_stats", {}).get("usage", 0)
-                    mem_overhead_mb = round(mem_use / (1024 * 1024), 2)
-                    cpu_stats = stats.get("cpu_stats", {})
-                    precpu_stats = stats.get("precpu_stats", {})
-                    cpu_delta = cpu_stats.get("cpu_usage", {}).get("total_usage", 0) - precpu_stats.get("cpu_usage", {}).get("total_usage", 0)
-                    system_delta = cpu_stats.get("system_cpu_usage", 0) - precpu_stats.get("system_cpu_usage", 0)
-                    if system_delta > 0 and cpu_delta > 0:
-                        num_cpus = cpu_stats.get("online_cpus", 1)
-                        cpu_overhead = round((cpu_delta / system_delta) * num_cpus * 100.0, 2)
-                except Exception:
-                    cpu_overhead = 12.5
-                    mem_overhead_mb = 35.4
+                    container.remove(force=True)
+                except (OSError, RuntimeError):
+                    logger.debug("Failed to remove sandbox container", exc_info=True)
 
-                result = container.wait(timeout=10.0)
-                exit_code = result.get("StatusCode", 0)
-                stdout = container.logs(stdout=True, stderr=False).decode("utf-8")
-                stderr = container.logs(stdout=False, stderr=True).decode("utf-8")
-                container.remove(force=True)
-            except Exception as e:
-                logger.warning(f"Docker Python SDK execution failed: {e}. Trying CLI fallback...")
-
-            # CLI fallback
-            if exit_code == -1:
-                cpu_overhead = 15.0
-                mem_overhead_mb = 40.0
-                try:
-                    cmd = [
-                        "docker", "run", "--rm",
-                        "-m", "128m",
-                        "--network", "none",
-                        "python:3.11-slim",
-                        "sh", "-c", f"echo {encoded_code} | base64 -d | python"
-                    ]
-                    res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=10.0)
-                    exit_code = res.returncode
-                    stdout = res.stdout
-                    stderr = res.stderr
-                except Exception as err:
-                    cls.blocked_executions += 1
-                    cls.last_execution_status = "failed"
-                    # Increment Prometheus metric
-                    try:
-                        from agent_workspace.observability import PROMETHEUS_AVAILABLE, _get_or_create_metric
-                        if PROMETHEUS_AVAILABLE:
-                            from prometheus_client import Counter
-                            sandbox_count = _get_or_create_metric(Counter, "las_sandbox_executions_total", "Total sandbox executions", ["tenant_id", "status"])
-                            sandbox_count.labels(tenant_id=tenant_id, status=cls.last_execution_status).inc()
-                    except Exception:
-                        pass
-                    # Log failed run to ledger
-                    try:
-                        from core.audit_ledger import AuditLedger
-                        audit = AuditLedger(workspace_path)
-                        audit.record_event("system_call", {
-                            "sandbox_type": "docker",
-                            "code_hash": payload_hash,
-                            "status": "failed",
-                            "error": str(err)
-                        }, tenant_id=tenant_id)
-                    except Exception:
-                        pass
-                    raise RuntimeError(f"Docker sandbox execution failed (Docker Daemon/CLI unavailable): {err}")
-
-            cls.allowed_executions += 1
-            cls.last_execution_status = "allowed" if exit_code == 0 else "failed"
-
-            # Increment Prometheus metric
-            try:
-                from agent_workspace.observability import PROMETHEUS_AVAILABLE, _get_or_create_metric
-                if PROMETHEUS_AVAILABLE:
-                    from prometheus_client import Counter
-                    sandbox_count = _get_or_create_metric(Counter, "las_sandbox_executions_total", "Total sandbox executions", ["tenant_id", "status"])
-                    sandbox_count.labels(tenant_id=tenant_id, status=cls.last_execution_status).inc()
-            except Exception:
-                pass
-
-            # Log to audit trail
-            try:
-                from core.audit_ledger import AuditLedger
-                audit = AuditLedger(workspace_path)
-                audit.record_event("system_call", {
+        stdout = stdout[: cls.MAX_OUTPUT_BYTES]
+        stderr = stderr[: cls.MAX_OUTPUT_BYTES]
+        cls.allowed_executions += 1
+        cls.last_execution_status = "allowed" if exit_code == 0 else "failed"
+        try:
+            from core.audit_ledger import AuditLedger
+            AuditLedger(workspace_path).record_event(
+                "system_call",
+                {
                     "sandbox_type": "docker",
                     "code_hash": payload_hash,
-                    "status": "allowed" if exit_code == 0 else "failed",
+                    "status": cls.last_execution_status,
                     "exit_code": exit_code,
                     "stdout": stdout,
                     "stderr": stderr,
-                    "cpu_overhead_pct": cpu_overhead,
-                    "memory_overhead_mb": mem_overhead_mb
-                }, tenant_id=tenant_id)
-            except Exception:
-                pass
-
-            return {
-                "stdout": stdout,
-                "stderr": stderr,
-                "exit_code": exit_code,
-                "status": "completed" if exit_code == 0 else "error"
-            }
-
-        # 3. Execute AST Sandbox (AST is resolved_sandbox_type == "ast")
-        # Execute safety checks and code within the rollback transaction
-        try:
-            with FileSnapshotTransaction(workspace_path):
-                # Zero-Trust AST Security Audit
-                try:
-                    tree = ast.parse(code_content)
-                except SyntaxError as e:
-                    cls.blocked_executions += 1
-                    cls.last_execution_status = "failed"
-                    raise ValueError(f"Syntax error in dynamic code: {e}")
-
-                blocked_words = {"socket", "connect", "environ", "getenv", "getaddrinfo", "gethostbyname", "__globals__", "__subclasses__", "__builtins__"}
-
-                for node in ast.walk(tree):
-                    # Block imports of sensitive modules
-                    if isinstance(node, ast.Import):
-                        for alias in node.names:
-                            name_parts = alias.name.split('.')
-                            if any(part in cls.BLOCKED_MODULES or part in blocked_words for part in name_parts):
-                                cls.blocked_executions += 1
-                                cls.last_execution_status = "blocked"
-                                raise PermissionError(f"Security violation: Import of blocked module '{alias.name}' detected.")
-                    elif isinstance(node, ast.ImportFrom):
-                        if node.module:
-                            module_parts = node.module.split('.')
-                            if any(part in cls.BLOCKED_MODULES or part in blocked_words for part in module_parts):
-                                cls.blocked_executions += 1
-                                cls.last_execution_status = "blocked"
-                                raise PermissionError(f"Security violation: Import from blocked module '{node.module}' detected.")
-                        for alias in node.names:
-                            if alias.name in blocked_words or alias.name.startswith("_"):
-                                cls.blocked_executions += 1
-                                cls.last_execution_status = "blocked"
-                                raise PermissionError(f"Security violation: Import of blocked name '{alias.name}' detected.")
-
-                    # Block calls to unsafe builtins or functions
-                    if isinstance(node, ast.Call):
-                        func_name = ""
-                        if isinstance(node.func, ast.Name):
-                            func_name = node.func.id
-                        elif isinstance(node.func, ast.Attribute):
-                            func_name = node.func.attr
-
-                        if func_name in cls.BLOCKED_BUILTINS:
-                            cls.blocked_executions += 1
-                            cls.last_execution_status = "blocked"
-                            raise PermissionError(f"Security violation: Unsafe call to '{func_name}' detected inside sandbox.")
-
-                    # Block unsafe name references
-                    if isinstance(node, ast.Name):
-                        if node.id.startswith("_") or node.id in blocked_words or any(w in node.id.lower() for w in blocked_words):
-                            cls.blocked_executions += 1
-                            cls.last_execution_status = "blocked"
-                            raise PermissionError(f"Security violation: Reference to blocked name '{node.id}' detected inside sandbox.")
-
-                    # Block unsafe attribute accesses
-                    if isinstance(node, ast.Attribute):
-                        if node.attr.startswith("_") or node.attr in blocked_words or any(w in node.attr.lower() for w in blocked_words):
-                            cls.blocked_executions += 1
-                            cls.last_execution_status = "blocked"
-                            raise PermissionError(f"Security violation: Access to blocked attribute '{node.attr}' detected inside sandbox.")
-
-                    # Block unsafe string constants
-                    if isinstance(node, ast.Constant) and isinstance(node.value, str):
-                        val = node.value.lower()
-                        for word in blocked_words:
-                            if word in val:
-                                cls.blocked_executions += 1
-                                cls.last_execution_status = "blocked"
-                                raise PermissionError(f"Security violation: Blocked string literal containing '{word}' detected.")
-                # Restricted Execution Environment
-                safe_globals = {
-                    "__builtins__": {
-                        k: v for k, v in __builtins__.items()
-                        if k not in cls.BLOCKED_BUILTINS and not k.startswith("__")
-                    }
-                }
-
-                # Add basic safe objects
-                safe_globals.update({
-                    "abs": abs, "all": all, "any": any, "bin": bin, "bool": bool, "chr": chr,
-                    "dict": dict, "divmod": divmod, "enumerate": enumerate, "filter": filter,
-                    "float": float, "format": format, "hash": hash, "hex": hex, "int": int,
-                    "isinstance": isinstance, "issubclass": issubclass, "iter": iter, "len": len,
-                    "list": list, "map": map, "max": max, "min": min, "next": next, "oct": oct,
-                    "ord": ord, "pow": pow, "range": range, "repr": repr, "reversed": reversed,
-                    "round": round, "set": set, "slice": slice, "sorted": sorted, "str": str,
-                    "sum": sum, "tuple": tuple, "zip": zip
-                })
-
-                # Inject custom safe open builtin wrapper
-                safe_globals["__builtins__"]["open"] = make_safe_open(workspace_path)
-
-                if globals_dict:
-                    for k, v in globals_dict.items():
-                        if k not in cls.BLOCKED_BUILTINS:
-                            safe_globals[k] = v
-
-                if locals_dict is None:
-                    locals_dict = {}
-
-                # Compile and execute within isolated namespace
-                try:
-                    compiled_code = compile(code_content, "<sandbox>", "exec")
-                    sandbox_locals = locals_dict.copy()
-                    exec(compiled_code, safe_globals, sandbox_locals)
-
-                    cls.allowed_executions += 1
-                    cls.last_execution_status = "allowed"
-
-                    # Increment Prometheus metric
-                    try:
-                        from agent_workspace.observability import PROMETHEUS_AVAILABLE, _get_or_create_metric
-                        if PROMETHEUS_AVAILABLE:
-                            from prometheus_client import Counter
-                            sandbox_count = _get_or_create_metric(Counter, "las_sandbox_executions_total", "Total sandbox executions", ["tenant_id", "status"])
-                            sandbox_count.labels(tenant_id=tenant_id, status=cls.last_execution_status).inc()
-                    except Exception:
-                        pass
-
-                    # Log to audit trail
-                    try:
-                        from core.audit_ledger import AuditLedger
-                        audit = AuditLedger(workspace_path)
-                        audit.record_event("system_call", {
-                            "sandbox_type": "ast",
-                            "code_hash": payload_hash,
-                            "status": "allowed"
-                        }, tenant_id=tenant_id)
-                    except Exception:
-                        pass
-
-                    return {k: v for k, v in sandbox_locals.items() if k != "__builtins__"}
-                except Exception as e:
-                    cls.blocked_executions += 1
-                    cls.last_execution_status = "failed"
-                    logger.error("Sandbox execution runtime error: %s", e)
-
-                    # Increment Prometheus metric
-                    try:
-                        from agent_workspace.observability import PROMETHEUS_AVAILABLE, _get_or_create_metric
-                        if PROMETHEUS_AVAILABLE:
-                            from prometheus_client import Counter
-                            sandbox_count = _get_or_create_metric(Counter, "las_sandbox_executions_total", "Total sandbox executions", ["tenant_id", "status"])
-                            sandbox_count.labels(tenant_id=tenant_id, status=cls.last_execution_status).inc()
-                    except Exception:
-                        pass
-
-                    try:
-                        from core.audit_ledger import AuditLedger
-                        audit = AuditLedger(workspace_path)
-                        audit.record_event("system_call", {
-                            "sandbox_type": "ast",
-                            "code_hash": payload_hash,
-                            "status": "failed",
-                            "error": str(e)
-                        }, tenant_id=tenant_id)
-                    except Exception:
-                        pass
-                    raise RuntimeError(f"Sandbox runtime execution failed: {e}") from e
-        except (PermissionError, ValueError) as err:
-            # Increment Prometheus metric
-            try:
-                from agent_workspace.observability import PROMETHEUS_AVAILABLE, _get_or_create_metric
-                if PROMETHEUS_AVAILABLE:
-                    from prometheus_client import Counter
-                    sandbox_count = _get_or_create_metric(Counter, "las_sandbox_executions_total", "Total sandbox executions", ["tenant_id", "status"])
-                    sandbox_count.labels(tenant_id=tenant_id, status=cls.last_execution_status).inc()
-            except Exception:
-                pass
-            raise err
+                    "limits": {
+                        "memory": cls.MEMORY_LIMIT,
+                        "nano_cpus": cls.CPU_LIMIT,
+                        "pids": cls.PIDS_LIMIT,
+                        "timeout_seconds": cls.TIMEOUT_SECONDS,
+                    },
+                },
+                tenant_id=tenant_id,
+            )
+        except (OSError, RuntimeError):
+            logger.debug("Unable to write sandbox audit event", exc_info=True)
+        return {
+            "stdout": stdout,
+            "stderr": stderr,
+            "exit_code": exit_code,
+            "status": "completed" if exit_code == 0 else "error",
+        }

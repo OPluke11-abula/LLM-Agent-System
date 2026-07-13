@@ -127,7 +127,6 @@ def test_dynamic_code_generator_pytest_failure(temp_workspace):
     engine = AgentEngine(temp_workspace)
     generator = DynamicCodeGenerator(engine)
     
-    # Code compiles, but defines something that will fail on import (e.g. invalid import)
     failing_code = """
 from pydantic import BaseModel
 import non_existent_dependency_xyz
@@ -139,12 +138,26 @@ def failure(args: FailureArgs) -> str:
     return "fail"
 """
     
-    with pytest.raises(ValueError) as exc_info:
+    with pytest.raises(PermissionError, match="generated skill imports are restricted"):
         generator.generate_and_load_skill("failure", failing_code)
-        
-    assert "pytest verification gate failed" in str(exc_info.value)
     
     # Verify cleanup occurred
     skill_file = Path(temp_workspace) / "skills" / "failure.py"
     assert not skill_file.exists()
     assert "failure" not in engine.tools_registry
+
+
+def test_dynamic_code_generator_rejects_traversal_name(temp_workspace):
+    engine = AgentEngine(temp_workspace)
+    generator = DynamicCodeGenerator(engine)
+    code = """
+from pydantic import BaseModel
+
+class Args(BaseModel):
+    value: int
+
+def safe_tool(args: Args) -> int:
+    return args.value
+"""
+    with pytest.raises(ValueError, match="simple Python identifier"):
+        generator.generate_and_load_skill("../escape", code)
