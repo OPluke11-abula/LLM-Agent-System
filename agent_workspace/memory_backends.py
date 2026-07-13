@@ -27,6 +27,12 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
+def _offline_mode() -> bool:
+    return os.environ.get("LAS_OFFLINE_MODE", "").lower() in {
+        "1", "true", "yes"
+    }
+
+
 # ---------------------------------------------------------------------------
 # Abstract contract
 # ---------------------------------------------------------------------------
@@ -139,6 +145,17 @@ class SQLiteBackend(MemoryBackend):
     END;
     """
 
+    _TRIGGER_UPDATE = """
+    CREATE TRIGGER IF NOT EXISTS memory_fts_update AFTER UPDATE OF value ON memory_records BEGIN
+        UPDATE memory_fts
+        SET session_id = new.session_id,
+            key = new.key,
+            summary = json_extract(new.value, '$.summary'),
+            keywords = json_extract(new.value, '$.keywords')
+        WHERE rowid = new.rowid;
+    END;
+    """
+
     def __init__(self, db_path: str | Path) -> None:
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -191,6 +208,7 @@ class SQLiteBackend(MemoryBackend):
             conn.executescript(self._DDL)
             conn.executescript(self._TRIGGER_INSERT)
             conn.executescript(self._TRIGGER_DELETE)
+            conn.executescript(self._TRIGGER_UPDATE)
             conn.commit()
 
     # -- public API -----------------------------------------------------------
@@ -518,6 +536,10 @@ class ChromaBackend(VectorMemoryStore):
         self.sqlite_fallback = None
         self._local = threading.local()
 
+        if _offline_mode():
+            self.sqlite_fallback = SQLiteBackend(self.memory_dir / "long_term_memory.db")
+            return
+
         self.host = os.environ.get("CHROMA_HOST", "localhost")
         self.port = os.environ.get("CHROMA_PORT", "8000")
         self.collection_name = os.environ.get("CHROMA_COLLECTION", "las_memory")
@@ -734,6 +756,10 @@ class PgvectorBackend(VectorMemoryStore):
         self.memory_dir = Path(db_path_or_memory_dir)
         self.sqlite_fallback = None
         self._local = threading.local()
+
+        if _offline_mode():
+            self.sqlite_fallback = SQLiteBackend(self.memory_dir / "long_term_memory.db")
+            return
 
         self.host = os.environ.get("PG_HOST", "localhost")
         self.port = os.environ.get("PG_PORT", "5432")

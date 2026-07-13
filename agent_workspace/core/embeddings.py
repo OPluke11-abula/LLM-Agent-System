@@ -42,10 +42,11 @@ def generate_mock_embedding(text: str, dimension: int = 1536) -> list[float]:
 class EmbeddingGenerator:
     """Thread-safe embedding generator wrapping Google GenAI and OpenAI REST endpoints."""
     
-    _cache: dict[str, list[float]] = {}
+    _cache: dict[tuple[str, int, str], list[float]] = {}
     _lock = threading.Lock()
 
     def __init__(self, provider: str | None = None, api_key: str | None = None):
+        explicit_provider = provider is not None
         self.provider = provider
         self.api_key = api_key
         
@@ -53,15 +54,23 @@ class EmbeddingGenerator:
         if not self.provider:
             self.provider = os.environ.get("EMBEDDING_PROVIDER")
             
+        network_enabled = os.environ.get(
+            "EMBEDDING_ALLOW_NETWORK", ""
+        ).lower() in {"1", "true", "yes"}
         if not self.provider:
-            if os.environ.get("OPENAI_API_KEY"):
+            if network_enabled and os.environ.get("OPENAI_API_KEY"):
                 self.provider = "openai"
-            elif os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"):
+            elif network_enabled and (
+                os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+            ):
                 self.provider = "google"
             else:
                 self.provider = "mock"
                 
         self.provider = self.provider.strip().lower()
+
+        if not explicit_provider and self.provider in {"openai", "google"} and not network_enabled:
+            self.provider = "mock"
         
         if not self.api_key:
             if self.provider == "openai":
@@ -77,9 +86,10 @@ class EmbeddingGenerator:
             text = str(text)
             
         # 1. Thread-safe cache check
+        cache_key = (self.provider, dimension, text)
         with self._lock:
-            if text in self._cache:
-                return self._cache[text]
+            if cache_key in self._cache:
+                return list(self._cache[cache_key])
 
         # 2. Generate embedding based on provider
         try:
@@ -100,7 +110,7 @@ class EmbeddingGenerator:
 
         # 3. Thread-safe cache store
         with self._lock:
-            self._cache[text] = embedding
+            self._cache[cache_key] = list(embedding)
             
         return embedding
 

@@ -60,6 +60,16 @@ def test_embedding_generator_mock_provider():
     assert pytest.approx(sum(x * x for x in emb), abs=1e-5) == 1.0
 
 
+def test_embedding_generator_defaults_to_mock_without_network_opt_in(monkeypatch):
+    monkeypatch.delenv("EMBEDDING_PROVIDER", raising=False)
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test-key")
+    monkeypatch.delenv("EMBEDDING_ALLOW_NETWORK", raising=False)
+
+    generator = EmbeddingGenerator()
+
+    assert generator.provider == "mock"
+
+
 @patch("httpx.Client")
 def test_embedding_generator_openai_provider(mock_client_class):
     """Verify that EmbeddingGenerator makes correct POST requests to OpenAI endpoint."""
