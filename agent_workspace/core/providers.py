@@ -9,11 +9,14 @@ backend is being used.
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 import logging
 import os
 from abc import ABC, abstractmethod
 from typing import Any
+
+import anyio
 
 logger = logging.getLogger(__name__)
 
@@ -32,12 +35,141 @@ Message = dict[str, Any]
 ToolSchema = dict[str, Any]
 
 
+class ProviderTransientError(RuntimeError):
+    pass
+
+
+class ProviderStreamTimeoutError(TimeoutError):
+    pass
+
+
 class BaseLLMProvider(ABC):
     """Unified provider contract for LAS.
 
     `complete()` and `stream()` are the canonical interface. The existing
     `generate_content()` names are retained for AgentRouter compatibility.
     """
+
+    @staticmethod
+    def _transient_failure(value: Any) -> bool:
+        text = str(value).lower()
+        if any(
+            marker in text
+            for marker in (
+                "unauthorized",
+                "forbidden",
+                "authentication",
+                "invalid api key",
+                "subscription",
+                "billing",
+                "quota",
+                "offline",
+                "cancelled",
+                "canceled",
+            )
+        ):
+            return False
+        return any(
+            marker in text
+            for marker in (
+                "timeout",
+                "timed out",
+                "connection",
+                "connection reset",
+                "temporarily unavailable",
+                "http 500",
+                "http 502",
+                "http 503",
+                "http 504",
+                "rate limit",
+                "http 429",
+            )
+        )
+
+    def _fallback(self, config: dict[str, Any], provider_label: str, error: Any):
+        from agent_workspace.core.account_manager import AccountManager
+
+        workspace_dir = os.environ.get("AGENT_WORKSPACE_DIR") or os.getcwd()
+        account_manager = AccountManager(workspace_dir)
+        active_account = account_manager.get_active_account()
+        fallback_account = None
+        for account in account_manager.list_accounts():
+            if active_account and account["id"] == active_account["id"]:
+                continue
+            budget = account.get("token_budget", -1)
+            used = account.get("tokens_used", 0)
+            if budget == -1 or used < budget:
+                fallback_account = account
+                break
+        if fallback_account is None:
+            return None
+
+        from agent_workspace.core.audit_ledger import AuditLedger
+
+        session_id = config.get("session_id", "default-session")
+        tenant_id = account_manager.get_session_tenant(session_id) or "default_tenant"
+        AuditLedger(workspace_dir).record_event(
+            "system_call",
+            {
+                "event": "sla_failover",
+                "original_account_id": active_account["id"] if active_account else "unknown",
+                "original_provider": provider_label,
+                "fallback_account_id": fallback_account["id"],
+                "fallback_provider": fallback_account["provider"],
+                "fallback_model": fallback_account["model"],
+                "markup_multiplier": 1.8,
+                "error": str(error),
+            },
+            tenant_id=tenant_id,
+        )
+        if active_account:
+            account_manager.register_failover(active_account["id"], fallback_account["id"], 1.8)
+        fallback_provider = ProviderFactory.get_provider(
+            fallback_account["provider"],
+            api_key=account_manager.resolve_api_key(fallback_account),
+            base_url=fallback_account.get("base_url"),
+        )
+        fallback_config = dict(config)
+        fallback_config["model"] = fallback_account["model"]
+        if fallback_account.get("base_url"):
+            fallback_config["base_url"] = fallback_account["base_url"]
+        return fallback_provider, fallback_config
+
+    async def _close_stream(self, stream: Any) -> None:
+        close = getattr(stream, "aclose", None)
+        if close is None:
+            return
+        result = close()
+        if inspect.isawaitable(result):
+            await result
+
+    async def _iter_with_timeout(self, stream: Any, timeout: float):
+        try:
+            with anyio.fail_after(timeout):
+                async for event in stream:
+                    yield event
+        except TimeoutError as error:
+            raise ProviderStreamTimeoutError("provider stream timeout") from error
+
+    async def aclose(self) -> None:
+        client = getattr(self, "_client", None)
+        if client is None:
+            return
+        close = getattr(client, "aclose", None) or getattr(client, "close", None)
+        if close is not None:
+            result = close()
+            if inspect.isawaitable(result):
+                await result
+        self._client = None
+
+    def _http_client(self, timeout: float):
+        client = getattr(self, "_client", None)
+        if client is None:
+            import httpx
+
+            self._client = httpx.AsyncClient(timeout=timeout)
+            client = self._client
+        return client
 
     async def generate_content(
         self,
@@ -51,86 +183,44 @@ class BaseLLMProvider(ABC):
             span.set_attribute("provider", provider_label)
             if config.get("model"):
                 span.set_attribute("model", config["model"])
-                
             from agent_workspace.core.account_manager import AccountManager
-            
-            workspace_dir = os.environ.get("AGENT_WORKSPACE_DIR") or os.getcwd()
-            am = AccountManager(workspace_dir)
-            session_id = config.get("session_id", "default-session")
-            tenant_id = am.get_session_tenant(session_id) or "default_tenant"
-
-            from agent_workspace.core.ledger import FinancialLedger
             from agent_workspace.core.billing import TenantRateLimiter
+            from agent_workspace.core.ledger import FinancialLedger
 
-            ledger = FinancialLedger(workspace_dir)
-            limiter = TenantRateLimiter(ledger)
-            limiter.check_rate_limit(tenant_id)
+            workspace_dir = os.environ.get("AGENT_WORKSPACE_DIR") or os.getcwd()
+            account_manager = AccountManager(workspace_dir)
+            session_id = config.get("session_id", "default-session")
+            tenant_id = account_manager.get_session_tenant(session_id) or "default_tenant"
+            TenantRateLimiter(FinancialLedger(workspace_dir)).check_rate_limit(tenant_id)
 
             try:
                 with Timer(LLM_CALL_LATENCY, labels={"provider": provider_label}):
                     result = await self.complete(system_prompt, messages, tool_schemas, config)
-                if result[0] == "error":
-                    raise Exception(str(result[1]))
-            except Exception as e:
-                logger.warning("Primary provider %s request failed: %s. SLA Router engaging failover...", provider_label, e)
-                from agent_workspace.core.account_manager import AccountManager
-                
-                workspace_dir = os.environ.get("AGENT_WORKSPACE_DIR") or os.getcwd()
-                am = AccountManager(workspace_dir)
-                active_acc = am.get_active_account()
-                
-                fallback_acc = None
-                accounts = am.list_accounts()
-                for acc in accounts:
-                    if active_acc and acc["id"] == active_acc["id"]:
-                        continue
-                    budget = acc.get("token_budget", -1)
-                    used = acc.get("tokens_used", 0)
-                    if budget == -1 or used < budget:
-                        fallback_acc = acc
-                        break
-                
-                if fallback_acc:
-                    from agent_workspace.core.audit_ledger import AuditLedger
-                    
-                    session_id = config.get("session_id", "default-session")
-                    tenant_id = am.get_session_tenant(session_id) or "default_tenant"
-                    
-                    audit = AuditLedger(workspace_dir)
-                    audit.record_event("system_call", {
-                        "event": "sla_failover",
-                        "original_account_id": active_acc["id"] if active_acc else "unknown",
-                        "original_provider": provider_label,
-                        "fallback_account_id": fallback_acc["id"],
-                        "fallback_provider": fallback_acc["provider"],
-                        "fallback_model": fallback_acc["model"],
-                        "markup_multiplier": 1.8,
-                        "error": str(e)
-                    }, tenant_id=tenant_id)
-                    
-                    if active_acc:
-                        am.register_failover(active_acc["id"], fallback_acc["id"], 1.8)
-                    
-                    fallback_provider = ProviderFactory.get_provider(
-                        fallback_acc["provider"],
-                        api_key=am.resolve_api_key(fallback_acc),
-                        base_url=fallback_acc.get("base_url")
-                    )
-                    
-                    fallback_config = dict(config)
-                    fallback_config["model"] = fallback_acc["model"]
-                    if fallback_acc.get("base_url"):
-                        fallback_config["base_url"] = fallback_acc["base_url"]
-                    
-                    LLM_CALL_COUNT.labels(provider=provider_label, status="recovered").inc()
-                    return await fallback_provider.complete(system_prompt, messages, tool_schemas, fallback_config)
-                else:
-                    raise
-            
-            status = "success"
-            span.set_attribute("status", status)
-            LLM_CALL_COUNT.labels(provider=provider_label, status=status).inc()
-            return result
+                if result[0] != "error":
+                    LLM_CALL_COUNT.labels(provider=provider_label, status="success").inc()
+                    return result
+                error = result[1]
+            except asyncio.CancelledError:
+                raise
+            except Exception as error:
+                result = ProviderResponse("error", str(error))
+
+            if not self._transient_failure(error):
+                LLM_CALL_COUNT.labels(provider=provider_label, status="error").inc()
+                return result
+            fallback = self._fallback(config, provider_label, error)
+            if fallback is None:
+                LLM_CALL_COUNT.labels(provider=provider_label, status="error").inc()
+                return result
+            fallback_provider, fallback_config = fallback
+            try:
+                fallback_result = await fallback_provider.complete(
+                    system_prompt, messages, tool_schemas, fallback_config
+                )
+            finally:
+                await fallback_provider.aclose()
+            LLM_CALL_COUNT.labels(provider=provider_label, status="recovered").inc()
+            return fallback_result
 
     async def generate_content_stream(
         self,
@@ -144,82 +234,72 @@ class BaseLLMProvider(ABC):
             span.set_attribute("provider", provider_label)
             if config.get("model"):
                 span.set_attribute("model", config["model"])
-            
             from agent_workspace.core.account_manager import AccountManager
-            
-            workspace_dir = os.environ.get("AGENT_WORKSPACE_DIR") or os.getcwd()
-            am = AccountManager(workspace_dir)
-            session_id = config.get("session_id", "default-session")
-            tenant_id = am.get_session_tenant(session_id) or "default_tenant"
-
-            from agent_workspace.core.ledger import FinancialLedger
             from agent_workspace.core.billing import TenantRateLimiter
+            from agent_workspace.core.ledger import FinancialLedger
 
-            ledger = FinancialLedger(workspace_dir)
-            limiter = TenantRateLimiter(ledger)
-            limiter.check_rate_limit(tenant_id)
+            workspace_dir = os.environ.get("AGENT_WORKSPACE_DIR") or os.getcwd()
+            account_manager = AccountManager(workspace_dir)
+            session_id = config.get("session_id", "default-session")
+            tenant_id = account_manager.get_session_tenant(session_id) or "default_tenant"
+            TenantRateLimiter(FinancialLedger(workspace_dir)).check_rate_limit(tenant_id)
 
+            stream = self.stream(system_prompt, messages, tool_schemas, config)
+            emitted = False
+            seen_usage: tuple[int, int, int] | None = None
+            timeout = config.get("stream_timeout", config.get("timeout", 120.0))
             try:
-                async for event in self.stream(system_prompt, messages, tool_schemas, config):
+                timeout = float(timeout)
+            except (TypeError, ValueError):
+                timeout = 120.0
+            try:
+                async for event in self._iter_with_timeout(stream, timeout):
                     if event[0] == "error":
-                        raise Exception(str(event[1]))
+                        error = event[1]
+                        if emitted or not self._transient_failure(error):
+                            yield event
+                            return
+                        raise ProviderTransientError(str(error))
+                    usage = getattr(event, "usage", None)
+                    if usage:
+                        signature = (
+                            usage.get("prompt_tokens", 0),
+                            usage.get("completion_tokens", 0),
+                            usage.get("total_tokens", 0),
+                        )
+                        if signature == seen_usage:
+                            event = ProviderResponse(event[0], event[1])
+                        else:
+                            seen_usage = signature
+                    emitted = True
                     yield event
-            except Exception as e:
-                logger.warning("Primary provider stream %s failed: %s. SLA Router engaging failover...", provider_label, e)
-                from agent_workspace.core.account_manager import AccountManager
-                
-                workspace_dir = os.environ.get("AGENT_WORKSPACE_DIR") or os.getcwd()
-                am = AccountManager(workspace_dir)
-                active_acc = am.get_active_account()
-                
-                fallback_acc = None
-                accounts = am.list_accounts()
-                for acc in accounts:
-                    if active_acc and acc["id"] == active_acc["id"]:
-                        continue
-                    budget = acc.get("token_budget", -1)
-                    used = acc.get("tokens_used", 0)
-                    if budget == -1 or used < budget:
-                        fallback_acc = acc
-                        break
-                
-                if fallback_acc:
-                    from agent_workspace.core.audit_ledger import AuditLedger
-                    
-                    session_id = config.get("session_id", "default-session")
-                    tenant_id = am.get_session_tenant(session_id) or "default_tenant"
-                    
-                    audit = AuditLedger(workspace_dir)
-                    audit.record_event("system_call", {
-                        "event": "sla_failover",
-                        "original_account_id": active_acc["id"] if active_acc else "unknown",
-                        "original_provider": provider_label,
-                        "fallback_account_id": fallback_acc["id"],
-                        "fallback_provider": fallback_acc["provider"],
-                        "fallback_model": fallback_acc["model"],
-                        "markup_multiplier": 1.8,
-                        "error": str(e)
-                    }, tenant_id=tenant_id)
-                    
-                    if active_acc:
-                        am.register_failover(active_acc["id"], fallback_acc["id"], 1.8)
-                    
-                    fallback_provider = ProviderFactory.get_provider(
-                        fallback_acc["provider"],
-                        api_key=am.resolve_api_key(fallback_acc),
-                        base_url=fallback_acc.get("base_url")
-                    )
-                    
-                    fallback_config = dict(config)
-                    fallback_config["model"] = fallback_acc["model"]
-                    if fallback_acc.get("base_url"):
-                        fallback_config["base_url"] = fallback_acc["base_url"]
-                    
-                    LLM_CALL_COUNT.labels(provider=provider_label, status="recovered").inc()
-                    async for event in fallback_provider.stream(system_prompt, messages, tool_schemas, fallback_config):
+            except asyncio.CancelledError:
+                raise
+            except Exception as error:
+                if emitted or not self._transient_failure(error):
+                    yield ProviderResponse("error", str(error))
+                    return
+                fallback = self._fallback(config, provider_label, error)
+                if fallback is None:
+                    yield ProviderResponse("error", str(error))
+                    return
+                fallback_provider, fallback_config = fallback
+                fallback_stream = fallback_provider.stream(
+                    system_prompt, messages, tool_schemas, fallback_config
+                )
+                try:
+                    async for event in fallback_stream:
                         yield event
-                else:
+                except asyncio.CancelledError:
                     raise
+                except Exception as error:
+                    yield ProviderResponse("error", str(error))
+                finally:
+                    await fallback_provider._close_stream(fallback_stream)
+                    await fallback_provider.aclose()
+                LLM_CALL_COUNT.labels(provider=provider_label, status="recovered").inc()
+            finally:
+                await self._close_stream(stream)
 
     @abstractmethod
     async def complete(
@@ -545,13 +625,13 @@ class OpenAIProvider(BaseLLMProvider):
                 payload["tools"] = tools
                 payload["tool_choice"] = "auto"
 
-            async with httpx.AsyncClient(timeout=config.get("timeout", 120.0)) as client:
-                response = await client.post(
-                    f"{base_url.rstrip('/')}/chat/completions",
-                    headers={"Authorization": f"Bearer {api_key}"},
-                    json=payload,
-                )
-                response.raise_for_status()
+            client = self._http_client(config.get("timeout", 120.0))
+            response = await client.post(
+                f"{base_url.rstrip('/')}/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}"},
+                json=payload,
+            )
+            response.raise_for_status()
             data = response.json()
             message = data["choices"][0]["message"]
             tool_calls = message.get("tool_calls") or []
@@ -656,16 +736,16 @@ class AnthropicProvider(BaseLLMProvider):
                     for tool in tool_schemas
                 ]
 
-            async with httpx.AsyncClient(timeout=config.get("timeout", 120.0)) as client:
-                response = await client.post(
-                    f"{base_url.rstrip('/')}/messages",
-                    headers={
-                        "x-api-key": api_key,
-                        "anthropic-version": config.get("anthropic_version", "2023-06-01"),
-                    },
-                    json=payload,
-                )
-                response.raise_for_status()
+            client = self._http_client(config.get("timeout", 120.0))
+            response = await client.post(
+                f"{base_url.rstrip('/')}/messages",
+                headers={
+                    "x-api-key": api_key,
+                    "anthropic-version": config.get("anthropic_version", "2023-06-01"),
+                },
+                json=payload,
+            )
+            response.raise_for_status()
             data = response.json()
             tool_calls = []
             text_parts = []
@@ -726,9 +806,9 @@ class OllamaProvider(BaseLLMProvider):
             if tools:
                 payload["tools"] = tools
 
-            async with httpx.AsyncClient(timeout=config.get("timeout", 120.0)) as client:
-                response = await client.post(f"{base_url.rstrip('/')}/api/chat", json=payload)
-                response.raise_for_status()
+            client = self._http_client(config.get("timeout", 120.0))
+            response = await client.post(f"{base_url.rstrip('/')}/api/chat", json=payload)
+            response.raise_for_status()
             data = response.json()
             message = data.get("message", {})
             tool_calls = message.get("tool_calls") or []

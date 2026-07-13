@@ -255,11 +255,24 @@ class AccountManager:
             if rotated:
                 self._save_accounts(data)
 
-    def record_usage(self, account_id: str, prompt_tokens: int, completion_tokens: int, session_id: str = "default-session") -> bool:
+    def record_usage(
+        self,
+        account_id: str,
+        prompt_tokens: int,
+        completion_tokens: int,
+        session_id: str = "default-session",
+        usage_id: str | None = None,
+    ) -> bool:
         # Check failover mapping
         failover_info = self.get_failover(account_id)
         target_account_id = failover_info["fallback_account_id"] if failover_info else account_id
         markup = failover_info["markup_multiplier"] if failover_info else None
+        from agent_workspace.core.ledger import FinancialLedger
+
+        tenant_id = self.get_session_tenant(session_id) or "default_tenant"
+        ledger = FinancialLedger(self.workspace_path)
+        if usage_id and ledger.has_idempotency_key(tenant_id, usage_id):
+            return True
 
         data = self._load_data()
         accounts = data.get("accounts", [])
@@ -277,12 +290,6 @@ class AccountManager:
                 
         if updated:
             self._save_accounts(data)
-            
-            # Record in SQLite financial ledger
-            from agent_workspace.core.ledger import FinancialLedger
-                
-            tenant_id = self.get_session_tenant(session_id) or "default_tenant"
-            ledger = FinancialLedger(self.workspace_path)
             ledger.record_transaction(
                 session_id=session_id,
                 account_id=target_account_id,
@@ -291,7 +298,8 @@ class AccountManager:
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
                 tenant_id=tenant_id,
-                markup_multiplier=markup
+                markup_multiplier=markup,
+                idempotency_key=usage_id,
             )
             
             # Check budget and rotate/downscale if threshold exceeded
