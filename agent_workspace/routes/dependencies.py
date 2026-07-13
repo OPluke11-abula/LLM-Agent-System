@@ -300,7 +300,12 @@ def get_authenticated_principal(
 
     # Enforce rate-limiting and status checks
     from agent_workspace.core.ledger import FinancialLedger
-    from agent_workspace.core.billing import TenantRateLimiter, TenantRateLimitError, TenantSubscriptionInactiveError
+    from agent_workspace.core.billing import (
+        TenantRateLimiter,
+        TenantRateLimitError,
+        TenantSubscriptionInactiveError,
+        TenantQuotaStateUnavailable,
+    )
 
     ledger = FinancialLedger(get_workspace())
     limiter = TenantRateLimiter(ledger)
@@ -310,6 +315,8 @@ def get_authenticated_principal(
         raise HTTPException(status_code=403, detail=str(e))
     except TenantRateLimitError as e:
         raise HTTPException(status_code=429, detail=str(e))
+    except TenantQuotaStateUnavailable as e:
+        raise HTTPException(status_code=503, detail=str(e))
 
     principal["tenant_id"] = tenant_id
     return principal
@@ -367,33 +374,33 @@ async def verify_websocket_tenant(websocket: WebSocket, session_id: str | None =
     Otherwise, returns the validated tenant_id.
     """
     params = websocket.query_params
-    token = params.get("token")
-    api_key = params.get("api_key")
-    enforce_auth = params.get("enforce_auth")
+    authorization = websocket.headers.get("authorization")
+    api_key = websocket.headers.get("x-api-key")
+    if params.get("token") or params.get("api_key"):
+        await websocket.accept()
+        await websocket.close(code=4001, reason="WebSocket credentials must use headers")
+        return None
 
-    tenant_id = None
+    principal = None
     if api_key:
-        if api_key in API_KEYS:
-            tenant_id = API_KEYS[api_key]
-    elif token:
-        payload = verify_jwt(token)
-        if payload and "tenant_id" in payload:
-            tenant_id = payload["tenant_id"]
-
-    if not tenant_id and session_id:
-        try:
-            tenant_id = get_account_manager().get_session_tenant(session_id)
-        except Exception:
-            pass
-
-    if not tenant_id:
+        principal = _api_key_principal(api_key)
+    elif authorization and authorization.startswith("Bearer "):
+        principal = verify_jwt(authorization[7:])
+    tenant_id = principal.get("tenant_id", principal.get("tenant")) if principal else None
+    if not isinstance(tenant_id, str) or not tenant_id:
         await websocket.accept()
         await websocket.close(code=4001, reason="Unauthorized Tenant")
         return None
 
     from agent_workspace.core.ledger import FinancialLedger
-    from agent_workspace.core.billing import TenantRateLimiter, TenantRateLimitError, TenantSubscriptionInactiveError
+    from agent_workspace.core.billing import (
+        TenantRateLimiter,
+        TenantRateLimitError,
+        TenantSubscriptionInactiveError,
+        TenantQuotaStateUnavailable,
+    )
     from agent_workspace.core.swarm_coordinator import SwarmCoordinator
+    from agent_workspace.core.rate_limit import RateLimitStateUnavailable
 
     ledger = FinancialLedger(get_workspace())
     limiter = TenantRateLimiter(ledger)
@@ -412,9 +419,13 @@ async def verify_websocket_tenant(websocket: WebSocket, session_id: str | None =
         await websocket.accept()
         await websocket.close(code=4029, reason=str(e))
         return None
-    except Exception as e:
+    except (TenantQuotaStateUnavailable, RateLimitStateUnavailable):
         await websocket.accept()
-        await websocket.close(code=4029, reason=str(e))
+        await websocket.close(code=1013, reason="Quota state unavailable")
+        return None
+    except Exception:
+        await websocket.accept()
+        await websocket.close(code=1013, reason="Quota validation unavailable")
         return None
 
     await websocket.accept()

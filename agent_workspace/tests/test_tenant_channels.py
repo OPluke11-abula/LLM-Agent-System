@@ -282,9 +282,9 @@ def test_websocket_tenant_isolation(api_client):
     token_a = generate_jwt({"tenant_id": "tenant_a", "exp": time.time() + 60})
     token_b = generate_jwt({"tenant_id": "tenant_b", "exp": time.time() + 60})
 
-    url_tenant_a1 = f"/v1/collaboration/{session_id}?role=ceo&payload_hash={payload_hash}&signature={sig_ceo}&token={token_a}&enforce_auth=true"
-    url_tenant_b = f"/v1/collaboration/{session_id}?role=dev&payload_hash={payload_hash}&signature={sig_dev}&token={token_b}&enforce_auth=true"
-    url_tenant_a2 = f"/v1/collaboration/{session_id}?role=dev&payload_hash={payload_hash}&signature={sig_dev}&token={token_a}&enforce_auth=true"
+    url_tenant_a1 = f"/v1/collaboration/{session_id}?role=ceo&payload_hash={payload_hash}&signature={sig_ceo}"
+    url_tenant_b = f"/v1/collaboration/{session_id}?role=dev&payload_hash={payload_hash}&signature={sig_dev}"
+    url_tenant_a2 = f"/v1/collaboration/{session_id}?role=dev&payload_hash={payload_hash}&signature={sig_dev}"
     url_unauth = f"/v1/collaboration/{session_id}?role=ceo&payload_hash={payload_hash}&signature={sig_ceo}&token=invalidtoken&enforce_auth=true"
 
     # 1. Unauthenticated socket connection must close with 4001 when client receives a frame
@@ -294,9 +294,9 @@ def test_websocket_tenant_isolation(api_client):
         assert excinfo.value.code == 4001
 
     # 2. Establish connections for Tenant A (ceo), Tenant B (dev), and Tenant A (dev)
-    with api_client.websocket_connect(url_tenant_a1) as ws_a1, \
-         api_client.websocket_connect(url_tenant_b) as ws_b, \
-         api_client.websocket_connect(url_tenant_a2) as ws_a2:
+    with api_client.websocket_connect(url_tenant_a1, headers={"Authorization": f"Bearer {token_a}"}) as ws_a1, \
+         api_client.websocket_connect(url_tenant_b, headers={"Authorization": f"Bearer {token_b}"}) as ws_b, \
+         api_client.websocket_connect(url_tenant_a2, headers={"Authorization": f"Bearer {token_a}"}) as ws_a2:
 
         # ECDH Handshake for ws_a1
         hello_a1 = ws_a1.receive_json()

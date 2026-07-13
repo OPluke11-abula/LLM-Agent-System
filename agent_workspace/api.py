@@ -14,7 +14,6 @@ import logging
 import os
 import sys
 import time
-import collections
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
@@ -48,28 +47,23 @@ from agent_workspace.routes.dependencies import (
     get_workspace,
     get_account_manager,
     API_KEYS,
-    verify_jwt
+    verify_jwt,
+    _api_key_principal,
 )
+from agent_workspace.core.rate_limit import TenantRequestRateLimiter, RateLimitStateUnavailable
 
 API_VERSION = "0.1.0"
 
 
 class SlidingWindowRateLimiter:
-    """Sliding-window rate limiter using in-memory collections."""
     def __init__(self, limit: int = 10, window_seconds: float = 10.0):
         self.limit = limit
         self.window_seconds = window_seconds
-        self.history = collections.defaultdict(list)
-        self._lock = asyncio.Lock()
 
-    async def is_rate_limited(self, client_id: str) -> bool:
-        async with self._lock:
-            now = time.time()
-            self.history[client_id] = [t for t in self.history[client_id] if now - t < self.window_seconds]
-            if len(self.history[client_id]) >= self.limit:
-                return True
-            self.history[client_id].append(now)
-            return False
+    async def is_rate_limited(self, tenant_id: str) -> bool:
+        db_path = Path(get_workspace()) / "memory" / "financial_ledger.db"
+        limiter = TenantRequestRateLimiter(db_path, limit=self.limit, window_seconds=self.window_seconds)
+        return await limiter.is_rate_limited(tenant_id)
 
 rate_limiter = SlidingWindowRateLimiter(limit=10, window_seconds=10.0)
 
@@ -226,8 +220,21 @@ async def metrics_middleware(request: Request, call_next):
 async def rate_limiting_middleware(request: Request, call_next):
     endpoint = request.url.path
     if endpoint in {"/v1/chat", "/v1/stream", "/v1/task"}:
-        client_id = request.client.host if request.client else "unknown"
-        if await rate_limiter.is_rate_limited(client_id):
+        principal = None
+        api_key = request.headers.get("x-api-key")
+        authorization = request.headers.get("authorization")
+        if api_key:
+            principal = _api_key_principal(api_key)
+        elif authorization and authorization.startswith("Bearer "):
+            principal = verify_jwt(authorization[7:])
+        tenant_id = principal.get("tenant_id", principal.get("tenant")) if principal else None
+        if not isinstance(tenant_id, str) or not tenant_id:
+            tenant_id = f"anonymous:{request.client.host if request.client else 'unknown'}"
+        try:
+            limited = await rate_limiter.is_rate_limited(tenant_id)
+        except RateLimitStateUnavailable:
+            return JSONResponse(status_code=503, content={"detail": "Rate-limit state unavailable."})
+        if limited:
             return JSONResponse(
                 status_code=429,
                 content={"detail": "Rate limit exceeded. Too many requests."}
@@ -249,7 +256,7 @@ async def rate_limiting_middleware(request: Request, call_next):
                             content={"detail": f"Token budget exceeded for account '{active_acc['id']}' and no fallback accounts are under budget."}
                         )
         except Exception:
-            pass
+            return JSONResponse(status_code=503, content={"detail": "Quota state unavailable."})
             
     return await call_next(request)
 

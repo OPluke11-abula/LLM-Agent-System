@@ -23,6 +23,10 @@ class QuotaExceededError(Exception):
     pass
 
 
+class TenantQuotaStateUnavailable(RuntimeError):
+    pass
+
+
 class SaaSBillingTracker:
     """
     Platform billing tracker linked to the sqlite3 financial ledger.
@@ -148,8 +152,9 @@ class TenantStatusManager:
             row = cursor.fetchone()
             if row:
                 return row["status"]
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error(f"Error querying tenant status: {e}")
+            raise TenantQuotaStateUnavailable("tenant subscription state is unavailable") from e
         finally:
             conn.close()
         return "active"
@@ -210,9 +215,9 @@ class TenantRateLimiter:
             )
             row = cursor.fetchone()
             tokens_sum = row[0] if row and row[0] is not None else 0
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error(f"Error querying tokens sum for rate limiting: {e}")
-            tokens_sum = 0
+            raise TenantQuotaStateUnavailable("tenant token quota state is unavailable") from e
         finally:
             conn.close()
 

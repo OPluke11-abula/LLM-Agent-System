@@ -159,7 +159,12 @@ class SwarmCoordinator:
         Raises QuotaExceededError if credits <= 0.0.
         """
         from agent_workspace.core.ledger import FinancialLedger
-        from agent_workspace.core.billing import TenantStatusManager, TenantSubscriptionInactiveError, QuotaExceededError
+        from agent_workspace.core.billing import (
+            TenantStatusManager,
+            TenantSubscriptionInactiveError,
+            QuotaExceededError,
+            TenantQuotaStateUnavailable,
+        )
             
         import sqlite3
 
@@ -177,9 +182,9 @@ class SwarmCoordinator:
                 credits = row[0]
             else:
                 credits = 100.0  # default
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.error(f"Error checking credits for tenant {tenant_id}: {e}")
-            credits = 100.0
+            raise TenantQuotaStateUnavailable("tenant credit state is unavailable") from e
         finally:
             conn.close()
 
