@@ -22,13 +22,11 @@
 | 69 | 8 | 8 | 100% Done | Local knowledge base and agent memory OS complete |
 | 70 | 8 | 8 | 100% Done | Token-efficient advisory rollout complete |
 | 71 | 8 | 8 | 100% Done | Professional design-agent pipeline complete |
-| 72 | 9 | 7 | In Progress | Execute 72-08 CI/coverage/locks/audits/SBOM |
+| 72 | 9 | 9 | 100% Done | Production readiness and release evidence complete |
 
 Execution order:
 
-1. Execute Phase 72 in dependency order, continuing with `72-08`.
-2. Complete release engineering (`72-08`) ahead of documentation and final
-   release evidence work.
+1. No implementation phase remains queued; await explicit user direction.
 
 ## Completed Phase Rollup
 
@@ -408,10 +406,9 @@ from art direction through independent review and viewer integration.
 
 ## Phase 72 - Production Readiness, Security, and Release Evidence
 
-Status: `[~]` 7/9 complete. Execute in order. Use failing-first regression
-tests for security, concurrency, persistence, and accounting changes. Preserve
-local-first operation and public APIs where doing so does not retain insecure
-behavior.
+Status: `[x]` 9/9 complete. Security, runtime correctness, CI, documentation,
+and release evidence gates completed while preserving local-first operation and
+public APIs where doing so did not retain insecure behavior.
 
 Owner-decision boundaries: do not change Elastic License 2.0, require a new
 managed/distributed backend, enroll signing credentials, publish a release, or
@@ -522,7 +519,7 @@ checksums, SBOMs, and unsigned-artifact documentation may proceed.
   webhook QA with synthetic fixtures.
 
 ### 72-08 Required CI, Coverage, Locks, Audits, and SBOM
-- [~] **[QA/DevOps]** Add blocking CI for Python tests/PAP contracts and viewer
+- [x] **[QA/DevOps]** Add blocking CI for Python tests/PAP contracts and viewer
   builds, keep React Doctor advisory, enforce approved coverage, add reproducible
   dependency lock/update policy, emit machine-readable dependency/license/
   security audits, and generate an SBOM tied to the tested source revision.
@@ -535,7 +532,7 @@ checksums, SBOMs, and unsigned-artifact documentation may proceed.
   secret-bearing artifact. License-policy changes remain owner-advisory.
 
 ### 72-09 README, Community, and Release Evidence
-- [ ] **[Release/Documentation QA]** Align README/contributor guidance with
+- [x] **[Release/Documentation QA]** Align README/contributor guidance with
   verified security, offline, and backend behavior; document ELv2 without
   relicensing; publish reproducible NSIS/checksum/SBOM and unsigned-artifact
   verification instructions; update Phase 72 evidence; and run the full release
