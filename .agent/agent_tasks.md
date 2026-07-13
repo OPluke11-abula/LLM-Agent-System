@@ -22,13 +22,13 @@
 | 69 | 8 | 8 | 100% Done | Local knowledge base and agent memory OS complete |
 | 70 | 8 | 8 | 100% Done | Token-efficient advisory rollout complete |
 | 71 | 8 | 8 | 100% Done | Professional design-agent pipeline complete |
-| 72 | 9 | 2 | In Progress | Execute 72-03 sandbox/generated-skill isolation |
+| 72 | 9 | 4 | In Progress | Execute 72-05 provider lifecycle/accounting |
 
 Execution order:
 
-1. Execute Phase 72 in dependency order, continuing with `72-03`.
-2. Complete the remaining P0 security boundary (`72-03`) ahead of runtime,
-   infrastructure, CI, documentation, and release work.
+1. Execute Phase 72 in dependency order, continuing with `72-05`.
+2. Complete runtime correctness (`72-05` to `72-07`) ahead of CI,
+   documentation, and release work.
 
 ## Completed Phase Rollup
 
@@ -408,7 +408,7 @@ from art direction through independent review and viewer integration.
 
 ## Phase 72 - Production Readiness, Security, and Release Evidence
 
-Status: `[~]` 2/9 complete. Execute in order. Use failing-first regression
+Status: `[~]` 4/9 complete. Execute in order. Use failing-first regression
 tests for security, concurrency, persistence, and accounting changes. Preserve
 local-first operation and public APIs where doing so does not retain insecure
 behavior.
@@ -448,7 +448,7 @@ checksums, SBOMs, and unsigned-artifact documentation may proceed.
   pytest, and live authenticated WebSocket QA.
 
 ### 72-03 Sandbox and Generated-Skill Isolation
-- [~] **[Security/Runtime Programmer]** Route generated-skill validation and
+- [x] **[Security/Runtime Programmer]** Route generated-skill validation and
   execution through fail-closed isolation, reject traversal/absolute names,
   prevent generated code from loading into the controller before isolation
   succeeds, enforce resource/network/write limits, and clean rejected or timed-
@@ -464,7 +464,7 @@ checksums, SBOMs, and unsigned-artifact documentation may proceed.
   cases; focused pytest and temporary-workspace runtime QA.
 
 ### 72-04 Workflow Checkpoints, Retries, and Truthful Completion
-- [ ] **[Workflow/Backend Programmer]** Make deadlocked, cyclic, unreachable, or
+- [x] **[Workflow/Backend Programmer]** Make deadlocked, cyclic, unreachable, or
   dependency-blocked workflows fail instead of later reporting success; persist
   checkpoints atomically; reject corrupt, mismatched, or escaping state; and
   bound retries/healing while preserving resumable failure.
@@ -477,7 +477,7 @@ checksums, SBOMs, and unsigned-artifact documentation may proceed.
   workflow success/deadlock/resume QA.
 
 ### 72-05 Provider Streaming Lifecycle and Accounting
-- [ ] **[Provider/Backend Programmer]** Bound provider streams by timeout and
+- [~] **[Provider/Backend Programmer]** Bound provider streams by timeout and
   cancellation, close upstream work on disconnect, record terminal/partial usage
   exactly once, allow only bounded transient failover, and prevent auth, quota,
   subscription, cancellation, or offline failures from triggering failover or
