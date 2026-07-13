@@ -553,6 +553,7 @@ def scan_secrets(project_root: Path) -> list[str]:
         "build",
         "output",
         "scratch",
+        "target",
     }
     exclude_extensions = {".pyc", ".db", ".png", ".jpg", ".jpeg", ".gif", ".ico", ".pdf", ".zip", ".tar", ".gz"}
     mock_keywords = {"mock", "dummy", "test", "placeholder", "example", "fake", "temp"}
@@ -561,6 +562,7 @@ def scan_secrets(project_root: Path) -> list[str]:
         dirs[:] = [
             d for d in dirs
             if d not in exclude_dirs
+            and not d.startswith(".pytest")
             and not d.startswith(".venv")
             and not d.startswith(".uv-cache")
         ]

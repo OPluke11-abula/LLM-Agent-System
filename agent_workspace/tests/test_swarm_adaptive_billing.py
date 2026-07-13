@@ -20,6 +20,7 @@ from core.account_manager import AccountManager
 from core.swarm_coordinator import SwarmCoordinator
 from core.router import AgentRouter, AgentEngine
 from core.billing import QuotaExceededError
+from conftest import auth_headers
 
 @pytest.fixture
 def anyio_backend():
@@ -135,7 +136,7 @@ def test_credit_exhaustion_websocket_close(test_workspace, api_client):
     # WS connection should immediately reject with 4029
     with patch("api.workspace", str(test_workspace)):
         with pytest.raises(WebSocketDisconnect) as exc_info:
-            with api_client.websocket_connect(f"/v1/stream?token={token}&enforce_auth=true") as ws:
+            with api_client.websocket_connect("/v1/stream", headers={"Authorization": f"Bearer {token}"}) as ws:
                 ws.receive_json()
         assert exc_info.value.code == 4029
 

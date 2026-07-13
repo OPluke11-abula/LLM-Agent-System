@@ -12,6 +12,7 @@ if workspace_dir not in sys.path:
 
 from api import app, SwarmP2PCrypto
 from core.discussion_room import ProofOfConsensus
+from conftest import auth_headers
 
 
 def test_ecdh_aes_gcm_math():
@@ -44,7 +45,7 @@ def test_ecdh_aes_gcm_math():
 
 def test_handshake_rejection_rogue_clients():
     """Assert that connections failing signature checks or missing parameters are rejected."""
-    client = TestClient(app)
+    client = TestClient(app, headers=auth_headers())
     session_id = "test-encryption-session"
     
     # 1. Missing query params
@@ -70,7 +71,7 @@ def test_successful_secure_handshake_and_exchange():
     # Generate signature for CEO role
     sig_ceo = ProofOfConsensus.generate_member_signature("ceo", payload_hash)
     
-    client = TestClient(app)
+    client = TestClient(app, headers=auth_headers())
     session_id = "test-encryption-session"
     url = f"/v1/collaboration/{session_id}?role=ceo&payload_hash={payload_hash}&signature={sig_ceo}"
     

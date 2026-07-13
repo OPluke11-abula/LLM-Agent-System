@@ -14,6 +14,7 @@ if workspace_dir not in sys.path:
     sys.path.insert(0, workspace_dir)
 
 from api import app, collab_manager
+from conftest import auth_headers
 from core.memory import CRDTState, DeltaStateReconciler
 
 
@@ -106,7 +107,7 @@ def test_websocket_pubsub_collaboration():
     sig_ceo = ProofOfConsensus.generate_member_signature("ceo", payload_hash)
     sig_dev = ProofOfConsensus.generate_member_signature("dev", payload_hash)
 
-    client = TestClient(app)
+    client = TestClient(app, headers=auth_headers())
     session_id = "test-collab-session"
 
     url1 = f"/v1/collaboration/{session_id}?role=ceo&payload_hash={payload_hash}&signature={sig_ceo}"

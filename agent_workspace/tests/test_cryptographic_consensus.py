@@ -19,6 +19,7 @@ from core.audit_ledger import AuditLedger, AuditConsensusDaemon
 from core.broker import RedisSwarmBroker
 from fastapi.testclient import TestClient
 import api
+from conftest import auth_headers
 
 
 # Synchronous mock broker to prevent multi-loop deadlocks in testing
@@ -293,7 +294,7 @@ async def test_daemon_tampered_recovery_logs():
 
 def test_api_endpoints():
     """Verify audit status and manual sync trigger REST endpoints."""
-    client = TestClient(api.app)
+    client = TestClient(api.app, headers=auth_headers())
     
     # 1. Mock the consensus daemon
     mock_daemon = MagicMock()

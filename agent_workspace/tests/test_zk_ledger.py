@@ -12,6 +12,7 @@ if workspace_dir not in sys.path:
 
 from core.audit_ledger import AuditLedger
 from api import app
+from conftest import auth_headers
 
 @pytest.fixture(autouse=True)
 def setup_api_workspace():
@@ -110,7 +111,7 @@ def test_zk_proof_generation_and_verification():
 
 
 def test_http_proof_endpoints():
-    client = TestClient(app)
+    client = TestClient(app, headers=auth_headers())
     ledger = AuditLedger(workspace_dir)
     
     id1 = ledger.record_event("API_CALL", {"endpoint": "/v1/chat"})

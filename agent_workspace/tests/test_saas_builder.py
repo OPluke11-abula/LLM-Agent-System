@@ -13,6 +13,7 @@ from core.builder import AgentBuilderRegistry, PRESET_TEMPLATES, render_system_p
 from core.ledger import FinancialLedger
 from core.billing import SaaSBillingTracker
 from api import app
+from conftest import auth_headers
 
 
 @pytest.fixture(autouse=True)
@@ -122,7 +123,7 @@ def test_saas_billing_tracker_and_invoice():
 
 def test_builder_api_endpoints():
     """Verify create, template fetching, console testing, and invoice routes via FastAPI Client."""
-    client = TestClient(app)
+    client = TestClient(app, headers=auth_headers())
 
     # 1. Create Agent Persona via API
     payload = {

@@ -15,8 +15,9 @@ if PROJECT_ROOT not in sys.path:
 from core.swarm_coordinator import SwarmCoordinator
 from core.agent_crew import AgentCrew, CrewRegistry
 from api import app
+from conftest import auth_headers
 
-client = TestClient(app)
+client = TestClient(app, headers=auth_headers())
 
 
 @pytest.fixture(autouse=True)
@@ -108,7 +109,7 @@ def test_swarm_coordinator_api_endpoints():
     SwarmCoordinator.register_or_update_node("developer", "node-1", "idle")
 
     # 1. GET /v1/swarm/nodes
-    resp = client.get("/v1/swarm/nodes", headers={"x-api-key": "key-admin"})
+    resp = client.get("/v1/swarm/nodes", headers=auth_headers())
     assert resp.status_code == 200
     data = resp.json()
     assert data["status"] == "success"
@@ -119,13 +120,13 @@ def test_swarm_coordinator_api_endpoints():
     resp_scale = client.post(
         "/v1/swarm/scale",
         json={"role": "developer", "direction": "up"},
-        headers={"x-api-key": "key-admin"}
+        headers=auth_headers()
     )
     assert resp_scale.status_code == 200
     assert resp_scale.json()["status"] == "success"
 
     # 3. GET /v1/swarm/health
-    resp_health = client.get("/v1/swarm/health", headers={"x-api-key": "key-admin"})
+    resp_health = client.get("/v1/swarm/health", headers=auth_headers())
     assert resp_health.status_code == 200
     health_data = resp_health.json()
     assert health_data["status"] == "success"

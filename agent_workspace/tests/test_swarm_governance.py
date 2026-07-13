@@ -19,6 +19,7 @@ from core.governance import GovernanceManager, LATENCY_RULE_TEMPLATE, SAFETY_RUL
 from core.prompt_composer import PromptComposer
 from core.discussion_room import DiscussionRoom
 from api import app
+from conftest import auth_headers
 
 @pytest.fixture
 def temp_workspace():
@@ -32,7 +33,7 @@ def temp_workspace():
 
 @pytest.fixture
 def api_client():
-    return TestClient(app)
+    return TestClient(app, headers=auth_headers())
 
 def test_governance_anomaly_scanning(temp_workspace):
     # Originally, no anomalies, so no proposals
@@ -250,4 +251,3 @@ def test_swarm_telemetry_ws(api_client, temp_workspace):
             data2 = websocket.receive_json()
             assert data2["status"] == "success"
             assert data2["session_id"] == "new-session"
-

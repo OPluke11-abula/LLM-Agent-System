@@ -13,6 +13,7 @@ if workspace_dir not in sys.path:
 
 from core.replay_logger import ReplayLogger
 from api import app
+from conftest import auth_headers
 
 REPLAYS_DIR = Path(workspace_dir) / "memory" / "replays"
 
@@ -114,7 +115,7 @@ def test_replay_logger_cleanup():
 
 
 def test_http_endpoints():
-    client = TestClient(app)
+    client = TestClient(app, headers=auth_headers(tenant_id="admin_tenant"))
     session_id = "test-http-session"
 
     # Write some events through logger

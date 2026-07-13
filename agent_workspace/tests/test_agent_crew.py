@@ -13,6 +13,7 @@ if workspace_dir not in sys.path:
 from core.agent_crew import AgentCrew, CrewRegistry
 from skills.delegate_task import delegate_task, DelegateTaskArgs
 from api import app, SwarmP2PCrypto
+from conftest import auth_headers
 
 
 @pytest.fixture(autouse=True)
@@ -136,7 +137,7 @@ def test_delegate_task_tool_schema_enforcement():
 
 def test_crew_api_endpoints():
     """Verify registry POST and topology GET endpoints for visual canvas control-plane."""
-    client = TestClient(app)
+    client = TestClient(app, headers=auth_headers())
     
     # 1. Register node via POST API
     reg_payload = {

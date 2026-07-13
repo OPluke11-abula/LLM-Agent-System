@@ -16,6 +16,7 @@ from core.broker import InMemorySwarmBroker, get_broker
 from core.swarm_coordinator import SwarmCoordinator
 from core.discussion_room import ProofOfConsensus
 from api import app
+from conftest import auth_headers
 
 
 @pytest.fixture(autouse=True)
@@ -303,7 +304,7 @@ def test_http_api_endpoints():
             module._global_broker = broker
             
     try:
-        client = TestClient(app)
+        client = TestClient(app, headers=auth_headers(tenant_id="admin_tenant"))
         
         # 1. Populate a mock checkpoint
         session_id = "test-api-session"

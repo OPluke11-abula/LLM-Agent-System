@@ -42,6 +42,15 @@ except Exception:
 
 import pytest
 
+os.environ.setdefault("LAS_JWT_SECRET", "test-only-secret-for-phase-72-auth-claims")
+
+
+def auth_headers(tenant_id="test_tenant", role="admin", scope="admin:read admin:write auth:mint"):
+    from api import generate_jwt
+
+    token = generate_jwt({"tenant_id": tenant_id, "role": role, "scope": scope})
+    return {"Authorization": f"Bearer {token}", "x-enforce-auth": "true"}
+
 @pytest.fixture(scope="session", autouse=True)
 def shutdown_otel_tracing():
     yield
@@ -53,4 +62,3 @@ def shutdown_otel_tracing():
             provider.shutdown()
     except Exception:
         pass
-

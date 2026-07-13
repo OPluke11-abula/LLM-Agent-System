@@ -17,6 +17,7 @@ if workspace_dir not in sys.path:
 
 from api import app, API_KEYS, generate_jwt, verify_jwt, SLACK_SIGNING_SECRET, LINE_CHANNEL_SECRET, collab_manager
 from core.discussion_room import ProofOfConsensus
+from core.audit_ledger import AuditLedger
 from api import SwarmP2PCrypto
 
 @pytest.fixture
@@ -159,14 +160,13 @@ def test_multi_tenant_audit_isolation(api_client, tmp_path):
     with patch("api.workspace", str(tmp_path)), \
          patch("core.discussion_room.ProofOfConsensus.is_consensus_approved", return_value=True):
 
-        # Tenant A executes code in sandbox
         payload = {"code_content": "print('hello')", "sandbox_type": "ast"}
         res = api_client.post("/v1/sandbox/execute", json=payload, headers={"Authorization": f"Bearer {token_a}"})
-        assert res.status_code == 200
+        assert res.status_code == 403
 
-        # Tenant B executes code in sandbox
-        res = api_client.post("/v1/sandbox/execute", json=payload, headers={"Authorization": f"Bearer {token_b}"})
-        assert res.status_code == 200
+        ledger = AuditLedger(str(tmp_path))
+        ledger.record_event("tenant_a_event", {"value": 1}, tenant_id="tenant_a")
+        ledger.record_event("tenant_b_event", {"value": 2}, tenant_id="tenant_b")
 
         # Query audit logs as Tenant A
         res_a = api_client.get("/v1/audit/logs", headers={"Authorization": f"Bearer {token_a}"})

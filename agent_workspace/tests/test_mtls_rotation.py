@@ -18,6 +18,7 @@ if workspace_dir not in sys.path:
 from core.cert_manager import SwarmCertManager
 from core.cross_cloud_gateway import CrossCloudGateway, CROSS_CLOUD_GATEWAY
 from api import app
+from conftest import auth_headers
 
 def test_cert_generation_and_fingerprint():
     """Verify that SwarmCertManager generates valid X.509 certs and keys, and computes correct fingerprints."""
@@ -65,7 +66,7 @@ def test_handshake_revocation():
 
 def test_api_mtls_endpoints():
     """Verify the FastAPI REST endpoints for certificate status, rotation, and revocation."""
-    client = TestClient(app)
+    client = TestClient(app, headers=auth_headers())
 
     # 1. Get status
     resp_status = client.get("/v1/cross-cloud/cert/status")
@@ -172,7 +173,7 @@ def test_pem_handshake_rejects_legacy_fingerprint_signature():
 
 def test_api_reinstate_endpoint():
     """Verify the API endpoints for listing and reinstating revoked certificates."""
-    client = TestClient(app)
+    client = TestClient(app, headers=auth_headers())
     mock_sha = hashlib.sha256(b"api-reinstate-test-cert").hexdigest()
     
     # 1. Revoke it

@@ -17,6 +17,7 @@ from core.p2p_router import get_p2p_router, SwarmP2PCrypto
 from core.agent_crew import AgentCrew, CrewRegistry
 from core.broker import InMemorySwarmBroker
 from core.discussion_room import ProofOfConsensus
+from conftest import auth_headers
 
 @pytest.fixture(autouse=True)
 def reset_p2p_router():
@@ -30,7 +31,7 @@ def reset_p2p_router():
 
 
 def test_p2p_handshake_success_and_failure():
-    client = TestClient(app)
+    client = TestClient(app, headers=auth_headers())
     
     # 1. Invalid role or signature handshake rejection
     with pytest.raises(Exception):
@@ -215,7 +216,7 @@ def test_http_api_peers_endpoint():
     router.add_peer("node-B", "dev", "127.0.0.1", 8001, status="connected")
     router.peers["node-B"]["latency"] = 1.2
     
-    client = TestClient(app)
+    client = TestClient(app, headers=auth_headers())
     response = client.get("/v1/swarm/peers")
     assert response.status_code == 200
     data = response.json()

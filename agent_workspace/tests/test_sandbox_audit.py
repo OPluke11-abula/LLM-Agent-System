@@ -18,6 +18,7 @@ from core.sandbox import SandboxGuard
 from core.discussion_room import ProofOfConsensus
 from core.audit_ledger import AuditLedger
 from api import app
+from conftest import auth_headers
 
 @pytest.fixture
 def temp_workspace():
@@ -30,7 +31,7 @@ def temp_workspace():
 
 @pytest.fixture
 def api_client():
-    return TestClient(app)
+    return TestClient(app, headers=auth_headers())
 
 @pytest.fixture
 def mock_docker_sys_module():
@@ -168,24 +169,21 @@ def test_audit_endpoints(api_client, temp_workspace):
         cert = ProofOfConsensus.create_consensus_certificate(payload_hash, ["ceo", "cto", "dev"])
         ProofOfConsensus.register_consensus(temp_workspace, payload_hash, cert)
         
-        # 4. Run POST execute endpoint
         exec_payload = {
             "code_content": code,
             "sandbox_type": "ast"
         }
         resp_exec = api_client.post("/v1/sandbox/execute", json=exec_payload)
-        assert resp_exec.status_code == 200
-        assert resp_exec.json()["status"] == "success"
-        assert resp_exec.json()["result"]["val"] == 42
+        assert resp_exec.status_code == 403
+        assert "in-process sandbox execution is disabled" in resp_exec.json()["detail"]
         
-        # 5. Query logs again - should contain consensus_vote and system_call events
         resp_logs2 = api_client.get("/v1/audit/logs")
         assert resp_logs2.status_code == 200
         logs = resp_logs2.json()["logs"]
-        assert len(logs) >= 2
+        assert logs == []
         event_types = [l["event_type"] for l in logs]
-        assert "consensus_vote" in event_types
-        assert "system_call" in event_types
+        assert "consensus_vote" not in event_types
+        assert "system_call" not in event_types
         
         # Query filtered
         resp_filtered = api_client.get("/v1/audit/logs?event_type=consensus_vote")
