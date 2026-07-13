@@ -20,6 +20,18 @@ from core.router import AgentRouter, ACTIVE_APPROVALS
 def api_client():
     return TestClient(app)
 
+@pytest.fixture(autouse=True)
+def auth_test_config(monkeypatch):
+    monkeypatch.setenv("LAS_JWT_SECRET", "test-only-secret-for-phase-72-auth-claims")
+    API_KEYS.clear()
+    API_KEYS.update({
+        "key-tenant-a": "tenant_a",
+        "key-tenant-b": "tenant_b",
+        "key-admin": {"tenant_id": "admin_tenant", "role": "admin", "scope": "admin:read admin:write auth:mint"},
+    })
+    yield
+    API_KEYS.clear()
+
 @pytest.fixture
 def test_workspace(tmp_path):
     with patch("api.workspace", str(tmp_path)):
@@ -70,7 +82,9 @@ def test_admin_api_key_rotation(test_workspace, api_client):
         assert resp.status_code == 200
         data = resp.json()
         assert data["status"] == "success"
-        new_key = data["api_key"]
+        assert "api_key" not in data
+        assert data["one_time_api_key"].startswith("key-tenant_a-")
+        new_key = next(k for k, v in API_KEYS.items() if (v if isinstance(v, str) else v.get("tenant_id")) == "tenant_a")
         assert new_key.startswith("key-tenant_a-")
         
         assert "key-tenant-a" not in API_KEYS
@@ -85,6 +99,15 @@ def test_admin_api_key_rotation(test_workspace, api_client):
         for k in keys_to_delete:
             del API_KEYS[k]
         API_KEYS["key-tenant-a"] = "tenant_a"
+
+def test_admin_read_scope_cannot_mutate(test_workspace, api_client):
+    API_KEYS["key-read-admin"] = {"tenant_id": "admin_tenant", "role": "operator", "scope": "admin:read"}
+    response = api_client.post(
+        "/v1/admin/tenants/update-subscription",
+        headers={"x-api-key": "key-read-admin"},
+        json={"tenant_id": "tenant_a", "status": "frozen"},
+    )
+    assert response.status_code == 403
 
 def test_admin_manual_subscription_simulation(test_workspace, api_client):
     resp = api_client.get("/v1/admin/tenants", headers={"x-api-key": "key-admin"})

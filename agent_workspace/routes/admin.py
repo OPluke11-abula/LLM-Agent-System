@@ -12,6 +12,9 @@ from fastapi import APIRouter, Depends, HTTPException, Header, Request
 
 from agent_workspace.routes.dependencies import (
     get_tenant_context,
+    get_authenticated_principal,
+    require_admin_principal,
+    require_admin_write_principal,
     get_workspace,
     API_KEYS,
     verify_jwt,
@@ -39,12 +42,12 @@ class HijackRequest(BaseModel):
 
 
 # Stripe configurations & webhook validation
-STRIPE_API_KEY = os.getenv("STRIPE_API_KEY", "mock_stripe_api_key")
-STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "mock_stripe_webhook_secret")
+STRIPE_API_KEY = os.getenv("STRIPE_API_KEY")
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
 STRIPE_TENANT_SUBSCRIPTION_ITEMS = {
-    "tenant_a": os.getenv("STRIPE_SUB_ITEM_TENANT_A", "si_mock_tenant_a"),
-    "tenant_b": os.getenv("STRIPE_SUB_ITEM_TENANT_B", "si_mock_tenant_b"),
-    "admin_tenant": os.getenv("STRIPE_SUB_ITEM_ADMIN", "si_mock_admin"),
+    "tenant_a": os.getenv("STRIPE_SUB_ITEM_TENANT_A"),
+    "tenant_b": os.getenv("STRIPE_SUB_ITEM_TENANT_B"),
+    "admin_tenant": os.getenv("STRIPE_SUB_ITEM_ADMIN"),
 }
 
 
@@ -113,7 +116,9 @@ async def sync_billing_to_stripe():
             total_qty = sum(r["total_tokens"] for r in records)
             max_id = max(r["id"] for r in records)
             
-            sub_item_id = STRIPE_TENANT_SUBSCRIPTION_ITEMS.get(t_id, f"si_mock_{t_id}")
+            sub_item_id = STRIPE_TENANT_SUBSCRIPTION_ITEMS.get(t_id)
+            if not stripe_api_key or not sub_item_id:
+                continue
             timestamp = int(time.time())
             
             import httpx
@@ -269,19 +274,31 @@ async def stripe_webhook(request: Request):
 
 
 @router.post("/v1/auth/token")
-async def generate_auth_token(req: AuthTokenRequest):
+async def generate_auth_token(req: AuthTokenRequest, principal: dict[str, Any] = Depends(get_authenticated_principal)):
+    principal_tenant = principal["tenant_id"]
+    if req.tenant_id != principal_tenant:
+        raise HTTPException(status_code=403, detail="Token tenant must match authenticated principal")
+    role = principal.get("role", "tenant")
+    scope = principal.get("scope", "tenant:read")
+    if role not in {"admin", "bootstrap"} and "auth:mint" not in (scope.split() if isinstance(scope, str) else scope):
+        raise HTTPException(status_code=403, detail="Token minting requires bootstrap or admin authorization")
     payload = {
-        "tenant_id": req.tenant_id,
+        "tenant": principal_tenant,
+        "tenant_id": principal_tenant,
+        "sub": principal.get("sub", principal_tenant),
+        "role": role,
+        "scope": scope,
         "exp": time.time() + 3600
     }
-    token = generate_jwt(payload)
+    try:
+        token = generate_jwt(payload)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail="JWT signing is not configured") from exc
     return {"access_token": token, "token_type": "bearer"}
 
 
 @router.get("/v1/admin/tenants")
-async def admin_get_tenants(tenant_id: str = Depends(get_tenant_context)):
-    if tenant_id != "admin_tenant":
-        raise HTTPException(status_code=403, detail="Forbidden: Admin access required.")
+async def admin_get_tenants(principal: dict[str, Any] = Depends(require_admin_principal)):
     
     from agent_workspace.core.ledger import FinancialLedger
     ledger = FinancialLedger(get_workspace())
@@ -306,7 +323,10 @@ async def admin_get_tenants(tenant_id: str = Depends(get_tenant_context)):
 
     all_tenants = []
     seen_tenants = set()
-    for key, t_id in API_KEYS.items():
+    configured_tenants = {value if isinstance(value, str) else value.get("tenant_id", value.get("tenant")) for value in API_KEYS.values()}
+    configured_tenants.discard(None)
+    configured_tenants.update(db_tenants)
+    for t_id in sorted(configured_tenants):
         if t_id in seen_tenants:
             continue
         seen_tenants.add(t_id)
@@ -344,14 +364,13 @@ async def admin_get_tenants(tenant_id: str = Depends(get_tenant_context)):
         status_info = db_tenants.get(t_id, {
             "tenant_id": t_id,
             "status": "active",
-            "stripe_customer_id": "mock_customer_id" if t_id != "admin_tenant" else None,
-            "stripe_subscription_id": "mock_sub_id" if t_id != "admin_tenant" else None,
+            "stripe_customer_id": None,
+            "stripe_subscription_id": None,
             "last_updated": datetime.now(timezone.utc).isoformat()
         })
 
         all_tenants.append({
             **status_info,
-            "api_key": key,
             "total_tokens": total_tokens,
             "total_cost_usd": total_cost,
             "tokens_last_minute": tokens_last_min
@@ -361,25 +380,24 @@ async def admin_get_tenants(tenant_id: str = Depends(get_tenant_context)):
 
 
 @router.post("/v1/admin/tenants/rotate-key")
-async def admin_rotate_key(req: RotateKeyRequest, tenant_id: str = Depends(get_tenant_context)):
-    if tenant_id != "admin_tenant":
-        raise HTTPException(status_code=403, detail="Forbidden: Admin access required.")
+async def admin_rotate_key(req: RotateKeyRequest, principal: dict[str, Any] = Depends(require_admin_write_principal)):
     
     import secrets
     new_key = f"key-{req.tenant_id}-{secrets.token_hex(4)}"
     
-    keys_to_delete = [k for k, v in API_KEYS.items() if v == req.tenant_id]
+    keys_to_delete = [
+        k for k, v in API_KEYS.items()
+        if (v if isinstance(v, str) else v.get("tenant_id", v.get("tenant"))) == req.tenant_id
+    ]
     for k in keys_to_delete:
         del API_KEYS[k]
     
     API_KEYS[new_key] = req.tenant_id
-    return {"status": "success", "tenant_id": req.tenant_id, "api_key": new_key}
+    return {"status": "success", "tenant_id": req.tenant_id, "one_time_api_key": new_key}
 
 
 @router.post("/v1/admin/tenants/update-subscription")
-async def admin_update_subscription(req: UpdateSubRequest, tenant_id: str = Depends(get_tenant_context)):
-    if tenant_id != "admin_tenant":
-        raise HTTPException(status_code=403, detail="Forbidden: Admin access required.")
+async def admin_update_subscription(req: UpdateSubRequest, principal: dict[str, Any] = Depends(require_admin_write_principal)):
     
     from agent_workspace.core.ledger import FinancialLedger
     from agent_workspace.core.billing import TenantStatusManager
@@ -398,9 +416,7 @@ async def admin_update_subscription(req: UpdateSubRequest, tenant_id: str = Depe
 
 @router.post("/v1/sessions/{session_id}/pause")
 @router.post("/v1/session/{session_id}/pause")
-async def pause_session_endpoint(session_id: str, tenant_id: str = Depends(get_tenant_context)):
-    if tenant_id != "admin_tenant":
-        raise HTTPException(status_code=403, detail="Forbidden: Admin access required.")
+async def pause_session_endpoint(session_id: str, principal: dict[str, Any] = Depends(require_admin_write_principal)):
     from agent_workspace.core.router import AgentRouter
     AgentRouter.pause_session(session_id)
     return {"status": "success", "session_id": session_id, "swarm_status": "paused"}
@@ -408,9 +424,7 @@ async def pause_session_endpoint(session_id: str, tenant_id: str = Depends(get_t
 
 @router.post("/v1/sessions/{session_id}/resume")
 @router.post("/v1/session/{session_id}/resume")
-async def resume_session_endpoint(session_id: str, tenant_id: str = Depends(get_tenant_context)):
-    if tenant_id != "admin_tenant":
-        raise HTTPException(status_code=403, detail="Forbidden: Admin access required.")
+async def resume_session_endpoint(session_id: str, principal: dict[str, Any] = Depends(require_admin_write_principal)):
     from agent_workspace.core.router import AgentRouter
     AgentRouter.resume_session(session_id)
     return {"status": "success", "session_id": session_id, "swarm_status": "running"}
@@ -418,9 +432,7 @@ async def resume_session_endpoint(session_id: str, tenant_id: str = Depends(get_
 
 @router.post("/v1/sessions/{session_id}/hijack")
 @router.post("/v1/session/{session_id}/hijack")
-async def hijack_session_endpoint(session_id: str, req: HijackRequest, tenant_id: str = Depends(get_tenant_context)):
-    if tenant_id != "admin_tenant":
-        raise HTTPException(status_code=403, detail="Forbidden: Admin access required.")
+async def hijack_session_endpoint(session_id: str, req: HijackRequest, principal: dict[str, Any] = Depends(require_admin_write_principal)):
     from agent_workspace.core.router import ACTIVE_APPROVALS
         
     approval_req = ACTIVE_APPROVALS.get(session_id)

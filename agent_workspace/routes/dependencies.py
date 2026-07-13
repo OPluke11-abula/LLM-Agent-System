@@ -7,6 +7,9 @@ import hashlib
 import time
 import logging
 import inspect
+import secrets
+import uuid
+import math
 import yaml
 from pathlib import Path
 from typing import Any
@@ -134,16 +137,24 @@ def sse_event(event: dict[str, Any]) -> str:
 
 
 
-DEFAULT_JWT_SECRET = "las-saas-jwt-secret-key-98234"
-API_KEYS = {
-    "key-tenant-a": "tenant_a",
-    "key-tenant-b": "tenant_b",
-    "key-admin": "admin_tenant"
-}
+JWT_ISSUER = "las-api"
+JWT_AUDIENCE = "las-api"
+API_KEYS: dict[str, Any] = {}
 
 
 def _jwt_secret() -> str:
-    return os.environ.get("LAS_JWT_SECRET") or DEFAULT_JWT_SECRET
+    secret = os.environ.get("LAS_JWT_SECRET")
+    if not secret or len(secret) < 32:
+        raise RuntimeError("LAS_JWT_SECRET is required and must be at least 32 characters")
+    return secret
+
+
+def _issuer() -> str:
+    return os.environ.get("LAS_JWT_ISSUER", JWT_ISSUER)
+
+
+def _audience() -> str:
+    return os.environ.get("LAS_JWT_AUDIENCE", JWT_AUDIENCE)
 
 def base64url_encode(data: bytes) -> str:
     return base64.urlsafe_b64encode(data).rstrip(b'=').decode('utf-8')
@@ -153,6 +164,21 @@ def base64url_decode(data: str) -> bytes:
     return base64.urlsafe_b64decode((data + padding).encode('utf-8'))
 
 def generate_jwt(payload: dict) -> str:
+    now = int(time.time())
+    tenant = payload.get("tenant", payload.get("tenant_id"))
+    if not isinstance(tenant, str) or not tenant:
+        raise ValueError("tenant claim is required")
+    payload = dict(payload)
+    payload.setdefault("iss", _issuer())
+    payload.setdefault("aud", _audience())
+    payload.setdefault("sub", tenant)
+    payload.setdefault("tenant", tenant)
+    payload.setdefault("tenant_id", tenant)
+    payload.setdefault("role", "tenant")
+    payload.setdefault("iat", now)
+    payload.setdefault("nbf", now)
+    payload.setdefault("exp", now + 3600)
+    payload.setdefault("jti", uuid.uuid4().hex)
     header = {"alg": "HS256", "typ": "JWT"}
     header_b64 = base64url_encode(json.dumps(header).encode('utf-8'))
     payload_b64 = base64url_encode(json.dumps(payload).encode('utf-8'))
@@ -167,6 +193,9 @@ def verify_jwt(token: str) -> dict | None:
         if len(parts) != 3:
             return None
         header_b64, payload_b64, signature_b64 = parts
+        header = json.loads(base64url_decode(header_b64).decode("utf-8"))
+        if header.get("alg") != "HS256" or header.get("typ") != "JWT":
+            return None
         signing_input = f"{header_b64}.{payload_b64}".encode('utf-8')
         expected_sig = hmac.new(_jwt_secret().encode('utf-8'), signing_input, hashlib.sha256).digest()
         expected_sig_b64 = base64url_encode(expected_sig)
@@ -174,35 +203,100 @@ def verify_jwt(token: str) -> dict | None:
             return None
         payload_bytes = base64url_decode(payload_b64)
         payload = json.loads(payload_bytes.decode('utf-8'))
-        if "exp" in payload and time.time() > payload["exp"]:
+        now = time.time()
+        required = {"iss", "aud", "sub", "tenant", "iat", "nbf", "exp", "jti"}
+        if not required.issubset(payload):
+            return None
+        if not isinstance(payload["iss"], str) or payload["iss"] != _issuer():
+            return None
+        audience = payload["aud"]
+        if isinstance(audience, str):
+            valid_aud = audience == _audience()
+        elif isinstance(audience, list):
+            valid_aud = bool(audience) and all(isinstance(item, str) for item in audience) and _audience() in audience
+        else:
+            valid_aud = False
+        if not valid_aud:
+            return None
+        if not isinstance(payload["sub"], str) or not payload["sub"]:
+            return None
+        if not isinstance(payload["tenant"], str) or not payload["tenant"]:
+            return None
+        role = payload.get("role")
+        scope = payload.get("scope")
+        if not isinstance(role, str) and not isinstance(scope, (str, list)):
+            return None
+        if isinstance(scope, list) and not scope:
+            return None
+        if isinstance(scope, list) and not all(isinstance(item, str) for item in scope):
+            return None
+        for name in ("iat", "nbf", "exp"):
+            if not isinstance(payload[name], (int, float)) or isinstance(payload[name], bool) or not math.isfinite(payload[name]):
+                return None
+        if payload["iat"] > now + 30 or payload["nbf"] > now + 30 or payload["exp"] <= now:
+            return None
+        if not isinstance(payload["jti"], str) or not payload["jti"]:
+            return None
+        payload["tenant_id"] = payload["tenant"]
+        if isinstance(scope, list):
+            payload["scope"] = " ".join(scope)
+        if "exp" in payload and now > payload["exp"]:
             return None
         return payload
     except Exception:
         return None
 
-def get_tenant_context(
+def _api_key_principal(api_key: str) -> dict[str, Any] | None:
+    configured = API_KEYS.get(api_key)
+    if configured is None:
+        bootstrap_key = os.environ.get("LAS_BOOTSTRAP_API_KEY")
+        if not bootstrap_key or not secrets.compare_digest(api_key, bootstrap_key):
+            return None
+        return {
+            "tenant": os.environ.get("LAS_BOOTSTRAP_TENANT_ID", ""),
+            "tenant_id": os.environ.get("LAS_BOOTSTRAP_TENANT_ID", ""),
+            "sub": os.environ.get("LAS_BOOTSTRAP_SUBJECT", "bootstrap"),
+            "role": os.environ.get("LAS_BOOTSTRAP_ROLE", "bootstrap"),
+            "scope": os.environ.get("LAS_BOOTSTRAP_SCOPE", "auth:mint admin:read admin:write"),
+        }
+    if isinstance(configured, str):
+        tenant = configured
+        return {"tenant": tenant, "tenant_id": tenant, "sub": tenant, "role": "tenant", "scope": "tenant:read"}
+    if isinstance(configured, dict):
+        tenant = configured.get("tenant", configured.get("tenant_id"))
+        if isinstance(tenant, str) and tenant:
+            principal = dict(configured)
+            principal["tenant"] = tenant
+            principal["tenant_id"] = tenant
+            principal.setdefault("sub", tenant)
+            return principal
+    return None
+
+
+def get_authenticated_principal(
     authorization: str | None = Header(None),
     x_api_key: str | None = Header(None),
     x_enforce_auth: str | None = Header(None)
-) -> str:
-    tenant_id = None
+) -> dict[str, Any]:
+    principal: dict[str, Any] | None = None
     if x_api_key:
-        if x_api_key in API_KEYS:
-            tenant_id = API_KEYS[x_api_key]
-        else:
+        principal = _api_key_principal(x_api_key)
+        if principal is None:
             raise HTTPException(status_code=401, detail="Invalid API Key")
     elif authorization:
         if authorization.startswith("Bearer "):
             token = authorization[7:]
             payload = verify_jwt(token)
-            if payload and "tenant_id" in payload:
-                tenant_id = payload["tenant_id"]
-        if not tenant_id:
+            if payload:
+                principal = payload
+        if principal is None:
             raise HTTPException(status_code=401, detail="Invalid Authorization token")
-    elif "pytest" in sys.modules and not x_enforce_auth:
-        tenant_id = "default_tenant"
     else:
         raise HTTPException(status_code=401, detail="Missing Authentication Credentials")
+
+    tenant_id = principal.get("tenant", principal.get("tenant_id"))
+    if not isinstance(tenant_id, str) or not tenant_id:
+        raise HTTPException(status_code=401, detail="Invalid Authentication principal")
 
     # Enforce rate-limiting and status checks
     from agent_workspace.core.ledger import FinancialLedger
@@ -217,7 +311,53 @@ def get_tenant_context(
     except TenantRateLimitError as e:
         raise HTTPException(status_code=429, detail=str(e))
 
-    return tenant_id
+    principal["tenant_id"] = tenant_id
+    return principal
+
+
+def get_tenant_context(
+    authorization: str | None = Header(None),
+    x_api_key: str | None = Header(None),
+    x_enforce_auth: str | None = Header(None),
+) -> str:
+    principal = get_authenticated_principal(authorization, x_api_key, x_enforce_auth)
+    return principal["tenant_id"]
+
+
+def require_admin_principal(
+    authorization: str | None = Header(None),
+    x_api_key: str | None = Header(None),
+    x_enforce_auth: str | None = Header(None),
+) -> dict[str, Any]:
+    principal = get_authenticated_principal(authorization, x_api_key, x_enforce_auth)
+    role = principal.get("role")
+    scopes = principal.get("scope", "")
+    if isinstance(scopes, str):
+        scopes = set(scopes.split())
+    elif isinstance(scopes, list):
+        scopes = set(scopes)
+    else:
+        scopes = set()
+    if role not in {"admin", "bootstrap"} and not {"admin", "admin:read", "admin:write"}.intersection(scopes):
+        raise HTTPException(status_code=403, detail="Forbidden: Admin access required.")
+    return principal
+
+
+def require_admin_write_principal(
+    authorization: str | None = Header(None),
+    x_api_key: str | None = Header(None),
+    x_enforce_auth: str | None = Header(None),
+) -> dict[str, Any]:
+    principal = require_admin_principal(authorization, x_api_key, x_enforce_auth)
+    role = principal.get("role")
+    scopes = principal.get("scope", "")
+    if isinstance(scopes, str):
+        scopes = set(scopes.split())
+    else:
+        scopes = set(scopes) if isinstance(scopes, list) else set()
+    if role not in {"admin", "bootstrap"} and not {"admin:write", "admin:hijack"}.intersection(scopes):
+        raise HTTPException(status_code=403, detail="Forbidden: Admin write authorization required.")
+    return principal
 
 async def verify_websocket_tenant(websocket: WebSocket, session_id: str | None = None) -> str | None:
     """
@@ -245,9 +385,6 @@ async def verify_websocket_tenant(websocket: WebSocket, session_id: str | None =
             tenant_id = get_account_manager().get_session_tenant(session_id)
         except Exception:
             pass
-
-    if not tenant_id and "pytest" in sys.modules and not enforce_auth:
-        tenant_id = "default_tenant"
 
     if not tenant_id:
         await websocket.accept()

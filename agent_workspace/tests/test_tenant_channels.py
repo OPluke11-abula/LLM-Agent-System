@@ -27,6 +27,18 @@ def anyio_backend():
 def api_client():
     return TestClient(app)
 
+@pytest.fixture(autouse=True)
+def auth_test_config(monkeypatch):
+    monkeypatch.setenv("LAS_JWT_SECRET", "test-only-secret-for-phase-72-auth-claims")
+    API_KEYS.clear()
+    API_KEYS.update({
+        "key-tenant-a": "tenant_a",
+        "key-tenant-b": "tenant_b",
+        "key-admin": {"tenant_id": "admin_tenant", "role": "admin", "scope": "admin:read admin:write auth:mint"},
+    })
+    yield
+    API_KEYS.clear()
+
 def test_jwt_generation_and_verification():
     """Verify that JWT helper functions generate and decode valid tokens."""
     payload = {"tenant_id": "tenant_test", "exp": time.time() + 10}
@@ -54,11 +66,11 @@ def test_jwt_secret_can_be_rotated_with_environment(monkeypatch):
     """Verify JWT signatures honor LAS_JWT_SECRET and reject tokens signed with old secrets."""
     payload = {"tenant_id": "tenant_test", "exp": time.time() + 10}
 
-    monkeypatch.setenv("LAS_JWT_SECRET", "first-secret")
+    monkeypatch.setenv("LAS_JWT_SECRET", "first-secret-with-at-least-32-bytes")
     token = generate_jwt(payload)
     assert verify_jwt(token)["tenant_id"] == "tenant_test"
 
-    monkeypatch.setenv("LAS_JWT_SECRET", "second-secret")
+    monkeypatch.setenv("LAS_JWT_SECRET", "second-secret-with-at-least-32-bytes")
     assert verify_jwt(token) is None
 
     rotated_token = generate_jwt(payload)
@@ -68,7 +80,7 @@ def test_jwt_secret_can_be_rotated_with_environment(monkeypatch):
 
 def test_auth_token_route(api_client):
     """Test the POST /v1/auth/token endpoint."""
-    response = api_client.post("/v1/auth/token", json={"tenant_id": "tenant_a"})
+    response = api_client.post("/v1/auth/token", json={"tenant_id": "admin_tenant"}, headers={"x-api-key": "key-admin"})
     assert response.status_code == 200
     data = response.json()
     assert "access_token" in data
@@ -77,7 +89,27 @@ def test_auth_token_route(api_client):
     # Decode the returned token
     decoded = verify_jwt(data["access_token"])
     assert decoded is not None
-    assert decoded["tenant_id"] == "tenant_a"
+    assert decoded["tenant_id"] == "admin_tenant"
+
+def test_auth_token_requires_authenticated_principal(api_client):
+    assert api_client.post("/v1/auth/token", json={"tenant_id": "tenant_a"}).status_code == 401
+    assert api_client.post("/v1/auth/token", json={"tenant_id": "arbitrary"}, headers={"x-api-key": "key-tenant-a"}).status_code == 403
+    response = api_client.post("/v1/auth/token", json={"tenant_id": "admin_tenant"}, headers={"x-api-key": "key-admin"})
+    assert response.status_code == 200
+    claims = verify_jwt(response.json()["access_token"])
+    assert claims["tenant"] == "admin_tenant"
+    assert claims["role"] == "admin"
+    assert all(name in claims for name in ("iss", "aud", "sub", "iat", "nbf", "exp", "jti"))
+
+def test_jwt_required_claims_and_secret_fail_closed(monkeypatch):
+    token = generate_jwt({"tenant": "tenant_a", "role": "tenant"})
+    parts = token.split(".")
+    payload = json.loads(base64.urlsafe_b64decode(parts[1] + "=="))
+    payload["jti"] = 123
+    malformed = generate_jwt(payload)
+    assert verify_jwt(malformed) is None
+    monkeypatch.delenv("LAS_JWT_SECRET", raising=False)
+    assert verify_jwt(token) is None
 
 def test_secured_endpoints_unauthorized(api_client):
     """Verify that secured endpoints reject requests with missing or invalid credentials."""
