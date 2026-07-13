@@ -22,13 +22,13 @@
 | 69 | 8 | 8 | 100% Done | Local knowledge base and agent memory OS complete |
 | 70 | 8 | 8 | 100% Done | Token-efficient advisory rollout complete |
 | 71 | 8 | 8 | 100% Done | Professional design-agent pipeline complete |
-| 72 | 9 | 6 | In Progress | Execute 72-07 Stripe replay/tenant binding |
+| 72 | 9 | 7 | In Progress | Execute 72-08 CI/coverage/locks/audits/SBOM |
 
 Execution order:
 
-1. Execute Phase 72 in dependency order, continuing with `72-07`.
-2. Complete the remaining runtime correctness boundary (`72-07`) ahead of CI,
-   documentation, and release work.
+1. Execute Phase 72 in dependency order, continuing with `72-08`.
+2. Complete release engineering (`72-08`) ahead of documentation and final
+   release evidence work.
 
 ## Completed Phase Rollup
 
@@ -408,7 +408,7 @@ from art direction through independent review and viewer integration.
 
 ## Phase 72 - Production Readiness, Security, and Release Evidence
 
-Status: `[~]` 6/9 complete. Execute in order. Use failing-first regression
+Status: `[~]` 7/9 complete. Execute in order. Use failing-first regression
 tests for security, concurrency, persistence, and accounting changes. Preserve
 local-first operation and public APIs where doing so does not retain insecure
 behavior.
@@ -508,7 +508,7 @@ checksums, SBOMs, and unsigned-artifact documentation may proceed.
   and cost-reporting tests plus seeded-memory offline QA.
 
 ### 72-07 Stripe Replay and Tenant Binding
-- [~] **[Billing/Security Programmer]** Verify Stripe webhook authenticity before
+- [x] **[Billing/Security Programmer]** Verify Stripe webhook authenticity before
   processing, bind customer/subscription events to the expected tenant, persist
   replay/idempotency state before side effects, reject stale or cross-tenant
   events, and make duplicate/out-of-order delivery deterministic without real
@@ -522,7 +522,7 @@ checksums, SBOMs, and unsigned-artifact documentation may proceed.
   webhook QA with synthetic fixtures.
 
 ### 72-08 Required CI, Coverage, Locks, Audits, and SBOM
-- [ ] **[QA/DevOps]** Add blocking CI for Python tests/PAP contracts and viewer
+- [~] **[QA/DevOps]** Add blocking CI for Python tests/PAP contracts and viewer
   builds, keep React Doctor advisory, enforce approved coverage, add reproducible
   dependency lock/update policy, emit machine-readable dependency/license/
   security audits, and generate an SBOM tied to the tested source revision.
