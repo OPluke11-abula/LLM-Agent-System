@@ -22,12 +22,12 @@
 | 69 | 8 | 8 | 100% Done | Local knowledge base and agent memory OS complete |
 | 70 | 8 | 8 | 100% Done | Token-efficient advisory rollout complete |
 | 71 | 8 | 8 | 100% Done | Professional design-agent pipeline complete |
-| 72 | 9 | 4 | In Progress | Execute 72-05 provider lifecycle/accounting |
+| 72 | 9 | 6 | In Progress | Execute 72-07 Stripe replay/tenant binding |
 
 Execution order:
 
-1. Execute Phase 72 in dependency order, continuing with `72-05`.
-2. Complete runtime correctness (`72-05` to `72-07`) ahead of CI,
+1. Execute Phase 72 in dependency order, continuing with `72-07`.
+2. Complete the remaining runtime correctness boundary (`72-07`) ahead of CI,
    documentation, and release work.
 
 ## Completed Phase Rollup
@@ -408,7 +408,7 @@ from art direction through independent review and viewer integration.
 
 ## Phase 72 - Production Readiness, Security, and Release Evidence
 
-Status: `[~]` 4/9 complete. Execute in order. Use failing-first regression
+Status: `[~]` 6/9 complete. Execute in order. Use failing-first regression
 tests for security, concurrency, persistence, and accounting changes. Preserve
 local-first operation and public APIs where doing so does not retain insecure
 behavior.
@@ -477,7 +477,7 @@ checksums, SBOMs, and unsigned-artifact documentation may proceed.
   workflow success/deadlock/resume QA.
 
 ### 72-05 Provider Streaming Lifecycle and Accounting
-- [~] **[Provider/Backend Programmer]** Bound provider streams by timeout and
+- [x] **[Provider/Backend Programmer]** Bound provider streams by timeout and
   cancellation, close upstream work on disconnect, record terminal/partial usage
   exactly once, allow only bounded transient failover, and prevent auth, quota,
   subscription, cancellation, or offline failures from triggering failover or
@@ -493,7 +493,7 @@ checksums, SBOMs, and unsigned-artifact documentation may proceed.
   plus live `/v1/stream` QA.
 
 ### 72-06 Memory Provenance, Cache, Offline Egress, and Cost
-- [ ] **[Memory/Security Programmer]** Treat retrieved memory as delimited,
+- [x] **[Memory/Security Programmer]** Treat retrieved memory as delimited,
   bounded, provenance-bearing untrusted data; prevent it from becoming
   governance/system instructions; scope caches by provider/model/mode; enforce
   strict offline/local zero-egress behavior including fallbacks; and report
@@ -508,7 +508,7 @@ checksums, SBOMs, and unsigned-artifact documentation may proceed.
   and cost-reporting tests plus seeded-memory offline QA.
 
 ### 72-07 Stripe Replay and Tenant Binding
-- [ ] **[Billing/Security Programmer]** Verify Stripe webhook authenticity before
+- [~] **[Billing/Security Programmer]** Verify Stripe webhook authenticity before
   processing, bind customer/subscription events to the expected tenant, persist
   replay/idempotency state before side effects, reject stale or cross-tenant
   events, and make duplicate/out-of-order delivery deterministic without real
