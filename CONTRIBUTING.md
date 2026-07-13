@@ -1,76 +1,60 @@
-# Contributing to FindAi Studio — LAS
+# Contributing to LAS
 
-[English](#english) | [繁體中文](#繁體中文)
+Thank you for improving the LLM Agent System. Keep changes small, contract-first,
+backward-compatible, and easy to verify.
 
----
+## Before you change code
 
-## English
+1. Read [`AGENT.md`](AGENT.md) and the relevant `.agent` contract.
+2. Check the queue in [`.agent/agent_tasks.md`](.agent/agent_tasks.md) before
+   starting a new task.
+3. For a new runtime tool, add or update its PAP contract under
+   `.agent/skills/<skill_id>.md` before implementing Python code.
 
-Welcome! FindAi Studio LLM Agent System (LAS) is the **first AI-Maintainable Agent framework**. Because both humans and AI agents collaborate to build and extend this repository, all contributions must strictly follow this **Contract-First Development SOP** to prevent regression, context drift, and architectural decay.
+## Local setup
 
-### 🔒 Core Guidelines
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m pip install -r requirements-providers.txt  # optional
+```
 
-#### 1. Contract-First Development
-Before writing any Python code for a new capability/tool:
-- Create or update its PAP Skill Contract under `.agent/skills/<skill_id>.md`.
-- Declare input/output schemas using standard PAP JSON properties.
-- Keep proprietary references separate; write generic local Python tools.
+Keep API keys in environment variables. Do not commit `.env` files, generated
+build output, credentials, or local agent-tool directories.
 
-#### 2. Dual-Track Sync
-Once you have written or modified a Python skill in `agent_workspace/skills/`:
-- Run the sync tool to align runtime reflection with the PAP documents:
-  ```bash
-  python agent_workspace/tool_manifest.py sync
-  ```
-- Verify manifest integrity:
-  ```bash
-  python agent_workspace/tool_manifest.py validate
-  ```
-- Run static workspace linting:
-  ```bash
-  python agent_workspace/cli.py lint
-  ```
+## Development workflow
 
-#### 3. Strict 100% Green Telemetry
-Every contribution must maintain full unit and integration test coverage without event-loop hangs:
-- Run the complete pytest suite before pushing:
-  ```bash
-  python -m pytest --tb=short
-  ```
-- Ensure zero hangs in multi-agent or HITL simulation test cases.
+After changing a runtime skill, synchronize and validate the manifest:
 
----
+```powershell
+.\.venv\Scripts\python.exe agent_workspace/tool_manifest.py sync
+.\.venv\Scripts\python.exe agent_workspace/tool_manifest.py validate
+.\.venv\Scripts\python.exe agent_workspace/cli.py lint .
+```
 
-## 繁體中文
+Run the smallest relevant test while iterating, then run the authoritative gate
+before opening a pull request:
 
-歡迎！FindAi Studio LLM Agent System (LAS) 是 **全球首個可由 AI 自主維護與演進（AI-Maintainable）的智慧體框架**。由於本專案是由人類與 AI 智慧體共同開發與維護，所有的代碼提交都必須嚴格遵循這套 **合約優先 (Contract-First) 開發規範**，以確保架構不走樣。
+```powershell
+.\.venv\Scripts\python.exe -m pytest --no-cov -q path\to\relevant_test.py
+.\scripts\verify.cmd
+```
 
-### 🔒 核心開發規範
+For viewer changes, also run `npm.cmd --prefix viewer run build` and the focused
+UI checks documented in [`viewer/README.md`](viewer/README.md). Use `cargo fmt`
+for Rust changes.
 
-#### 1. 合約優先開發 (Contract-First)
-在為智慧體撰寫任何 Python 新工具（Skills）之前：
-- 必須先在 `.agent/skills/<skill_id>.md` 建立或更新其 PAP 工具合約。
-- 使用標準 PAP JSON 屬性宣告輸入與輸出 Schema，標註敏感度與角色權限。
+## Pull requests
 
-#### 2. 雙軌反射同步 (Dual-Track Sync)
-當您在 `agent_workspace/skills/` 寫好 Python 工具代碼後：
-- 執行同步腳本，自動將代碼反射規格寫回 PAP Markdown 合約：
-  ```bash
-  python agent_workspace/tool_manifest.py sync
-  ```
-- 驗證合約與代碼是否 100% 對照：
-  ```bash
-  python agent_workspace/tool_manifest.py validate
-  ```
-- 執行工作區靜態檢查：
-  ```bash
-  python agent_workspace/cli.py lint
-  ```
+- Explain the user-visible problem and the smallest safe change.
+- List exact verification commands and their results.
+- Update documentation for changed commands, APIs, or release behavior.
+- Never include secrets, generated artifacts, or unrelated formatting churn.
 
-#### 3. 100% 綠燈單元測試 (Strict Pytest Validation)
-任何代碼提交前，必須確保測試套件完全無報錯、無卡死：
-- 在本地執行完整測試：
-  ```bash
-  python -m pytest --tb=short
-  ```
-- 確保 Multi-Agent 辯論與人機審批（HITL）模擬測試沒有任何 Async Event-Loop 死結掛起。
+The root runtime is Elastic License 2.0; the standalone viewer remains MIT
+under `viewer/LICENSE`. Do not change either license without maintainer review.
+
+## Reporting security issues
+
+Do not open a public issue for a suspected vulnerability. Follow
+[`SECURITY.md`](SECURITY.md).
