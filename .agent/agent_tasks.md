@@ -22,12 +22,12 @@
 | 69 | 8 | 8 | 100% Done | Local knowledge base and agent memory OS complete |
 | 70 | 8 | 8 | 100% Done | Token-efficient advisory rollout complete |
 | 71 | 8 | 8 | 100% Done | Professional design-agent pipeline complete |
-| 72 | 9 | 0 | In Progress | Execute 72-01 auth/JWT/secrets hardening |
+| 72 | 9 | 1 | In Progress | Execute 72-02 WebSocket auth/tenant quotas |
 
 Execution order:
 
-1. Execute Phase 72 in dependency order, beginning with `72-01`.
-2. Keep P0 security boundaries (`72-01` to `72-03`) ahead of runtime,
+1. Execute Phase 72 in dependency order, continuing with `72-02`.
+2. Keep remaining P0 security boundaries (`72-02` to `72-03`) ahead of runtime,
    infrastructure, CI, documentation, and release work.
 
 ## Completed Phase Rollup
@@ -408,7 +408,7 @@ from art direction through independent review and viewer integration.
 
 ## Phase 72 - Production Readiness, Security, and Release Evidence
 
-Status: `[ ]` 0/9 complete. Execute in order. Use failing-first regression
+Status: `[~]` 1/9 complete. Execute in order. Use failing-first regression
 tests for security, concurrency, persistence, and accounting changes. Preserve
 local-first operation and public APIs where doing so does not retain insecure
 behavior.
@@ -419,7 +419,7 @@ claim signed artifacts without explicit owner approval. Interfaces, adapters,
 checksums, SBOMs, and unsigned-artifact documentation may proceed.
 
 ### 72-01 Authentication, JWT, and Secret Boundaries
-- [ ] **[Security/Backend Programmer]** Require authenticated credentials before
+- [x] **[Security/Backend Programmer]** Require authenticated credentials before
   issuing tenant JWTs; fail closed when production JWT/admin secrets are absent;
   authorize admin operations through verified roles/scopes; remove test-runtime
   authentication bypasses; and prevent API keys or reusable secrets from being
@@ -434,7 +434,7 @@ checksums, SBOMs, and unsigned-artifact documentation may proceed.
   focused pytest and live `/v1/auth/token` and `/v1/admin/tenants` QA.
 
 ### 72-02 WebSocket Authentication and Tenant Quotas
-- [ ] **[Security/Transport Programmer]** Authenticate WebSocket handshakes
+- [~] **[Security/Transport Programmer]** Authenticate WebSocket handshakes
   without query-string bearer/API credentials, bind sessions to verified tenant
   identity, key REST/WebSocket quotas by tenant rather than attacker-controlled
   IP/session input, and fail closed when protected quota state cannot be read.
