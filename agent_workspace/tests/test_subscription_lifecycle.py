@@ -4,6 +4,8 @@ import json
 import time
 import hmac
 import hashlib
+os.environ.setdefault("LAS_JWT_SECRET", "test-only-secret-for-phase-72-auth-claims")
+os.environ.setdefault("STRIPE_WEBHOOK_SECRET", "whsec_test_secret")
 import sqlite3
 import pytest
 from unittest.mock import MagicMock, AsyncMock, patch
@@ -15,7 +17,7 @@ workspace_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if workspace_dir not in sys.path:
     sys.path.insert(0, workspace_dir)
 
-from api import app, generate_jwt, STRIPE_WEBHOOK_SECRET
+from api import API_KEYS, app, generate_jwt
 from core.ledger import FinancialLedger
 from core.audit_ledger import AuditLedger
 from core.account_manager import AccountManager
@@ -27,9 +29,26 @@ from core.billing import (
 )
 from core.providers import ProviderFactory
 
+STRIPE_TEST_SECRET = "whsec_test_secret"
+
 @pytest.fixture
 def anyio_backend():
     return "asyncio"
+
+
+@pytest.fixture(autouse=True)
+def auth_test_config(monkeypatch):
+    monkeypatch.setenv("LAS_JWT_SECRET", "test-only-secret-for-phase-72-auth-claims")
+    monkeypatch.setenv("STRIPE_WEBHOOK_SECRET", "whsec_test_secret")
+    monkeypatch.setattr("routes.admin.STRIPE_WEBHOOK_SECRET", STRIPE_TEST_SECRET)
+    API_KEYS.clear()
+    API_KEYS.update({
+        "key-tenant-a": "tenant_a",
+        "key-tenant-b": "tenant_b",
+        "key-admin": {"tenant_id": "admin_tenant", "role": "admin", "scope": "admin:read admin:write auth:mint"},
+    })
+    yield
+    API_KEYS.clear()
 
 @pytest.fixture
 def api_client():
@@ -71,7 +90,7 @@ def test_workspace(tmp_path):
 
 def dispatch_webhook(client, workspace_path, event_type, data_object):
     payload = {
-        "id": f"evt_{event_type}",
+        "id": f"evt_{event_type}_{hashlib.sha256(json.dumps(data_object, sort_keys=True).encode()).hexdigest()[:12]}",
         "type": event_type,
         "data": {
             "object": data_object
@@ -79,7 +98,7 @@ def dispatch_webhook(client, workspace_path, event_type, data_object):
     }
     payload_bytes = json.dumps(payload).encode("utf-8")
     timestamp = str(int(time.time()))
-    secret = STRIPE_WEBHOOK_SECRET
+    secret = STRIPE_TEST_SECRET
     sig_basestring = f"{timestamp}.".encode("utf-8") + payload_bytes
     computed_hash = hmac.new(secret.encode("utf-8"), sig_basestring, hashlib.sha256).hexdigest()
     sig_header = f"t={timestamp},v1={computed_hash}"
@@ -181,7 +200,7 @@ def test_websocket_inactive_subscription_close(test_workspace, api_client):
     status_mgr.update_tenant_status("tenant_blocked_ws", "frozen")
     with patch("api.workspace", str(test_workspace)):
         with pytest.raises(WebSocketDisconnect) as exc_info:
-            with api_client.websocket_connect(f"/v1/stream?token={token}&enforce_auth=true") as ws:
+            with api_client.websocket_connect("/v1/stream", headers={"Authorization": f"Bearer {token}"}) as ws:
                 ws.receive_json()
         assert exc_info.value.code == 4003
         
@@ -189,7 +208,7 @@ def test_websocket_inactive_subscription_close(test_workspace, api_client):
     status_mgr.update_tenant_status("tenant_blocked_ws", "canceled")
     with patch("api.workspace", str(test_workspace)):
         with pytest.raises(WebSocketDisconnect) as exc_info:
-            with api_client.websocket_connect(f"/v1/stream?token={token}&enforce_auth=true") as ws:
+            with api_client.websocket_connect("/v1/stream", headers={"Authorization": f"Bearer {token}"}) as ws:
                 ws.receive_json()
         assert exc_info.value.code == 4003
 
@@ -227,7 +246,7 @@ def test_rate_limiting_rest_and_websockets(test_workspace, api_client):
     # 3. Over limit: WebSocket closes with code 4029
     with patch("api.workspace", str(test_workspace)):
         with pytest.raises(WebSocketDisconnect) as exc_info:
-            with api_client.websocket_connect(f"/v1/stream?token={token}&enforce_auth=true") as ws:
+            with api_client.websocket_connect("/v1/stream", headers={"Authorization": f"Bearer {token}"}) as ws:
                 ws.receive_json()
         assert exc_info.value.code == 4029
 

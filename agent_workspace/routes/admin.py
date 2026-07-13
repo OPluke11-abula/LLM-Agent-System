@@ -44,6 +44,7 @@ class HijackRequest(BaseModel):
 # Stripe configurations & webhook validation
 STRIPE_API_KEY = os.getenv("STRIPE_API_KEY")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
+STRIPE_WEBHOOK_TOLERANCE_SECONDS = int(os.getenv("STRIPE_WEBHOOK_TOLERANCE_SECONDS", "300"))
 STRIPE_TENANT_SUBSCRIPTION_ITEMS = {
     "tenant_a": os.getenv("STRIPE_SUB_ITEM_TENANT_A"),
     "tenant_b": os.getenv("STRIPE_SUB_ITEM_TENANT_B"),
@@ -54,23 +55,55 @@ STRIPE_TENANT_SUBSCRIPTION_ITEMS = {
 def verify_stripe_signature(payload_bytes: bytes, header: str, secret: str) -> bool:
     if not header or not secret:
         return False
-    try:
-        pairs = {}
-        for part in header.split(','):
-            kv = part.split('=', 1)
-            if len(kv) == 2:
-                pairs[kv[0].strip()] = kv[1].strip()
-        t = pairs.get('t')
-        v1 = pairs.get('v1')
-        if not t or not v1:
-            return False
-            
-        signed_payload = f"{t}.".encode('utf-8') + payload_bytes
-        computed = hmac.new(secret.encode('utf-8'), signed_payload, hashlib.sha256).hexdigest()
-        return hmac.compare_digest(computed, v1)
-    except Exception as e:
-        logger.error(f"Stripe webhook verification error: {e}")
+    timestamp_value = next(
+        (part.split("=", 1)[1].strip() for part in header.split(",")
+         if part.strip().startswith("t=") and "=" in part),
+        None,
+    )
+    signatures = [
+        part.split("=", 1)[1].strip()
+        for part in header.split(",")
+        if part.strip().startswith("v1=") and "=" in part
+    ]
+    if not timestamp_value or not signatures:
         return False
+    try:
+        timestamp = int(timestamp_value)
+    except ValueError:
+        return False
+    if abs(int(time.time()) - timestamp) > STRIPE_WEBHOOK_TOLERANCE_SECONDS:
+        return False
+    signed_payload = f"{timestamp_value}.".encode("utf-8") + payload_bytes
+    computed = hmac.new(secret.encode("utf-8"), signed_payload, hashlib.sha256).hexdigest()
+    return any(hmac.compare_digest(computed, signature) for signature in signatures)
+
+
+def _resolve_stripe_tenant(status_mgr: Any, event_type: str, data_obj: dict[str, Any]) -> str | None:
+    metadata = data_obj.get("metadata", {})
+    if metadata is None:
+        metadata = {}
+    if not isinstance(metadata, dict):
+        raise HTTPException(status_code=400, detail="Invalid Stripe metadata")
+    metadata_tenant = metadata.get("tenant_id")
+    if metadata_tenant is not None and not isinstance(metadata_tenant, str):
+        raise HTTPException(status_code=400, detail="Invalid Stripe tenant binding")
+    customer_id = data_obj.get("customer")
+    subscription_id = data_obj.get("id") if event_type.startswith("customer.subscription.") else data_obj.get("subscription")
+    mapped_tenants = {
+        tenant
+        for tenant in (
+            status_mgr.get_tenant_by_stripe_customer(customer_id) if isinstance(customer_id, str) else None,
+            status_mgr.get_tenant_by_stripe_subscription(subscription_id) if isinstance(subscription_id, str) else None,
+        )
+        if tenant
+    }
+    if len(mapped_tenants) > 1 or (metadata_tenant and mapped_tenants and metadata_tenant not in mapped_tenants):
+        raise HTTPException(status_code=400, detail="Stripe event tenant binding conflict")
+    if metadata_tenant:
+        return metadata_tenant
+    if mapped_tenants:
+        return next(iter(mapped_tenants))
+    return None
 
 
 async def sync_billing_to_stripe():
@@ -128,26 +161,24 @@ async def sync_billing_to_stripe():
             }
             body = f"quantity={total_qty}&timestamp={timestamp}&action=increment"
             
-            if stripe_api_key.startswith("mock"):
-                logger.info(f"[Mock Stripe Billing Sync] Tenant: {t_id}, SubItem: {sub_item_id}, Qty: {total_qty}")
-                success = True
-            else:
-                try:
-                    async with httpx.AsyncClient() as client:
-                        resp = await client.post(
-                            f"https://api.stripe.com/v1/subscription_items/{sub_item_id}/usage_records",
-                            headers=headers,
-                            content=body,
-                            timeout=10.0
-                        )
-                        if resp.status_code in (200, 201):
-                            success = True
-                        else:
-                            logger.error(f"Stripe API error: {resp.status_code} - {resp.text}")
-                            success = False
-                except Exception as ex:
-                    logger.error(f"Failed to post billing usage to Stripe: {ex}")
-                    success = False
+            if stripe_api_key.lower().startswith("mock"):
+                continue
+            try:
+                async with httpx.AsyncClient() as client:
+                    resp = await client.post(
+                        f"https://api.stripe.com/v1/subscription_items/{sub_item_id}/usage_records",
+                        headers=headers,
+                        content=body,
+                        timeout=10.0
+                    )
+                    if resp.status_code in (200, 201):
+                        success = True
+                    else:
+                        logger.error(f"Stripe API error: {resp.status_code} - {resp.text}")
+                        success = False
+            except Exception as ex:
+                logger.error(f"Failed to post billing usage to Stripe: {ex}")
+                success = False
             
             if success:
                 conn.execute(
@@ -183,55 +214,52 @@ async def stripe_webhook(request: Request):
         raise HTTPException(status_code=403, detail="Invalid Stripe signature")
         
     try:
-        event = json.loads(body_bytes.decode('utf-8'))
-    except Exception:
+        event = json.loads(body_bytes.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
         raise HTTPException(status_code=400, detail="Invalid JSON payload")
-        
+    if not isinstance(event, dict) or not isinstance(event.get("id"), str) or not event["id"]:
+        raise HTTPException(status_code=400, detail="Stripe event id is required")
     event_type = event.get("type", "unknown")
-    logger.info(f"Received Stripe webhook event: {event_type}")
-    
-    from agent_workspace.core.audit_ledger import AuditLedger
-    audit = AuditLedger(get_workspace())
-    audit.record_event("system_call", {
-        "event": "stripe_webhook",
-        "stripe_event_type": event_type,
-        "payload": event
-    }, tenant_id="admin_tenant")
-    
-    data_obj = event.get("data", {}).get("object", {})
-    stripe_customer_id = data_obj.get("customer")
-    stripe_subscription_id = data_obj.get("id") if event_type.startswith("customer.subscription.") else data_obj.get("subscription")
-    
-    tenant_id = data_obj.get("metadata", {}).get("tenant_id")
-    
+    if not isinstance(event_type, str):
+        raise HTTPException(status_code=400, detail="Invalid Stripe event type")
+    data = event.get("data", {})
+    data_obj = data.get("object", {}) if isinstance(data, dict) else {}
+    if not isinstance(data_obj, dict):
+        raise HTTPException(status_code=400, detail="Invalid Stripe event object")
     from agent_workspace.core.ledger import FinancialLedger
     from agent_workspace.core.billing import TenantStatusManager
     ledger = FinancialLedger(get_workspace())
     status_mgr = TenantStatusManager(ledger)
-    
-    if not tenant_id and stripe_subscription_id:
-        tenant_id = status_mgr.get_tenant_by_stripe_subscription(stripe_subscription_id)
-    if not tenant_id and stripe_customer_id:
-        tenant_id = status_mgr.get_tenant_by_stripe_customer(stripe_customer_id)
-        
-    if not tenant_id:
-        if stripe_customer_id:
-            if "tenant_a" in stripe_customer_id:
-                tenant_id = "tenant_a"
-            elif "tenant_b" in stripe_customer_id:
-                tenant_id = "tenant_b"
-            else:
-                tenant_id = stripe_customer_id
-        elif stripe_subscription_id:
-            if "tenant_a" in stripe_subscription_id:
-                tenant_id = "tenant_a"
-            elif "tenant_b" in stripe_subscription_id:
-                tenant_id = "tenant_b"
-            else:
-                tenant_id = stripe_subscription_id
-        else:
-            tenant_id = "default_tenant"
-            
+    known_event_types = {
+        "customer.subscription.created",
+        "customer.subscription.deleted",
+        "customer.subscription.updated",
+        "invoice.payment_failed",
+    }
+    tenant_id = _resolve_stripe_tenant(status_mgr, event_type, data_obj)
+    if event_type in known_event_types and not tenant_id:
+        raise HTTPException(status_code=400, detail="Stripe event tenant binding is required")
+    tenant_id = tenant_id or "admin_tenant"
+    payload_hash = hashlib.sha256(body_bytes).hexdigest()
+    existing_event = ledger.get_stripe_webhook_event(event["id"])
+    if existing_event:
+        if existing_event[0] != payload_hash or existing_event[1] != tenant_id:
+            raise HTTPException(status_code=409, detail="Stripe event id was already used")
+        return {"status": "duplicate", "event": event_type}
+    if not ledger.claim_stripe_webhook_event(event["id"], payload_hash, tenant_id):
+        return {"status": "duplicate", "event": event_type}
+
+    from agent_workspace.core.audit_ledger import AuditLedger
+    audit = AuditLedger(get_workspace())
+    audit.record_event("system_call", {
+        "event": "stripe_webhook",
+        "stripe_event_id": event["id"],
+        "stripe_event_type": event_type,
+        "tenant_id": tenant_id,
+    }, tenant_id="admin_tenant")
+
+    stripe_customer_id = data_obj.get("customer")
+    stripe_subscription_id = data_obj.get("id") if event_type.startswith("customer.subscription.") else data_obj.get("subscription")
     if event_type == "customer.subscription.created":
         status_mgr.update_tenant_status(
             tenant_id=tenant_id,

@@ -43,7 +43,8 @@ class FinancialLedger:
                         cost REAL NOT NULL,
                         timestamp TEXT NOT NULL,
                         tenant_id TEXT DEFAULT 'default_tenant',
-                        markup_multiplier REAL DEFAULT 1.5
+                        markup_multiplier REAL DEFAULT 1.5,
+                        idempotency_key TEXT
                     )
                     """
                 )
@@ -76,6 +77,7 @@ class FinancialLedger:
                     )
                     """
                 )
+                conn.execute("CREATE TABLE IF NOT EXISTS stripe_webhook_events (event_id TEXT PRIMARY KEY, payload_hash TEXT NOT NULL, tenant_id TEXT NOT NULL, received_at TEXT NOT NULL)")
                 conn.commit()
                 # Run dynamic migration check for existing tables without tenant_id/markup_multiplier column
                 try:
@@ -89,6 +91,54 @@ class FinancialLedger:
                     conn.commit()
                 except sqlite3.OperationalError:
                     pass
+                try:
+                    conn.execute("ALTER TABLE financial_ledger ADD COLUMN idempotency_key TEXT")
+                    conn.commit()
+                except sqlite3.OperationalError:
+                    pass
+                conn.execute(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS idx_financial_ledger_idempotency "
+                    "ON financial_ledger (tenant_id, idempotency_key) "
+                    "WHERE idempotency_key IS NOT NULL"
+                )
+                conn.commit()
+            finally:
+                conn.close()
+
+    def get_stripe_webhook_event(self, event_id: str) -> tuple[str, str] | None:
+        with self._lock:
+            conn = self._get_conn()
+            try:
+                row = conn.execute(
+                    "SELECT payload_hash, tenant_id FROM stripe_webhook_events WHERE event_id = ?",
+                    (event_id,),
+                ).fetchone()
+                if row is None:
+                    return None
+                return str(row["payload_hash"]), str(row["tenant_id"])
+            finally:
+                conn.close()
+
+    def claim_stripe_webhook_event(
+        self,
+        event_id: str,
+        payload_hash: str,
+        tenant_id: str,
+    ) -> bool:
+        received_at = datetime.now(timezone.utc).isoformat()
+        with self._lock:
+            conn = self._get_conn()
+            try:
+                cursor = conn.execute(
+                    """
+                    INSERT OR IGNORE INTO stripe_webhook_events
+                        (event_id, payload_hash, tenant_id, received_at)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (event_id, payload_hash, tenant_id, received_at),
+                )
+                conn.commit()
+                return cursor.rowcount == 1
             finally:
                 conn.close()
 
@@ -116,7 +166,8 @@ class FinancialLedger:
         prompt_tokens: int,
         completion_tokens: int,
         tenant_id: str = "default_tenant",
-        markup_multiplier: float | None = None
+        markup_multiplier: float | None = None,
+        idempotency_key: str | None = None,
     ) -> float:
         """Records a token usage transaction to the financial ledger SQLite database."""
         total_tokens = prompt_tokens + completion_tokens
@@ -126,13 +177,20 @@ class FinancialLedger:
         with self._lock:
             conn = self._get_conn()
             try:
+                if idempotency_key:
+                    existing = conn.execute(
+                        "SELECT cost FROM financial_ledger WHERE tenant_id = ? AND idempotency_key = ?",
+                        (tenant_id, idempotency_key),
+                    ).fetchone()
+                    if existing is not None:
+                        return float(existing[0])
                 conn.execute(
                     """
                     INSERT INTO financial_ledger (
-                        session_id, account_id, provider, model, prompt_tokens, completion_tokens, total_tokens, cost, timestamp, tenant_id, markup_multiplier
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        session_id, account_id, provider, model, prompt_tokens, completion_tokens, total_tokens, cost, timestamp, tenant_id, markup_multiplier, idempotency_key
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
-                    (session_id, account_id, provider, model, prompt_tokens, completion_tokens, total_tokens, cost, now, tenant_id, markup_multiplier)
+                    (session_id, account_id, provider, model, prompt_tokens, completion_tokens, total_tokens, cost, now, tenant_id, markup_multiplier, idempotency_key)
                 )
                 
                 # Ensure tenant credit entry exists, then deduct cost
@@ -167,6 +225,18 @@ class FinancialLedger:
             logger.warning(f"Failed to record Prometheus tenant token metric: {e}")
 
         return cost
+
+    def has_idempotency_key(self, tenant_id: str, idempotency_key: str) -> bool:
+        with self._lock:
+            conn = self._get_conn()
+            try:
+                row = conn.execute(
+                    "SELECT 1 FROM financial_ledger WHERE tenant_id = ? AND idempotency_key = ? LIMIT 1",
+                    (tenant_id, idempotency_key),
+                ).fetchone()
+            finally:
+                conn.close()
+        return row is not None
 
     def get_total_cost(self, filter_id: str | None = None, tenant_id: str = "default_tenant") -> float:
         """Calculates total cost across all sessions or filtered by session/account, isolated by tenant."""

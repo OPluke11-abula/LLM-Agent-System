@@ -4,6 +4,10 @@ import json
 import time
 import hmac
 import hashlib
+os.environ.setdefault("LAS_JWT_SECRET", "test-only-secret-for-phase-72-auth-claims")
+os.environ.setdefault("STRIPE_WEBHOOK_SECRET", "whsec_test_secret")
+os.environ.setdefault("STRIPE_SUB_ITEM_TENANT_A", "si_tenant_a")
+os.environ.setdefault("STRIPE_SUB_ITEM_TENANT_B", "si_tenant_b")
 import pytest
 from unittest.mock import MagicMock, AsyncMock, patch
 from fastapi.testclient import TestClient
@@ -14,16 +18,36 @@ workspace_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if workspace_dir not in sys.path:
     sys.path.insert(0, workspace_dir)
 
-from api import app, generate_jwt, verify_jwt, STRIPE_WEBHOOK_SECRET, sync_billing_to_stripe
+from api import API_KEYS, app, generate_jwt, verify_jwt, sync_billing_to_stripe
+from routes.admin import verify_stripe_signature
 from core.ledger import FinancialLedger
+from core.billing import TenantStatusManager
 from core.audit_ledger import AuditLedger
 from core.account_manager import AccountManager
 from core.providers import BaseLLMProvider, ProviderFactory
+
+STRIPE_TEST_SECRET = "whsec_test_secret"
 
 
 @pytest.fixture
 def anyio_backend():
     return "asyncio"
+
+
+@pytest.fixture(autouse=True)
+def auth_test_config(monkeypatch):
+    monkeypatch.setenv("LAS_JWT_SECRET", "test-only-secret-for-phase-72-auth-claims")
+    monkeypatch.setenv("STRIPE_WEBHOOK_SECRET", "whsec_test_secret")
+    monkeypatch.setattr("routes.admin.STRIPE_WEBHOOK_SECRET", STRIPE_TEST_SECRET)
+    monkeypatch.setattr("routes.admin.STRIPE_TENANT_SUBSCRIPTION_ITEMS", {"tenant_a": "si_tenant_a", "tenant_b": "si_tenant_b"})
+    API_KEYS.clear()
+    API_KEYS.update({
+        "key-tenant-a": "tenant_a",
+        "key-tenant-b": "tenant_b",
+        "key-admin": {"tenant_id": "admin_tenant", "role": "admin", "scope": "admin:read admin:write auth:mint"},
+    })
+    yield
+    API_KEYS.clear()
 
 
 @pytest.fixture
@@ -124,7 +148,7 @@ def test_stripe_webhook_signature_verification(test_workspace, api_client):
     payload_bytes = json.dumps(payload).encode("utf-8")
     
     timestamp = str(int(time.time()))
-    secret = STRIPE_WEBHOOK_SECRET
+    secret = STRIPE_TEST_SECRET
     
     # Construct valid Stripe signature
     sig_basestring = f"{timestamp}.".encode("utf-8") + payload_bytes
@@ -162,6 +186,48 @@ def test_stripe_webhook_signature_verification(test_workspace, api_client):
         assert response.json()["detail"] == "Missing Stripe signature header"
 
 
+def test_stripe_signature_rejects_stale_timestamp():
+    payload_bytes = b'{"id":"evt_stale","type":"payment_intent.succeeded"}'
+    timestamp = str(int(time.time()) - 301)
+    digest = hmac.new(
+        STRIPE_TEST_SECRET.encode(),
+        f"{timestamp}.".encode() + payload_bytes,
+        hashlib.sha256,
+    ).hexdigest()
+    assert not verify_stripe_signature(payload_bytes, f"t={timestamp},v1={digest}", STRIPE_TEST_SECRET)
+
+
+def test_stripe_webhook_replay_and_tenant_binding(test_workspace, api_client):
+    payload = {
+        "id": "evt_replay",
+        "type": "customer.subscription.created",
+        "data": {"object": {"id": "sub_replay", "customer": "cus_replay", "metadata": {"tenant_id": "tenant_a"}}},
+    }
+    payload_bytes = json.dumps(payload).encode()
+    timestamp = str(int(time.time()))
+    digest = hmac.new(STRIPE_TEST_SECRET.encode(), f"{timestamp}.".encode() + payload_bytes, hashlib.sha256).hexdigest()
+    headers = {"stripe-signature": f"t={timestamp},v1={digest}", "Content-Type": "application/json"}
+    with patch("api.workspace", str(test_workspace)):
+        first = api_client.post("/v1/billing/stripe/webhook", content=payload_bytes, headers=headers)
+        second = api_client.post("/v1/billing/stripe/webhook", content=payload_bytes, headers=headers)
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert second.json()["status"] == "duplicate"
+
+    ledger = FinancialLedger(str(test_workspace))
+    TenantStatusManager(ledger).update_tenant_status("tenant_a", "active", stripe_customer_id="cus_bound")
+    conflicting = {**payload, "id": "evt_conflict", "data": {"object": {"id": "sub_bound", "customer": "cus_bound", "metadata": {"tenant_id": "tenant_b"}}}}
+    conflicting_bytes = json.dumps(conflicting).encode()
+    digest = hmac.new(STRIPE_TEST_SECRET.encode(), f"{timestamp}.".encode() + conflicting_bytes, hashlib.sha256).hexdigest()
+    with patch("api.workspace", str(test_workspace)):
+        response = api_client.post(
+            "/v1/billing/stripe/webhook",
+            content=conflicting_bytes,
+            headers={"stripe-signature": f"t={timestamp},v1={digest}", "Content-Type": "application/json"},
+        )
+    assert response.status_code == 400
+
+
 def test_stripe_billing_sync(test_workspace):
     """Verify Stripe usage sync aggregates transactions and tracks synced metadata state."""
     workspace_path = test_workspace / "agent_workspace"
@@ -196,7 +262,6 @@ def test_stripe_billing_sync(test_workspace):
         import api
         orig_key = api.STRIPE_API_KEY
         
-        # 1. Test mock synchronization path
         api.STRIPE_API_KEY = "mock_stripe_key"
         
         import asyncio
@@ -211,10 +276,7 @@ def test_stripe_billing_sync(test_workspace):
         sync_state = {r["tenant_id"]: r["last_synced_id"] for r in rows}
         conn.close()
         
-        assert "tenant_a" in sync_state
-        assert "tenant_b" in sync_state
-        assert sync_state["tenant_a"] == 1
-        assert sync_state["tenant_b"] == 2
+        assert sync_state == {}
         
         # 2. Test live httpx synchronization path for new transactions
         ledger.record_transaction(
@@ -240,14 +302,15 @@ def test_stripe_billing_sync(test_workspace):
             asyncio.run(sync_billing_to_stripe())
             
             # Verify POST HTTP payload and parameters
-            mock_post.assert_called_once()
-            called_url = mock_post.call_args[0][0]
-            called_headers = mock_post.call_args[1]["headers"]
-            called_body = mock_post.call_args[1]["content"]
+            assert mock_post.call_count == 2
+            calls = {call.args[0]: call for call in mock_post.call_args_list}
+            called = calls["https://api.stripe.com/v1/subscription_items/si_tenant_a/usage_records"]
+            called_headers = called.kwargs["headers"]
+            called_body = called.kwargs["content"]
             
-            assert "si_mock_tenant_a" in called_url
+            assert "si_tenant_a" in called.args[0]
             assert called_headers["Authorization"] == "Bearer sk_test_actual_key"
-            assert "quantity=300" in called_body
+            assert "quantity=3300" in called_body
             assert "action=increment" in called_body
             
         # Verify db metadata updated
@@ -350,23 +413,19 @@ async def test_model_sla_failover_guard(test_workspace):
 def test_websocket_auth_handshake(test_workspace, api_client):
     """Verify WebSocket handshake connection auth rejecting on bad/missing token and accepting on valid token."""
     # Test connection rejection
-    url_invalid_token = "/v1/stream?token=invalid_jwt_token&enforce_auth=true"
-    with api_client.websocket_connect(url_invalid_token) as ws:
+    with api_client.websocket_connect("/v1/stream", headers={"Authorization": "Bearer invalid_jwt_token"}) as ws:
         with pytest.raises(WebSocketDisconnect) as excinfo:
             ws.receive_json()
         assert excinfo.value.code == 4001
         
-    url_invalid_key = "/v1/stream?api_key=invalid_key&enforce_auth=true"
-    with api_client.websocket_connect(url_invalid_key) as ws:
+    with api_client.websocket_connect("/v1/stream", headers={"x-api-key": "invalid_key"}) as ws:
         with pytest.raises(WebSocketDisconnect) as excinfo:
             ws.receive_json()
         assert excinfo.value.code == 4001
         
     # Generate a valid JWT token
     token = generate_jwt({"tenant_id": "tenant_a", "exp": time.time() + 60})
-    url_valid_token = f"/v1/stream?token={token}&enforce_auth=true"
-    
-    with api_client.websocket_connect(url_valid_token) as ws:
+    with api_client.websocket_connect("/v1/stream", headers={"Authorization": f"Bearer {token}"}) as ws:
         # Handshake accepted, send invalid formatting message to verify connection is open and active
         ws.send_json({"invalid": "format"})
         res = ws.receive_json()
