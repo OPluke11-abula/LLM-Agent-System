@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import tempfile
 import time
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -122,7 +123,83 @@ class WorkflowEngine:
         if missing:
             raise ValueError(f"Workflow '{workflow_id}' is missing required fields: {missing}")
 
+        self._validate_step_graph(workflow_def)
+
         return workflow_def
+
+    @staticmethod
+    def _validate_step_graph(workflow_def: dict[str, Any]) -> None:
+        steps = workflow_def.get("steps")
+        if not isinstance(steps, list):
+            raise ValueError("Workflow steps must be a list")
+
+        step_ids = [step.get("step_id") for step in steps if isinstance(step, dict)]
+        if any(not step_id for step_id in step_ids):
+            raise ValueError("Workflow steps must define a non-empty step_id")
+        if len(set(step_ids)) != len(step_ids):
+            raise ValueError("Workflow contains duplicate step_id values")
+        known = set(step_ids)
+
+        dependencies: dict[str, list[str]] = {}
+        for index, step in enumerate(steps):
+            if not isinstance(step, dict):
+                raise ValueError("Workflow steps must be mappings")
+            raw_deps = step.get("dependencies", step.get("depends_on"))
+            if raw_deps is None:
+                deps = [] if index == 0 else [steps[index - 1]["step_id"]]
+            elif isinstance(raw_deps, str):
+                deps = [raw_deps]
+            elif isinstance(raw_deps, list):
+                deps = raw_deps
+            else:
+                raise ValueError(f"Step {step['step_id']} dependencies must be a list or string")
+            if any(dep not in known for dep in deps):
+                missing = next(dep for dep in deps if dep not in known)
+                raise ValueError(f"Step {step['step_id']} has unknown dependency: {missing}")
+            dependencies[step["step_id"]] = deps
+
+            for field_name in ("next_step", "fallback_step"):
+                target = step.get(field_name)
+                if isinstance(target, str) and "{{" not in target and target not in known:
+                    raise ValueError(f"Step {step['step_id']} references unknown {field_name}: {target}")
+
+        visiting: set[str] = set()
+        visited: set[str] = set()
+
+        def visit(step_id: str) -> None:
+            if step_id in visiting:
+                raise ValueError(f"Workflow dependency cycle detected at step: {step_id}")
+            if step_id in visited:
+                return
+            visiting.add(step_id)
+            for dependency in dependencies[step_id]:
+                visit(dependency)
+            visiting.remove(step_id)
+            visited.add(step_id)
+
+        for step_id in dependencies:
+            visit(step_id)
+
+        next_edges = {
+            step["step_id"]: step["next_step"]
+            for step in steps
+            if isinstance(step.get("next_step"), str) and "{{" not in step["next_step"]
+        }
+        visiting.clear()
+        visited.clear()
+
+        def visit_next(step_id: str) -> None:
+            if step_id in visiting:
+                raise ValueError(f"Workflow next_step cycle detected at step: {step_id}")
+            if step_id in visited or step_id not in next_edges:
+                return
+            visiting.add(step_id)
+            visit_next(next_edges[step_id])
+            visiting.remove(step_id)
+            visited.add(step_id)
+
+        for step_id in next_edges:
+            visit_next(step_id)
 
     def save_state(self, state: WorkflowRunState) -> None:
         """Serialize and persist the workflow run state to disk."""
@@ -142,7 +219,26 @@ class WorkflowEngine:
                 step_id: asdict(step) for step_id, step in state.steps.items()
             }
         }
-        run_file.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        serialized = json.dumps(data, ensure_ascii=False, indent=2)
+        run_file.parent.mkdir(parents=True, exist_ok=True)
+        temporary_path: str | None = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="w", encoding="utf-8", dir=run_file.parent,
+                prefix=f".{run_file.name}.", suffix=".tmp", delete=False
+            ) as temporary:
+                temporary.write(serialized)
+                temporary.flush()
+                os.fsync(temporary.fileno())
+                temporary_path = temporary.name
+            os.replace(temporary_path, run_file)
+            temporary_path = None
+        finally:
+            if temporary_path:
+                try:
+                    os.unlink(temporary_path)
+                except FileNotFoundError:
+                    pass
 
     def load_state(self, session_id: str) -> WorkflowRunState | None:
         """Load and deserialize a workflow run state if it exists."""
@@ -152,15 +248,28 @@ class WorkflowEngine:
 
         try:
             data = json.loads(run_file.read_text(encoding="utf-8"))
+            if not isinstance(data, dict):
+                raise ValueError("checkpoint root must be an object")
+            required = {"workflow_id", "session_id", "status", "current_step_id", "created_at", "updated_at", "steps"}
+            missing = sorted(required - data.keys())
+            if missing:
+                raise ValueError(f"checkpoint missing fields: {missing}")
+            if data["session_id"] != session_id:
+                raise ValueError("checkpoint session_id does not match requested session")
+            if not isinstance(data["steps"], dict):
+                raise ValueError("checkpoint steps must be an object")
+
             steps = {}
-            for step_id, step_data in data.get("steps", {}).items():
+            for step_id, step_data in data["steps"].items():
+                if not isinstance(step_data, dict) or step_data.get("step_id") != step_id:
+                    raise ValueError(f"checkpoint step key mismatch: {step_id}")
                 steps[step_id] = StepState(
                     step_id=step_data["step_id"],
                     status=step_data["status"],
-                    output=step_data["output"],
-                    error=step_data["error"],
-                    started_at=step_data["started_at"],
-                    completed_at=step_data["completed_at"],
+                    output=step_data.get("output"),
+                    error=step_data.get("error"),
+                    started_at=step_data.get("started_at"),
+                    completed_at=step_data.get("completed_at"),
                 )
             return WorkflowRunState(
                 workflow_id=data["workflow_id"],
@@ -172,9 +281,8 @@ class WorkflowEngine:
                 payload=data.get("payload", {}),
                 steps=steps,
             )
-        except Exception as e:
-            logger.warning("Failed to deserialize workflow run state for session %s: %s", session_id, e)
-            return None
+        except (OSError, json.JSONDecodeError, TypeError, KeyError, ValueError) as error:
+            raise ValueError(f"Invalid workflow checkpoint for session {session_id}: {error}") from error
 
     def _resolve_placeholder(self, value: Any, context: dict[str, Any]) -> Any:
         """Evaluate parameter value dynamically using step outputs context."""
@@ -445,6 +553,11 @@ class WorkflowEngine:
         state = self.load_state(session_id)
         is_resume = False
 
+        if state and state.workflow_id != workflow_id:
+            raise ValueError(
+                f"Workflow checkpoint belongs to '{state.workflow_id}', not '{workflow_id}'"
+            )
+
         if resume and state and state.workflow_id == workflow_id and state.status == "failed":
             is_resume = True
             logger.info("Resuming workflow '%s' for session '%s' from checkpoint", workflow_id, session_id)
@@ -493,7 +606,9 @@ class WorkflowEngine:
         step_dependencies = {}
         for idx, step in enumerate(workflow_def["steps"]):
             step_id = step["step_id"]
-            deps = step.get("dependencies") or step.get("depends_on")
+            deps = step.get("dependencies")
+            if deps is None:
+                deps = step.get("depends_on")
             if deps is not None:
                 explicit_dependency_steps.add(step_id)
             else:
@@ -515,6 +630,10 @@ class WorkflowEngine:
             active_steps = set()
             if workflow_def["steps"]:
                 active_steps.add(workflow_def["steps"][0]["step_id"])
+            active_steps.update(
+                step_id for step_id, deps in step_dependencies.items()
+                if not deps and step_id in state.steps
+            )
             
             for sid, sstate in state.steps.items():
                 if sstate.status in ["success", "skipped", "failed"]:
@@ -531,9 +650,15 @@ class WorkflowEngine:
                     
                     if sstate.status in ["success", "skipped"]:
                         next_id = self._get_next_step_id(sdef, context)
-                        if next_id and next_id not in active_steps:
-                            active_steps.add(next_id)
-                            changed = True
+                        if next_id:
+                            if next_id == sid:
+                                state.status = "failed"
+                                state.current_step_id = next_id
+                                self.save_state(state)
+                                raise RuntimeError(f"Workflow cycle detected through step: {next_id}")
+                            if next_id not in active_steps:
+                                active_steps.add(next_id)
+                                changed = True
                         for cid, deps in step_dependencies.items():
                             if cid in explicit_dependency_steps and sid in deps and cid not in active_steps:
                                 active_steps.add(cid)
@@ -599,7 +724,12 @@ class WorkflowEngine:
                 running_steps = [s for s in all_steps_in_active if s.status == "running"]
                 if not running_steps:
                     logger.warning("Deadlock or unreached steps detected in workflow DAG.")
-                    break
+                    blocked = [s.step_id for s in all_steps_in_active if s.status == "pending"]
+                    state.status = "failed"
+                    state.current_step_id = blocked[0] if blocked else None
+                    self.save_state(state)
+                    detail = ", ".join(blocked) or "no runnable steps"
+                    raise RuntimeError(f"Workflow deadlock: pending steps are blocked ({detail})")
                 else:
                     await asyncio.sleep(0.1)
                     continue

@@ -92,6 +92,24 @@ def _validate_stage_graph(stages: list[dict[str, Any]]) -> set[str]:
                 raise WorkflowLintError(f"stage {stage['id']} has unknown dependency: {dependency}")
             if dependency == stage["id"]:
                 raise WorkflowLintError(f"stage {stage['id']} cannot depend on itself")
+
+    dependencies = {stage["id"]: set(stage.get("requires", [])) for stage in stages}
+    visiting: set[str] = set()
+    visited: set[str] = set()
+
+    def visit(stage_id: str) -> None:
+        if stage_id in visiting:
+            raise WorkflowLintError(f"stage dependency cycle detected at: {stage_id}")
+        if stage_id in visited:
+            return
+        visiting.add(stage_id)
+        for dependency in dependencies[stage_id]:
+            visit(dependency)
+        visiting.remove(stage_id)
+        visited.add(stage_id)
+
+    for stage_id in dependencies:
+        visit(stage_id)
     return stage_ids
 
 

@@ -341,3 +341,55 @@ steps:
     
     assert results["step_2"]["result"] == 5.0
     assert results["step_3"]["result"] == 50.0
+
+
+def test_workflow_engine_rejects_dependency_cycle(mock_workflow_env):
+    temp_path = Path(mock_workflow_env)
+    workflow_file = temp_path / ".agent" / "workflows" / "cycle.md"
+    workflow_file.write_text(
+        "---\n"
+        "id: cycle\nname: Cycle\ndescription: cycle\nversion: 1.0.0\n"
+        "steps:\n  - step_id: first\n    skill_id: mock_add\n    dependencies: [second]\n"
+        "  - step_id: second\n    skill_id: mock_add\n    dependencies: [first]\n---\n",
+        encoding="utf-8",
+    )
+    engine = WorkflowEngine(AgentEngine(workspace_path=workspace_dir))
+    engine.workflows_dir = temp_path / ".agent" / "workflows"
+    engine.runs_dir = engine.workflows_dir / "runs"
+    with pytest.raises(ValueError, match="dependency cycle"):
+        engine.load_workflow("cycle")
+
+
+@pytest.mark.asyncio
+async def test_workflow_engine_fails_dynamic_cycle(mock_workflow_env):
+    temp_path = Path(mock_workflow_env)
+    workflow_file = temp_path / ".agent" / "workflows" / "dynamic-cycle.md"
+    workflow_file.write_text(
+        "---\n"
+        "id: dynamic-cycle\nname: Dynamic Cycle\ndescription: cycle\nversion: 1.0.0\n"
+        "steps:\n  - step_id: first\n    skill_id: mock_add\n    params: {a: 1, b: 1}\n"
+        "    next_step: \"{{ 'first' }}\"\n---\n",
+        encoding="utf-8",
+    )
+    real_engine = AgentEngine(workspace_path=workspace_dir)
+    register_mock_tools(real_engine)
+    engine = WorkflowEngine(real_engine)
+    engine.workflows_dir = temp_path / ".agent" / "workflows"
+    engine.runs_dir = engine.workflows_dir / "runs"
+    with pytest.raises(RuntimeError, match="cycle"):
+        await engine.execute("dynamic-cycle", "session-dynamic-cycle")
+    state = engine.load_state("session-dynamic-cycle")
+    assert state is not None
+    assert state.status == "failed"
+
+
+def test_workflow_engine_rejects_corrupt_checkpoint(mock_workflow_env):
+    temp_path = Path(mock_workflow_env)
+    runs_dir = temp_path / ".agent" / "workflows" / "runs"
+    runs_dir.mkdir(parents=True, exist_ok=True)
+    (runs_dir / "corrupt.json").write_text("{not-json", encoding="utf-8")
+    engine = WorkflowEngine(AgentEngine(workspace_path=workspace_dir))
+    engine.workflows_dir = temp_path / ".agent" / "workflows"
+    engine.runs_dir = runs_dir
+    with pytest.raises(ValueError, match="Invalid workflow checkpoint"):
+        engine.load_state("corrupt")
