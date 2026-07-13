@@ -22,10 +22,13 @@
 | 69 | 8 | 8 | 100% Done | Local knowledge base and agent memory OS complete |
 | 70 | 8 | 8 | 100% Done | Token-efficient advisory rollout complete |
 | 71 | 8 | 8 | 100% Done | Professional design-agent pipeline complete |
+| 72 | 9 | 0 | In Progress | Execute 72-01 auth/JWT/secrets hardening |
 
 Execution order:
 
-1. No implementation phase remains queued; await explicit user direction.
+1. Execute Phase 72 in dependency order, beginning with `72-01`.
+2. Keep P0 security boundaries (`72-01` to `72-03`) ahead of runtime,
+   infrastructure, CI, documentation, and release work.
 
 ## Completed Phase Rollup
 
@@ -402,6 +405,150 @@ from art direction through independent review and viewer integration.
   populated finding/evidence/debt metrics, evidence references, and the next
   design-specific task. Desktop, tablet, English mobile, Chinese mobile, and
   Japanese mobile evidence passed two independent design-review lanes.
+
+## Phase 72 - Production Readiness, Security, and Release Evidence
+
+Status: `[ ]` 0/9 complete. Execute in order. Use failing-first regression
+tests for security, concurrency, persistence, and accounting changes. Preserve
+local-first operation and public APIs where doing so does not retain insecure
+behavior.
+
+Owner-decision boundaries: do not change Elastic License 2.0, require a new
+managed/distributed backend, enroll signing credentials, publish a release, or
+claim signed artifacts without explicit owner approval. Interfaces, adapters,
+checksums, SBOMs, and unsigned-artifact documentation may proceed.
+
+### 72-01 Authentication, JWT, and Secret Boundaries
+- [ ] **[Security/Backend Programmer]** Require authenticated credentials before
+  issuing tenant JWTs; fail closed when production JWT/admin secrets are absent;
+  authorize admin operations through verified roles/scopes; remove test-runtime
+  authentication bypasses; and prevent API keys or reusable secrets from being
+  returned by tenant/admin responses.
+- Primary files: `agent_workspace/routes/admin.py`,
+  `agent_workspace/routes/dependencies.py`,
+  `agent_workspace/tests/test_admin_console.py`,
+  `agent_workspace/tests/test_tenant_channels.py`, and
+  `agent_workspace/tests/test_rbac.py`.
+- Required evidence: forged, expired, wrong-signature, missing-secret,
+  non-admin, cross-tenant, and secret-redaction failures plus a valid-admin path;
+  focused pytest and live `/v1/auth/token` and `/v1/admin/tenants` QA.
+
+### 72-02 WebSocket Authentication and Tenant Quotas
+- [ ] **[Security/Transport Programmer]** Authenticate WebSocket handshakes
+  without query-string bearer/API credentials, bind sessions to verified tenant
+  identity, key REST/WebSocket quotas by tenant rather than attacker-controlled
+  IP/session input, and fail closed when protected quota state cannot be read.
+- Primary files: `agent_workspace/api.py`, `agent_workspace/routes/chat.py`,
+  `agent_workspace/routes/dependencies.py`, `agent_workspace/core/billing.py`,
+  `agent_workspace/tests/test_api.py`,
+  `agent_workspace/tests/test_subscription_lifecycle.py`, and
+  `agent_workspace/tests/test_tenant_channels.py`.
+- Required evidence: shared-IP isolation, multi-IP evasion rejection,
+  forged-session rejection, stable inactive/over-quota close codes, focused
+  pytest, and live authenticated WebSocket QA.
+
+### 72-03 Sandbox and Generated-Skill Isolation
+- [ ] **[Security/Runtime Programmer]** Route generated-skill validation and
+  execution through fail-closed isolation, reject traversal/absolute names,
+  prevent generated code from loading into the controller before isolation
+  succeeds, enforce resource/network/write limits, and clean rejected or timed-
+  out artifacts.
+- Primary files: `agent_workspace/core/engine.py`,
+  `agent_workspace/core/sandbox.py`,
+  `agent_workspace/tests/test_code_generation.py`,
+  `agent_workspace/tests/test_sandbox.py`,
+  `agent_workspace/tests/test_sandbox_defense.py`, and
+  `agent_workspace/tests/test_sandbox_audit.py`.
+- Required evidence: sandbox escape, traversal, reflection, network, subprocess,
+  environment, resource-exhaustion, unavailable-backend, cleanup, and safe-skill
+  cases; focused pytest and temporary-workspace runtime QA.
+
+### 72-04 Workflow Checkpoints, Retries, and Truthful Completion
+- [ ] **[Workflow/Backend Programmer]** Make deadlocked, cyclic, unreachable, or
+  dependency-blocked workflows fail instead of later reporting success; persist
+  checkpoints atomically; reject corrupt, mismatched, or escaping state; and
+  bound retries/healing while preserving resumable failure.
+- Primary files: `agent_workspace/core/workflow_engine.py`,
+  `agent_workspace/workflow_lint.py`,
+  `agent_workspace/tests/test_workflow_engine.py`, and
+  `agent_workspace/tests/test_workflow_lint.py`.
+- Required evidence: cycle, orphan dependency, fallback, concurrent failure,
+  interruption, corrupt checkpoint, bounded retry, and resume tests plus CLI
+  workflow success/deadlock/resume QA.
+
+### 72-05 Provider Streaming Lifecycle and Accounting
+- [ ] **[Provider/Backend Programmer]** Bound provider streams by timeout and
+  cancellation, close upstream work on disconnect, record terminal/partial usage
+  exactly once, allow only bounded transient failover, and prevent auth, quota,
+  subscription, cancellation, or offline failures from triggering failover or
+  double charging.
+- Primary files: `agent_workspace/core/providers.py`,
+  `agent_workspace/core/account_manager.py`, `agent_workspace/core/ledger.py`,
+  `agent_workspace/tests/test_account_failover.py`,
+  `agent_workspace/tests/test_account_manager.py`,
+  `agent_workspace/tests/test_api.py`, and
+  `agent_workspace/tests/test_delegation_limits.py`.
+- Required evidence: completion, never-ending stream, disconnect, cancellation,
+  mid-stream error, allowed/prohibited failover, and ledger reconciliation cases
+  plus live `/v1/stream` QA.
+
+### 72-06 Memory Provenance, Cache, Offline Egress, and Cost
+- [ ] **[Memory/Security Programmer]** Treat retrieved memory as delimited,
+  bounded, provenance-bearing untrusted data; prevent it from becoming
+  governance/system instructions; scope caches by provider/model/mode; enforce
+  strict offline/local zero-egress behavior including fallbacks; and report
+  embedding/provider cost and fallback evidence truthfully.
+- Primary files: `agent_workspace/core/prompt_composer.py`,
+  `agent_workspace/core/embeddings.py`, `agent_workspace/long_term_memory.py`,
+  `agent_workspace/tests/test_prompt_composer.py`,
+  `agent_workspace/tests/test_vector_memory.py`, and
+  `agent_workspace/tests/test_memory_backend.py`.
+- Required evidence: instruction-like memory, oversized/control-character data,
+  provenance, cross-mode cache isolation, hosted-egress denial, local fallback,
+  and cost-reporting tests plus seeded-memory offline QA.
+
+### 72-07 Stripe Replay and Tenant Binding
+- [ ] **[Billing/Security Programmer]** Verify Stripe webhook authenticity before
+  processing, bind customer/subscription events to the expected tenant, persist
+  replay/idempotency state before side effects, reject stale or cross-tenant
+  events, and make duplicate/out-of-order delivery deterministic without real
+  Stripe calls in tests.
+- Primary files: `agent_workspace/routes/admin.py`,
+  `agent_workspace/core/billing.py`, `agent_workspace/core/ledger.py`,
+  `agent_workspace/tests/test_saas_integration.py`,
+  and `agent_workspace/tests/test_subscription_lifecycle.py`.
+- Required evidence: valid/invalid signature, duplicate, out-of-order, stale,
+  tenant mismatch, partial persistence, and replay-after-restart tests plus local
+  webhook QA with synthetic fixtures.
+
+### 72-08 Required CI, Coverage, Locks, Audits, and SBOM
+- [ ] **[QA/DevOps]** Add blocking CI for Python tests/PAP contracts and viewer
+  builds, keep React Doctor advisory, enforce approved coverage, add reproducible
+  dependency lock/update policy, emit machine-readable dependency/license/
+  security audits, and generate an SBOM tied to the tested source revision.
+- Primary files: `.github/workflows/ci.yml`, `pyproject.toml`,
+  `requirements.txt`, `requirements-providers.txt`, lock artifacts,
+  `agent_workspace/tool_manifest.py`,
+  `agent_workspace/tests/test_license_audit.py`, and `scripts/verify.ps1`.
+- Required evidence: CI validation, clean locked install, audit tests, coverage,
+  PAP/tool-manifest checks, viewer build/UI checks, SBOM validation, and no
+  secret-bearing artifact. License-policy changes remain owner-advisory.
+
+### 72-09 README, Community, and Release Evidence
+- [ ] **[Release/Documentation QA]** Align README/contributor guidance with
+  verified security, offline, and backend behavior; document ELv2 without
+  relicensing; publish reproducible NSIS/checksum/SBOM and unsigned-artifact
+  verification instructions; update Phase 72 evidence; and run the full release
+  gate without deploying or publishing.
+- Primary files: `README.md`, `CONTRIBUTING.md`, `LICENSE` (read-only reference),
+  `releases/README.md`, `releases/SHA256SUMS`, `.agent/agent_tasks.md`, and the
+  approved release evidence report.
+- Required checks: strict UTF-8/documented-command exercise, `git diff --check`,
+  viewer build and screenshot QA, tool-manifest/PAP validation,
+  `scripts\verify.cmd`, installer/SBOM/checksum reconciliation, independent
+  plan/security/manual-QA/scope review, and a clean tracked worktree.
+- Signing remains unsigned/checksum-based until the owner selects a signing
+  method and provides external signing authority.
 
 ---
 
