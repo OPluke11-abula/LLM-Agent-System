@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 0
-      - uses: millionco/react-doctor@v2.3.1
+      - uses: millionco/react-doctor@938008119a288f2fb47c66a69cd9279a21f31784 # v2
         with:
           directory: viewer
           scope: full
