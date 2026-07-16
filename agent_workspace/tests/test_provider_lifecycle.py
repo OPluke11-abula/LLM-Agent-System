@@ -192,7 +192,7 @@ async def test_openai_client_is_reused_and_closed(monkeypatch: pytest.MonkeyPatc
             self.closed = True
 
     monkeypatch.setattr(httpx, "AsyncClient", FakeClient)
-    provider = OpenAIProvider(api_key="test-key", base_url="https://example.test/v1")
+    provider = OpenAIProvider(api_key="test-key", base_url="https://api.openai.com/v1")
 
     await provider.complete("system", [], [], {})
     await provider.complete("system", [], [], {})

@@ -5,6 +5,8 @@ import os
 import yaml
 from pydantic import BaseModel, Field
 
+from agent_workspace.core.security import validate_session_id
+
 logger = logging.getLogger(__name__)
 
 
@@ -106,8 +108,8 @@ def delegate_task(args: DelegateTaskArgs, context: dict) -> str:
     if not engine:
         return "Error: AgentEngine not found in context. Cannot delegate."
 
-    worker_name = args.worker_name
-    parent_session = context.get("session_id", "default")
+    worker_name = validate_session_id(args.worker_name)
+    parent_session = validate_session_id(context.get("session_id", "default"))
     parent_node_id = context.get("parent_node_id")
 
     node_id = f"node-{worker_name.lower()}-{uuid.uuid4()}"
@@ -146,7 +148,7 @@ def delegate_task(args: DelegateTaskArgs, context: dict) -> str:
 
     from core.router import AgentRouter
 
-    worker_session_id = f"{parent_session}:{worker_name}"
+    worker_session_id = validate_session_id(f"{parent_session}_{worker_name}")
     router = AgentRouter(engine, session_id=worker_session_id, agent_name=worker_name)
 
     try:

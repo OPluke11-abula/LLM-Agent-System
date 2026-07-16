@@ -18,7 +18,8 @@ from agent_workspace.routes.dependencies import (
     get_workspace,
     API_KEYS,
     verify_jwt,
-    generate_jwt
+    generate_jwt,
+    require_valid_session_id,
 )
 from agent_workspace.routes.schemas import AuthTokenRequest
 
@@ -446,6 +447,7 @@ async def admin_update_subscription(req: UpdateSubRequest, principal: dict[str, 
 @router.post("/v1/session/{session_id}/pause")
 async def pause_session_endpoint(session_id: str, principal: dict[str, Any] = Depends(require_admin_write_principal)):
     from agent_workspace.core.router import AgentRouter
+    session_id = require_valid_session_id(session_id)
     AgentRouter.pause_session(session_id)
     return {"status": "success", "session_id": session_id, "swarm_status": "paused"}
 
@@ -454,6 +456,7 @@ async def pause_session_endpoint(session_id: str, principal: dict[str, Any] = De
 @router.post("/v1/session/{session_id}/resume")
 async def resume_session_endpoint(session_id: str, principal: dict[str, Any] = Depends(require_admin_write_principal)):
     from agent_workspace.core.router import AgentRouter
+    session_id = require_valid_session_id(session_id)
     AgentRouter.resume_session(session_id)
     return {"status": "success", "session_id": session_id, "swarm_status": "running"}
 
@@ -462,6 +465,7 @@ async def resume_session_endpoint(session_id: str, principal: dict[str, Any] = D
 @router.post("/v1/session/{session_id}/hijack")
 async def hijack_session_endpoint(session_id: str, req: HijackRequest, principal: dict[str, Any] = Depends(require_admin_write_principal)):
     from agent_workspace.core.router import ACTIVE_APPROVALS
+    session_id = require_valid_session_id(session_id)
         
     approval_req = ACTIVE_APPROVALS.get(session_id)
     if not approval_req:

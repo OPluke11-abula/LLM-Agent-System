@@ -1,6 +1,7 @@
 import os
 import sys
 import asyncio
+import re
 import pytest
 from unittest.mock import MagicMock, patch
 
@@ -16,6 +17,29 @@ from agent_workspace.skills.tool_workspace import (
     workspace_cancel_task, CancelTaskArgs,
     WorkspaceManager
 )
+
+
+def test_delegate_task_uses_a_valid_child_session_id():
+    mock_engine = MagicMock()
+    mock_engine.workspace_path = "."
+    context = {"engine": mock_engine, "session_id": "parent_session"}
+    args = DelegateTaskArgs(
+        worker_name="researcher",
+        task_instructions="Inspect the task",
+        input_parameters={},
+        security_restrictions={},
+        mock_directives={"force_mock_response": "done"},
+        validation_assertions=[],
+    )
+
+    with patch("core.router.AgentRouter") as router_class, patch(
+        "agent_workspace.skills.delegate_task.load_worker_config",
+        return_value={"timeout": 1.0, "allowed_tools": []},
+    ):
+        delegate_task(args, context)
+
+    child_session_id = router_class.call_args.kwargs["session_id"]
+    assert re.fullmatch(r"[A-Za-z0-9_-]{1,128}", child_session_id)
 
 def test_delegate_task_timeout():
     # Setup mock engine

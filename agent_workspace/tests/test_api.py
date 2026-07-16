@@ -1,6 +1,7 @@
 import os
 import sys
 import pytest
+from urllib.parse import quote
 from unittest.mock import MagicMock, AsyncMock, patch
 from fastapi.testclient import TestClient
 
@@ -22,6 +23,13 @@ def anyio_backend():
 @pytest.fixture
 def api_client():
     return TestClient(app)
+
+
+def auth_headers(tenant_id="test_tenant"):
+    from api import generate_jwt
+
+    token = generate_jwt({"tenant_id": tenant_id, "role": "tenant"})
+    return {"Authorization": f"Bearer {token}"}
 
 
 def test_health_endpoint(api_client):
@@ -61,7 +69,7 @@ def test_config_endpoints(api_client, tmp_path):
     
     with patch("api.workspace", str(tmp_path)):
         # Test config GET
-        response = api_client.get("/v1/config")
+        response = api_client.get("/v1/config", headers=auth_headers())
         assert response.status_code == 200
         assert response.json()["provider"] == "google-genai"
         
@@ -69,9 +77,9 @@ def test_config_endpoints(api_client, tmp_path):
         update_payload = {
             "provider": "openai",
             "model": "gpt-4o",
-            "api_key": "sk-dummy"
+            "api_key": "account-key-fixture"
         }
-        put_response = api_client.put("/v1/config", json=update_payload)
+        put_response = api_client.put("/v1/config", json=update_payload, headers=auth_headers())
         assert put_response.status_code == 200
         assert put_response.json()["status"] == "success"
         
@@ -81,6 +89,46 @@ def test_config_endpoints(api_client, tmp_path):
         assert "gpt-4o" in updated_content
 
 
+@pytest.mark.parametrize(
+    "base_url",
+    [
+        "http://169.254.169.254/latest/meta-data",
+        "https://user:pass@api.openai.com/v1",
+        "https://attacker.example/v1",
+        "ftp://api.openai.com/v1",
+    ],
+)
+def test_config_rejects_unsafe_provider_urls_before_persisting(api_client, tmp_path, base_url):
+    config_path = tmp_path / "config.yaml"
+    original = "llm:\n  provider: openai\n  base_url: https://api.openai.com/v1\n"
+    config_path.write_text(original, encoding="utf-8")
+
+    with patch("api.workspace", str(tmp_path)):
+        response = api_client.put(
+            "/v1/config",
+            json={"provider": "openai", "base_url": base_url},
+            headers=auth_headers(),
+        )
+
+    assert response.status_code in {400, 404}
+    assert config_path.read_text(encoding="utf-8") == original
+
+
+def test_config_accepts_allowlisted_provider_url(api_client, tmp_path):
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text("llm:\n  provider: openai\n", encoding="utf-8")
+
+    with patch("api.workspace", str(tmp_path)):
+        response = api_client.put(
+            "/v1/config",
+            json={"provider": "openai", "base_url": "https://api.openai.com/v1"},
+            headers=auth_headers(),
+        )
+
+    assert response.status_code == 200
+    assert "https://api.openai.com/v1" in config_path.read_text(encoding="utf-8")
+
+
 def test_accounts_endpoints(api_client, tmp_path):
     """Verify account management operations."""
     accounts_json_path = tmp_path / "accounts.json"
@@ -88,7 +136,7 @@ def test_accounts_endpoints(api_client, tmp_path):
     
     with patch("api.workspace", str(tmp_path)):
         # List accounts
-        response = api_client.get("/v1/accounts")
+        response = api_client.get("/v1/accounts", headers=auth_headers())
         assert response.status_code == 200
         assert isinstance(response.json(), list)
         
@@ -101,9 +149,76 @@ def test_accounts_endpoints(api_client, tmp_path):
             "base_url": "",
             "is_active": True
         }
-        post_response = api_client.post("/v1/accounts", json=payload)
+        post_response = api_client.post("/v1/accounts", json=payload, headers=auth_headers())
         assert post_response.status_code == 200
         assert post_response.json()["status"] == "success"
+        assert "api_key" not in post_response.json()["account"]
+        assert post_response.json()["account"]["api_key_configured"] is True
+
+
+@pytest.mark.parametrize(
+    ("method", "path"),
+    [
+        ("get", "/v1/config"),
+        ("get", "/v1/accounts"),
+        ("get", "/v1/session/auth-required"),
+        ("get", "/v1/memory"),
+    ],
+)
+def test_protected_routes_require_authentication(api_client, method, path):
+    response = api_client.request(method, path)
+    assert response.status_code == 401
+
+
+def test_account_responses_never_expose_api_keys(api_client, tmp_path):
+    accounts_json_path = tmp_path / "accounts.json"
+    accounts_json_path.write_text(
+        '{"accounts": [{"id": "acc-1", "provider": "openai", "model": "gpt-4o", "api_key": "account-key-fixture", "is_active": true}], "active_account_id": "acc-1"}',
+        encoding="utf-8",
+    )
+
+    with patch("api.workspace", str(tmp_path)):
+        list_response = api_client.get("/v1/accounts", headers=auth_headers())
+        active_response = api_client.get("/v1/accounts/active", headers=auth_headers())
+
+    assert list_response.status_code == 200
+    assert active_response.status_code == 200
+    assert "api_key" not in list_response.json()[0]
+    assert "api_key" not in active_response.json()
+    assert list_response.json()[0]["api_key_configured"] is True
+    assert active_response.json()["api_key_configured"] is True
+
+
+def test_authenticated_valid_session_route_remains_functional(api_client, tmp_path):
+    with patch("api.workspace", str(tmp_path)):
+        response = api_client.get("/v1/session/session-01", headers=auth_headers())
+
+    assert response.status_code == 200
+    assert response.json()["session"] == "session-01"
+
+
+@pytest.mark.parametrize(
+    "session_id",
+    ["../escape", r"..\escape", "%2e%2e", "%2f", "%5c", "/etc/passwd", r"C:\temp"],
+)
+def test_session_endpoint_rejects_unsafe_ids(api_client, session_id):
+    response = api_client.get(
+        f"/v1/session/{quote(session_id, safe='')}", headers=auth_headers()
+    )
+
+    assert response.status_code in {400, 404}
+
+
+def test_task_submission_rejects_unsafe_session_before_execution(api_client):
+    with patch("agent_workspace.routes.chat.ensure_llm_configured") as ensure_configured:
+        response = api_client.post(
+            "/v1/task",
+            json={"session": "../escape", "msg": "should not run"},
+            headers=auth_headers(),
+        )
+
+    assert response.status_code == 400
+    ensure_configured.assert_not_called()
 
 
 @pytest.mark.anyio
@@ -221,7 +336,7 @@ def test_api_rate_limiting(api_client):
     from api import rate_limiter
     with patch.object(rate_limiter, "is_rate_limited", new_callable=AsyncMock) as mock_limit:
         mock_limit.return_value = True
-        response = api_client.post("/v1/chat", json={"msg": "Hello", "session": "s-test"})
+        response = api_client.post("/v1/chat", json={"msg": "Hello", "session": "s-test"}, headers=auth_headers())
         assert response.status_code == 429
         assert "Rate limit exceeded" in response.json()["detail"]
 
@@ -244,7 +359,7 @@ def test_api_token_budget_exceeded(api_client):
         mock_am.resolve_api_key.return_value = "dummy-key"
         mock_am_getter.return_value = mock_am
         
-        response = api_client.post("/v1/chat", json={"msg": "Hello", "session": "s-test"})
+        response = api_client.post("/v1/chat", json={"msg": "Hello", "session": "s-test"}, headers=auth_headers())
         assert response.status_code == 429
         assert "Token budget exceeded" in response.json()["detail"]
 

@@ -54,6 +54,14 @@ async def test_websocket_does_not_trust_forged_session_mapping(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_websocket_rejects_unsafe_session_id_before_authentication():
+    websocket = FakeWebSocket(headers={"authorization": "Bearer unused"})
+
+    assert await verify_websocket_tenant(websocket, "../escape") is None
+    websocket.close.assert_awaited_once_with(code=1008, reason="Invalid session ID")
+
+
+@pytest.mark.asyncio
 async def test_tenant_request_limiter_is_shared_by_db(tmp_path):
     db_path = tmp_path / "rate-limit.db"
     first = TenantRequestRateLimiter(db_path, limit=1, window_seconds=60)

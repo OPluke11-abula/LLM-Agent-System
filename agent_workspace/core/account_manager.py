@@ -9,6 +9,8 @@ import json
 import threading
 from typing import Any
 
+from agent_workspace.core.security import validate_session_id
+
 
 class AccountManager:
     """Manages secure loading, saving, and token usage tracking for multiple LLM accounts."""
@@ -18,10 +20,12 @@ class AccountManager:
 
     @classmethod
     def register_session_tenant(cls, session_id: str, tenant_id: str) -> None:
+        session_id = validate_session_id(session_id)
         cls._session_tenants[session_id] = tenant_id
 
     @classmethod
     def get_session_tenant(cls, session_id: str) -> str | None:
+        session_id = validate_session_id(session_id)
         return cls._session_tenants.get(session_id)
 
     @classmethod

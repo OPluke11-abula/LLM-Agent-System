@@ -12,7 +12,7 @@ sys.path.insert(0, workspace_dir)
 
 from core.engine import AgentEngine
 from core.router import AgentRouter
-from api import app, get_engine
+from api import app, get_engine, generate_jwt
 
 
 @pytest.fixture
@@ -95,9 +95,10 @@ def test_api_turns_and_handoff_endpoints(mock_turns_env):
     api._engine = engine
     
     client = TestClient(app)
+    headers = {"Authorization": f"Bearer {generate_jwt({'tenant_id': 'test_tenant', 'role': 'tenant'})}"}
     
     # Test GET /turns initially
-    resp = client.get(f"/v1/sessions/{session_id}/turns")
+    resp = client.get(f"/v1/sessions/{session_id}/turns", headers=headers)
     assert resp.status_code == 200
     data = resp.json()
     assert data["session_id"] == session_id
@@ -107,7 +108,7 @@ def test_api_turns_and_handoff_endpoints(mock_turns_env):
     
     # Increment turns on backend manually and test endpoint
     engine.increment_turns(session_id, "Test turns")
-    resp = client.get(f"/v1/sessions/{session_id}/turns")
+    resp = client.get(f"/v1/sessions/{session_id}/turns", headers=headers)
     data = resp.json()
     assert data["turns"] == 1
     assert not data["should_glow"]
@@ -115,13 +116,13 @@ def test_api_turns_and_handoff_endpoints(mock_turns_env):
     # Hit threshold
     engine.increment_turns(session_id, "Test turns")
     engine.increment_turns(session_id, "Test turns")
-    resp = client.get(f"/v1/sessions/{session_id}/turns")
+    resp = client.get(f"/v1/sessions/{session_id}/turns", headers=headers)
     data = resp.json()
     assert data["turns"] == 3
     assert data["should_glow"]
     
     # Test POST /handoff manually
-    resp = client.post(f"/v1/sessions/{session_id}/handoff")
+    resp = client.post(f"/v1/sessions/{session_id}/handoff", headers=headers)
     assert resp.status_code == 200
     handoff_data = resp.json()
     assert handoff_data["status"] == "success"

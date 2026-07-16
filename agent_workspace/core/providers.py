@@ -21,6 +21,7 @@ import anyio
 logger = logging.getLogger(__name__)
 
 from agent_workspace.observability import LLM_CALL_COUNT, LLM_CALL_LATENCY, Timer, tracer, TRACING_AVAILABLE
+from agent_workspace.core.security import validate_provider_base_url
 
 
 class ProviderResponse(tuple):
@@ -415,7 +416,7 @@ class GoogleGenAIProvider(BaseLLMProvider):
 
     def __init__(self, api_key: str | None = None, base_url: str | None = None):
         self.api_key = api_key
-        self.base_url = base_url
+        self.base_url = validate_provider_base_url("google-genai", base_url) if base_url else None
         self._client = None
 
     @property
@@ -598,7 +599,7 @@ class OpenAIProvider(BaseLLMProvider):
 
     def __init__(self, api_key: str | None = None, base_url: str | None = None):
         self.api_key = api_key
-        self.base_url = base_url
+        self.base_url = validate_provider_base_url("openai", base_url) if base_url else None
 
     async def complete(
         self,
@@ -613,7 +614,10 @@ class OpenAIProvider(BaseLLMProvider):
             api_key = self.api_key or os.environ.get("OPENAI_API_KEY")
             if not api_key:
                 raise ValueError("No OpenAI API key was provided.")
-            base_url = self.base_url or config.get("base_url") or os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1")
+            base_url = validate_provider_base_url(
+                "openai",
+                self.base_url or config.get("base_url") or os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1"),
+            )
             payload: dict[str, Any] = {
                 "model": config.get("model", "gpt-4o"),
                 "messages": openai_messages(system_prompt, messages),
@@ -665,7 +669,7 @@ class AnthropicProvider(BaseLLMProvider):
 
     def __init__(self, api_key: str | None = None, base_url: str | None = None):
         self.api_key = api_key
-        self.base_url = base_url
+        self.base_url = validate_provider_base_url("anthropic", base_url) if base_url else None
 
     def _messages(self, messages: list[Message]) -> list[dict[str, Any]]:
         result: list[dict[str, Any]] = []
@@ -718,7 +722,9 @@ class AnthropicProvider(BaseLLMProvider):
             api_key = self.api_key or os.environ.get("ANTHROPIC_API_KEY")
             if not api_key:
                 raise ValueError("No Anthropic API key was provided.")
-            base_url = self.base_url or config.get("base_url") or "https://api.anthropic.com/v1"
+            base_url = validate_provider_base_url(
+                "anthropic", self.base_url or config.get("base_url") or "https://api.anthropic.com/v1"
+            )
             payload: dict[str, Any] = {
                 "model": config.get("model", "claude-3-5-sonnet-latest"),
                 "system": system_prompt,
@@ -780,7 +786,7 @@ class OllamaProvider(BaseLLMProvider):
 
     def __init__(self, api_key: str | None = None, base_url: str | None = None):
         self.api_key = api_key
-        self.base_url = base_url
+        self.base_url = validate_provider_base_url("ollama", base_url) if base_url else None
 
     async def complete(
         self,
@@ -792,7 +798,10 @@ class OllamaProvider(BaseLLMProvider):
         try:
             import httpx
 
-            base_url = self.base_url or config.get("base_url") or os.environ.get("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
+            base_url = validate_provider_base_url(
+                "ollama",
+                self.base_url or config.get("base_url") or os.environ.get("OLLAMA_BASE_URL", "http://127.0.0.1:11434"),
+            )
             payload: dict[str, Any] = {
                 "model": config.get("model", "llama3.1"),
                 "messages": openai_messages(system_prompt, messages),
@@ -856,4 +865,6 @@ class ProviderFactory:
         if not provider_cls:
             supported = ", ".join(sorted(cls._providers))
             raise ValueError(f"Unsupported LLM provider: {provider_name!r}. Supported providers: {supported}")
+        if base_url:
+            base_url = validate_provider_base_url(normalized_name, base_url)
         return provider_cls(api_key=api_key, base_url=base_url)

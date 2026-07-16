@@ -3,6 +3,7 @@ import sys
 import json
 import pytest
 import asyncio
+from urllib.parse import quote
 from unittest.mock import patch
 from fastapi.testclient import TestClient
 
@@ -154,6 +155,15 @@ def test_pause_resume_endpoints(test_workspace, api_client):
     assert resp.status_code == 200
     assert resp.json()["swarm_status"] == "running"
     assert not AgentRouter.is_paused(session_id)
+
+
+def test_session_control_endpoints_reject_unsafe_ids(api_client):
+    encoded = quote("%2e%2e", safe="")
+    response = api_client.post(
+        f"/v1/sessions/{encoded}/pause",
+        headers={"x-api-key": "key-admin"},
+    )
+    assert response.status_code == 400
 
 def test_hijack_endpoint(test_workspace, api_client):
     session_id = "test-hijack-session"

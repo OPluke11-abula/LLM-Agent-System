@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional
 
 from agent_workspace.core.merkle import MerkleTree
 from agent_workspace.core.broker import get_broker, RedisSwarmBroker
+from agent_workspace.core.security import get_secret_bytes
 
 
 logger = logging.getLogger("AuditLedger")
@@ -339,7 +340,7 @@ class AuditLedger:
         payload_commitment = hashlib.sha256((payload_str + salt).encode("utf-8")).hexdigest()
 
         # Secret key for ZK proof simulation
-        ZK_SECRET_KEY = b"zk_audit_chain_secret_key_findai_studio"
+        ZK_SECRET_KEY = get_secret_bytes("LAS_ZK_SECRET_KEY")
         message = f"{event_type}:{timestamp}:{previous_hash}:{current_hash}:{payload_commitment}"
         import hmac
         signature = hmac.new(ZK_SECRET_KEY, message.encode("utf-8"), hashlib.sha256).hexdigest()
@@ -364,7 +365,7 @@ class AuditLedger:
         if not payload_commitment or not signature:
             return False
 
-        ZK_SECRET_KEY = b"zk_audit_chain_secret_key_findai_studio"
+        ZK_SECRET_KEY = get_secret_bytes("LAS_ZK_SECRET_KEY")
         message = f"{event_type}:{timestamp}:{previous_hash}:{current_hash}:{payload_commitment}"
         import hmac
         expected_signature = hmac.new(ZK_SECRET_KEY, message.encode("utf-8"), hashlib.sha256).hexdigest()

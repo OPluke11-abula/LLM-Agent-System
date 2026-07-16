@@ -14,6 +14,7 @@ sys.path.insert(0, workspace_dir)
 from core.ledger import FinancialLedger
 from core.account_manager import AccountManager
 from api import app
+from conftest import auth_headers
 
 
 @pytest.fixture
@@ -139,7 +140,7 @@ def test_api_ledger_endpoints(mock_ledger_env):
     session_id = "ledger-api-session"
     
     # Reset ledger first
-    client.post(f"/v1/sessions/{session_id}/ledger/reset")
+    client.post(f"/v1/sessions/{session_id}/ledger/reset", headers=auth_headers())
     
     # Record some transactions by recording usage via account manager
     am = api.get_account_manager()
@@ -150,7 +151,7 @@ def test_api_ledger_endpoints(mock_ledger_env):
     am.record_usage("cheapest-account", 200, 100, session_id)
     
     # Verify GET ledger metrics endpoint
-    resp = client.get(f"/v1/sessions/{session_id}/ledger")
+    resp = client.get(f"/v1/sessions/{session_id}/ledger", headers=auth_headers())
     assert resp.status_code == 200
     data = resp.json()
     assert data["session_id"] == session_id

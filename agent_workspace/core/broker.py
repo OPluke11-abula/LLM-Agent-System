@@ -4,6 +4,7 @@ import logging
 import asyncio
 import inspect
 from typing import Callable, Any, Optional
+from agent_workspace.core.runtime_config import get_runtime_feature_flags
 
 
 logger = logging.getLogger(__name__)
@@ -165,8 +166,19 @@ class RedisSwarmBroker(BaseSwarmBroker):
 
 _global_broker: Optional[BaseSwarmBroker] = None
 
-def get_broker(redis_url: Optional[str] = None, workspace_path: str = ".", reset: bool = False) -> BaseSwarmBroker:
+def get_broker(
+    redis_url: Optional[str] = None,
+    workspace_path: str = ".",
+    reset: bool = False,
+    start: bool = True,
+) -> BaseSwarmBroker:
     global _global_broker
+    if not get_runtime_feature_flags().enable_redis_swarm:
+        if _global_broker is not None:
+            return _global_broker
+        if _global_broker is None:
+            _global_broker = InMemorySwarmBroker()
+        return _global_broker
     if _global_broker is not None and not reset:
         return _global_broker
 
@@ -175,13 +187,14 @@ def get_broker(redis_url: Optional[str] = None, workspace_path: str = ".", reset
     if REDIS_AVAILABLE:
         try:
             broker = RedisSwarmBroker(url)
-            try:
-                loop = asyncio.get_running_loop()
-                loop.create_task(broker.start())
-            except RuntimeError:
-                temp_loop = asyncio.new_event_loop()
-                temp_loop.run_until_complete(broker.start())
-                temp_loop.close()
+            if start:
+                try:
+                    loop = asyncio.get_running_loop()
+                    loop.create_task(broker.start())
+                except RuntimeError:
+                    temp_loop = asyncio.new_event_loop()
+                    temp_loop.run_until_complete(broker.start())
+                    temp_loop.close()
             _global_broker = broker
             logger.info("Initialized Redis Swarm Broker successfully.")
             return _global_broker

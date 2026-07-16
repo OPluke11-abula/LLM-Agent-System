@@ -20,6 +20,7 @@ from agent_workspace.core.router import AgentRouter
 from agent_workspace.long_term_memory import LongTermMemoryStore
 from agent_workspace.core.account_manager import AccountManager
 from agent_workspace.core.billing import QuotaExceededError
+from agent_workspace.core.security import validate_session_id
 
 
 logger = logging.getLogger("api.dependencies")
@@ -63,6 +64,13 @@ def get_engine() -> AgentEngine:
 
 def get_account_manager() -> AccountManager:
     return AccountManager(get_workspace())
+
+
+def require_valid_session_id(session_id: str) -> str:
+    try:
+        return validate_session_id(session_id)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail="Invalid session ID.") from error
 
 def build_router(session_id: str) -> AgentRouter:
     return AgentRouter(get_engine(), session_id=session_id)
@@ -373,6 +381,14 @@ async def verify_websocket_tenant(websocket: WebSocket, session_id: str | None =
     appropriate close code/reason, and returns None.
     Otherwise, returns the validated tenant_id.
     """
+    if session_id is not None:
+        try:
+            validate_session_id(session_id)
+        except ValueError:
+            await websocket.accept()
+            await websocket.close(code=1008, reason="Invalid session ID")
+            return None
+
     params = websocket.query_params
     authorization = websocket.headers.get("authorization")
     api_key = websocket.headers.get("x-api-key")
