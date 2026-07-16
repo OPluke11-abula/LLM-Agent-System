@@ -47,6 +47,44 @@ TOKEN_PATTERN = re.compile(r"[\w\u4e00-\u9fff]+", re.UNICODE)
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_MEMORY_QUERY_LIMIT = 5
+MAX_MEMORY_QUERY_LIMIT = 100
+MEMORY_QUERY_OVERSAMPLE_FACTOR = 3
+MAX_MEMORY_BACKEND_FETCH = MAX_MEMORY_QUERY_LIMIT * MEMORY_QUERY_OVERSAMPLE_FACTOR
+
+
+@dataclass(frozen=True)
+class MemoryQueryLimits:
+    requested_limit: int
+    result_limit: int
+    backend_fetch_limit: int
+    oversampling_factor: int
+
+
+def normalize_memory_query_limit(
+    limit: int,
+    *,
+    domain: str | None = None,
+    oversample: bool = False,
+) -> MemoryQueryLimits:
+    if isinstance(limit, bool) or not isinstance(limit, int):
+        raise ValueError("memory query limit must be an integer")
+    if limit < 1:
+        raise ValueError("memory query limit must be at least 1")
+
+    result_limit = min(limit, MAX_MEMORY_QUERY_LIMIT)
+    oversampling_factor = MEMORY_QUERY_OVERSAMPLE_FACTOR if domain or oversample else 1
+    backend_fetch_limit = min(
+        result_limit * oversampling_factor,
+        MAX_MEMORY_BACKEND_FETCH,
+    )
+    return MemoryQueryLimits(
+        requested_limit=limit,
+        result_limit=result_limit,
+        backend_fetch_limit=backend_fetch_limit,
+        oversampling_factor=oversampling_factor,
+    )
+
 
 @dataclass
 class LongTermMemoryRecord:
@@ -379,14 +417,16 @@ class LongTermMemoryStore:
         self,
         query_text: str,
         session_id: str | None = None,
-        limit: int = 5,
+        limit: int = DEFAULT_MEMORY_QUERY_LIMIT,
         domain: str | None = None,
+        oversample: bool = False,
     ) -> list[dict[str, Any]]:
         """Search long-term memory for records matching *query_text* using semantic FTS5 parsing."""
         start_time = time.perf_counter()
+        limits = normalize_memory_query_limit(limit, domain=domain, oversample=oversample)
 
         # 1. Generate cache key
-        cache_key = f"{query_text}:{session_id}:{limit}:{domain}"
+        cache_key = f"{query_text}:{session_id}:{limits.result_limit}:{domain}:{oversample}"
         cached = self._query_cache.get(cache_key)
         if cached is not None:
             logger.debug("FTS5 Query Cache hit for: %s", query_text)
@@ -404,25 +444,38 @@ class LongTermMemoryStore:
 
         # 3. Execute search against the backend with dynamic latency monitoring
         try:
-            results = self._backend.search(fts_query, session_id=session_id, top_k=limit * 3 if domain else limit)
+            results = self._backend.search(
+                fts_query,
+                session_id=session_id,
+                top_k=limits.backend_fetch_limit,
+            )
         except Exception as e:
             # Graceful fallback to raw query text search if FTS5 syntax error
             logger.warning("FTS5 query failed, falling back to raw query: %s", e)
             try:
-                results = self._backend.search(query_text, session_id=session_id, top_k=limit * 3 if domain else limit)
+                results = self._backend.search(
+                    query_text,
+                    session_id=session_id,
+                    top_k=limits.backend_fetch_limit,
+                )
             except Exception:
                 results = []
 
         if domain:
             results = [r for r in results if r.get("domain", "episodic") == domain]
 
-        final_results = results[:limit]
+        final_results = results[:limits.result_limit]
 
         # 4. Save to cache
         self._query_cache.set(cache_key, final_results)
 
         duration_ms = (time.perf_counter() - start_time) * 1000
-        logger.info("FTS5 semantic memory query completed in %.2fms (limit=%d, results=%d)", duration_ms, limit, len(final_results))
+        logger.info(
+            "FTS5 semantic memory query completed in %.2fms (limit=%d, results=%d)",
+            duration_ms,
+            limits.result_limit,
+            len(final_results),
+        )
 
         # 5. Self-Optimization: If delay exceeds 15ms, trigger self-optimization
         if duration_ms > 15.0:
@@ -665,7 +718,13 @@ class LongTermMemoryStore:
         ensures diversity partitioning, and generates a formatted prompt context block.
         """
         # 1. Fetch more candidates to allow for re-ranking
-        candidates = self.query(query_text, session_id=session_id, limit=limit * 3)
+        limits = normalize_memory_query_limit(limit)
+        candidates = self.query(
+            query_text,
+            session_id=session_id,
+            limit=limits.result_limit,
+            oversample=True,
+        )
 
         # 2. Re-rank candidates based on domain, confidence, and recency decay
         now_dt = datetime.now(timezone.utc)
@@ -717,7 +776,7 @@ class LongTermMemoryStore:
         # 3. Diversity Partitioning: cap episodic memories to limit - 2 to make room for preferences and facts
         final_records: list[LongTermMemoryRecord] = []
         episodic_count = 0
-        max_episodic = max(1, limit - 2)
+        max_episodic = max(1, limits.result_limit - 2)
 
         for _, rec in scored_candidates:
             if rec.domain == "episodic":
@@ -727,7 +786,7 @@ class LongTermMemoryStore:
             else:
                 final_records.append(rec)
 
-            if len(final_records) >= limit:
+            if len(final_records) >= limits.result_limit:
                 break
 
         # 4. Generate formatted text block
