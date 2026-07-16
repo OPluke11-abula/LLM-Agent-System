@@ -51,6 +51,7 @@ from agent_workspace.routes.dependencies import (
     _api_key_principal,
 )
 from agent_workspace.core.rate_limit import TenantRequestRateLimiter, RateLimitStateUnavailable
+from agent_workspace.core.runtime_config import get_runtime_feature_flags
 
 API_VERSION = "0.1.0"
 
@@ -69,70 +70,96 @@ rate_limiter = SlidingWindowRateLimiter(limit=10, window_seconds=10.0)
 
 
 _audit_daemon = None
+_lifecycle_tasks: set[asyncio.Task[Any]] = set()
+
+
+def _track_lifecycle_task(coroutine: Any) -> asyncio.Task[Any]:
+    task = asyncio.create_task(coroutine)
+    _lifecycle_tasks.add(task)
+    task.add_done_callback(_lifecycle_tasks.discard)
+    return task
+
+
+async def _cancel_lifecycle_tasks() -> None:
+    tasks = list(_lifecycle_tasks)
+    for task in tasks:
+        if not task.done():
+            task.cancel()
+    if tasks:
+        await asyncio.gather(*tasks, return_exceptions=True)
+    _lifecycle_tasks.clear()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup logic
     global _audit_daemon
-    from agent_workspace.routes.admin import start_stripe_billing_scheduler
-    from agent_workspace.routes.collaboration import collab_manager
-    from agent_workspace.core.broker import get_broker
-    from agent_workspace.core.audit_ledger import AuditConsensusDaemon, AuditLedger
-    from agent_workspace.core.swarm_coordinator import SwarmCoordinator
+    broker = None
+    flags = get_runtime_feature_flags()
+    try:
+        if flags.enable_stripe:
+            from agent_workspace.routes.admin import start_stripe_billing_scheduler
+            _track_lifecycle_task(start_stripe_billing_scheduler())
 
-    stripe_task = asyncio.create_task(start_stripe_billing_scheduler())
-    
-    broker = get_broker(workspace_path=get_workspace())
-    redis_task = asyncio.create_task(collab_manager.start_redis_listener())
-    
-    ledger = AuditLedger(get_workspace())
-    _audit_daemon = AuditConsensusDaemon(ledger, node_id=f"node-backend-{os.getpid()}")
-    audit_task = asyncio.create_task(_audit_daemon.start())
-
-    async def swarm_heartbeat_loop():
-        while True:
+        if flags.enable_redis_swarm or flags.enable_audit_consensus:
+            from agent_workspace.core.broker import get_broker
+            broker = get_broker(workspace_path=get_workspace(), start=False)
             try:
-                SwarmCoordinator.check_heartbeats()
-            except Exception as e:
-                logger.error(f"Error in swarm heartbeat loop: {e}")
-            await asyncio.sleep(5.0)
+                await broker.start()
+            except Exception:
+                from agent_workspace.core.broker import InMemorySwarmBroker
+                broker = InMemorySwarmBroker()
 
-    async def listen_swarm_discovery():
-        async def on_discovery(msg: dict):
-            try:
-                msg_type = msg.get("type")
-                if msg_type in ("join", "heartbeat"):
-                    SwarmCoordinator.register_or_update_node(
-                        role=msg["role"],
-                        node_id=msg["node_id"],
-                        status=msg.get("status", "idle")
-                    )
-                elif msg_type == "leave":
-                    SwarmCoordinator.mark_node_offline(
-                        node_id=msg["node_id"],
-                        reason="graceful_leave"
-                    )
-            except Exception as e:
-                logger.error(f"Error processing discovery message: {e}")
+        if flags.enable_redis_swarm:
+            from agent_workspace.routes.collaboration import collab_manager
+            _track_lifecycle_task(collab_manager.start_redis_listener())
 
-        await broker.subscribe("swarm:discovery", on_discovery)
+        if flags.enable_audit_consensus:
+            from agent_workspace.core.audit_ledger import AuditConsensusDaemon, AuditLedger
+            ledger = AuditLedger(get_workspace())
+            _audit_daemon = AuditConsensusDaemon(ledger, node_id=f"node-backend-{os.getpid()}")
+            _track_lifecycle_task(_audit_daemon.start())
 
-    heartbeat_task = asyncio.create_task(swarm_heartbeat_loop())
-    discovery_task = asyncio.create_task(listen_swarm_discovery())
+        if flags.distributed_enabled:
+            from agent_workspace.core.swarm_coordinator import SwarmCoordinator
 
-    yield
+            async def swarm_heartbeat_loop():
+                while True:
+                    try:
+                        SwarmCoordinator.check_heartbeats()
+                    except Exception as e:
+                        logger.error(f"Error in swarm heartbeat loop: {e}")
+                    await asyncio.sleep(5.0)
 
-    # Shutdown logic
-    if _audit_daemon:
-        await _audit_daemon.stop()
-        _audit_daemon = None
-        
-    await broker.stop()
-    stripe_task.cancel()
-    redis_task.cancel()
-    audit_task.cancel()
-    heartbeat_task.cancel()
-    discovery_task.cancel()
+            async def listen_swarm_discovery():
+                async def on_discovery(msg: dict):
+                    try:
+                        msg_type = msg.get("type")
+                        if msg_type in ("join", "heartbeat"):
+                            SwarmCoordinator.register_or_update_node(
+                                role=msg["role"],
+                                node_id=msg["node_id"],
+                                status=msg.get("status", "idle")
+                            )
+                        elif msg_type == "leave":
+                            SwarmCoordinator.mark_node_offline(
+                                node_id=msg["node_id"],
+                                reason="graceful_leave"
+                            )
+                    except Exception as e:
+                        logger.error(f"Error processing discovery message: {e}")
+
+                await broker.subscribe("swarm:discovery", on_discovery)
+
+            _track_lifecycle_task(swarm_heartbeat_loop())
+            _track_lifecycle_task(listen_swarm_discovery())
+
+        yield
+    finally:
+        if _audit_daemon:
+            await _audit_daemon.stop()
+            _audit_daemon = None
+        if broker:
+            await broker.stop()
+        await _cancel_lifecycle_tasks()
 
 
 app = FastAPI(
@@ -273,7 +300,7 @@ if TRACING_AVAILABLE:
 from agent_workspace.routes.swarm import router as swarm_router
 from agent_workspace.routes.cross_cloud import router as cross_cloud_router
 from agent_workspace.routes.audit import router as audit_router
-from agent_workspace.routes.chat import router as chat_router
+from agent_workspace.routes.chat import router as chat_router, protected_router as chat_protected_router
 from agent_workspace.routes.collaboration import router as collab_router
 from agent_workspace.routes.admin import router as admin_router
 
@@ -281,6 +308,7 @@ app.include_router(swarm_router)
 app.include_router(cross_cloud_router)
 app.include_router(audit_router)
 app.include_router(chat_router)
+app.include_router(chat_protected_router)
 app.include_router(collab_router)
 app.include_router(admin_router)
 

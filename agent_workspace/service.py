@@ -16,6 +16,7 @@ from core.account_manager import AccountManager
 from core.providers import ProviderFactory
 from core.prompt_composer import PromptComposer
 from core.agent_crew import CrewRegistry, AgentCrew
+from agent_workspace.core.runtime_config import get_runtime_feature_flags
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -39,6 +40,9 @@ class SwarmAgentService:
         self.prompt_composer = PromptComposer(self.workspace_path)
 
     async def start(self):
+        flags = get_runtime_feature_flags()
+        if not (flags.enable_redis_swarm and flags.enable_multi_worker):
+            return
         import redis.asyncio as aioredis
         self.client = aioredis.from_url(self.redis_url, decode_responses=True)
         await self.client.ping()

@@ -19,6 +19,7 @@ from api import app
 from core.router import ROUTE_REGISTRY, SwarmRouteRegistry, AgentRouter
 from core.engine import AgentEngine
 from core.providers import ProviderResponse
+from conftest import auth_headers
 
 @pytest.fixture(autouse=True)
 def run_before_and_after_tests():
@@ -206,7 +207,8 @@ def test_router_api_endpoints():
     ROUTE_REGISTRY.routes["node_b"]["last_seen"] = stale_time
     
     # Verify GET status
-    resp_get = client.get("/v1/router/status")
+    headers = auth_headers()
+    resp_get = client.get("/v1/router/status", headers=headers)
     assert resp_get.status_code == 200
     data = resp_get.json()
     assert "routes" in data
@@ -214,7 +216,7 @@ def test_router_api_endpoints():
     assert len(data["routes"]) == 2
     
     # Verify POST prune stale (default force = False)
-    resp_prune = client.post("/v1/router/prune")
+    resp_prune = client.post("/v1/router/prune", headers=headers)
     assert resp_prune.status_code == 200
     data_prune = resp_prune.json()
     assert data_prune["status"] == "success"
@@ -225,7 +227,7 @@ def test_router_api_endpoints():
     assert ROUTE_REGISTRY.routes["node_a"]["status"] == "active"
     
     # Verify POST force prune all
-    resp_force = client.post("/v1/router/prune?force=true")
+    resp_force = client.post("/v1/router/prune?force=true", headers=headers)
     assert resp_force.status_code == 200
     data_force = resp_force.json()
     assert data_force["pruned_any"] is True

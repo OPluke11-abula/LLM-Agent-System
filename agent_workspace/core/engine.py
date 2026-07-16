@@ -40,6 +40,7 @@ except ImportError:
 
 from agent_workspace.observability import TOOL_CALL_COUNT, TOOL_CALL_LATENCY, Timer, tracer
 from agent_workspace.core.precheck import SkillsPrechecker
+from agent_workspace.core.security import safe_workspace_path, validate_session_id
 
 
 logger = logging.getLogger(__name__)
@@ -645,6 +646,11 @@ class AgentEngine:
         from datetime import datetime, timezone
         from pathlib import Path
 
+        try:
+            session_id = validate_session_id(session_id)
+        except ValueError as error:
+            raise PermissionError("Directory traversal warning: Access denied outside memory boundary") from error
+
         project_root = Path(self.workspace_path).parent
 
         # 1. Gather task_state
@@ -659,11 +665,10 @@ class AgentEngine:
         # 2. Gather memory_snapshot (working memory)
         memory_snapshot = {}
         memory_dir = Path(self.workspace_path) / "memory"
-        session_file = (memory_dir / f"{session_id}.json").resolve()
         try:
-            session_file.relative_to(memory_dir.resolve())
-        except ValueError:
-            raise PermissionError("Directory traversal warning: Access denied outside memory boundary")
+            session_file = safe_workspace_path(memory_dir, f"{session_id}.json")
+        except ValueError as error:
+            raise PermissionError("Directory traversal warning: Access denied outside memory boundary") from error
         if session_file.is_file():
             try:
                 memory_snapshot["working_memory"] = json.loads(session_file.read_text(encoding="utf-8"))
@@ -699,8 +704,11 @@ class AgentEngine:
         # 5. Persist to filesystem
         handoff_dir = project_root / ".agent" / "memory" / "handoff"
         handoff_dir.mkdir(parents=True, exist_ok=True)
-        handoff_file = handoff_dir / f"{handoff_id}.json"
-        prompt_file = handoff_dir / f"{handoff_id}_prompt.md"
+        try:
+            handoff_file = safe_workspace_path(handoff_dir, f"{handoff_id}.json")
+            prompt_file = safe_workspace_path(handoff_dir, f"{handoff_id}_prompt.md")
+        except ValueError as error:
+            raise PermissionError("Directory traversal warning: Access denied outside handoff boundary") from error
 
         try:
             handoff_file.write_text(json.dumps(packet, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -755,11 +763,10 @@ This handoff is part of the Federated Swarm Autonomous Handoff protocol. It enab
 
         project_root = Path(self.workspace_path).parent
         handoff_dir = (project_root / ".agent" / "memory" / "handoff").resolve()
-        handoff_file = (handoff_dir / f"{handoff_id}.json").resolve()
         try:
-            handoff_file.relative_to(handoff_dir)
-        except ValueError:
-            raise PermissionError("Directory traversal warning: Access denied outside handoff boundary")
+            handoff_file = safe_workspace_path(handoff_dir, f"{handoff_id}.json")
+        except ValueError as error:
+            raise PermissionError("Directory traversal warning: Access denied outside handoff boundary") from error
 
         if not handoff_file.is_file():
             raise FileNotFoundError(f"Handoff packet file '{handoff_id}' not found at {handoff_file}")
@@ -799,7 +806,11 @@ This handoff is part of the Federated Swarm Autonomous Handoff protocol. It enab
         working_memory = memory_snapshot.get("working_memory")
         if working_memory:
             session_id = memory_snapshot.get("session_id", "default")
-            session_file = Path(self.workspace_path) / "memory" / f"{session_id}.json"
+            try:
+                session_id = validate_session_id(session_id)
+                session_file = safe_workspace_path(Path(self.workspace_path) / "memory", f"{session_id}.json")
+            except ValueError as error:
+                raise PermissionError("Directory traversal warning: Access denied outside memory boundary") from error
             session_file.parent.mkdir(parents=True, exist_ok=True)
             try:
                 session_file.write_text(json.dumps(working_memory, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -815,6 +826,7 @@ This handoff is part of the Federated Swarm Autonomous Handoff protocol. It enab
 
         Returns a tuple of (current_turns, triggered_handoff, handoff_id).
         """
+        session_id = validate_session_id(session_id)
         turns = self.session_turns.get(session_id, 0) + 1
         self.session_turns[session_id] = turns
         triggered = False

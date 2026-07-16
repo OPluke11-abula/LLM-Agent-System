@@ -7,8 +7,14 @@ services:
       dockerfile: Dockerfile
     container_name: las-backend
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     environment:
+      - LAS_BIND_HOST=${LAS_BIND_HOST:-0.0.0.0}
+      - LAS_JWT_SECRET=${LAS_JWT_SECRET:-}
+      - LAS_ENABLE_STRIPE=${LAS_ENABLE_STRIPE:-false}
+      - LAS_ENABLE_REDIS_SWARM=${LAS_ENABLE_REDIS_SWARM:-false}
+      - LAS_ENABLE_MULTI_WORKER=${LAS_ENABLE_MULTI_WORKER:-false}
+      - LAS_ENABLE_AUDIT_CONSENSUS=${LAS_ENABLE_AUDIT_CONSENSUS:-false}
       - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}

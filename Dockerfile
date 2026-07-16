@@ -33,4 +33,9 @@ HEALTHCHECK --interval=15s --timeout=5s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:8000/v1/health || exit 1
 
 # Start FastAPI API backend
-CMD ["uvicorn", "agent_workspace.api:app", "--host", "0.0.0.0", "--port", "8000"]
+ENV LAS_BIND_HOST=0.0.0.0
+ENV LAS_ENABLE_STRIPE=false
+ENV LAS_ENABLE_REDIS_SWARM=false
+ENV LAS_ENABLE_MULTI_WORKER=false
+ENV LAS_ENABLE_AUDIT_CONSENSUS=false
+CMD ["python", "-m", "agent_workspace.server"]

@@ -22,6 +22,7 @@ from jinja2 import Environment, Template
 from agent_workspace.core.engine import AgentEngine
 from agent_workspace.core.account_manager import AccountManager
 from agent_workspace.core.providers import ProviderFactory
+from agent_workspace.core.security import safe_workspace_path
 
 logger = logging.getLogger(__name__)
 
@@ -88,12 +89,10 @@ class WorkflowEngine:
 
     def _get_run_file(self, session_id: str) -> Path:
         """Get the absolute path to a workflow run state snapshot."""
-        resolved = (self.runs_dir / f"{session_id}.json").resolve()
         try:
-            resolved.relative_to(self.runs_dir.resolve())
-        except ValueError:
-            raise PermissionError("Directory traversal warning: Access denied outside workflow run boundaries")
-        return resolved
+            return safe_workspace_path(self.runs_dir, f"{session_id}.json")
+        except ValueError as error:
+            raise PermissionError("Directory traversal warning: Access denied outside workflow run boundaries") from error
 
     def load_workflow(self, workflow_id: str) -> dict[str, Any]:
         """Load and parse the declarative workflow from .agent/workflows/<id>.md."""

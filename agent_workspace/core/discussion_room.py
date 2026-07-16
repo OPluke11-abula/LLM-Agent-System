@@ -20,6 +20,7 @@ from typing import Any
 from agent_workspace.core.account_manager import AccountManager
 from agent_workspace.core.providers import ProviderFactory, BaseLLMProvider
 from agent_workspace.core.prompt_composer import PromptComposer
+from agent_workspace.core.security import get_secret_bytes
 
 logger = logging.getLogger(__name__)
 
@@ -1320,50 +1321,47 @@ Stderr: {stderr_str[:500]}
 class ProofOfConsensus:
     """Implements decentralized Proof of Consensus (PoC) for the swarm."""
 
-    SECRET_KEYS = {
-        "ceo": "poc-secret-ceo-key-92834",
-        "cto": "poc-secret-cto-key-83749",
-        "dev": "poc-secret-dev-key-10293",
-        "qa": "poc-secret-qa-key-58291",
-        "cfo": "poc-secret-cfo-key-47284"
-    }
+    ROLES = ("ceo", "cto", "dev", "qa", "cfo")
+    SECRET_KEYS: dict[str, str | None] = {role: None for role in ROLES}
+    CONSENSUS_KEY: str | None = None
 
-    CONSENSUS_KEY = "poc-master-consensus-key-84729"
+    @classmethod
+    def _load_configured_keys(cls) -> None:
+        cls.SECRET_KEYS = {
+            role: get_secret_bytes(f"LAS_POC_SECRET_{role.upper()}").decode("utf-8")
+            for role in cls.ROLES
+        }
+        cls.CONSENSUS_KEY = get_secret_bytes("LAS_POC_CONSENSUS_SECRET").decode("utf-8")
 
     @classmethod
     def rotate_session_keys(cls):
         """Rotates SECRET_KEYS and CONSENSUS_KEY dynamically using a random rotation suffix."""
-        import uuid
-        rotation_suffix = uuid.uuid4().hex[:8]
-        for role in list(cls.SECRET_KEYS.keys()):
-            cls.SECRET_KEYS[role] = f"poc-secret-{role}-key-{rotation_suffix}"
-        cls.CONSENSUS_KEY = f"poc-master-consensus-key-{rotation_suffix}"
-        logger.info("[ProofOfConsensus] Swarm session keys rotated with suffix: %s", rotation_suffix)
+        import secrets
+        cls.SECRET_KEYS = {role: secrets.token_urlsafe(32) for role in cls.ROLES}
+        cls.CONSENSUS_KEY = secrets.token_urlsafe(32)
+        logger.info("[ProofOfConsensus] Swarm session keys rotated")
 
     @classmethod
     def reset_keys(cls):
         """Restores default SECRET_KEYS and CONSENSUS_KEY values."""
-        cls.SECRET_KEYS = {
-            "ceo": "poc-secret-ceo-key-92834",
-            "cto": "poc-secret-cto-key-83749",
-            "dev": "poc-secret-dev-key-10293",
-            "qa": "poc-secret-qa-key-58291",
-            "cfo": "poc-secret-cfo-key-47284"
-        }
-        cls.CONSENSUS_KEY = "poc-master-consensus-key-84729"
+        cls._load_configured_keys()
 
     @classmethod
     def get_swarm_members(cls) -> list[str]:
-        return list(cls.SECRET_KEYS.keys())
+        return list(cls.ROLES)
 
     @classmethod
     def generate_member_signature(cls, role: str, payload_hash: str) -> str:
         """Generates a SHA256 signature for a specific role and payload hash."""
         import hashlib
         normalized_role = role.lower()
+        if normalized_role not in cls.ROLES:
+            raise ValueError(f"Unknown consensus role: {role}")
+        if not cls.SECRET_KEYS.get(normalized_role):
+            cls._load_configured_keys()
         secret = cls.SECRET_KEYS.get(normalized_role)
         if not secret:
-            raise ValueError(f"Unknown consensus role: {role}")
+            raise RuntimeError(f"Consensus secret for role {normalized_role} is unavailable.")
         return hashlib.sha256(f"{normalized_role}:{payload_hash}:{secret}".encode("utf-8")).hexdigest()
 
     @classmethod

@@ -22,9 +22,12 @@ from agent_workspace.routes.dependencies import (
     load_llm_config,
     required_env_for_provider,
     ensure_llm_configured,
+    get_authenticated_principal,
+    require_valid_session_id,
     sse_event,
     get_workspace
 )
+from agent_workspace.core.security import safe_workspace_path, validate_provider_base_url
 from agent_workspace.routes.schemas import (
     ChatRequest, ChatResponse, TaskRequest, TaskSubmitResponse, ConfigUpdateRequest,
     AccountCreateRequest, ActiveAccountSelectRequest, PreferenceRequest,
@@ -44,6 +47,16 @@ logger = logging.getLogger(__name__)
 API_VERSION = "0.1.0"
 
 router = APIRouter()
+protected_router = APIRouter(
+    dependencies=[Depends(get_authenticated_principal)]
+)
+
+
+def redact_account(account: dict[str, Any]) -> dict[str, Any]:
+    safe_account = dict(account)
+    safe_account.pop("api_key", None)
+    safe_account["api_key_configured"] = bool(account.get("api_key"))
+    return safe_account
 
 @dataclass
 class TaskRecord:
@@ -58,6 +71,49 @@ class TaskRecord:
     error: str | None = None
 
 _task_records: dict[str, TaskRecord] = {}
+MAX_CONCURRENT_TASKS = int(os.environ.get("LAS_TASK_MAX_CONCURRENCY", "8"))
+TASK_EXECUTION_TIMEOUT_SECONDS = float(os.environ.get("LAS_TASK_TIMEOUT_SECONDS", "300"))
+TASK_RECORD_TTL_SECONDS = float(os.environ.get("LAS_TASK_RECORD_TTL_SECONDS", "3600"))
+_task_handles: dict[str, asyncio.Task] = {}
+
+
+def _cleanup_task_records() -> None:
+    from datetime import datetime, timezone
+
+    terminal_statuses = {"completed", "error", "timeout", "cancelled"}
+    now = datetime.now(timezone.utc)
+    for task_id, record in list(_task_records.items()):
+        if record.status not in terminal_statuses or task_id in _task_handles:
+            continue
+        timestamp = record.completed_at or record.submitted_at
+        try:
+            completed_at = datetime.fromisoformat(timestamp)
+        except (TypeError, ValueError):
+            continue
+        if completed_at.tzinfo is None:
+            completed_at = completed_at.replace(tzinfo=timezone.utc)
+        if (now - completed_at).total_seconds() > TASK_RECORD_TTL_SECONDS:
+            _task_records.pop(task_id, None)
+
+
+def _schedule_background_task(
+    record: TaskRecord,
+    allowed_tools: list[str] | None,
+    account_id: str | None,
+) -> None:
+    _cleanup_task_records()
+    active_count = sum(not handle.done() for handle in _task_handles.values())
+    if active_count >= MAX_CONCURRENT_TASKS:
+        raise HTTPException(status_code=429, detail="Task execution capacity is full.")
+    handle = asyncio.create_task(run_background_task(record, allowed_tools, account_id))
+    _task_handles[record.task_id] = handle
+
+    def forget_task(completed_handle: asyncio.Task) -> None:
+        _task_handles.pop(record.task_id, None)
+        if not completed_handle.cancelled():
+            completed_handle.exception()
+
+    handle.add_done_callback(forget_task)
 
 def utc_now() -> str:
     from datetime import datetime, timezone
@@ -69,8 +125,18 @@ async def run_background_task(record: TaskRecord, allowed_tools: list[str] | Non
     record.started_at = utc_now()
     try:
         r = build_router(record.session)
-        record.response = await r.run_agent_loop(record.msg, allowed_tools=allowed_tools, account_id=account_id)
+        record.response = await asyncio.wait_for(
+            r.run_agent_loop(record.msg, allowed_tools=allowed_tools, account_id=account_id),
+            timeout=TASK_EXECUTION_TIMEOUT_SECONDS,
+        )
         record.status = "completed"
+    except asyncio.TimeoutError:
+        record.status = "timeout"
+        record.error = "Task execution timed out."
+    except asyncio.CancelledError:
+        record.status = "cancelled"
+        record.error = "Task cancelled."
+        raise
     except Exception as error:
         record.status = "error"
         record.error = str(error)
@@ -111,22 +177,24 @@ async def list_tools() -> dict[str, Any]:
     return json.loads(manifest.to_json())
 
 
-@router.post("/v1/chat", response_model=ChatResponse)
+@protected_router.post("/v1/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest) -> ChatResponse:
+    session_id = require_valid_session_id(request.session)
     ensure_llm_configured()
-    r = build_router(request.session)
+    r = build_router(session_id)
     response = await r.run_agent_loop(request.msg, allowed_tools=request.allowed_tools, account_id=request.account_id)
-    return ChatResponse(session=request.session, response=response)
+    return ChatResponse(session=session_id, response=response)
 
 
-@router.post("/v1/stream")
+@protected_router.post("/v1/stream")
 async def stream(request: ChatRequest) -> StreamingResponse:
+    session_id = require_valid_session_id(request.session)
     ensure_llm_configured()
 
     async def event_generator():
-        r = build_router(request.session)
+        r = build_router(session_id)
         async for event in r.stream_agent_loop(request.msg, allowed_tools=request.allowed_tools, account_id=request.account_id):
-            yield sse_event({"session": request.session, **event})
+            yield sse_event({"session": session_id, **event})
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
@@ -142,7 +210,12 @@ async def stream_ws(websocket: WebSocket):
     try:
         # Expect the first message to be the ChatRequest payload
         data = await websocket.receive_json()
-        session = data.get("session", "default-session")
+        try:
+            session = require_valid_session_id(data.get("session", "default-session"))
+        except HTTPException as e:
+            await websocket.send_json({"error": e.detail})
+            await websocket.close()
+            return
         msg = data.get("msg", "")
         allowed_tools = data.get("allowed_tools")
         account_id = data.get("account_id")
@@ -201,6 +274,12 @@ async def websocket_stream(websocket: WebSocket):
                 await websocket.send_json({"error": "Invalid request format", "details": str(e)})
                 return
 
+            try:
+                require_valid_session_id(request.session)
+            except HTTPException as e:
+                await websocket.send_json({"error": e.detail})
+                return
+
             # Verify session tenancy context
             existing_tenant = AccountManager.get_session_tenant(request.session)
             if existing_tenant and existing_tenant != tenant_id:
@@ -240,28 +319,38 @@ async def websocket_stream(websocket: WebSocket):
             task.cancel()
 
 
-@router.post("/v1/task", response_model=TaskSubmitResponse)
+@protected_router.post("/v1/task", response_model=TaskSubmitResponse)
 async def submit_task(request: TaskRequest) -> TaskSubmitResponse:
+    session_id = require_valid_session_id(request.session)
     ensure_llm_configured()
+    _cleanup_task_records()
     task_id = request.task_id or f"task-{uuid.uuid4()}"
     if task_id in _task_records:
+        existing = _task_records[task_id]
+        if existing.session == session_id and existing.msg == request.msg:
+            return TaskSubmitResponse(task_id=existing.task_id, session=existing.session, status=existing.status)
         raise HTTPException(status_code=409, detail=f"Task already exists: {task_id}")
 
     record = TaskRecord(
         task_id=task_id,
-        session=request.session,
+        session=session_id,
         msg=request.msg,
         status="queued",
         submitted_at=utc_now(),
     )
     _task_records[task_id] = record
-    asyncio.create_task(run_background_task(record, request.allowed_tools, request.account_id))
-    return TaskSubmitResponse(task_id=task_id, session=request.session, status=record.status)
+    try:
+        _schedule_background_task(record, request.allowed_tools, request.account_id)
+    except Exception:
+        _task_records.pop(task_id, None)
+        raise
+    return TaskSubmitResponse(task_id=task_id, session=session_id, status=record.status)
 
 
-@router.get("/v1/session/{session_id}")
+@protected_router.get("/v1/session/{session_id}")
 async def get_session(session_id: str) -> dict[str, Any]:
-    memory_path = Path(get_workspace()) / "memory" / f"{session_id}.json"
+    session_id = require_valid_session_id(session_id)
+    memory_path = safe_workspace_path(Path(get_workspace()) / "memory", f"{session_id}.json")
     memory: dict[str, Any] = {}
     if memory_path.is_file():
         try:
@@ -282,9 +371,10 @@ async def get_session(session_id: str) -> dict[str, Any]:
     }
 
 
-@router.post("/v1/sessions/{session_id}/approve")
-@router.post("/v1/session/{session_id}/approve")
+@protected_router.post("/v1/sessions/{session_id}/approve")
+@protected_router.post("/v1/session/{session_id}/approve")
 async def approve_session(session_id: str) -> dict[str, Any]:
+    session_id = require_valid_session_id(session_id)
     from core.router import ACTIVE_APPROVALS
     req = ACTIVE_APPROVALS.get(session_id)
     if not req:
@@ -296,9 +386,10 @@ async def approve_session(session_id: str) -> dict[str, Any]:
     return {"status": "already_resolved", "session_id": session_id}
 
 
-@router.post("/v1/sessions/{session_id}/reject")
-@router.post("/v1/session/{session_id}/reject")
+@protected_router.post("/v1/sessions/{session_id}/reject")
+@protected_router.post("/v1/session/{session_id}/reject")
 async def reject_session(session_id: str) -> dict[str, Any]:
+    session_id = require_valid_session_id(session_id)
     from core.router import ACTIVE_APPROVALS
     req = ACTIVE_APPROVALS.get(session_id)
     if not req:
@@ -310,7 +401,7 @@ async def reject_session(session_id: str) -> dict[str, Any]:
     return {"status": "already_resolved", "session_id": session_id}
 
 
-@router.get("/v1/memory")
+@protected_router.get("/v1/memory")
 async def list_long_term_memory() -> dict[str, Any]:
     store = get_long_term_memory()
     return {
@@ -319,8 +410,10 @@ async def list_long_term_memory() -> dict[str, Any]:
     }
 
 
-@router.get("/v1/memory/query")
+@protected_router.get("/v1/memory/query")
 async def query_long_term_memory(q: str, session: str | None = None, limit: int = 5, domain: str | None = None) -> dict[str, Any]:
+    if session is not None:
+        session = require_valid_session_id(session)
     store = get_long_term_memory()
     return {
         "query": q,
@@ -331,11 +424,12 @@ async def query_long_term_memory(q: str, session: str | None = None, limit: int 
     }
 
 
-@router.post("/v1/memory/preference")
+@protected_router.post("/v1/memory/preference")
 async def add_preference(req: PreferenceRequest) -> dict[str, Any]:
+    session_id = require_valid_session_id(req.session)
     store = get_long_term_memory()
     record = store.add_preference(
-        session_id=req.session,
+        session_id=session_id,
         preference_text=req.preference,
         confidence=req.confidence,
         expires_at=req.expires_at,
@@ -344,8 +438,9 @@ async def add_preference(req: PreferenceRequest) -> dict[str, Any]:
     return {"status": "success", "record": asdict(record)}
 
 
-@router.delete("/v1/memory/{session_id}/{key}")
+@protected_router.delete("/v1/memory/{session_id}/{key}")
 async def delete_memory(session_id: str, key: str) -> dict[str, Any]:
+    session_id = require_valid_session_id(session_id)
     store = get_long_term_memory()
     success = store.delete_record(session_id, key)
     if not success:
@@ -353,18 +448,19 @@ async def delete_memory(session_id: str, key: str) -> dict[str, Any]:
     return {"status": "success", "session_id": session_id, "key": key}
 
 
-@router.post("/v1/memory/prune")
+@protected_router.post("/v1/memory/prune")
 async def prune_memory() -> dict[str, Any]:
     store = get_long_term_memory()
     count = store.prune_expired()
     return {"status": "success", "deleted_count": count}
 
 
-@router.post("/v1/memory/update")
+@protected_router.post("/v1/memory/update")
 async def update_memory(req: MemoryUpdateRequest) -> dict[str, Any]:
+    session_id = require_valid_session_id(req.session_id)
     store = get_long_term_memory()
     success = store.update_record(
-        session_id=req.session_id,
+        session_id=session_id,
         key=req.key,
         summary=req.summary,
         domain=req.domain,
@@ -375,18 +471,21 @@ async def update_memory(req: MemoryUpdateRequest) -> dict[str, Any]:
     )
     if not success:
         raise HTTPException(status_code=404, detail="Memory record not found")
-    return {"status": "success", "session_id": req.session_id, "key": req.key}
+    return {"status": "success", "session_id": session_id, "key": req.key}
 
 
-@router.post("/v1/memory/batch-move")
+@protected_router.post("/v1/memory/batch-move")
 async def batch_move_memory(req: MemoryBatchMoveRequest) -> dict[str, Any]:
     store = get_long_term_memory()
-    target_items = [{"session_id": item.session_id, "key": item.key} for item in req.items]
+    target_items = [
+        {"session_id": require_valid_session_id(item.session_id), "key": item.key}
+        for item in req.items
+    ]
     count = store.batch_move(target_items, req.new_category)
     return {"status": "success", "moved_count": count, "new_category": req.new_category}
 
 
-@router.get("/v1/config")
+@protected_router.get("/v1/config")
 async def get_config() -> dict[str, Any]:
     config_path = Path(get_workspace()) / "config.yaml"
     try:
@@ -414,7 +513,7 @@ async def get_config() -> dict[str, Any]:
     }
 
 
-@router.put("/v1/config")
+@protected_router.put("/v1/config")
 async def update_config(req: ConfigUpdateRequest) -> dict[str, Any]:
     config_path = Path(get_workspace()) / "config.yaml"
     try:
@@ -433,7 +532,18 @@ async def update_config(req: ConfigUpdateRequest) -> dict[str, Any]:
         if req.base_url.strip() == "":
             config["llm"].pop("base_url", None)
         else:
-            config["llm"]["base_url"] = req.base_url
+            provider = config["llm"].get("provider", "")
+            try:
+                config["llm"]["base_url"] = validate_provider_base_url(provider, req.base_url)
+            except ValueError as error:
+                raise HTTPException(status_code=400, detail=str(error)) from error
+    elif config["llm"].get("base_url"):
+        try:
+            config["llm"]["base_url"] = validate_provider_base_url(
+                config["llm"].get("provider", ""), config["llm"]["base_url"]
+            )
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
 
     # Save config.yaml
     config_path.write_text(yaml.dump(config, sort_keys=False, allow_unicode=True), encoding="utf-8")
@@ -478,19 +588,19 @@ async def update_config(req: ConfigUpdateRequest) -> dict[str, Any]:
     return {"status": "success", "message": "Configuration updated successfully."}
 
 
-@router.get("/v1/accounts")
+@protected_router.get("/v1/accounts")
 async def list_accounts() -> list[dict[str, Any]]:
-    return get_account_manager().list_accounts()
+    return [redact_account(account) for account in get_account_manager().list_accounts()]
 
 
-@router.post("/v1/accounts")
+@protected_router.post("/v1/accounts")
 async def add_update_account(req: AccountCreateRequest) -> dict[str, Any]:
     acc = req.model_dump()
     get_account_manager().add_account(acc)
-    return {"status": "success", "account": acc}
+    return {"status": "success", "account": redact_account(acc)}
 
 
-@router.delete("/v1/accounts/{account_id}")
+@protected_router.delete("/v1/accounts/{account_id}")
 async def delete_account(account_id: str) -> dict[str, Any]:
     success = get_account_manager().delete_account(account_id)
     if not success:
@@ -498,7 +608,7 @@ async def delete_account(account_id: str) -> dict[str, Any]:
     return {"status": "success"}
 
 
-@router.post("/v1/accounts/active")
+@protected_router.post("/v1/accounts/active")
 async def set_active_account(req: ActiveAccountSelectRequest) -> dict[str, Any]:
     success = get_account_manager().set_active_account(req.account_id)
     if not success:
@@ -506,17 +616,18 @@ async def set_active_account(req: ActiveAccountSelectRequest) -> dict[str, Any]:
     return {"status": "success"}
 
 
-@router.get("/v1/accounts/active")
+@protected_router.get("/v1/accounts/active")
 async def get_active_account() -> dict[str, Any]:
     acc = get_account_manager().get_active_account()
     if not acc:
         raise HTTPException(status_code=404, detail="No active account configured")
-    return acc
+    return redact_account(acc)
 
 
-@router.get("/v1/sessions/{session_id}/turns")
-@router.get("/v1/session/{session_id}/turns")
+@protected_router.get("/v1/sessions/{session_id}/turns")
+@protected_router.get("/v1/session/{session_id}/turns")
 async def get_session_turns(session_id: str) -> dict[str, Any]:
+    session_id = require_valid_session_id(session_id)
     engine = get_engine()
     turns = engine.session_turns.get(session_id, 0)
     threshold = engine.handoff_threshold
@@ -528,9 +639,10 @@ async def get_session_turns(session_id: str) -> dict[str, Any]:
     }
 
 
-@router.post("/v1/sessions/{session_id}/handoff")
-@router.post("/v1/session/{session_id}/handoff")
+@protected_router.post("/v1/sessions/{session_id}/handoff")
+@protected_router.post("/v1/session/{session_id}/handoff")
 async def manual_handoff_export(session_id: str) -> dict[str, Any]:
+    session_id = require_valid_session_id(session_id)
     engine = get_engine()
     memory_dir = os.path.join(engine.workspace_path, "memory")
     from agent_workspace.core.router import MemoryManager
@@ -564,9 +676,10 @@ async def manual_handoff_export(session_id: str) -> dict[str, Any]:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/v1/sessions/{session_id}/defragment")
-@router.post("/v1/session/{session_id}/defragment")
+@protected_router.post("/v1/sessions/{session_id}/defragment")
+@protected_router.post("/v1/session/{session_id}/defragment")
 async def manual_defragment(session_id: str) -> dict[str, Any]:
+    session_id = require_valid_session_id(session_id)
     from agent_workspace.core.memory import ContextDefragmenter
 
     defragmenter = ContextDefragmenter(get_workspace())
@@ -582,9 +695,10 @@ async def manual_defragment(session_id: str) -> dict[str, Any]:
         raise HTTPException(status_code=500, detail=f"Defragmentation sweep failed: {e}")
 
 
-@router.get("/v1/sessions/{session_id}/defragment/metrics")
-@router.get("/v1/session/{session_id}/defragment/metrics")
+@protected_router.get("/v1/sessions/{session_id}/defragment/metrics")
+@protected_router.get("/v1/session/{session_id}/defragment/metrics")
 async def get_defragment_metrics(session_id: str) -> dict[str, Any]:
+    session_id = require_valid_session_id(session_id)
     metrics_by_session = getattr(router, "defrag_metrics", {})
     if session_id in metrics_by_session:
         metrics = metrics_by_session[session_id]
@@ -609,9 +723,10 @@ async def get_defragment_metrics(session_id: str) -> dict[str, Any]:
     }
 
 
-@router.get("/v1/sessions/{session_id}/ledger")
-@router.get("/v1/session/{session_id}/ledger")
+@protected_router.get("/v1/sessions/{session_id}/ledger")
+@protected_router.get("/v1/session/{session_id}/ledger")
 async def get_session_ledger(session_id: str) -> dict[str, Any]:
+    session_id = require_valid_session_id(session_id)
     from agent_workspace.core.ledger import FinancialLedger
     ledger = FinancialLedger(get_workspace())
     transactions = ledger.get_all_records()
@@ -639,18 +754,20 @@ async def get_session_ledger(session_id: str) -> dict[str, Any]:
     }
 
 
-@router.post("/v1/sessions/{session_id}/ledger/reset")
-@router.post("/v1/session/{session_id}/ledger/reset")
+@protected_router.post("/v1/sessions/{session_id}/ledger/reset")
+@protected_router.post("/v1/session/{session_id}/ledger/reset")
 async def reset_session_ledger(session_id: str) -> dict[str, Any]:
+    session_id = require_valid_session_id(session_id)
     from agent_workspace.core.ledger import FinancialLedger
     ledger = FinancialLedger(get_workspace())
     ledger.reset_ledger()
     return {"status": "success", "session_id": session_id}
 
 
-@router.get("/v1/sessions/{session_id}/sandbox/status")
-@router.get("/v1/session/{session_id}/sandbox/status")
+@protected_router.get("/v1/sessions/{session_id}/sandbox/status")
+@protected_router.get("/v1/session/{session_id}/sandbox/status")
 async def get_sandbox_status(session_id: str) -> dict[str, Any]:
+    session_id = require_valid_session_id(session_id)
     from agent_workspace.core.sandbox import SandboxGuard
     return {
         "status": "healthy",
@@ -661,9 +778,10 @@ async def get_sandbox_status(session_id: str) -> dict[str, Any]:
     }
 
 
-@router.get("/v1/sessions/{session_id}/telemetry")
-@router.get("/v1/session/{session_id}/telemetry")
+@protected_router.get("/v1/sessions/{session_id}/telemetry")
+@protected_router.get("/v1/session/{session_id}/telemetry")
 async def get_session_telemetry(session_id: str) -> dict[str, Any]:
+    session_id = require_valid_session_id(session_id)
     from agent_workspace.observability import get_telemetry_router
     router_telemetry = get_telemetry_router(get_workspace())
     router_telemetry.record_metric(session_id, latency_ms=12.5, ws_latency_ms=8.0)
@@ -674,10 +792,12 @@ async def get_session_telemetry(session_id: str) -> dict[str, Any]:
     }
 
 
-@router.get("/v1/router/status")
-@router.get("/v1/sessions/{session_id}/router/status")
-@router.get("/v1/session/{session_id}/router/status")
+@protected_router.get("/v1/router/status")
+@protected_router.get("/v1/sessions/{session_id}/router/status")
+@protected_router.get("/v1/session/{session_id}/router/status")
 async def get_router_status(session_id: str | None = None) -> dict[str, Any]:
+    if session_id is not None:
+        session_id = require_valid_session_id(session_id)
     from agent_workspace.core.router import ROUTE_REGISTRY
 
     return {
@@ -686,10 +806,12 @@ async def get_router_status(session_id: str | None = None) -> dict[str, Any]:
     }
 
 
-@router.post("/v1/router/prune")
-@router.post("/v1/sessions/{session_id}/router/prune")
-@router.post("/v1/session/{session_id}/router/prune")
+@protected_router.post("/v1/router/prune")
+@protected_router.post("/v1/sessions/{session_id}/router/prune")
+@protected_router.post("/v1/session/{session_id}/router/prune")
 async def prune_router_routes(session_id: str | None = None, force: bool = False) -> dict[str, Any]:
+    if session_id is not None:
+        session_id = require_valid_session_id(session_id)
     from agent_workspace.core.router import ROUTE_REGISTRY
 
     pruned_any = ROUTE_REGISTRY.prune_stale_or_all(force_all=force)
@@ -701,7 +823,7 @@ async def prune_router_routes(session_id: str | None = None, force: bool = False
     }
 
 
-@router.post("/v1/builder/agents")
+@protected_router.post("/v1/builder/agents")
 async def create_builder_agent(req: BuilderAgentRequest, tenant_id: str = Depends(get_tenant_context)):
     from agent_workspace.core.builder import AgentBuilderRegistry
 
@@ -710,14 +832,14 @@ async def create_builder_agent(req: BuilderAgentRequest, tenant_id: str = Depend
     return {"status": "success", "agent": registered}
 
 
-@router.get("/v1/builder/templates")
+@protected_router.get("/v1/builder/templates")
 async def get_builder_templates(tenant_id: str = Depends(get_tenant_context)):
     from agent_workspace.core.builder import PRESET_TEMPLATES
 
     return {"templates": PRESET_TEMPLATES}
 
 
-@router.post("/v1/builder/test")
+@protected_router.post("/v1/builder/test")
 async def test_builder_agent(req: Request, tenant_id: str = Depends(get_tenant_context)):
     req_json = await req.json()
     from agent_workspace.core.builder import render_system_prompt, emit_mock_webhook_telemetry
@@ -758,7 +880,7 @@ async def test_builder_agent(req: Request, tenant_id: str = Depends(get_tenant_c
     }
 
 
-@router.post("/v1/sandbox/execute")
+@protected_router.post("/v1/sandbox/execute")
 async def execute_in_sandbox(req: SandboxExecuteRequest, tenant_id: str = Depends(get_tenant_context)):
     from agent_workspace.core.sandbox import SandboxGuard
 

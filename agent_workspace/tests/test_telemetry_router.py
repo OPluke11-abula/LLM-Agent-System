@@ -16,6 +16,7 @@ from api import app
 from observability import get_telemetry_router, TelemetryRouter
 from core.ledger import FinancialLedger
 from core.sandbox import SandboxGuard
+from conftest import auth_headers
 
 @pytest.fixture
 def temp_workspace():
@@ -69,6 +70,7 @@ def test_telemetry_router_thread_safety(temp_workspace):
 def test_api_endpoints_for_sandbox_and_telemetry():
     client = TestClient(app)
     session_id = "api-test-session"
+    headers = auth_headers()
     
     # Initialize sandbox stats
     SandboxGuard.total_executions = 10
@@ -77,7 +79,7 @@ def test_api_endpoints_for_sandbox_and_telemetry():
     SandboxGuard.last_execution_status = "allowed"
     
     # Test Sandbox status endpoint
-    response = client.get(f"/v1/sessions/{session_id}/sandbox/status")
+    response = client.get(f"/v1/sessions/{session_id}/sandbox/status", headers=headers)
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "healthy"
@@ -87,7 +89,7 @@ def test_api_endpoints_for_sandbox_and_telemetry():
     assert data["last_execution_status"] == "allowed"
 
     # Test Telemetry endpoint
-    response_telemetry = client.get(f"/v1/sessions/{session_id}/telemetry")
+    response_telemetry = client.get(f"/v1/sessions/{session_id}/telemetry", headers=headers)
     assert response_telemetry.status_code == 200
     tel_data = response_telemetry.json()
     assert tel_data["session_id"] == session_id

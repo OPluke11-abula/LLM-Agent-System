@@ -125,13 +125,15 @@ def test_context_defragmenter_core_logic(mock_handoff_env):
 def test_api_defragment_endpoints(mock_handoff_env):
     # Setup FastAPI api workspace path
     import api
+    from api import generate_jwt
     api.workspace = mock_handoff_env
     
     client = TestClient(app)
     session_id = "api-test-session"
     
     # Trigger defragmentation sweep
-    resp = client.post(f"/v1/sessions/{session_id}/defragment")
+    headers = {"Authorization": f"Bearer {generate_jwt({'tenant_id': 'test_tenant', 'role': 'tenant'})}"}
+    resp = client.post(f"/v1/sessions/{session_id}/defragment", headers=headers)
     assert resp.status_code == 200
     data = resp.json()
     assert data["status"] == "success"
@@ -140,7 +142,7 @@ def test_api_defragment_endpoints(mock_handoff_env):
     assert "reconciliation_efficiency" in data
     
     # Fetch metrics
-    resp_metrics = client.get(f"/v1/sessions/{session_id}/defragment/metrics")
+    resp_metrics = client.get(f"/v1/sessions/{session_id}/defragment/metrics", headers=headers)
     assert resp_metrics.status_code == 200
     metrics_data = resp_metrics.json()
     assert metrics_data["session_id"] == session_id

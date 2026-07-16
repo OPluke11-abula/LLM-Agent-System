@@ -43,6 +43,7 @@ except Exception:
 import pytest
 
 os.environ.setdefault("LAS_JWT_SECRET", "test-only-secret-for-phase-72-auth-claims")
+os.environ.setdefault("LAS_TEST_MODE", "1")
 
 
 def auth_headers(tenant_id="test_tenant", role="admin", scope="admin:read admin:write auth:mint"):

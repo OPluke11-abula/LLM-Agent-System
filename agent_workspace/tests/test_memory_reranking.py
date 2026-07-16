@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 
 from long_term_memory import LongTermMemoryStore, LongTermMemoryRecord
 from api import app
+from conftest import auth_headers
 
 @pytest.fixture
 def temp_memory_store(tmp_path):
@@ -118,6 +119,7 @@ def test_update_and_batch_move_apis():
     import uuid
     unique_suffix = uuid.uuid4().hex[:8]
     client = TestClient(app)
+    headers = auth_headers()
 
     # 1. Create a preference memory
     create_payload = {
@@ -126,13 +128,13 @@ def test_update_and_batch_move_apis():
         "confidence": 0.9,
         "expires_at": None
     }
-    resp = client.post("/v1/memory/preference", json=create_payload)
+    resp = client.post("/v1/memory/preference", json=create_payload, headers=headers)
     assert resp.status_code == 200
     created_data = resp.json()
     record_id = created_data["record"]["id"]
 
     # Verify it exists
-    get_resp = client.get("/v1/memory")
+    get_resp = client.get("/v1/memory", headers=headers)
     assert get_resp.status_code == 200
     records = get_resp.json()["records"]
     assert any(r["id"] == record_id and r["category"] == "general" for r in records)
@@ -148,11 +150,11 @@ def test_update_and_batch_move_apis():
         "expires_at": None,
         "citations": ["doc-style"]
     }
-    update_resp = client.post("/v1/memory/update", json=update_payload)
+    update_resp = client.post("/v1/memory/update", json=update_payload, headers=headers)
     assert update_resp.status_code == 200
 
     # Verify updates
-    get_resp = client.get("/v1/memory")
+    get_resp = client.get("/v1/memory", headers=headers)
     records = get_resp.json()["records"]
     updated_rec = next(r for r in records if r["id"] == record_id)
     assert updated_rec["summary"] == f"Updated preference summary text {unique_suffix}."
@@ -167,16 +169,16 @@ def test_update_and_batch_move_apis():
         ],
         "new_category": "archive/old-preferences"
     }
-    batch_resp = client.post("/v1/memory/batch-move", json=batch_payload)
+    batch_resp = client.post("/v1/memory/batch-move", json=batch_payload, headers=headers)
     assert batch_resp.status_code == 200
     assert batch_resp.json()["moved_count"] == 1
 
     # Verify move
-    get_resp = client.get("/v1/memory")
+    get_resp = client.get("/v1/memory", headers=headers)
     records = get_resp.json()["records"]
     moved_rec = next(r for r in records if r["id"] == record_id)
     assert moved_rec["category"] == "archive/old-preferences"
 
     # Cleanup
-    del_resp = client.delete(f"/v1/memory/test-api-session/{record_id}")
+    del_resp = client.delete(f"/v1/memory/test-api-session/{record_id}", headers=headers)
     assert del_resp.status_code == 200

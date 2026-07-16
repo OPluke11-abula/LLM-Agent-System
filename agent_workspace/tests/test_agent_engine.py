@@ -278,6 +278,15 @@ def test_agent_engine_path_traversal_guards():
         # Test traversal guard in import_handoff
         with pytest.raises(PermissionError, match="Directory traversal warning: Access denied outside handoff boundary"):
             engine.import_handoff("../traversal")
+
+        for unsafe_id in ("%2e%2e", "%2f", "%5c", r"C:\\Windows\\temp", r"\\\\server\\share\\session"):
+            with pytest.raises(PermissionError, match="Directory traversal warning"):
+                engine.export_handoff(unsafe_id, "summary")
+            with pytest.raises(PermissionError, match="Directory traversal warning"):
+                engine.import_handoff(unsafe_id)
+
+        with pytest.raises(ValueError):
+            engine.increment_turns("../traversal")
             
         # Test traversal guard in _parse_skill_md
         with pytest.raises(PermissionError, match="Directory traversal warning: Access denied outside project boundary"):

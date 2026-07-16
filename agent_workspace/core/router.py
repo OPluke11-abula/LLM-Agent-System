@@ -22,6 +22,7 @@ from .providers import ProviderFactory
 from agent_workspace.long_term_memory import LongTermMemoryStore
 from agent_workspace.observability import ACTIVE_SESSIONS, tracer
 from agent_workspace.core.account_manager import AccountManager
+from agent_workspace.core.security import safe_workspace_path, validate_session_id
 
 
 class ToolValidationError(ValueError):
@@ -159,8 +160,8 @@ class MemoryManager:
     """Manage per-session working memory files."""
 
     def __init__(self, memory_dir: str, session_id: str = "default"):
-        self.session_id = session_id
-        self.memory_path = os.path.join(memory_dir, f"{session_id}.json")
+        self.session_id = validate_session_id(session_id)
+        self.memory_path = str(safe_workspace_path(memory_dir, f"{self.session_id}.json"))
         self._ensure_file_exists()
 
     def _ensure_file_exists(self) -> None:

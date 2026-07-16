@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 import os
 import json
 import logging
 import asyncio
 import inspect
 from typing import Callable, Any, Optional
+from agent_workspace.core.runtime_config import get_runtime_feature_flags
 
 
 logger = logging.getLogger(__name__)
@@ -70,12 +73,33 @@ class InMemorySwarmBroker(BaseSwarmBroker):
             self._listeners.pop(channel)
         self._queues.pop(channel, None)
 
+    async def stop(self) -> None:
+        tasks = [task for listeners in self._listeners.values() for task in listeners]
+        for task in tasks:
+            task.cancel()
+        self._listeners.clear()
+        self._queues.clear()
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
 
-try:
-    import redis.asyncio as aioredis
-    REDIS_AVAILABLE = True
-except ImportError:
-    REDIS_AVAILABLE = False
+
+aioredis: Any = None
+REDIS_AVAILABLE = False
+
+
+def _load_redis() -> bool:
+    global aioredis, REDIS_AVAILABLE
+    if aioredis is not None:
+        return REDIS_AVAILABLE
+    try:
+        import importlib
+
+        aioredis = importlib.import_module("redis.asyncio")
+    except ImportError:
+        REDIS_AVAILABLE = False
+    else:
+        REDIS_AVAILABLE = True
+    return REDIS_AVAILABLE
 
 
 class RedisSwarmBroker(BaseSwarmBroker):
@@ -89,7 +113,7 @@ class RedisSwarmBroker(BaseSwarmBroker):
         self._is_running = False
 
     async def start(self) -> None:
-        if not REDIS_AVAILABLE:
+        if not _load_redis():
             raise RuntimeError("redis package is missing")
         self.client = aioredis.from_url(self.redis_url, decode_responses=True)
         # Ping to verify connection
@@ -165,23 +189,54 @@ class RedisSwarmBroker(BaseSwarmBroker):
 
 _global_broker: Optional[BaseSwarmBroker] = None
 
-def get_broker(redis_url: Optional[str] = None, workspace_path: str = ".", reset: bool = False) -> BaseSwarmBroker:
+
+def _dispose_broker(broker: BaseSwarmBroker) -> None:
+    try:
+        result = broker.stop()
+        if inspect.isawaitable(result):
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                asyncio.run(result)
+            else:
+                loop.create_task(result)
+    except Exception as error:
+        logger.warning("Failed to dispose cached broker: %s", error)
+
+def get_broker(
+    redis_url: Optional[str] = None,
+    workspace_path: str = ".",
+    reset: bool = False,
+    start: bool = True,
+) -> BaseSwarmBroker:
     global _global_broker
+
+    if reset and _global_broker is not None:
+        previous_broker = _global_broker
+        _global_broker = None
+        _dispose_broker(previous_broker)
+
+    if not get_runtime_feature_flags().enable_redis_swarm:
+        if _global_broker is not None:
+            return _global_broker
+        _global_broker = InMemorySwarmBroker()
+        return _global_broker
     if _global_broker is not None and not reset:
         return _global_broker
 
     url = redis_url or os.environ.get("REDIS_URL", "redis://localhost:6379")
     
-    if REDIS_AVAILABLE:
+    if _load_redis():
         try:
             broker = RedisSwarmBroker(url)
-            try:
-                loop = asyncio.get_running_loop()
-                loop.create_task(broker.start())
-            except RuntimeError:
-                temp_loop = asyncio.new_event_loop()
-                temp_loop.run_until_complete(broker.start())
-                temp_loop.close()
+            if start:
+                try:
+                    loop = asyncio.get_running_loop()
+                    loop.create_task(broker.start())
+                except RuntimeError:
+                    temp_loop = asyncio.new_event_loop()
+                    temp_loop.run_until_complete(broker.start())
+                    temp_loop.close()
             _global_broker = broker
             logger.info("Initialized Redis Swarm Broker successfully.")
             return _global_broker

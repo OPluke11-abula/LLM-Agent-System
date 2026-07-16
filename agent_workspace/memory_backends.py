@@ -24,6 +24,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from agent_workspace.core.security import validate_session_id
+
 logger = logging.getLogger(__name__)
 
 
@@ -214,6 +216,7 @@ class SQLiteBackend(MemoryBackend):
     # -- public API -----------------------------------------------------------
 
     def write(self, session_id: str, key: str, value: dict[str, Any]) -> None:
+        session_id = validate_session_id(session_id)
         with self._lock:
             conn = self._get_conn()
             now = datetime.now(timezone.utc).isoformat()
@@ -234,6 +237,7 @@ class SQLiteBackend(MemoryBackend):
                 raise
 
     def read(self, session_id: str, key: str) -> dict[str, Any] | None:
+        session_id = validate_session_id(session_id)
         conn = self._get_conn()
         row = conn.execute(
             "SELECT value FROM memory_records WHERE session_id = ? AND key = ?",
@@ -249,6 +253,8 @@ class SQLiteBackend(MemoryBackend):
         session_id: str | None = None,
         top_k: int = 5,
     ) -> list[dict[str, Any]]:
+        if session_id is not None:
+            session_id = validate_session_id(session_id)
         conn = self._get_conn()
 
         # Build FTS5 match expression — quote each token to avoid syntax errors
@@ -295,6 +301,7 @@ class SQLiteBackend(MemoryBackend):
         return [json.loads(row["value"]) for row in rows]
 
     def delete(self, session_id: str, key: str) -> bool:
+        session_id = validate_session_id(session_id)
         with self._lock:
             conn = self._get_conn()
             conn.execute("BEGIN IMMEDIATE")

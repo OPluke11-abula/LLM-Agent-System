@@ -8,6 +8,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, List, Optional, Dict
 
+from agent_workspace.core.security import safe_workspace_path, validate_session_id
+
 logger = logging.getLogger("ReplayLogger")
 
 class ReplayLogger:
@@ -44,8 +46,7 @@ class ReplayLogger:
     @classmethod
     def log_event(cls, workspace_path: str, session_id: str, event_type: str, payload: dict) -> None:
         """Logs a session telemetry event chronologically to a session-specific SQLite database."""
-        if not session_id:
-            return
+        session_id = validate_session_id(session_id)
             
         replays_dir = Path(workspace_path) / "memory" / "replays"
         with cls._lock:
@@ -55,7 +56,7 @@ class ReplayLogger:
                 logger.error(f"Failed to create replays directory: {e}")
                 return
 
-        db_path = replays_dir / f"{session_id}.db"
+        db_path = safe_workspace_path(replays_dir, f"{session_id}.db")
         
         # Initialize database tables
         cls._init_db(db_path)
@@ -79,11 +80,10 @@ class ReplayLogger:
     @classmethod
     def get_session_timeline(cls, workspace_path: str, session_id: str) -> Optional[List[Dict[str, Any]]]:
         """Retrieves the chronological sequence of state changes for the given session ID."""
-        if not session_id:
-            return None
+        session_id = validate_session_id(session_id)
             
         replays_dir = Path(workspace_path) / "memory" / "replays"
-        db_path = replays_dir / f"{session_id}.db"
+        db_path = safe_workspace_path(replays_dir, f"{session_id}.db")
         
         if not db_path.exists():
             return None

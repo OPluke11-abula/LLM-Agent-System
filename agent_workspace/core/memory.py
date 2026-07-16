@@ -10,6 +10,8 @@ from pathlib import Path
 from datetime import datetime, timezone
 from typing import Any
 
+from agent_workspace.core.security import validate_session_id
+
 logger = logging.getLogger(__name__)
 
 class ContextDefragmenter:
@@ -24,6 +26,7 @@ class ContextDefragmenter:
 
     def defragment(self, session_id: str) -> dict[str, Any]:
         """Perform defragmentation sweep of all historical handoffs."""
+        session_id = validate_session_id(session_id)
         handoff_dir = self.project_root / ".agent" / "memory" / "handoff"
 
         # 1. Gather all handoffs
