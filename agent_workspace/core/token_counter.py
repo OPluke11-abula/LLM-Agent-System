@@ -1,6 +1,7 @@
 import json
 import logging
 import asyncio
+import threading
 from collections import OrderedDict
 from functools import lru_cache
 from typing import Any, Dict, List, NamedTuple, Optional
@@ -19,23 +20,27 @@ class TokenCountMemo:
             raise ValueError("max_entries must be a positive integer")
         self.max_entries = max_entries
         self._entries: OrderedDict[tuple[Any, ...], TokenCount] = OrderedDict()
+        self._lock = threading.RLock()
 
     def get(self, key: tuple[Any, ...]) -> tuple[bool, TokenCount | None]:
-        try:
-            value = self._entries.pop(key)
-        except KeyError:
-            return False, None
-        self._entries[key] = value
-        return True, value
+        with self._lock:
+            try:
+                value = self._entries.pop(key)
+            except KeyError:
+                return False, None
+            self._entries[key] = value
+            return True, value
 
     def set(self, key: tuple[Any, ...], value: TokenCount) -> None:
-        self._entries.pop(key, None)
-        self._entries[key] = value
-        while len(self._entries) > self.max_entries:
-            self._entries.popitem(last=False)
+        with self._lock:
+            self._entries.pop(key, None)
+            self._entries[key] = value
+            while len(self._entries) > self.max_entries:
+                self._entries.popitem(last=False)
 
     def __len__(self) -> int:
-        return len(self._entries)
+        with self._lock:
+            return len(self._entries)
 
 
 class TokenCounter:
@@ -130,13 +135,15 @@ class TokenCounter:
         messages: List[Dict[str, Any]],
         tool_schemas: Optional[List[Dict[str, Any]]],
         model: str,
-    ) -> tuple[Any, ...]:
+        config: Optional[Dict[str, Any]] = None,
+    ) -> Optional[tuple[Any, ...]]:
         payload = {
             "model": model,
-            "provider_model": getattr(provider, "model", None),
+            "provider_type": f"{type(provider).__module__}.{type(provider).__qualname__}",
             "system_prompt": system_prompt or "",
             "messages": messages or [],
             "tool_schemas": tool_schemas or [],
+            "config": config or {},
         }
         try:
             serialized = json.dumps(
@@ -144,12 +151,10 @@ class TokenCounter:
                 ensure_ascii=False,
                 sort_keys=True,
                 separators=(",", ":"),
-                default=repr,
             )
         except (TypeError, ValueError):
-            serialized = repr(payload)
+            return None
         return (
-            id(provider),
             type(provider).__module__,
             type(provider).__qualname__,
             serialized,
@@ -183,8 +188,9 @@ class TokenCounter:
                     messages,
                     tool_schemas,
                     model,
+                    config,
                 )
-                if memo is not None:
+                if memo is not None and cache_key is not None:
                     found, cached = memo.get(cache_key)
                     if found:
                         return cached
@@ -211,7 +217,7 @@ class TokenCounter:
                 )
                 if hasattr(response, "total_tokens"):
                     result = TokenCount(response.total_tokens, False)
-                    if memo is not None:
+                    if memo is not None and cache_key is not None:
                         memo.set(cache_key, result)
                     return result
             except Exception as e:

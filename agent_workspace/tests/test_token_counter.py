@@ -1,4 +1,6 @@
+import asyncio
 import sys
+from concurrent.futures import ThreadPoolExecutor
 import types
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -222,3 +224,96 @@ async def test_aggregate_preflight_memo_is_bounded_and_does_not_cache_failures(f
         memo=memo,
     ) is None
     assert failing.client.models.count_tokens.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_aggregate_preflight_memo_uses_stable_provider_and_config_inputs(fake_google_types):
+    provider_one = GoogleGenAIProvider()
+    provider_two = GoogleGenAIProvider()
+    memo = TokenCountMemo(max_entries=4)
+    messages = [{"role": "user", "content": "hello"}]
+
+    await TokenCounter.get_aggregate_preflight_count(
+        provider=provider_one,
+        system_prompt="system",
+        messages=messages,
+        config={"model": "gemini-2.5-flash", "output_schema": {"type": "object"}},
+        memo=memo,
+    )
+    await TokenCounter.get_aggregate_preflight_count(
+        provider=provider_one,
+        system_prompt="system",
+        messages=messages,
+        config={"model": "gemini-2.5-flash", "output_schema": {"type": "string"}},
+        memo=memo,
+    )
+
+    assert provider_one.client.models.count_tokens.call_count == 2
+    assert TokenCounter._preflight_cache_key(
+        provider_one, "system", messages, None, "gemini-2.5-flash"
+    ) == TokenCounter._preflight_cache_key(
+        provider_two, "system", messages, None, "gemini-2.5-flash"
+    )
+
+
+@pytest.mark.asyncio
+async def test_aggregate_preflight_memo_recounts_after_in_place_mutation(fake_google_types):
+    provider = GoogleGenAIProvider()
+    memo = TokenCountMemo(max_entries=4)
+    messages = [{"role": "user", "content": "before"}]
+
+    await TokenCounter.get_aggregate_preflight_count(
+        provider=provider, system_prompt="system", messages=messages, memo=memo
+    )
+    messages[0]["content"] = "after"
+    await TokenCounter.get_aggregate_preflight_count(
+        provider=provider, system_prompt="system", messages=messages, memo=memo
+    )
+
+    assert provider.client.models.count_tokens.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_aggregate_preflight_memo_does_not_cache_unserializable_payload(fake_google_types):
+    provider = GoogleGenAIProvider()
+    memo = TokenCountMemo(max_entries=4)
+    messages = [{"role": "user", "content": object()}]
+
+    await TokenCounter.get_aggregate_preflight_count(
+        provider=provider, system_prompt="system", messages=messages, memo=memo
+    )
+    await TokenCounter.get_aggregate_preflight_count(
+        provider=provider, system_prompt="system", messages=messages, memo=memo
+    )
+
+    assert provider.client.models.count_tokens.call_count == 2
+    assert len(memo) == 0
+
+
+@pytest.mark.asyncio
+async def test_aggregate_preflight_memo_propagates_cancellation(fake_google_types):
+    provider = GoogleGenAIProvider(failure=asyncio.CancelledError())
+    memo = TokenCountMemo(max_entries=4)
+
+    with pytest.raises(asyncio.CancelledError):
+        await TokenCounter.get_aggregate_preflight_count(
+            provider=provider, system_prompt="system", messages=[], memo=memo
+        )
+
+    assert len(memo) == 0
+
+
+def test_token_count_memo_is_safe_for_concurrent_access():
+    memo = TokenCountMemo(max_entries=8)
+
+    def write_and_read(index):
+        key = ("provider", index)
+        value = TokenCount(index, False)
+        memo.set(key, value)
+        return memo.get(key)[1]
+
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        values = list(executor.map(write_and_read, range(32)))
+
+    assert all(value is not None for value in values)
+    assert len(memo) <= 8
