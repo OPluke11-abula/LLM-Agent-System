@@ -1,6 +1,7 @@
 import json
 import logging
 import asyncio
+from functools import lru_cache
 from typing import Any, Dict, List, NamedTuple, Optional
 
 logger = logging.getLogger(__name__)
@@ -15,6 +16,7 @@ class TokenCounter:
     """Utility for counting and estimating prompt tokens across different providers."""
 
     @staticmethod
+    @lru_cache(maxsize=32)
     def get_encoding(model_name: Optional[str] = None):
         """Retrieve tiktoken encoding safely, fallback to cl100k_base if it fails."""
         try:

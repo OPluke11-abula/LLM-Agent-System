@@ -25,6 +25,7 @@ from agent_workspace.core.account_manager import AccountManager
 from agent_workspace.routes.schemas import CrewRegisterRequest
 
 logger = logging.getLogger(__name__)
+MAX_LOCAL_FANOUT_CONCURRENCY = 64
 
 router = APIRouter()
 
@@ -118,6 +119,7 @@ class MultiChannelPubSubManager:
 
     async def _local_publish(self, channel: str, session_id: str, data: dict[str, Any], publisher_tenant: str = "default_tenant"):
         # Broadcast to all connections subscribed to this channel for this session or "global"
+        send_operations = []
         for ws, s_id in list(self.channels[channel]):
             ws_tenant = self.websocket_tenants.get(ws, "default_tenant")
             if ws_tenant != publisher_tenant:
@@ -136,13 +138,24 @@ class MultiChannelPubSubManager:
                         # Encrypt broadcast message
                         plaintext = json.dumps(payload_dict, ensure_ascii=False)
                         encrypted_msg = SwarmP2PCrypto.encrypt_message(key, plaintext)
-                        await ws.send_json(encrypted_msg)
+                        send_operations.append((ws, encrypted_msg))
                     else:
                         # Fallback for backward compatibility/unencrypted clients if any
-                        await ws.send_json(payload_dict)
+                        send_operations.append((ws, payload_dict))
                 except Exception:
                     # Stale connection, will be handled during disconnect
                     pass
+
+        if send_operations:
+            async def send_one(ws: WebSocket, message: Any) -> None:
+                try:
+                    await ws.send_json(message)
+                except Exception:
+                    pass
+
+            for start in range(0, len(send_operations), MAX_LOCAL_FANOUT_CONCURRENCY):
+                batch = send_operations[start:start + MAX_LOCAL_FANOUT_CONCURRENCY]
+                await asyncio.gather(*(send_one(ws, message) for ws, message in batch))
 
 
 collab_manager = MultiChannelPubSubManager()

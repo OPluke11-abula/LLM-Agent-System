@@ -1,4 +1,5 @@
 import sys
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 import pytest
 from agent_workspace.core.token_counter import TokenCounter, TokenCount
@@ -11,6 +12,28 @@ def test_count_text_with_tiktoken():
     assert isinstance(res, TokenCount)
     assert res.count > 0
     assert res.estimated is True
+
+
+def test_get_encoding_reuses_cached_encoding(monkeypatch):
+    calls = 0
+
+    class FakeEncoding:
+        def encode(self, text):
+            return list(text)
+
+    def get_encoding(name):
+        nonlocal calls
+        calls += 1
+        return FakeEncoding()
+
+    monkeypatch.setitem(sys.modules, "tiktoken", SimpleNamespace(get_encoding=get_encoding))
+    TokenCounter.get_encoding.cache_clear()
+    try:
+        TokenCounter.count_text("first")
+        TokenCounter.count_text("second")
+        assert calls == 1
+    finally:
+        TokenCounter.get_encoding.cache_clear()
 
 
 def test_count_text_fallback_character_division():
