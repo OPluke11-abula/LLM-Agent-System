@@ -19,6 +19,12 @@ from typing import Any
 
 from agent_workspace.core.account_manager import AccountManager
 from agent_workspace.core.providers import ProviderFactory, BaseLLMProvider
+from agent_workspace.core.debate_budget import (
+    BudgetExhausted,
+    DebateExecutionBudget,
+    classify_provider_failure,
+    estimate_provider_cost,
+)
 from agent_workspace.core.prompt_composer import PromptComposer
 from agent_workspace.core.security import get_secret_bytes
 
@@ -261,7 +267,167 @@ class DiscussionRoom:
         }
         return provider, config, account["id"]
 
-    async def _invoke_llm_healing(self, skill_id: str, params: dict[str, Any], error_msg: str) -> dict[str, Any]:
+    async def _budgeted_complete(
+        self,
+        budget: DebateExecutionBudget,
+        provider: BaseLLMProvider,
+        system_prompt: str,
+        user_content: str,
+        config: dict[str, Any],
+    ):
+        async with budget.provider_attempt():
+            try:
+                response = await provider.complete(
+                    system_prompt=system_prompt,
+                    messages=[{"role": "user", "content": user_content}],
+                    tool_schemas=[],
+                    config=config,
+                )
+            except asyncio.CancelledError:
+                raise
+            except Exception as error:
+                usage = getattr(error, "usage", None) or getattr(error, "usage_metadata", None)
+                if isinstance(usage, dict):
+                    budget.record_usage(usage, getattr(error, "cost_usd", None))
+                raise
+
+            usage = getattr(response, "usage", None)
+            if isinstance(usage, dict) and any(
+                isinstance(usage.get(key), (int, float)) and usage.get(key, 0) > 0
+                for key in ("prompt_tokens", "completion_tokens", "total_tokens")
+            ):
+                budget.record_usage(
+                    usage,
+                    usage.get("cost_usd")
+                    if isinstance(usage.get("cost_usd"), (int, float))
+                    else estimate_provider_cost(
+                        config.get("model", "gemini-2.5-flash"),
+                        usage.get("prompt_tokens", 0) or 0,
+                        usage.get("completion_tokens", 0) or 0,
+                    ),
+                )
+            return response
+
+    async def _complete_with_budget(
+        self,
+        budget: DebateExecutionBudget,
+        *,
+        account_id: str | None,
+        prompt_len: int,
+        topic: str,
+        session_id: str,
+        system_prompt: str,
+        user_content: str,
+        healing_skill: str,
+    ) -> dict[str, Any]:
+        current_system_prompt = system_prompt
+        current_user_content = user_content
+        last_error = ""
+        for attempt_index in range(4):
+            response_type = None
+            try:
+                provider, config, resolved_acc_id = self._resolve_agent_provider(
+                    account_id=account_id,
+                    prompt_len=prompt_len,
+                    topic=topic,
+                    session_id=session_id,
+                )
+                config = dict(config)
+                config["max_tokens"] = min(config.get("max_tokens", 4096), 1024)
+                response = await self._budgeted_complete(
+                    budget,
+                    provider,
+                    current_system_prompt,
+                    current_user_content,
+                    config,
+                )
+                response_type, response_data = response
+                if response_type != "error":
+                    usage = getattr(response, "usage", None)
+                    if not isinstance(usage, dict) or not any(
+                        isinstance(usage.get(key), (int, float)) and usage.get(key, 0) > 0
+                        for key in ("prompt_tokens", "completion_tokens", "total_tokens")
+                    ):
+                        prompt_tokens = len(current_system_prompt + current_user_content) // 4
+                        completion_tokens = len(str(response_data)) // 4
+                        budget.record_usage(
+                            {
+                                "prompt_tokens": prompt_tokens,
+                                "completion_tokens": completion_tokens,
+                                "total_tokens": prompt_tokens + completion_tokens,
+                            },
+                            estimate_provider_cost(config.get("model", "gemini-2.5-flash"), prompt_tokens, completion_tokens),
+                        )
+                    return {
+                        "status": "success",
+                        "response": response,
+                        "config": config,
+                        "account_id": resolved_acc_id,
+                        "system_prompt": current_system_prompt,
+                        "user_content": current_user_content,
+                    }
+                error_value = response_data
+            except asyncio.CancelledError:
+                raise
+            except BudgetExhausted:
+                raise
+            except Exception as error:
+                error_value = error
+
+            classification = classify_provider_failure(error_value)
+            budget.record_classification(classification)
+            error_message = str(error_value)
+            last_error = error_message
+            if not classification.retryable:
+                return {
+                    "status": "permanent",
+                    "error": error_message,
+                    "reason": classification.reason,
+                }
+            if attempt_index >= 3:
+                budget.exhaustion_reason = "retries"
+                return {
+                    "status": "budget_exhausted",
+                    "error": f"{last_error}; budget_exhausted: retries",
+                    "reason": classification.reason,
+                }
+
+            is_rate_limited = response_type == "error" and (
+                "429" in error_message.lower() or "rate limit" in error_message.lower()
+            )
+            swapped_to_fallback = is_rate_limited and self.account_manager.swap_to_fallback()
+            if budget.healing_calls < budget.max_healing_calls and not swapped_to_fallback:
+                budget.consume_healing()
+                healed_data = await self._invoke_llm_healing(
+                    healing_skill,
+                    {"system_prompt": current_system_prompt, "user_content": current_user_content},
+                    error_message,
+                    _execution_budget=budget,
+                )
+                current_system_prompt = healed_data.get("system_prompt", current_system_prompt)
+                current_user_content = healed_data.get("user_content", current_user_content)
+            else:
+                budget.exhaustion_reason = "healing_calls"
+
+            try:
+                budget.consume_retry()
+            except BudgetExhausted:
+                return {
+                    "status": "budget_exhausted",
+                    "error": f"{last_error}; budget_exhausted: retries",
+                    "reason": classification.reason,
+                }
+            await asyncio.sleep(0)
+
+        raise AssertionError("unreachable debate retry state")
+
+    async def _invoke_llm_healing(
+        self,
+        skill_id: str,
+        params: dict[str, Any],
+        error_msg: str,
+        _execution_budget: DebateExecutionBudget | None = None,
+    ) -> dict[str, Any]:
         """Invoke LLM correction call to auto-diagnose and patch prompts or parameters."""
         lessons_learned_content = ""
         path_check = Path(self.workspace_path)
@@ -298,13 +464,23 @@ class DiscussionRoom:
         )
 
         try:
+            budget = _execution_budget or DebateExecutionBudget()
             provider, config, resolved_acc_id = self._resolve_agent_provider(None)
-            response_type, response_data = await provider.complete(
-                system_prompt=system_prompt,
-                messages=[{"role": "user", "content": user_content}],
-                tool_schemas=[],
-                config=config
+            response = await self._budgeted_complete(
+                budget,
+                provider,
+                system_prompt,
+                user_content,
+                config,
             )
+            response_type, response_data = response
+            usage = getattr(response, "usage", None)
+            if isinstance(usage, dict):
+                self.account_manager.record_usage(
+                    resolved_acc_id,
+                    usage.get("prompt_tokens", 0) or 0,
+                    usage.get("completion_tokens", 0) or 0,
+                )
             if response_type == "error":
                 return params
 
@@ -320,6 +496,10 @@ class DiscussionRoom:
             patched = json.loads(raw_text)
             if isinstance(patched, dict):
                 return patched
+        except asyncio.CancelledError:
+            raise
+        except BudgetExhausted:
+            raise
         except Exception:
             pass
         return params
@@ -580,12 +760,16 @@ class DiscussionRoom:
         risk_level: str = "medium",
         approval_required: bool = False,
         consensus_certificate: dict[str, Any] | None = None,
+        _execution_budget: DebateExecutionBudget | None = None,
+        _execution_depth: int = 0,
     ) -> dict[str, Any]:
         """Orchestrate a round-robin sequential debate among agents on a topic.
 
         Concludes with a synthesized Consensus Summary, with parallel hierarchical sub-swarm delegation.
         """
-        # Enforce participant limits
+        execution_budget = _execution_budget or DebateExecutionBudget()
+        execution_budget.check_nested_depth(_execution_depth)
+
         if len(agents) > max_participants:
             raise ValueError(f"Number of agents ({len(agents)}) exceeds max_participants ceiling ({max_participants}).")
 
@@ -604,20 +788,11 @@ class DiscussionRoom:
         models_used = set()
         role_contracts = self.build_role_contracts(agents)
 
-        def estimate_cost(model_name: str, prompt_t: int, completion_t: int) -> float:
-            m_lower = model_name.lower()
-            if "pro" in m_lower:
-                input_rate = 1.25 / 1_000_000
-                output_rate = 5.00 / 1_000_000
-            else:
-                input_rate = 0.075 / 1_000_000
-                output_rate = 0.30 / 1_000_000
-            return (prompt_t * input_rate) + (completion_t * output_rate)
-
         # 0. Handle parallel sub-swarm delegation
         sub_swarm_results = []
         sub_swarm_context = ""
         if sub_problems:
+            execution_budget.check_nested_depth(_execution_depth + 1)
             logger.info("Encountered highly complex problem. Spawning parallel sub-swarms...")
             tasks = []
             for i, sp in enumerate(sub_problems):
@@ -639,6 +814,8 @@ class DiscussionRoom:
                         risk_level=risk_level,
                         approval_required=approval_required,
                         consensus_certificate=consensus_certificate,
+                        _execution_budget=execution_budget,
+                        _execution_depth=_execution_depth + 1,
                     )
                 )
             sub_swarm_results = await asyncio.gather(*tasks)
@@ -650,6 +827,7 @@ class DiscussionRoom:
                 sub_swarm_context += f"#### Sub-Swarm {i+1} Topic: {sub_topic}\n"
                 sub_swarm_context += f"*Consensus Summary*:\n{sub_summary}\n\n"
             sub_swarm_context += "---\n\n"
+            execution_budget.current_nested_depth = _execution_depth
 
         # 1. Resolve participants and their personas
         participants = []
@@ -695,16 +873,17 @@ It is now your turn, {p['name']}. Please respond to the topic or build on top of
                 broker = get_broker(workspace_path=self.workspace_path)
                 if isinstance(broker, RedisSwarmBroker) and not os.environ.get("PYTEST_CURRENT_TEST"):
                     try:
-                        delegated_resp = await self._delegate_turn_to_microservice(
-                            broker=broker,
-                            session_id=session_id,
-                            agent_name=p["name"],
-                            role=p["role"],
-                            topic=topic,
-                            system_prompt=system_prompt,
-                            user_content=user_content,
-                            account_id=p["account_id"]
-                        )
+                        async with execution_budget.provider_attempt():
+                            delegated_resp = await self._delegate_turn_to_microservice(
+                                broker=broker,
+                                session_id=session_id,
+                                agent_name=p["name"],
+                                role=p["role"],
+                                topic=topic,
+                                system_prompt=system_prompt,
+                                user_content=user_content,
+                                account_id=p["account_id"]
+                            )
                         if delegated_resp and delegated_resp.get("status") == "success":
                             contribution = delegated_resp.get("contribution")
                             p_tok = delegated_resp.get("prompt_tokens", 0)
@@ -713,79 +892,58 @@ It is now your turn, {p['name']}. Please respond to the topic or build on top of
 
                             model_used = delegated_resp.get("model", "gemini-2.5-flash")
                             models_used.add(model_used)
-                            call_cost = estimate_cost(model_used, p_tok, c_tok)
+                            execution_budget.record_usage(
+                                {
+                                    "prompt_tokens": p_tok,
+                                    "completion_tokens": c_tok,
+                                    "total_tokens": p_tok + c_tok,
+                                },
+                                estimate_provider_cost(model_used, p_tok, c_tok),
+                            )
+                            call_cost = estimate_provider_cost(model_used, p_tok, c_tok)
                             total_prompt_tokens += p_tok
                             total_completion_tokens += c_tok
                             total_estimated_cost += call_cost
+                    except BudgetExhausted:
+                        raise
                     except Exception as e:
                         logger.warning(f"Failed to delegate debate turn to microservice: {e}. Falling back to in-process execution.")
 
                 if contribution is None:
-                    contribution = f"[Silent / Connection Error]"
-                    # Dynamic Account Swapping & Error Self-Healing Retry Loop
-                    max_attempts = 3
-                    for attempt in range(1, max_attempts + 2):
-                        try:
-                            prompt_len = len(system_prompt + user_content) // 4
-                            provider, config, resolved_acc_id = self._resolve_agent_provider(
-                                account_id=p["account_id"],
-                                prompt_len=prompt_len,
-                                topic=topic,
-                                session_id=session_id
-                            )
-                            # Cap per-response completion tokens inside run
-                            config["max_tokens"] = min(config.get("max_tokens", 4096), 1024)
-
-                            messages = [{"role": "user", "content": user_content}]
-
-                            response_type, response_data = await provider.complete(
-                                system_prompt=system_prompt,
-                                messages=messages,
-                                tool_schemas=[],
-                                config=config
-                            )
-
-                            is_rate_limit = False
-                            if response_type == "error":
-                                err_str = str(response_data).lower()
-                                if "429" in err_str or "rate limit" in err_str or "quota" in err_str:
-                                    is_rate_limit = True
-
-                            if is_rate_limit:
-                                logger.info("Rate limit (HTTP 429) detected on account '%s'. Swapping to fallback...", resolved_acc_id)
-                                if self.account_manager.swap_to_fallback():
-                                    continue
-                                else:
-                                    raise RuntimeError(f"Rate limited and no fallback accounts available: {response_data}")
-
-                            if response_type == "error":
-                                raise RuntimeError(f"LLM call returned error: {response_data}")
-
-                            contribution = str(response_data).strip()
+                    outcome = await self._complete_with_budget(
+                        execution_budget,
+                        account_id=p["account_id"],
+                        prompt_len=len(system_prompt + user_content) // 4,
+                        topic=topic,
+                        session_id=session_id,
+                        system_prompt=system_prompt,
+                        user_content=user_content,
+                        healing_skill="discussion_room_llm",
+                    )
+                    if outcome["status"] == "success":
+                        response = outcome["response"]
+                        response_type, response_data = response
+                        contribution = str(response_data).strip()
+                        config = outcome["config"]
+                        resolved_acc_id = outcome["account_id"]
+                        usage = getattr(response, "usage", None)
+                        if isinstance(usage, dict) and any(
+                            isinstance(usage.get(key), (int, float)) and usage.get(key, 0) > 0
+                            for key in ("prompt_tokens", "completion_tokens", "total_tokens")
+                        ):
+                            prompt_tokens = usage.get("prompt_tokens", 0) or 0
+                            completion_tokens = usage.get("completion_tokens", 0) or 0
+                        else:
                             prompt_tokens = len(system_prompt + user_content) // 4
                             completion_tokens = len(contribution) // 4
-                            self.account_manager.record_usage(resolved_acc_id, prompt_tokens, completion_tokens)
-
-                            model_used = config.get("model", "gemini-2.5-flash")
-                            models_used.add(model_used)
-                            call_cost = estimate_cost(model_used, prompt_tokens, completion_tokens)
-                            total_prompt_tokens += prompt_tokens
-                            total_completion_tokens += completion_tokens
-                            total_estimated_cost += call_cost
-                            break
-                        except Exception as e:
-                            error_msg = str(e)
-                            logger.error("Failed to generate contribution for agent %s on attempt %d: %s", p["name"], attempt, error_msg)
-                            if attempt <= max_attempts:
-                                logger.info("Attempting self-healing correction for debate participant...")
-                                healed_data = await self._invoke_llm_healing("discussion_room_llm", {"system_prompt": system_prompt, "user_content": user_content}, error_msg)
-                                system_prompt = healed_data.get("system_prompt", system_prompt)
-                                user_content = healed_data.get("user_content", user_content)
-
-                                if "429" in error_msg.lower() or "rate limit" in error_msg.lower():
-                                    self.account_manager.swap_to_fallback()
-                            else:
-                                contribution = f"[Silent / Connection Error: {e}]"
+                        self.account_manager.record_usage(resolved_acc_id, prompt_tokens, completion_tokens)
+                        model_used = config.get("model", "gemini-2.5-flash")
+                        models_used.add(model_used)
+                        total_prompt_tokens += prompt_tokens
+                        total_completion_tokens += completion_tokens
+                        total_estimated_cost += estimate_provider_cost(model_used, prompt_tokens, completion_tokens)
+                    else:
+                        contribution = f"[Silent / Connection Error: {outcome['error']}]"
 
                 duration_ms = int((time.perf_counter() - start_time) * 1000)
 
@@ -846,69 +1004,40 @@ Format the summary nicely in Markdown."""
         consensus_summary = f"[Error synthesizing consensus]"
         start_time = time.perf_counter()
 
-        max_attempts = 3
-        for attempt in range(1, max_attempts + 2):
-            try:
-                mod_prompt_len = len(mod_system_prompt + mod_user_content) // 4
-                provider, config, resolved_acc_id = self._resolve_agent_provider(
-                    account_id=None,
-                    prompt_len=mod_prompt_len,
-                    topic="consensus_synthesis",
-                    session_id=session_id
-                )
-                # Cap per-response completion tokens inside run
-                config["max_tokens"] = min(config.get("max_tokens", 4096), 1024)
-
-                messages = [{"role": "user", "content": mod_user_content}]
-
-                response_type, response_data = await provider.complete(
-                    system_prompt=mod_system_prompt,
-                    messages=messages,
-                    tool_schemas=[],
-                    config=config
-                )
-
-                is_rate_limit = False
-                if response_type == "error":
-                    err_str = str(response_data).lower()
-                    if "429" in err_str or "rate limit" in err_str or "quota" in err_str:
-                        is_rate_limit = True
-
-                if is_rate_limit:
-                    logger.info("Rate limit (HTTP 429) detected on Moderator account '%s'. Swapping to fallback...", resolved_acc_id)
-                    if self.account_manager.swap_to_fallback():
-                        continue
-                    else:
-                        raise RuntimeError(f"Rate limited and no fallback accounts available: {response_data}")
-
-                if response_type == "error":
-                    raise RuntimeError(f"LLM call returned error: {response_data}")
-
-                consensus_summary = str(response_data).strip()
+        outcome = await self._complete_with_budget(
+            execution_budget,
+            account_id=None,
+            prompt_len=len(mod_system_prompt + mod_user_content) // 4,
+            topic="consensus_synthesis",
+            session_id=session_id,
+            system_prompt=mod_system_prompt,
+            user_content=mod_user_content,
+            healing_skill="discussion_room_moderator",
+        )
+        if outcome["status"] == "success":
+            response = outcome["response"]
+            response_type, response_data = response
+            consensus_summary = str(response_data).strip()
+            config = outcome["config"]
+            resolved_acc_id = outcome["account_id"]
+            usage = getattr(response, "usage", None)
+            if isinstance(usage, dict) and any(
+                isinstance(usage.get(key), (int, float)) and usage.get(key, 0) > 0
+                for key in ("prompt_tokens", "completion_tokens", "total_tokens")
+            ):
+                prompt_tokens = usage.get("prompt_tokens", 0) or 0
+                completion_tokens = usage.get("completion_tokens", 0) or 0
+            else:
                 prompt_tokens = len(mod_system_prompt + mod_user_content) // 4
                 completion_tokens = len(consensus_summary) // 4
-                self.account_manager.record_usage(resolved_acc_id, prompt_tokens, completion_tokens)
-
-                model_used = config.get("model", "gemini-2.5-flash")
-                models_used.add(model_used)
-                call_cost = estimate_cost(model_used, prompt_tokens, completion_tokens)
-                total_prompt_tokens += prompt_tokens
-                total_completion_tokens += completion_tokens
-                total_estimated_cost += call_cost
-                break
-            except Exception as e:
-                error_msg = str(e)
-                logger.error("Moderator synthesis failed on attempt %d: %s", attempt, error_msg)
-                if attempt <= max_attempts:
-                    logger.info("Attempting self-healing correction for Moderator synthesis...")
-                    healed_data = await self._invoke_llm_healing("discussion_room_moderator", {"system_prompt": mod_system_prompt, "user_content": mod_user_content}, error_msg)
-                    mod_system_prompt = healed_data.get("system_prompt", mod_system_prompt)
-                    mod_user_content = healed_data.get("user_content", mod_user_content)
-
-                    if "429" in error_msg.lower() or "rate limit" in error_msg.lower():
-                        self.account_manager.swap_to_fallback()
-                else:
-                    consensus_summary = f"Error synthesizing consensus: {e}\n\nMeeting adjourned."
+            self.account_manager.record_usage(resolved_acc_id, prompt_tokens, completion_tokens)
+            model_used = config.get("model", "gemini-2.5-flash")
+            models_used.add(model_used)
+            total_prompt_tokens += prompt_tokens
+            total_completion_tokens += completion_tokens
+            total_estimated_cost += estimate_provider_cost(model_used, prompt_tokens, completion_tokens)
+        else:
+            consensus_summary = f"Error synthesizing consensus: {outcome['error']}\n\nMeeting adjourned."
 
         duration_ms = int((time.perf_counter() - start_time) * 1000)
 
@@ -1016,6 +1145,7 @@ Format the summary nicely in Markdown."""
             except Exception:
                 pass
 
+        execution_budget.current_nested_depth = _execution_depth
         return {
             "topic": topic,
             "rounds": max_rounds,
