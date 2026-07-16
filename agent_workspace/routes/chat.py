@@ -414,13 +414,25 @@ async def list_long_term_memory() -> dict[str, Any]:
 async def query_long_term_memory(q: str, session: str | None = None, limit: int = 5, domain: str | None = None) -> dict[str, Any]:
     if session is not None:
         session = require_valid_session_id(session)
+    from agent_workspace.long_term_memory import normalize_memory_query_limit
+
+    try:
+        limits = normalize_memory_query_limit(limit, domain=domain)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
     store = get_long_term_memory()
     return {
         "query": q,
         "session": session,
-        "limit": limit,
+        "limit": limits.result_limit,
         "domain": domain,
-        "records": store.query(q, session_id=session, limit=limit, domain=domain),
+        "records": store.query(
+            q,
+            session_id=session,
+            limit=limits.result_limit,
+            domain=domain,
+        ),
     }
 
 

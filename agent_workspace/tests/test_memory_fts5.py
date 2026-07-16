@@ -13,7 +13,14 @@ workspace_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if workspace_dir not in sys.path:
     sys.path.insert(0, workspace_dir)
 
-from long_term_memory import LongTermMemoryStore, FTS5SemanticQueryEngine, FTS5QueryCache
+from long_term_memory import (
+    LongTermMemoryStore,
+    FTS5SemanticQueryEngine,
+    FTS5QueryCache,
+    MAX_MEMORY_BACKEND_FETCH,
+    MAX_MEMORY_QUERY_LIMIT,
+    normalize_memory_query_limit,
+)
 from memory_backends import SQLiteBackend
 
 
@@ -193,3 +200,70 @@ def test_memory_context_treats_stored_text_as_untrusted_data(tmp_path):
 
     assert "untrusted" in context.lower()
     assert "&lt;/memory&gt;" in context
+
+
+def test_memory_query_limit_contract_rejects_invalid_values_and_bounds_oversampling():
+    normal = normalize_memory_query_limit(5)
+    domain = normalize_memory_query_limit(5, domain="semantic")
+    excessive = normalize_memory_query_limit(10**100, domain="semantic")
+
+    assert normal.requested_limit == 5
+    assert normal.result_limit == 5
+    assert normal.backend_fetch_limit == 5
+    assert domain.backend_fetch_limit == 15
+    assert excessive.requested_limit == 10**100
+    assert excessive.result_limit == MAX_MEMORY_QUERY_LIMIT
+    assert excessive.backend_fetch_limit == MAX_MEMORY_BACKEND_FETCH
+
+    for invalid in (0, -1, True, 1.5, "5"):
+        with pytest.raises(ValueError):
+            normalize_memory_query_limit(invalid)
+
+
+def test_memory_query_passes_only_bounded_fetch_limits_to_backend(tmp_path):
+    fetch_limits = []
+    backend = MagicMock()
+
+    def bounded_search(query_text, session_id=None, top_k=0):
+        fetch_limits.append(top_k)
+        return [
+            {"id": f"record-{idx}", "domain": "semantic"}
+            for idx in range(top_k)
+        ]
+
+    backend.search.side_effect = bounded_search
+    store = LongTermMemoryStore(tmp_path / "memory", backend=backend)
+
+    results = store.query(
+        "bounded query",
+        session_id="session",
+        limit=10**100,
+        domain="semantic",
+    )
+
+    assert fetch_limits == [MAX_MEMORY_BACKEND_FETCH]
+    assert len(results) == MAX_MEMORY_QUERY_LIMIT
+    assert len(results) <= MAX_MEMORY_QUERY_LIMIT
+
+
+@pytest.mark.asyncio
+async def test_memory_query_route_uses_core_limit_contract(tmp_path, monkeypatch):
+    from fastapi import HTTPException
+    from agent_workspace.routes import chat as chat_routes
+
+    backend = MagicMock()
+    backend.search.return_value = []
+    store = LongTermMemoryStore(tmp_path / "memory", backend=backend)
+    monkeypatch.setattr(chat_routes, "get_long_term_memory", lambda: store)
+
+    response = await chat_routes.query_long_term_memory(
+        "bounded query",
+        limit=10**100,
+        domain="semantic",
+    )
+    assert response["limit"] == MAX_MEMORY_QUERY_LIMIT
+    assert response["records"] == []
+
+    with pytest.raises(HTTPException) as error:
+        await chat_routes.query_long_term_memory("bounded query", limit=0)
+    assert error.value.status_code == 422
