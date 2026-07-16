@@ -1014,6 +1014,8 @@ class AgentRouter:
                 logger.debug("System prompt length: %s chars", len(system_prompt))
                 logger.debug("Allowed runtime tools: %s", [tool["name"] for tool in tool_schemas])
                 logger.debug("Message history length: %s", len(messages))
+                from agent_workspace.core.token_counter import TokenCounter, TokenCountMemo
+                preflight_memo = TokenCountMemo()
 
                 while iteration < self.max_iterations:
                     while self.is_paused(self.session_id):
@@ -1044,7 +1046,6 @@ class AgentRouter:
                                 break
 
                     # Pre-flight estimates (all flagged as estimated=True)
-                    from agent_workspace.core.token_counter import TokenCounter
                     estimates = TokenCounter.estimate_components(
                         system_prompt=base_system_prompt,
                         messages=messages,
@@ -1065,7 +1066,8 @@ class AgentRouter:
                         system_prompt=system_prompt,
                         messages=messages,
                         tool_schemas=tool_schemas,
-                        config=llm_config
+                        config=llm_config,
+                        memo=preflight_memo,
                     )
                     if aggregate_preflight is not None:
                         span.set_attribute("token_estimates.aggregate_preflight", aggregate_preflight.count)
@@ -1340,6 +1342,8 @@ class AgentRouter:
                 )
                 self._record_conductor_plan(span, conductor_plan)
                 messages = self._build_message_history(user_input)
+                from agent_workspace.core.token_counter import TokenCounter, TokenCountMemo
+                preflight_memo = TokenCountMemo()
 
                 yield self._conductor_trace_event(conductor_plan)
 
@@ -1370,7 +1374,6 @@ class AgentRouter:
                                 break
 
                     # Pre-flight estimates (all flagged as estimated=True)
-                    from agent_workspace.core.token_counter import TokenCounter
                     estimates = TokenCounter.estimate_components(
                         system_prompt=base_system_prompt,
                         messages=messages,
@@ -1391,7 +1394,8 @@ class AgentRouter:
                         system_prompt=system_prompt,
                         messages=messages,
                         tool_schemas=tool_schemas,
-                        config=llm_config
+                        config=llm_config,
+                        memo=preflight_memo,
                     )
                     if aggregate_preflight is not None:
                         span.set_attribute("token_estimates.aggregate_preflight", aggregate_preflight.count)
