@@ -507,3 +507,210 @@ async def test_concurrent_provider_calls_respect_shared_cap(tmp_path):
     await task
     assert budget.peak_concurrent_provider_calls == 2
     assert budget.current_concurrent_provider_calls == 0
+
+
+@pytest.mark.asyncio
+async def test_nested_parent_cancellation_cleans_children_and_restores_depth(tmp_path):
+    provider = InstrumentedProvider(barrier_target=3)
+    room = _make_room(tmp_path, provider)
+    budget = DebateExecutionBudget()
+    sub_problems = [
+        {"topic": f"cancel-child-{index}", "agents": _agents(), "max_rounds": 1}
+        for index in range(3)
+    ]
+
+    task = asyncio.create_task(
+        room.run(
+            topic="cancel-parent",
+            agents=_agents(),
+            max_rounds=1,
+            sub_problems=sub_problems,
+            _execution_budget=budget,
+        )
+    )
+    await provider.barrier_ready.wait()
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    assert provider.cancelled.is_set()
+    assert provider.pending_task_count == 0
+    assert provider.active_calls == 0
+    assert budget.current_concurrent_provider_calls == 0
+    assert budget.current_nested_depth == 0
+
+
+@pytest.mark.asyncio
+async def test_cancellation_during_retry_backoff_does_not_consume_retry(tmp_path, monkeypatch):
+    provider = InstrumentedProvider(transient_failures=1)
+    room = _make_room(tmp_path, provider)
+    budget = DebateExecutionBudget()
+    backoff_started = asyncio.Event()
+    backoff_release = asyncio.Event()
+
+    async def controlled_backoff(_delay):
+        backoff_started.set()
+        await backoff_release.wait()
+
+    from agent_workspace.core import discussion_room as discussion_room_module
+
+    monkeypatch.setattr(discussion_room_module.asyncio, "sleep", controlled_backoff)
+    task = asyncio.create_task(
+        room.run(topic="cancel-backoff", agents=_agents(), max_rounds=1, _execution_budget=budget)
+    )
+    await backoff_started.wait()
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    assert provider.calls == 2
+    assert budget.retries == 0
+    assert budget.exhaustion_reason is None
+    assert budget.current_concurrent_provider_calls == 0
+    assert provider.pending_task_count == 0
+
+
+@pytest.mark.asyncio
+async def test_canceled_semaphore_wait_does_not_consume_provider_attempt(tmp_path):
+    provider = InstrumentedProvider(barrier_target=1)
+    room = _make_room(tmp_path, provider)
+
+    class ObservableBudget(DebateExecutionBudget):
+        def __post_init__(self):
+            super().__post_init__()
+            self.waiting = asyncio.Event()
+
+        async def _acquire_provider(self):
+            if self.current_concurrent_provider_calls >= self.max_concurrent_provider_calls:
+                self.waiting.set()
+            await super()._acquire_provider()
+
+    budget = ObservableBudget(max_concurrent_provider_calls=1)
+    first = asyncio.create_task(
+        room.run(topic="first", agents=_agents(), max_rounds=1, _execution_budget=budget)
+    )
+    await provider.barrier_ready.wait()
+    second = asyncio.create_task(
+        room.run(topic="second", agents=_agents(), max_rounds=1, _execution_budget=budget)
+    )
+    await budget.waiting.wait()
+    second.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await second
+
+    assert budget.provider_calls == 1
+    assert budget.current_concurrent_provider_calls == 1
+    provider.release.set()
+    await first
+    assert budget.current_concurrent_provider_calls == 0
+
+
+@pytest.mark.asyncio
+async def test_broker_timeout_falls_back_without_duplicate_local_provider_attempt(tmp_path, monkeypatch):
+    from agent_workspace.core import broker as broker_module
+    from agent_workspace.core import discussion_room as discussion_room_module
+    from agent_workspace.core.broker import RedisSwarmBroker
+
+    class FakeRedisBroker(RedisSwarmBroker):
+        def __init__(self):
+            self.unsubscribed = []
+
+        async def subscribe(self, channel, callback):
+            return None
+
+        async def publish(self, channel, message):
+            return None
+
+        async def unsubscribe(self, channel):
+            self.unsubscribed.append(channel)
+
+    provider = InstrumentedProvider()
+    room = _make_room(tmp_path, provider)
+    broker = FakeRedisBroker()
+    fallback_calls = 0
+    response = ProviderResponse(
+        "text",
+        "local fallback",
+        {"prompt_tokens": 2, "completion_tokens": 1, "total_tokens": 3},
+    )
+
+    async def fail_fast(_awaitable, _timeout):
+        raise asyncio.TimeoutError()
+
+    async def fallback(*_args, **_kwargs):
+        nonlocal fallback_calls
+        fallback_calls += 1
+        return {
+            "status": "success",
+            "response": response,
+            "config": {"model": "fake-model"},
+            "account_id": "test-account",
+        }
+
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    monkeypatch.setattr(broker_module, "get_broker", lambda **_kwargs: broker)
+    monkeypatch.setattr(discussion_room_module.asyncio, "wait_for", fail_fast)
+    monkeypatch.setattr(room, "_complete_with_budget", fallback)
+    budget = DebateExecutionBudget()
+
+    result = await room.run(
+        topic="broker timeout",
+        agents=_agents(),
+        max_rounds=1,
+        _execution_budget=budget,
+    )
+
+    assert result["transcript"][0]["content"] == "local fallback"
+    assert fallback_calls == 2
+    assert len(broker.unsubscribed) == 1
+    assert budget.provider_calls == 1
+    assert budget.current_concurrent_provider_calls == 0
+
+
+@pytest.mark.asyncio
+async def test_broker_parent_cancellation_skips_fallback_and_unsubscribes(tmp_path, monkeypatch):
+    from agent_workspace.core import broker as broker_module
+    from agent_workspace.core import discussion_room as discussion_room_module
+    from agent_workspace.core.broker import RedisSwarmBroker
+
+    class FakeRedisBroker(RedisSwarmBroker):
+        def __init__(self):
+            self.published = asyncio.Event()
+            self.unsubscribed = asyncio.Event()
+
+        async def subscribe(self, channel, callback):
+            return None
+
+        async def publish(self, channel, message):
+            self.published.set()
+
+        async def unsubscribe(self, channel):
+            self.unsubscribed.set()
+
+    provider = InstrumentedProvider()
+    room = _make_room(tmp_path, provider)
+    broker = FakeRedisBroker()
+    fallback_calls = 0
+
+    async def blocked_wait(_awaitable, **_kwargs):
+        await asyncio.Future()
+
+    async def fallback(*_args, **_kwargs):
+        nonlocal fallback_calls
+        fallback_calls += 1
+        raise AssertionError("fallback must not run after parent cancellation")
+
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    monkeypatch.setattr(broker_module, "get_broker", lambda **_kwargs: broker)
+    monkeypatch.setattr(discussion_room_module.asyncio, "wait_for", blocked_wait)
+    monkeypatch.setattr(room, "_complete_with_budget", fallback)
+    task = asyncio.create_task(
+        room.run(topic="broker cancel", agents=_agents(), max_rounds=1)
+    )
+    await broker.published.wait()
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    assert fallback_calls == 0
+    assert broker.unsubscribed.is_set()

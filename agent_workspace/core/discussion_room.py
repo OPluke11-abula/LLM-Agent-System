@@ -409,15 +409,15 @@ class DiscussionRoom:
             else:
                 budget.exhaustion_reason = "healing_calls"
 
-            try:
-                budget.consume_retry()
-            except BudgetExhausted:
+            if budget.retries >= budget.max_retries:
+                budget.exhaustion_reason = "retries"
                 return {
                     "status": "budget_exhausted",
                     "error": f"{last_error}; budget_exhausted: retries",
                     "reason": classification.reason,
                 }
             await asyncio.sleep(0)
+            budget.consume_retry()
 
         raise AssertionError("unreachable debate retry state")
 
@@ -794,31 +794,46 @@ class DiscussionRoom:
         if sub_problems:
             execution_budget.check_nested_depth(_execution_depth + 1)
             logger.info("Encountered highly complex problem. Spawning parallel sub-swarms...")
-            tasks = []
-            for i, sp in enumerate(sub_problems):
-                sp_topic = sp["topic"]
-                sp_agents = sp["agents"]
-                sp_max_rounds = sp.get("max_rounds", max_rounds)
-                sp_moderator_persona = sp.get("moderator_persona", moderator_persona)
-                sp_session_id = sp.get("session_id", f"{session_id}-sub-{i}")
-                tasks.append(
-                    self.run(
-                        topic=sp_topic,
-                        agents=sp_agents,
-                        max_rounds=sp_max_rounds,
-                        moderator_persona=sp_moderator_persona,
-                        session_id=sp_session_id,
-                        sub_problems=None,
-                        max_participants=max_participants,
-                        max_sub_swarms=max_sub_swarms,
-                        risk_level=risk_level,
-                        approval_required=approval_required,
-                        consensus_certificate=consensus_certificate,
-                        _execution_budget=execution_budget,
-                        _execution_depth=_execution_depth + 1,
-                    )
-                )
-            sub_swarm_results = await asyncio.gather(*tasks)
+            sub_swarm_tasks = []
+            try:
+                async with asyncio.TaskGroup() as task_group:
+                    for i, sp in enumerate(sub_problems):
+                        sp_topic = sp["topic"]
+                        sp_agents = sp["agents"]
+                        sp_max_rounds = sp.get("max_rounds", max_rounds)
+                        sp_moderator_persona = sp.get("moderator_persona", moderator_persona)
+                        sp_session_id = sp.get("session_id", f"{session_id}-sub-{i}")
+                        sub_swarm_tasks.append(
+                            (
+                                sp_topic,
+                                task_group.create_task(
+                                    self.run(
+                                        topic=sp_topic,
+                                        agents=sp_agents,
+                                        max_rounds=sp_max_rounds,
+                                        moderator_persona=sp_moderator_persona,
+                                        session_id=sp_session_id,
+                                        sub_problems=None,
+                                        max_participants=max_participants,
+                                        max_sub_swarms=max_sub_swarms,
+                                        risk_level=risk_level,
+                                        approval_required=approval_required,
+                                        consensus_certificate=consensus_certificate,
+                                        _execution_budget=execution_budget,
+                                        _execution_depth=_execution_depth + 1,
+                                    )
+                                ),
+                            )
+                        )
+            except ExceptionGroup as errors:
+                raise errors.exceptions[0]
+            finally:
+                execution_budget.current_nested_depth = _execution_depth
+
+            sub_swarm_results = [
+                task.result()
+                for _, task in sub_swarm_tasks
+            ]
 
             sub_swarm_context = "### Sub-Swarm Consensus Summaries:\n"
             for i, res in enumerate(sub_swarm_results):
@@ -827,7 +842,6 @@ class DiscussionRoom:
                 sub_swarm_context += f"#### Sub-Swarm {i+1} Topic: {sub_topic}\n"
                 sub_swarm_context += f"*Consensus Summary*:\n{sub_summary}\n\n"
             sub_swarm_context += "---\n\n"
-            execution_budget.current_nested_depth = _execution_depth
 
         # 1. Resolve participants and their personas
         participants = []
