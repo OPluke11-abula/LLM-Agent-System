@@ -17,6 +17,7 @@ if workspace_dir not in sys.path:
 from api import app, collab_manager
 from conftest import auth_headers
 from core.memory import CRDTState, DeltaStateReconciler
+import routes.collaboration as collaboration_routes
 from routes.collaboration import MultiChannelPubSubManager
 
 
@@ -127,6 +128,52 @@ async def test_local_publish_starts_all_eligible_sends_concurrently():
     )
     assert started == 3
     assert all(len(websocket.messages) == 1 for websocket in sockets)
+
+
+@pytest.mark.asyncio
+async def test_local_publish_bounds_concurrent_sends_and_isolates_failures(monkeypatch):
+    monkeypatch.setattr(collaboration_routes, "MAX_LOCAL_FANOUT_CONCURRENCY", 2)
+    started = 0
+    active = 0
+    max_active = 0
+    first_batch_started = asyncio.Event()
+    release = asyncio.Event()
+
+    class FakeWebSocket:
+        def __init__(self, identifier, fails=False):
+            self.identifier = identifier
+            self.fails = fails
+            self.messages = []
+
+        async def send_json(self, payload):
+            nonlocal started, active, max_active
+            started += 1
+            active += 1
+            max_active = max(max_active, active)
+            if started == 2:
+                first_batch_started.set()
+            if self.fails:
+                active -= 1
+                raise RuntimeError("stale connection")
+            await release.wait()
+            self.messages.append(payload)
+            active -= 1
+
+    manager = MultiChannelPubSubManager()
+    sockets = [FakeWebSocket(0, fails=True)] + [FakeWebSocket(i) for i in range(1, 5)]
+    for websocket in sockets:
+        manager.channels["logs"].add((websocket, "session-1"))
+
+    async def release_when_ready():
+        await asyncio.wait_for(first_batch_started.wait(), timeout=0.2)
+        release.set()
+
+    await asyncio.gather(
+        manager._local_publish("logs", "session-1", {"event": "ready"}),
+        release_when_ready(),
+    )
+    assert max_active <= 2
+    assert sum(len(websocket.messages) for websocket in sockets) == 4
 
 
 def test_websocket_pubsub_collaboration():
