@@ -1,10 +1,15 @@
 import os
 from pathlib import Path
 import pytest
+import re
 import subprocess
 import sys
 
-from agent_workspace.core.security import safe_workspace_path, validate_session_id
+from agent_workspace.core.security import (
+    build_child_session_id,
+    safe_workspace_path,
+    validate_session_id,
+)
 from agent_workspace.core.router import MemoryManager
 from agent_workspace.core.replay_logger import ReplayLogger
 from agent_workspace.core.account_manager import AccountManager
@@ -16,6 +21,37 @@ from agent_workspace.memory_backends import SQLiteBackend
 @pytest.mark.parametrize("session_id", ["session-01", "A_b-9", "x" * 128])
 def test_validate_session_id_accepts_contract_values(session_id):
     assert validate_session_id(session_id) == session_id
+
+
+def test_child_session_id_preserves_short_readable_form():
+    assert build_child_session_id("parent", "worker") == "parent_worker"
+
+
+def test_child_session_id_preserves_exact_128_character_boundary():
+    parent = "p" * 120
+    worker = "workers"
+    child = build_child_session_id(parent, worker)
+
+    assert len(f"{parent}_{worker}") == 128
+    assert child == f"{parent}_{worker}"
+    assert re.fullmatch(r"[A-Za-z0-9_-]{1,128}", child)
+
+
+def test_child_session_id_bounds_oversized_values_with_stable_hash():
+    parent = "p" * 128
+    child = build_child_session_id(parent, "worker")
+
+    assert len(child) == 128
+    assert child.startswith(parent[:111] + "_")
+    assert re.fullmatch(r"[A-Za-z0-9_-]{1,128}", child)
+
+
+def test_child_session_id_is_deterministic_and_distinguishes_long_values():
+    first = build_child_session_id("p" * 127 + "a", "worker")
+    second = build_child_session_id("p" * 127 + "b", "worker")
+
+    assert first == build_child_session_id("p" * 127 + "a", "worker")
+    assert first != second
 
 
 @pytest.mark.parametrize(

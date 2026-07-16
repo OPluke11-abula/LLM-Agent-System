@@ -11,9 +11,71 @@ workspace_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if workspace_dir not in sys.path:
     sys.path.insert(0, workspace_dir)
 
-from core.broker import RedisSwarmBroker, InMemorySwarmBroker
+from core.broker import RedisSwarmBroker, InMemorySwarmBroker, get_broker
 from fastapi.testclient import TestClient
 from api import app
+
+
+@pytest.mark.asyncio
+async def test_disabled_broker_reset_replaces_and_closes_cached_instance(monkeypatch):
+    import core.broker as broker_module
+
+    class TrackingBroker(InMemorySwarmBroker):
+        def __init__(self):
+            super().__init__()
+            self.closed = False
+
+        async def stop(self):
+            self.closed = True
+            await super().stop()
+
+    previous = broker_module._global_broker
+    try:
+        monkeypatch.setenv("LAS_ENABLE_REDIS_SWARM", "false")
+        cached = TrackingBroker()
+        broker_module._global_broker = cached
+
+        fresh = get_broker(reset=True)
+        await asyncio.sleep(0)
+
+        assert fresh is not cached
+        assert cached.closed is True
+    finally:
+        broker_module._global_broker = previous
+
+
+def test_disabled_broker_reuses_cached_instance_without_reset(monkeypatch):
+    import core.broker as broker_module
+
+    previous = broker_module._global_broker
+    try:
+        monkeypatch.setenv("LAS_ENABLE_REDIS_SWARM", "false")
+        cached = InMemorySwarmBroker()
+        broker_module._global_broker = cached
+
+        assert get_broker() is cached
+    finally:
+        broker_module._global_broker = previous
+
+
+def test_disabled_broker_does_not_load_redis(monkeypatch):
+    import core.broker as broker_module
+
+    previous = broker_module._global_broker
+    try:
+        monkeypatch.setenv("LAS_ENABLE_REDIS_SWARM", "false")
+        broker_module._global_broker = None
+        monkeypatch.setattr(
+            broker_module,
+            "_load_redis",
+            lambda: (_ for _ in ()).throw(AssertionError("Redis must remain unloaded")),
+        )
+
+        broker = get_broker(reset=True)
+
+        assert isinstance(broker, InMemorySwarmBroker)
+    finally:
+        broker_module._global_broker = previous
 
 
 @pytest.mark.asyncio

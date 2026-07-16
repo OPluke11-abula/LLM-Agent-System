@@ -16,7 +16,7 @@ services:
     ports:
       - "127.0.0.1:8000:8000"
     environment:
-      - LAS_BIND_HOST=${LAS_BIND_HOST:-127.0.0.1}
+      - LAS_BIND_HOST=${LAS_BIND_HOST:-0.0.0.0}
       - LAS_JWT_SECRET=${LAS_JWT_SECRET:-}
       - LAS_ENABLE_STRIPE=${LAS_ENABLE_STRIPE:-false}
       - LAS_ENABLE_REDIS_SWARM=${LAS_ENABLE_REDIS_SWARM:-false}

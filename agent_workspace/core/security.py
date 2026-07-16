@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ipaddress
+import hashlib
 import os
 import re
 import socket
@@ -124,6 +125,18 @@ def validate_session_id(session_id: str) -> str:
     if not isinstance(session_id, str) or _SESSION_ID_PATTERN.fullmatch(session_id) is None:
         raise ValueError("Invalid session ID.")
     return session_id
+
+
+def build_child_session_id(parent_session: str, worker_name: str) -> str:
+    parent = validate_session_id(parent_session)
+    worker = validate_session_id(worker_name)
+    derived = f"{parent}_{worker}"
+    if len(derived) <= 128:
+        return validate_session_id(derived)
+
+    digest = hashlib.sha256(derived.encode("utf-8")).hexdigest()[:16]
+    readable_prefix = derived[: 128 - len(digest) - 1]
+    return validate_session_id(f"{readable_prefix}_{digest}")
 
 
 def safe_workspace_path(workspace_root: str | Path, relative_path: str | Path) -> Path:

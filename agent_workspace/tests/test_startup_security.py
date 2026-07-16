@@ -73,9 +73,23 @@ def test_server_cli_launcher_allows_external_bind_with_secure_auth(monkeypatch):
 def test_docker_default_does_not_bind_publicly():
     dockerfile = Path(__file__).parents[2] / "Dockerfile"
     content = dockerfile.read_text(encoding="utf-8")
-    assert "0.0.0.0" not in content
-    assert "127.0.0.1" in content
+    assert "ENV LAS_BIND_HOST=0.0.0.0" in content
 
     compose = (dockerfile.parents[0] / "docker-compose.yml").read_text(encoding="utf-8")
     assert '"127.0.0.1:8000:8000"' in compose
-    assert "LAS_BIND_HOST=${LAS_BIND_HOST:-127.0.0.1}" in compose
+    assert "LAS_BIND_HOST=${LAS_BIND_HOST:-0.0.0.0}" in compose
+
+
+def test_docker_process_binds_container_interface_but_publishes_loopback_only():
+    dockerfile = Path(__file__).parents[2] / "Dockerfile"
+    assert "ENV LAS_BIND_HOST=0.0.0.0" in dockerfile.read_text(encoding="utf-8")
+
+    compose = (dockerfile.parents[0] / "docker-compose.yml").read_text(encoding="utf-8")
+    assert '"127.0.0.1:8000:8000"' in compose
+
+
+def test_docker_external_bind_requires_injected_secret():
+    with pytest.raises(ValueError, match="secure authentication"):
+        validate_bind_security("0.0.0.0", {"jwt_secret": ""})
+
+    assert validate_bind_security("0.0.0.0", SECURE_AUTH).auth_configured is True
