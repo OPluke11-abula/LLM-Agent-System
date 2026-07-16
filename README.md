@@ -67,6 +67,30 @@ authentication configured before startup. Stripe, Redis, multi-worker, and
 audit-consensus services are opt-in. Task limits and records are process-local
 unless the deployment supplies durable or distributed coordination.
 
+## Hardened runtime profile
+
+The current Unreleased hardening set protects runtime authentication and secret
+handling, provider egress and filesystem containment, task lifecycle limits,
+and Docker exposure defaults. It also adds bounded token-encoding reuse,
+concurrent bounded WebSocket fan-out, and request-scoped provider token-count
+reuse.
+
+Reliability and cost controls include bounded memory queries, permanent-error
+classification, finite debate budgets, cancellation propagation, and cleanup
+of nested or broker-delegated work. The safety defaults are:
+
+| Control | Default |
+| --- | ---: |
+| Debate provider calls | 64 |
+| Debate retries | 12 |
+| Debate healing calls | 8 |
+| Debate nested depth | 1 |
+| Debate provider concurrency | 3 |
+| Memory results | 100 |
+| Memory backend fetch | 300 |
+
+These are safety defaults, not benchmark guarantees.
+
 Start the API:
 
 ```powershell
