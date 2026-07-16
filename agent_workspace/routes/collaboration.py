@@ -118,6 +118,7 @@ class MultiChannelPubSubManager:
 
     async def _local_publish(self, channel: str, session_id: str, data: dict[str, Any], publisher_tenant: str = "default_tenant"):
         # Broadcast to all connections subscribed to this channel for this session or "global"
+        send_operations = []
         for ws, s_id in list(self.channels[channel]):
             ws_tenant = self.websocket_tenants.get(ws, "default_tenant")
             if ws_tenant != publisher_tenant:
@@ -136,13 +137,16 @@ class MultiChannelPubSubManager:
                         # Encrypt broadcast message
                         plaintext = json.dumps(payload_dict, ensure_ascii=False)
                         encrypted_msg = SwarmP2PCrypto.encrypt_message(key, plaintext)
-                        await ws.send_json(encrypted_msg)
+                        send_operations.append(ws.send_json(encrypted_msg))
                     else:
                         # Fallback for backward compatibility/unencrypted clients if any
-                        await ws.send_json(payload_dict)
+                        send_operations.append(ws.send_json(payload_dict))
                 except Exception:
                     # Stale connection, will be handled during disconnect
                     pass
+
+        if send_operations:
+            await asyncio.gather(*send_operations, return_exceptions=True)
 
 
 collab_manager = MultiChannelPubSubManager()

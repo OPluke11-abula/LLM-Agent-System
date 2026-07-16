@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import asyncio
 import tempfile
 import time
 import pytest
@@ -16,6 +17,7 @@ if workspace_dir not in sys.path:
 from api import app, collab_manager
 from conftest import auth_headers
 from core.memory import CRDTState, DeltaStateReconciler
+from routes.collaboration import MultiChannelPubSubManager
 
 
 @pytest.fixture
@@ -90,6 +92,41 @@ def test_delta_state_reconciler_thread_safety(temp_workspace):
     final_state = reconciler.get_state()
     for i in range(10):
         assert final_state[f"thread_{i}"] == i
+
+
+@pytest.mark.asyncio
+async def test_local_publish_starts_all_eligible_sends_concurrently():
+    started = 0
+    all_started = asyncio.Event()
+    release = asyncio.Event()
+
+    class FakeWebSocket:
+        def __init__(self):
+            self.messages = []
+
+        async def send_json(self, payload):
+            nonlocal started
+            started += 1
+            if started == 3:
+                all_started.set()
+            await release.wait()
+            self.messages.append(payload)
+
+    manager = MultiChannelPubSubManager()
+    sockets = [FakeWebSocket() for _ in range(3)]
+    for websocket in sockets:
+        manager.channels["logs"].add((websocket, "session-1"))
+
+    async def release_when_ready():
+        await asyncio.wait_for(all_started.wait(), timeout=0.2)
+        release.set()
+
+    await asyncio.gather(
+        manager._local_publish("logs", "session-1", {"event": "ready"}),
+        release_when_ready(),
+    )
+    assert started == 3
+    assert all(len(websocket.messages) == 1 for websocket in sockets)
 
 
 def test_websocket_pubsub_collaboration():
