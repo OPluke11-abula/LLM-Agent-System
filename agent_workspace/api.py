@@ -303,6 +303,7 @@ from agent_workspace.routes.audit import router as audit_router
 from agent_workspace.routes.chat import router as chat_router, protected_router as chat_protected_router
 from agent_workspace.routes.collaboration import router as collab_router
 from agent_workspace.routes.admin import router as admin_router
+from agent_workspace.routes.missions import router as missions_router
 
 app.include_router(swarm_router)
 app.include_router(cross_cloud_router)
@@ -311,6 +312,7 @@ app.include_router(chat_router)
 app.include_router(chat_protected_router)
 app.include_router(collab_router)
 app.include_router(admin_router)
+app.include_router(missions_router)
 
 # Backwards compatibility exports for testing and legacy imports
 from agent_workspace.routes.dependencies import (

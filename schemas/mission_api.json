@@ -1,0 +1,4173 @@
+{
+  "artifact_version": 1,
+  "models": {
+    "ApprovalRecordRequest": {
+      "$defs": {
+        "ApprovalStatus": {
+          "enum": [
+            "pending",
+            "approved",
+            "rejected"
+          ],
+          "title": "ApprovalStatus",
+          "type": "string"
+        },
+        "ApprovalType": {
+          "enum": [
+            "plan",
+            "scope_expansion",
+            "draft_pr"
+          ],
+          "title": "ApprovalType",
+          "type": "string"
+        },
+        "DraftPRApprovalSubject": {
+          "additionalProperties": false,
+          "properties": {
+            "branch": {
+              "maxLength": 256,
+              "minLength": 1,
+              "title": "Branch",
+              "type": "string"
+            },
+            "head_sha": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Head Sha",
+              "type": "string"
+            },
+            "kind": {
+              "const": "draft_pr",
+              "default": "draft_pr",
+              "title": "Kind",
+              "type": "string"
+            },
+            "plan_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Plan Id",
+              "type": "string"
+            },
+            "plan_revision": {
+              "minimum": 1,
+              "title": "Plan Revision",
+              "type": "integer"
+            },
+            "review_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Review Id",
+              "type": "string"
+            }
+          },
+          "required": [
+            "review_id",
+            "plan_id",
+            "plan_revision",
+            "branch",
+            "head_sha"
+          ],
+          "title": "DraftPRApprovalSubject",
+          "type": "object"
+        },
+        "PlanApprovalSubject": {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "plan",
+              "default": "plan",
+              "title": "Kind",
+              "type": "string"
+            },
+            "plan_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Plan Id",
+              "type": "string"
+            },
+            "plan_revision": {
+              "minimum": 1,
+              "title": "Plan Revision",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "plan_id",
+            "plan_revision"
+          ],
+          "title": "PlanApprovalSubject",
+          "type": "object"
+        },
+        "ScopeApprovalSubject": {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "scope_expansion",
+              "default": "scope_expansion",
+              "title": "Kind",
+              "type": "string"
+            },
+            "scope_request_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Scope Request Id",
+              "type": "string"
+            }
+          },
+          "required": [
+            "scope_request_id"
+          ],
+          "title": "ScopeApprovalSubject",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "evidence_refs": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+            "type": "string"
+          },
+          "title": "Evidence Refs",
+          "type": "array"
+        },
+        "expected_revision": {
+          "minimum": 0,
+          "title": "Expected Revision",
+          "type": "integer"
+        },
+        "gate_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+          "title": "Gate Id",
+          "type": "string"
+        },
+        "gate_type": {
+          "$ref": "#/$defs/ApprovalType"
+        },
+        "status": {
+          "$ref": "#/$defs/ApprovalStatus"
+        },
+        "subject": {
+          "discriminator": {
+            "mapping": {
+              "draft_pr": "#/$defs/DraftPRApprovalSubject",
+              "plan": "#/$defs/PlanApprovalSubject",
+              "scope_expansion": "#/$defs/ScopeApprovalSubject"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/PlanApprovalSubject"
+            },
+            {
+              "$ref": "#/$defs/ScopeApprovalSubject"
+            },
+            {
+              "$ref": "#/$defs/DraftPRApprovalSubject"
+            }
+          ],
+          "title": "Subject"
+        }
+      },
+      "required": [
+        "gate_id",
+        "gate_type",
+        "subject",
+        "status",
+        "expected_revision"
+      ],
+      "title": "ApprovalRecordRequest",
+      "type": "object"
+    },
+    "EvidenceRecordRequest": {
+      "$defs": {
+        "EvidenceRecord": {
+          "additionalProperties": false,
+          "properties": {
+            "artifact_ref": {
+              "anyOf": [
+                {
+                  "maxLength": 512,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Artifact Ref"
+            },
+            "bounded_output_summary": {
+              "default": "",
+              "maxLength": 4000,
+              "title": "Bounded Output Summary",
+              "type": "string"
+            },
+            "commit_sha": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Commit Sha"
+            },
+            "evidence_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Evidence Id",
+              "type": "string"
+            },
+            "evidence_type": {
+              "$ref": "#/$defs/EvidenceType"
+            },
+            "exit_status": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Exit Status"
+            },
+            "finished_at": {
+              "format": "date-time",
+              "title": "Finished At",
+              "type": "string"
+            },
+            "operation": {
+              "maxLength": 512,
+              "minLength": 1,
+              "title": "Operation",
+              "type": "string"
+            },
+            "producing_agent": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Producing Agent",
+              "type": "string"
+            },
+            "requirement_links": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Requirement Links",
+              "type": "array"
+            },
+            "source": {
+              "maxLength": 256,
+              "minLength": 1,
+              "title": "Source",
+              "type": "string"
+            },
+            "started_at": {
+              "format": "date-time",
+              "title": "Started At",
+              "type": "string"
+            },
+            "task_links": {
+              "default": [],
+              "items": {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+                "type": "string"
+              },
+              "title": "Task Links",
+              "type": "array"
+            },
+            "verification_status": {
+              "$ref": "#/$defs/GateStatus",
+              "default": "pending"
+            }
+          },
+          "required": [
+            "evidence_id",
+            "evidence_type",
+            "source",
+            "operation",
+            "started_at",
+            "finished_at",
+            "producing_agent"
+          ],
+          "title": "EvidenceRecord",
+          "type": "object"
+        },
+        "EvidenceType": {
+          "enum": [
+            "command",
+            "test",
+            "ci",
+            "review",
+            "scope",
+            "architecture",
+            "security",
+            "quality",
+            "cost",
+            "artifact",
+            "provider_call"
+          ],
+          "title": "EvidenceType",
+          "type": "string"
+        },
+        "GateStatus": {
+          "enum": [
+            "pending",
+            "passed",
+            "failed",
+            "blocked",
+            "not_applicable"
+          ],
+          "title": "GateStatus",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "evidence": {
+          "$ref": "#/$defs/EvidenceRecord"
+        },
+        "expected_revision": {
+          "minimum": 0,
+          "title": "Expected Revision",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "evidence",
+        "expected_revision"
+      ],
+      "title": "EvidenceRecordRequest",
+      "type": "object"
+    },
+    "ExecutionPlan": {
+      "$defs": {
+        "AgentAssignment": {
+          "additionalProperties": false,
+          "properties": {
+            "agent_id": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Agent Id"
+            },
+            "assignment_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Assignment Id",
+              "type": "string"
+            },
+            "model": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Model"
+            },
+            "provider": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Provider"
+            },
+            "role": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Role",
+              "type": "string"
+            }
+          },
+          "required": [
+            "assignment_id",
+            "role"
+          ],
+          "title": "AgentAssignment",
+          "type": "object"
+        },
+        "ApprovalStatus": {
+          "enum": [
+            "pending",
+            "approved",
+            "rejected"
+          ],
+          "title": "ApprovalStatus",
+          "type": "string"
+        },
+        "PlanTask": {
+          "additionalProperties": false,
+          "properties": {
+            "approval_status": {
+              "$ref": "#/$defs/ApprovalStatus",
+              "default": "pending"
+            },
+            "assigned_role": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Assigned Role"
+            },
+            "assignment": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/AgentAssignment"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "dependencies": {
+              "default": [],
+              "items": {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+                "type": "string"
+              },
+              "title": "Dependencies",
+              "type": "array"
+            },
+            "description": {
+              "default": "",
+              "maxLength": 4000,
+              "title": "Description",
+              "type": "string"
+            },
+            "estimated_provider_calls_max": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Estimated Provider Calls Max",
+              "type": "integer"
+            },
+            "estimated_provider_calls_min": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Estimated Provider Calls Min",
+              "type": "integer"
+            },
+            "estimated_risk": {
+              "$ref": "#/$defs/RiskLevel",
+              "default": "medium"
+            },
+            "expected_paths": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Expected Paths",
+              "type": "array"
+            },
+            "order": {
+              "minimum": 1,
+              "title": "Order",
+              "type": "integer"
+            },
+            "task_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Task Id",
+              "type": "string"
+            },
+            "title": {
+              "maxLength": 256,
+              "minLength": 1,
+              "title": "Title",
+              "type": "string"
+            },
+            "verification_requirements": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Verification Requirements",
+              "type": "array"
+            }
+          },
+          "required": [
+            "task_id",
+            "title",
+            "order"
+          ],
+          "title": "PlanTask",
+          "type": "object"
+        },
+        "RiskLevel": {
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "title": "RiskLevel",
+          "type": "string"
+        },
+        "VerificationGateName": {
+          "enum": [
+            "requirement",
+            "scope",
+            "architecture",
+            "tests",
+            "security",
+            "quality",
+            "ci",
+            "cost"
+          ],
+          "title": "VerificationGateName",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "approval_status": {
+          "$ref": "#/$defs/ApprovalStatus",
+          "default": "pending"
+        },
+        "approved_revision": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Approved Revision"
+        },
+        "estimated_risk": {
+          "$ref": "#/$defs/RiskLevel",
+          "default": "medium"
+        },
+        "mission_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+          "title": "Mission Id",
+          "type": "string"
+        },
+        "plan_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+          "title": "Plan Id",
+          "type": "string"
+        },
+        "required_verification": {
+          "default": [
+            "requirement",
+            "scope",
+            "architecture",
+            "tests",
+            "security",
+            "quality",
+            "ci",
+            "cost"
+          ],
+          "items": {
+            "$ref": "#/$defs/VerificationGateName"
+          },
+          "title": "Required Verification",
+          "type": "array"
+        },
+        "revision": {
+          "default": 1,
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "schema_version": {
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "tasks": {
+          "items": {
+            "$ref": "#/$defs/PlanTask"
+          },
+          "minItems": 1,
+          "title": "Tasks",
+          "type": "array"
+        }
+      },
+      "required": [
+        "plan_id",
+        "mission_id",
+        "tasks"
+      ],
+      "title": "ExecutionPlan",
+      "type": "object"
+    },
+    "Mission": {
+      "$defs": {
+        "AgentAssignment": {
+          "additionalProperties": false,
+          "properties": {
+            "agent_id": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Agent Id"
+            },
+            "assignment_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Assignment Id",
+              "type": "string"
+            },
+            "model": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Model"
+            },
+            "provider": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Provider"
+            },
+            "role": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Role",
+              "type": "string"
+            }
+          },
+          "required": [
+            "assignment_id",
+            "role"
+          ],
+          "title": "AgentAssignment",
+          "type": "object"
+        },
+        "ApprovalGate": {
+          "additionalProperties": false,
+          "properties": {
+            "actor_id": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Actor Id"
+            },
+            "decided_at": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Decided At"
+            },
+            "evidence_refs": {
+              "default": [],
+              "items": {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+                "type": "string"
+              },
+              "title": "Evidence Refs",
+              "type": "array"
+            },
+            "gate_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Gate Id",
+              "type": "string"
+            },
+            "gate_type": {
+              "$ref": "#/$defs/ApprovalType"
+            },
+            "idempotency_key": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Idempotency Key",
+              "type": "string"
+            },
+            "status": {
+              "$ref": "#/$defs/ApprovalStatus",
+              "default": "pending"
+            },
+            "subject": {
+              "discriminator": {
+                "mapping": {
+                  "draft_pr": "#/$defs/DraftPRApprovalSubject",
+                  "plan": "#/$defs/PlanApprovalSubject",
+                  "scope_expansion": "#/$defs/ScopeApprovalSubject"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/PlanApprovalSubject"
+                },
+                {
+                  "$ref": "#/$defs/ScopeApprovalSubject"
+                },
+                {
+                  "$ref": "#/$defs/DraftPRApprovalSubject"
+                }
+              ],
+              "title": "Subject"
+            }
+          },
+          "required": [
+            "gate_id",
+            "gate_type",
+            "subject",
+            "idempotency_key"
+          ],
+          "title": "ApprovalGate",
+          "type": "object"
+        },
+        "ApprovalStatus": {
+          "enum": [
+            "pending",
+            "approved",
+            "rejected"
+          ],
+          "title": "ApprovalStatus",
+          "type": "string"
+        },
+        "ApprovalType": {
+          "enum": [
+            "plan",
+            "scope_expansion",
+            "draft_pr"
+          ],
+          "title": "ApprovalType",
+          "type": "string"
+        },
+        "CIStatus": {
+          "enum": [
+            "pending",
+            "passed",
+            "failed",
+            "not_configured"
+          ],
+          "title": "CIStatus",
+          "type": "string"
+        },
+        "DraftPRApprovalSubject": {
+          "additionalProperties": false,
+          "properties": {
+            "branch": {
+              "maxLength": 256,
+              "minLength": 1,
+              "title": "Branch",
+              "type": "string"
+            },
+            "head_sha": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Head Sha",
+              "type": "string"
+            },
+            "kind": {
+              "const": "draft_pr",
+              "default": "draft_pr",
+              "title": "Kind",
+              "type": "string"
+            },
+            "plan_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Plan Id",
+              "type": "string"
+            },
+            "plan_revision": {
+              "minimum": 1,
+              "title": "Plan Revision",
+              "type": "integer"
+            },
+            "review_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Review Id",
+              "type": "string"
+            }
+          },
+          "required": [
+            "review_id",
+            "plan_id",
+            "plan_revision",
+            "branch",
+            "head_sha"
+          ],
+          "title": "DraftPRApprovalSubject",
+          "type": "object"
+        },
+        "DraftPullRequestDelivery": {
+          "additionalProperties": false,
+          "properties": {
+            "base_sha": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Base Sha",
+              "type": "string"
+            },
+            "branch": {
+              "maxLength": 256,
+              "minLength": 1,
+              "title": "Branch",
+              "type": "string"
+            },
+            "ci_status": {
+              "$ref": "#/$defs/CIStatus"
+            },
+            "commit_shas": {
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "title": "Commit Shas",
+              "type": "array"
+            },
+            "head_sha": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Head Sha",
+              "type": "string"
+            },
+            "human_decision_state": {
+              "$ref": "#/$defs/HumanDecisionState",
+              "default": "pending"
+            },
+            "mergeability": {
+              "$ref": "#/$defs/Mergeability"
+            },
+            "pr_number": {
+              "minimum": 1,
+              "title": "Pr Number",
+              "type": "integer"
+            },
+            "unresolved_review_thread_count": {
+              "minimum": 0,
+              "title": "Unresolved Review Thread Count",
+              "type": "integer"
+            },
+            "url": {
+              "maxLength": 512,
+              "minLength": 1,
+              "title": "Url",
+              "type": "string"
+            }
+          },
+          "required": [
+            "branch",
+            "commit_shas",
+            "pr_number",
+            "url",
+            "head_sha",
+            "base_sha",
+            "ci_status",
+            "unresolved_review_thread_count",
+            "mergeability"
+          ],
+          "title": "DraftPullRequestDelivery",
+          "type": "object"
+        },
+        "EvidenceRecord": {
+          "additionalProperties": false,
+          "properties": {
+            "artifact_ref": {
+              "anyOf": [
+                {
+                  "maxLength": 512,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Artifact Ref"
+            },
+            "bounded_output_summary": {
+              "default": "",
+              "maxLength": 4000,
+              "title": "Bounded Output Summary",
+              "type": "string"
+            },
+            "commit_sha": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Commit Sha"
+            },
+            "evidence_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Evidence Id",
+              "type": "string"
+            },
+            "evidence_type": {
+              "$ref": "#/$defs/EvidenceType"
+            },
+            "exit_status": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Exit Status"
+            },
+            "finished_at": {
+              "format": "date-time",
+              "title": "Finished At",
+              "type": "string"
+            },
+            "operation": {
+              "maxLength": 512,
+              "minLength": 1,
+              "title": "Operation",
+              "type": "string"
+            },
+            "producing_agent": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Producing Agent",
+              "type": "string"
+            },
+            "requirement_links": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Requirement Links",
+              "type": "array"
+            },
+            "source": {
+              "maxLength": 256,
+              "minLength": 1,
+              "title": "Source",
+              "type": "string"
+            },
+            "started_at": {
+              "format": "date-time",
+              "title": "Started At",
+              "type": "string"
+            },
+            "task_links": {
+              "default": [],
+              "items": {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+                "type": "string"
+              },
+              "title": "Task Links",
+              "type": "array"
+            },
+            "verification_status": {
+              "$ref": "#/$defs/GateStatus",
+              "default": "pending"
+            }
+          },
+          "required": [
+            "evidence_id",
+            "evidence_type",
+            "source",
+            "operation",
+            "started_at",
+            "finished_at",
+            "producing_agent"
+          ],
+          "title": "EvidenceRecord",
+          "type": "object"
+        },
+        "EvidenceType": {
+          "enum": [
+            "command",
+            "test",
+            "ci",
+            "review",
+            "scope",
+            "architecture",
+            "security",
+            "quality",
+            "cost",
+            "artifact",
+            "provider_call"
+          ],
+          "title": "EvidenceType",
+          "type": "string"
+        },
+        "ExecutionPlan": {
+          "additionalProperties": false,
+          "properties": {
+            "approval_status": {
+              "$ref": "#/$defs/ApprovalStatus",
+              "default": "pending"
+            },
+            "approved_revision": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Approved Revision"
+            },
+            "estimated_risk": {
+              "$ref": "#/$defs/RiskLevel",
+              "default": "medium"
+            },
+            "mission_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Mission Id",
+              "type": "string"
+            },
+            "plan_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Plan Id",
+              "type": "string"
+            },
+            "required_verification": {
+              "default": [
+                "requirement",
+                "scope",
+                "architecture",
+                "tests",
+                "security",
+                "quality",
+                "ci",
+                "cost"
+              ],
+              "items": {
+                "$ref": "#/$defs/VerificationGateName"
+              },
+              "title": "Required Verification",
+              "type": "array"
+            },
+            "revision": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Revision",
+              "type": "integer"
+            },
+            "schema_version": {
+              "default": "1.0",
+              "title": "Schema Version",
+              "type": "string"
+            },
+            "tasks": {
+              "items": {
+                "$ref": "#/$defs/PlanTask"
+              },
+              "minItems": 1,
+              "title": "Tasks",
+              "type": "array"
+            }
+          },
+          "required": [
+            "plan_id",
+            "mission_id",
+            "tasks"
+          ],
+          "title": "ExecutionPlan",
+          "type": "object"
+        },
+        "ExecutionPolicyPreset": {
+          "enum": [
+            "conservative",
+            "balanced",
+            "exploratory"
+          ],
+          "title": "ExecutionPolicyPreset",
+          "type": "string"
+        },
+        "GateStatus": {
+          "enum": [
+            "pending",
+            "passed",
+            "failed",
+            "blocked",
+            "not_applicable"
+          ],
+          "title": "GateStatus",
+          "type": "string"
+        },
+        "HumanDecisionState": {
+          "enum": [
+            "pending",
+            "approved",
+            "revision_requested",
+            "rejected"
+          ],
+          "title": "HumanDecisionState",
+          "type": "string"
+        },
+        "Mergeability": {
+          "enum": [
+            "mergeable",
+            "conflicts",
+            "unknown"
+          ],
+          "title": "Mergeability",
+          "type": "string"
+        },
+        "MissionBudgetPolicy": {
+          "additionalProperties": false,
+          "properties": {
+            "currency": {
+              "default": "USD",
+              "maxLength": 3,
+              "minLength": 3,
+              "title": "Currency",
+              "type": "string"
+            },
+            "max_cost": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Max Cost"
+            },
+            "provider_call_limit": {
+              "default": 64,
+              "minimum": 1,
+              "title": "Provider Call Limit",
+              "type": "integer"
+            }
+          },
+          "title": "MissionBudgetPolicy",
+          "type": "object"
+        },
+        "MissionEvent": {
+          "enum": [
+            "start_planning",
+            "submit_plan",
+            "approve_plan",
+            "reject_plan",
+            "begin_verification",
+            "complete_verification",
+            "fail_ci",
+            "retry_verification",
+            "create_draft_pr",
+            "request_scope_expansion",
+            "block_scope",
+            "approve_scope",
+            "reject_scope",
+            "pause",
+            "resume",
+            "cancel",
+            "fail",
+            "exhaust_budget",
+            "close"
+          ],
+          "title": "MissionEvent",
+          "type": "string"
+        },
+        "MissionPolicy": {
+          "additionalProperties": false,
+          "properties": {
+            "preset": {
+              "$ref": "#/$defs/ExecutionPolicyPreset",
+              "default": "balanced"
+            },
+            "scope": {
+              "$ref": "#/$defs/ScopePolicy"
+            }
+          },
+          "title": "MissionPolicy",
+          "type": "object"
+        },
+        "MissionState": {
+          "enum": [
+            "draft",
+            "planning",
+            "awaiting_approval",
+            "running",
+            "needs_decision",
+            "verifying",
+            "review_ready",
+            "draft_pr_created",
+            "closed",
+            "paused",
+            "cancelled",
+            "failed",
+            "budget_exhausted",
+            "scope_blocked",
+            "ci_failed"
+          ],
+          "title": "MissionState",
+          "type": "string"
+        },
+        "MissionTransitionAudit": {
+          "additionalProperties": false,
+          "properties": {
+            "actor_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Actor Id",
+              "type": "string"
+            },
+            "approval_subject": {
+              "anyOf": [
+                {
+                  "discriminator": {
+                    "mapping": {
+                      "draft_pr": "#/$defs/DraftPRApprovalSubject",
+                      "plan": "#/$defs/PlanApprovalSubject",
+                      "scope_expansion": "#/$defs/ScopeApprovalSubject"
+                    },
+                    "propertyName": "kind"
+                  },
+                  "oneOf": [
+                    {
+                      "$ref": "#/$defs/PlanApprovalSubject"
+                    },
+                    {
+                      "$ref": "#/$defs/ScopeApprovalSubject"
+                    },
+                    {
+                      "$ref": "#/$defs/DraftPRApprovalSubject"
+                    }
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Approval Subject"
+            },
+            "audit_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Audit Id",
+              "type": "string"
+            },
+            "event": {
+              "$ref": "#/$defs/MissionEvent"
+            },
+            "from_revision": {
+              "minimum": 0,
+              "title": "From Revision",
+              "type": "integer"
+            },
+            "from_state": {
+              "$ref": "#/$defs/MissionState"
+            },
+            "idempotency_key": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Idempotency Key",
+              "type": "string"
+            },
+            "occurred_at": {
+              "format": "date-time",
+              "title": "Occurred At",
+              "type": "string"
+            },
+            "to_revision": {
+              "minimum": 1,
+              "title": "To Revision",
+              "type": "integer"
+            },
+            "to_state": {
+              "$ref": "#/$defs/MissionState"
+            }
+          },
+          "required": [
+            "audit_id",
+            "event",
+            "from_state",
+            "to_state",
+            "from_revision",
+            "to_revision",
+            "actor_id",
+            "idempotency_key"
+          ],
+          "title": "MissionTransitionAudit",
+          "type": "object"
+        },
+        "MissionUsageSummary": {
+          "additionalProperties": false,
+          "properties": {
+            "accounted_at": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Accounted At"
+            },
+            "accounting_revision": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Accounting Revision",
+              "type": "integer"
+            },
+            "actual_cost": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Actual Cost"
+            },
+            "currency": {
+              "default": "USD",
+              "maxLength": 3,
+              "minLength": 3,
+              "title": "Currency",
+              "type": "string"
+            },
+            "healing_calls": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Healing Calls",
+              "type": "integer"
+            },
+            "input_tokens": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Input Tokens",
+              "type": "integer"
+            },
+            "output_tokens": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Output Tokens",
+              "type": "integer"
+            },
+            "provider_calls": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Provider Calls",
+              "type": "integer"
+            },
+            "retries": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Retries",
+              "type": "integer"
+            }
+          },
+          "title": "MissionUsageSummary",
+          "type": "object"
+        },
+        "PlanApprovalSubject": {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "plan",
+              "default": "plan",
+              "title": "Kind",
+              "type": "string"
+            },
+            "plan_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Plan Id",
+              "type": "string"
+            },
+            "plan_revision": {
+              "minimum": 1,
+              "title": "Plan Revision",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "plan_id",
+            "plan_revision"
+          ],
+          "title": "PlanApprovalSubject",
+          "type": "object"
+        },
+        "PlanTask": {
+          "additionalProperties": false,
+          "properties": {
+            "approval_status": {
+              "$ref": "#/$defs/ApprovalStatus",
+              "default": "pending"
+            },
+            "assigned_role": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Assigned Role"
+            },
+            "assignment": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/AgentAssignment"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "dependencies": {
+              "default": [],
+              "items": {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+                "type": "string"
+              },
+              "title": "Dependencies",
+              "type": "array"
+            },
+            "description": {
+              "default": "",
+              "maxLength": 4000,
+              "title": "Description",
+              "type": "string"
+            },
+            "estimated_provider_calls_max": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Estimated Provider Calls Max",
+              "type": "integer"
+            },
+            "estimated_provider_calls_min": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Estimated Provider Calls Min",
+              "type": "integer"
+            },
+            "estimated_risk": {
+              "$ref": "#/$defs/RiskLevel",
+              "default": "medium"
+            },
+            "expected_paths": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Expected Paths",
+              "type": "array"
+            },
+            "order": {
+              "minimum": 1,
+              "title": "Order",
+              "type": "integer"
+            },
+            "task_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Task Id",
+              "type": "string"
+            },
+            "title": {
+              "maxLength": 256,
+              "minLength": 1,
+              "title": "Title",
+              "type": "string"
+            },
+            "verification_requirements": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Verification Requirements",
+              "type": "array"
+            }
+          },
+          "required": [
+            "task_id",
+            "title",
+            "order"
+          ],
+          "title": "PlanTask",
+          "type": "object"
+        },
+        "RiskLevel": {
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "title": "RiskLevel",
+          "type": "string"
+        },
+        "ScopeApprovalSubject": {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "scope_expansion",
+              "default": "scope_expansion",
+              "title": "Kind",
+              "type": "string"
+            },
+            "scope_request_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Scope Request Id",
+              "type": "string"
+            }
+          },
+          "required": [
+            "scope_request_id"
+          ],
+          "title": "ScopeApprovalSubject",
+          "type": "object"
+        },
+        "ScopeExpansionRequest": {
+          "additionalProperties": false,
+          "properties": {
+            "impact": {
+              "maxLength": 4000,
+              "minLength": 1,
+              "title": "Impact",
+              "type": "string"
+            },
+            "mission_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Mission Id",
+              "type": "string"
+            },
+            "reason": {
+              "maxLength": 4000,
+              "minLength": 1,
+              "title": "Reason",
+              "type": "string"
+            },
+            "request_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Request Id",
+              "type": "string"
+            },
+            "requested_by": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Requested By"
+            },
+            "requested_paths": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Requested Paths",
+              "type": "array"
+            },
+            "risk": {
+              "$ref": "#/$defs/RiskLevel"
+            },
+            "status": {
+              "$ref": "#/$defs/ApprovalStatus",
+              "default": "pending"
+            }
+          },
+          "required": [
+            "request_id",
+            "mission_id",
+            "requested_paths",
+            "reason",
+            "impact",
+            "risk"
+          ],
+          "title": "ScopeExpansionRequest",
+          "type": "object"
+        },
+        "ScopePolicy": {
+          "additionalProperties": false,
+          "properties": {
+            "allowed_paths": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Allowed Paths",
+              "type": "array"
+            },
+            "auto_merge_allowed": {
+              "const": false,
+              "default": false,
+              "title": "Auto Merge Allowed",
+              "type": "boolean"
+            },
+            "ci_change_permission": {
+              "default": false,
+              "title": "Ci Change Permission",
+              "type": "boolean"
+            },
+            "commit_permission": {
+              "default": false,
+              "title": "Commit Permission",
+              "type": "boolean"
+            },
+            "dependency_change_permission": {
+              "default": false,
+              "title": "Dependency Change Permission",
+              "type": "boolean"
+            },
+            "draft_pr_permission": {
+              "default": false,
+              "title": "Draft Pr Permission",
+              "type": "boolean"
+            },
+            "protected_paths": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Protected Paths",
+              "type": "array"
+            },
+            "push_permission": {
+              "default": false,
+              "title": "Push Permission",
+              "type": "boolean"
+            },
+            "schema_change_permission": {
+              "default": false,
+              "title": "Schema Change Permission",
+              "type": "boolean"
+            }
+          },
+          "title": "ScopePolicy",
+          "type": "object"
+        },
+        "VerificationGate": {
+          "additionalProperties": false,
+          "properties": {
+            "evidence_refs": {
+              "default": [],
+              "items": {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+                "type": "string"
+              },
+              "title": "Evidence Refs",
+              "type": "array"
+            },
+            "gate": {
+              "$ref": "#/$defs/VerificationGateName"
+            },
+            "status": {
+              "$ref": "#/$defs/GateStatus",
+              "default": "pending"
+            }
+          },
+          "required": [
+            "gate"
+          ],
+          "title": "VerificationGate",
+          "type": "object"
+        },
+        "VerificationGateName": {
+          "enum": [
+            "requirement",
+            "scope",
+            "architecture",
+            "tests",
+            "security",
+            "quality",
+            "ci",
+            "cost"
+          ],
+          "title": "VerificationGateName",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "actor_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+          "title": "Actor Id",
+          "type": "string"
+        },
+        "approval_gates": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ApprovalGate"
+          },
+          "title": "Approval Gates",
+          "type": "array"
+        },
+        "budget_policy": {
+          "$ref": "#/$defs/MissionBudgetPolicy"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "current_state": {
+          "$ref": "#/$defs/MissionState",
+          "default": "draft"
+        },
+        "draft_pr_review_subject": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DraftPRApprovalSubject"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "evidence_records": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/EvidenceRecord"
+          },
+          "title": "Evidence Records",
+          "type": "array"
+        },
+        "execution_plan": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExecutionPlan"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "execution_policy": {
+          "$ref": "#/$defs/MissionPolicy"
+        },
+        "final_draft_pr": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DraftPullRequestDelivery"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "mission_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+          "title": "Mission Id",
+          "type": "string"
+        },
+        "plan_reference": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Plan Reference"
+        },
+        "plan_revision": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Plan Revision"
+        },
+        "repository_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+          "title": "Repository Id",
+          "type": "string"
+        },
+        "required_verification": {
+          "default": [
+            "requirement",
+            "scope",
+            "architecture",
+            "tests",
+            "security",
+            "quality",
+            "ci",
+            "cost"
+          ],
+          "items": {
+            "$ref": "#/$defs/VerificationGateName"
+          },
+          "title": "Required Verification",
+          "type": "array"
+        },
+        "requirement": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "title": "Requirement",
+          "type": "string"
+        },
+        "resume_state": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MissionState"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "revision": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "schema_version": {
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "scope_expansion_requests": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ScopeExpansionRequest"
+          },
+          "title": "Scope Expansion Requests",
+          "type": "array"
+        },
+        "transition_audit": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/MissionTransitionAudit"
+          },
+          "title": "Transition Audit",
+          "type": "array"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "title": "Updated At",
+          "type": "string"
+        },
+        "usage_summary": {
+          "$ref": "#/$defs/MissionUsageSummary"
+        },
+        "verification_gates": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/VerificationGate"
+          },
+          "title": "Verification Gates",
+          "type": "array"
+        }
+      },
+      "required": [
+        "mission_id",
+        "requirement",
+        "repository_id",
+        "execution_policy",
+        "actor_id"
+      ],
+      "title": "Mission",
+      "type": "object"
+    },
+    "MissionCreateRequest": {
+      "$defs": {
+        "ExecutionPolicyPreset": {
+          "enum": [
+            "conservative",
+            "balanced",
+            "exploratory"
+          ],
+          "title": "ExecutionPolicyPreset",
+          "type": "string"
+        },
+        "MissionBudgetPolicy": {
+          "additionalProperties": false,
+          "properties": {
+            "currency": {
+              "default": "USD",
+              "maxLength": 3,
+              "minLength": 3,
+              "title": "Currency",
+              "type": "string"
+            },
+            "max_cost": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Max Cost"
+            },
+            "provider_call_limit": {
+              "default": 64,
+              "minimum": 1,
+              "title": "Provider Call Limit",
+              "type": "integer"
+            }
+          },
+          "title": "MissionBudgetPolicy",
+          "type": "object"
+        },
+        "MissionPolicy": {
+          "additionalProperties": false,
+          "properties": {
+            "preset": {
+              "$ref": "#/$defs/ExecutionPolicyPreset",
+              "default": "balanced"
+            },
+            "scope": {
+              "$ref": "#/$defs/ScopePolicy"
+            }
+          },
+          "title": "MissionPolicy",
+          "type": "object"
+        },
+        "ScopePolicy": {
+          "additionalProperties": false,
+          "properties": {
+            "allowed_paths": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Allowed Paths",
+              "type": "array"
+            },
+            "auto_merge_allowed": {
+              "const": false,
+              "default": false,
+              "title": "Auto Merge Allowed",
+              "type": "boolean"
+            },
+            "ci_change_permission": {
+              "default": false,
+              "title": "Ci Change Permission",
+              "type": "boolean"
+            },
+            "commit_permission": {
+              "default": false,
+              "title": "Commit Permission",
+              "type": "boolean"
+            },
+            "dependency_change_permission": {
+              "default": false,
+              "title": "Dependency Change Permission",
+              "type": "boolean"
+            },
+            "draft_pr_permission": {
+              "default": false,
+              "title": "Draft Pr Permission",
+              "type": "boolean"
+            },
+            "protected_paths": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Protected Paths",
+              "type": "array"
+            },
+            "push_permission": {
+              "default": false,
+              "title": "Push Permission",
+              "type": "boolean"
+            },
+            "schema_change_permission": {
+              "default": false,
+              "title": "Schema Change Permission",
+              "type": "boolean"
+            }
+          },
+          "title": "ScopePolicy",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "actor_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Actor Id"
+        },
+        "budget_policy": {
+          "$ref": "#/$defs/MissionBudgetPolicy"
+        },
+        "execution_policy": {
+          "$ref": "#/$defs/MissionPolicy"
+        },
+        "mission_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mission Id"
+        },
+        "repository_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+          "title": "Repository Id",
+          "type": "string"
+        },
+        "requirement": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "title": "Requirement",
+          "type": "string"
+        }
+      },
+      "required": [
+        "requirement",
+        "repository_id"
+      ],
+      "title": "MissionCreateRequest",
+      "type": "object"
+    },
+    "MissionTransitionAPIRequest": {
+      "$defs": {
+        "DraftPRApprovalSubject": {
+          "additionalProperties": false,
+          "properties": {
+            "branch": {
+              "maxLength": 256,
+              "minLength": 1,
+              "title": "Branch",
+              "type": "string"
+            },
+            "head_sha": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Head Sha",
+              "type": "string"
+            },
+            "kind": {
+              "const": "draft_pr",
+              "default": "draft_pr",
+              "title": "Kind",
+              "type": "string"
+            },
+            "plan_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Plan Id",
+              "type": "string"
+            },
+            "plan_revision": {
+              "minimum": 1,
+              "title": "Plan Revision",
+              "type": "integer"
+            },
+            "review_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Review Id",
+              "type": "string"
+            }
+          },
+          "required": [
+            "review_id",
+            "plan_id",
+            "plan_revision",
+            "branch",
+            "head_sha"
+          ],
+          "title": "DraftPRApprovalSubject",
+          "type": "object"
+        },
+        "MissionEvent": {
+          "enum": [
+            "start_planning",
+            "submit_plan",
+            "approve_plan",
+            "reject_plan",
+            "begin_verification",
+            "complete_verification",
+            "fail_ci",
+            "retry_verification",
+            "create_draft_pr",
+            "request_scope_expansion",
+            "block_scope",
+            "approve_scope",
+            "reject_scope",
+            "pause",
+            "resume",
+            "cancel",
+            "fail",
+            "exhaust_budget",
+            "close"
+          ],
+          "title": "MissionEvent",
+          "type": "string"
+        },
+        "PlanApprovalSubject": {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "plan",
+              "default": "plan",
+              "title": "Kind",
+              "type": "string"
+            },
+            "plan_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Plan Id",
+              "type": "string"
+            },
+            "plan_revision": {
+              "minimum": 1,
+              "title": "Plan Revision",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "plan_id",
+            "plan_revision"
+          ],
+          "title": "PlanApprovalSubject",
+          "type": "object"
+        },
+        "ScopeApprovalSubject": {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "scope_expansion",
+              "default": "scope_expansion",
+              "title": "Kind",
+              "type": "string"
+            },
+            "scope_request_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Scope Request Id",
+              "type": "string"
+            }
+          },
+          "required": [
+            "scope_request_id"
+          ],
+          "title": "ScopeApprovalSubject",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "approval_subject": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "draft_pr": "#/$defs/DraftPRApprovalSubject",
+                  "plan": "#/$defs/PlanApprovalSubject",
+                  "scope_expansion": "#/$defs/ScopeApprovalSubject"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/PlanApprovalSubject"
+                },
+                {
+                  "$ref": "#/$defs/ScopeApprovalSubject"
+                },
+                {
+                  "$ref": "#/$defs/DraftPRApprovalSubject"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Approval Subject"
+        },
+        "event": {
+          "$ref": "#/$defs/MissionEvent"
+        },
+        "expected_revision": {
+          "minimum": 0,
+          "title": "Expected Revision",
+          "type": "integer"
+        },
+        "idempotency_key": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+          "title": "Idempotency Key",
+          "type": "string"
+        }
+      },
+      "required": [
+        "event",
+        "idempotency_key",
+        "expected_revision"
+      ],
+      "title": "MissionTransitionAPIRequest",
+      "type": "object"
+    },
+    "MissionTransitionResponse": {
+      "$defs": {
+        "AgentAssignment": {
+          "additionalProperties": false,
+          "properties": {
+            "agent_id": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Agent Id"
+            },
+            "assignment_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Assignment Id",
+              "type": "string"
+            },
+            "model": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Model"
+            },
+            "provider": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Provider"
+            },
+            "role": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Role",
+              "type": "string"
+            }
+          },
+          "required": [
+            "assignment_id",
+            "role"
+          ],
+          "title": "AgentAssignment",
+          "type": "object"
+        },
+        "ApprovalGate": {
+          "additionalProperties": false,
+          "properties": {
+            "actor_id": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Actor Id"
+            },
+            "decided_at": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Decided At"
+            },
+            "evidence_refs": {
+              "default": [],
+              "items": {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+                "type": "string"
+              },
+              "title": "Evidence Refs",
+              "type": "array"
+            },
+            "gate_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Gate Id",
+              "type": "string"
+            },
+            "gate_type": {
+              "$ref": "#/$defs/ApprovalType"
+            },
+            "idempotency_key": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Idempotency Key",
+              "type": "string"
+            },
+            "status": {
+              "$ref": "#/$defs/ApprovalStatus",
+              "default": "pending"
+            },
+            "subject": {
+              "discriminator": {
+                "mapping": {
+                  "draft_pr": "#/$defs/DraftPRApprovalSubject",
+                  "plan": "#/$defs/PlanApprovalSubject",
+                  "scope_expansion": "#/$defs/ScopeApprovalSubject"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/PlanApprovalSubject"
+                },
+                {
+                  "$ref": "#/$defs/ScopeApprovalSubject"
+                },
+                {
+                  "$ref": "#/$defs/DraftPRApprovalSubject"
+                }
+              ],
+              "title": "Subject"
+            }
+          },
+          "required": [
+            "gate_id",
+            "gate_type",
+            "subject",
+            "idempotency_key"
+          ],
+          "title": "ApprovalGate",
+          "type": "object"
+        },
+        "ApprovalStatus": {
+          "enum": [
+            "pending",
+            "approved",
+            "rejected"
+          ],
+          "title": "ApprovalStatus",
+          "type": "string"
+        },
+        "ApprovalType": {
+          "enum": [
+            "plan",
+            "scope_expansion",
+            "draft_pr"
+          ],
+          "title": "ApprovalType",
+          "type": "string"
+        },
+        "CIStatus": {
+          "enum": [
+            "pending",
+            "passed",
+            "failed",
+            "not_configured"
+          ],
+          "title": "CIStatus",
+          "type": "string"
+        },
+        "DraftPRApprovalSubject": {
+          "additionalProperties": false,
+          "properties": {
+            "branch": {
+              "maxLength": 256,
+              "minLength": 1,
+              "title": "Branch",
+              "type": "string"
+            },
+            "head_sha": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Head Sha",
+              "type": "string"
+            },
+            "kind": {
+              "const": "draft_pr",
+              "default": "draft_pr",
+              "title": "Kind",
+              "type": "string"
+            },
+            "plan_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Plan Id",
+              "type": "string"
+            },
+            "plan_revision": {
+              "minimum": 1,
+              "title": "Plan Revision",
+              "type": "integer"
+            },
+            "review_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Review Id",
+              "type": "string"
+            }
+          },
+          "required": [
+            "review_id",
+            "plan_id",
+            "plan_revision",
+            "branch",
+            "head_sha"
+          ],
+          "title": "DraftPRApprovalSubject",
+          "type": "object"
+        },
+        "DraftPullRequestDelivery": {
+          "additionalProperties": false,
+          "properties": {
+            "base_sha": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Base Sha",
+              "type": "string"
+            },
+            "branch": {
+              "maxLength": 256,
+              "minLength": 1,
+              "title": "Branch",
+              "type": "string"
+            },
+            "ci_status": {
+              "$ref": "#/$defs/CIStatus"
+            },
+            "commit_shas": {
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "title": "Commit Shas",
+              "type": "array"
+            },
+            "head_sha": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Head Sha",
+              "type": "string"
+            },
+            "human_decision_state": {
+              "$ref": "#/$defs/HumanDecisionState",
+              "default": "pending"
+            },
+            "mergeability": {
+              "$ref": "#/$defs/Mergeability"
+            },
+            "pr_number": {
+              "minimum": 1,
+              "title": "Pr Number",
+              "type": "integer"
+            },
+            "unresolved_review_thread_count": {
+              "minimum": 0,
+              "title": "Unresolved Review Thread Count",
+              "type": "integer"
+            },
+            "url": {
+              "maxLength": 512,
+              "minLength": 1,
+              "title": "Url",
+              "type": "string"
+            }
+          },
+          "required": [
+            "branch",
+            "commit_shas",
+            "pr_number",
+            "url",
+            "head_sha",
+            "base_sha",
+            "ci_status",
+            "unresolved_review_thread_count",
+            "mergeability"
+          ],
+          "title": "DraftPullRequestDelivery",
+          "type": "object"
+        },
+        "EvidenceRecord": {
+          "additionalProperties": false,
+          "properties": {
+            "artifact_ref": {
+              "anyOf": [
+                {
+                  "maxLength": 512,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Artifact Ref"
+            },
+            "bounded_output_summary": {
+              "default": "",
+              "maxLength": 4000,
+              "title": "Bounded Output Summary",
+              "type": "string"
+            },
+            "commit_sha": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Commit Sha"
+            },
+            "evidence_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Evidence Id",
+              "type": "string"
+            },
+            "evidence_type": {
+              "$ref": "#/$defs/EvidenceType"
+            },
+            "exit_status": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Exit Status"
+            },
+            "finished_at": {
+              "format": "date-time",
+              "title": "Finished At",
+              "type": "string"
+            },
+            "operation": {
+              "maxLength": 512,
+              "minLength": 1,
+              "title": "Operation",
+              "type": "string"
+            },
+            "producing_agent": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Producing Agent",
+              "type": "string"
+            },
+            "requirement_links": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Requirement Links",
+              "type": "array"
+            },
+            "source": {
+              "maxLength": 256,
+              "minLength": 1,
+              "title": "Source",
+              "type": "string"
+            },
+            "started_at": {
+              "format": "date-time",
+              "title": "Started At",
+              "type": "string"
+            },
+            "task_links": {
+              "default": [],
+              "items": {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+                "type": "string"
+              },
+              "title": "Task Links",
+              "type": "array"
+            },
+            "verification_status": {
+              "$ref": "#/$defs/GateStatus",
+              "default": "pending"
+            }
+          },
+          "required": [
+            "evidence_id",
+            "evidence_type",
+            "source",
+            "operation",
+            "started_at",
+            "finished_at",
+            "producing_agent"
+          ],
+          "title": "EvidenceRecord",
+          "type": "object"
+        },
+        "EvidenceType": {
+          "enum": [
+            "command",
+            "test",
+            "ci",
+            "review",
+            "scope",
+            "architecture",
+            "security",
+            "quality",
+            "cost",
+            "artifact",
+            "provider_call"
+          ],
+          "title": "EvidenceType",
+          "type": "string"
+        },
+        "ExecutionPlan": {
+          "additionalProperties": false,
+          "properties": {
+            "approval_status": {
+              "$ref": "#/$defs/ApprovalStatus",
+              "default": "pending"
+            },
+            "approved_revision": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Approved Revision"
+            },
+            "estimated_risk": {
+              "$ref": "#/$defs/RiskLevel",
+              "default": "medium"
+            },
+            "mission_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Mission Id",
+              "type": "string"
+            },
+            "plan_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Plan Id",
+              "type": "string"
+            },
+            "required_verification": {
+              "default": [
+                "requirement",
+                "scope",
+                "architecture",
+                "tests",
+                "security",
+                "quality",
+                "ci",
+                "cost"
+              ],
+              "items": {
+                "$ref": "#/$defs/VerificationGateName"
+              },
+              "title": "Required Verification",
+              "type": "array"
+            },
+            "revision": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Revision",
+              "type": "integer"
+            },
+            "schema_version": {
+              "default": "1.0",
+              "title": "Schema Version",
+              "type": "string"
+            },
+            "tasks": {
+              "items": {
+                "$ref": "#/$defs/PlanTask"
+              },
+              "minItems": 1,
+              "title": "Tasks",
+              "type": "array"
+            }
+          },
+          "required": [
+            "plan_id",
+            "mission_id",
+            "tasks"
+          ],
+          "title": "ExecutionPlan",
+          "type": "object"
+        },
+        "ExecutionPolicyPreset": {
+          "enum": [
+            "conservative",
+            "balanced",
+            "exploratory"
+          ],
+          "title": "ExecutionPolicyPreset",
+          "type": "string"
+        },
+        "GateStatus": {
+          "enum": [
+            "pending",
+            "passed",
+            "failed",
+            "blocked",
+            "not_applicable"
+          ],
+          "title": "GateStatus",
+          "type": "string"
+        },
+        "HumanDecisionState": {
+          "enum": [
+            "pending",
+            "approved",
+            "revision_requested",
+            "rejected"
+          ],
+          "title": "HumanDecisionState",
+          "type": "string"
+        },
+        "Mergeability": {
+          "enum": [
+            "mergeable",
+            "conflicts",
+            "unknown"
+          ],
+          "title": "Mergeability",
+          "type": "string"
+        },
+        "Mission": {
+          "additionalProperties": false,
+          "properties": {
+            "actor_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Actor Id",
+              "type": "string"
+            },
+            "approval_gates": {
+              "default": [],
+              "items": {
+                "$ref": "#/$defs/ApprovalGate"
+              },
+              "title": "Approval Gates",
+              "type": "array"
+            },
+            "budget_policy": {
+              "$ref": "#/$defs/MissionBudgetPolicy"
+            },
+            "created_at": {
+              "format": "date-time",
+              "title": "Created At",
+              "type": "string"
+            },
+            "current_state": {
+              "$ref": "#/$defs/MissionState",
+              "default": "draft"
+            },
+            "draft_pr_review_subject": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/DraftPRApprovalSubject"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "evidence_records": {
+              "default": [],
+              "items": {
+                "$ref": "#/$defs/EvidenceRecord"
+              },
+              "title": "Evidence Records",
+              "type": "array"
+            },
+            "execution_plan": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ExecutionPlan"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "execution_policy": {
+              "$ref": "#/$defs/MissionPolicy"
+            },
+            "final_draft_pr": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/DraftPullRequestDelivery"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "mission_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Mission Id",
+              "type": "string"
+            },
+            "plan_reference": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Plan Reference"
+            },
+            "plan_revision": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Plan Revision"
+            },
+            "repository_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Repository Id",
+              "type": "string"
+            },
+            "required_verification": {
+              "default": [
+                "requirement",
+                "scope",
+                "architecture",
+                "tests",
+                "security",
+                "quality",
+                "ci",
+                "cost"
+              ],
+              "items": {
+                "$ref": "#/$defs/VerificationGateName"
+              },
+              "title": "Required Verification",
+              "type": "array"
+            },
+            "requirement": {
+              "maxLength": 4000,
+              "minLength": 1,
+              "title": "Requirement",
+              "type": "string"
+            },
+            "resume_state": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/MissionState"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "revision": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Revision",
+              "type": "integer"
+            },
+            "schema_version": {
+              "default": "1.0",
+              "title": "Schema Version",
+              "type": "string"
+            },
+            "scope_expansion_requests": {
+              "default": [],
+              "items": {
+                "$ref": "#/$defs/ScopeExpansionRequest"
+              },
+              "title": "Scope Expansion Requests",
+              "type": "array"
+            },
+            "transition_audit": {
+              "default": [],
+              "items": {
+                "$ref": "#/$defs/MissionTransitionAudit"
+              },
+              "title": "Transition Audit",
+              "type": "array"
+            },
+            "updated_at": {
+              "format": "date-time",
+              "title": "Updated At",
+              "type": "string"
+            },
+            "usage_summary": {
+              "$ref": "#/$defs/MissionUsageSummary"
+            },
+            "verification_gates": {
+              "default": [],
+              "items": {
+                "$ref": "#/$defs/VerificationGate"
+              },
+              "title": "Verification Gates",
+              "type": "array"
+            }
+          },
+          "required": [
+            "mission_id",
+            "requirement",
+            "repository_id",
+            "execution_policy",
+            "actor_id"
+          ],
+          "title": "Mission",
+          "type": "object"
+        },
+        "MissionBudgetPolicy": {
+          "additionalProperties": false,
+          "properties": {
+            "currency": {
+              "default": "USD",
+              "maxLength": 3,
+              "minLength": 3,
+              "title": "Currency",
+              "type": "string"
+            },
+            "max_cost": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Max Cost"
+            },
+            "provider_call_limit": {
+              "default": 64,
+              "minimum": 1,
+              "title": "Provider Call Limit",
+              "type": "integer"
+            }
+          },
+          "title": "MissionBudgetPolicy",
+          "type": "object"
+        },
+        "MissionEvent": {
+          "enum": [
+            "start_planning",
+            "submit_plan",
+            "approve_plan",
+            "reject_plan",
+            "begin_verification",
+            "complete_verification",
+            "fail_ci",
+            "retry_verification",
+            "create_draft_pr",
+            "request_scope_expansion",
+            "block_scope",
+            "approve_scope",
+            "reject_scope",
+            "pause",
+            "resume",
+            "cancel",
+            "fail",
+            "exhaust_budget",
+            "close"
+          ],
+          "title": "MissionEvent",
+          "type": "string"
+        },
+        "MissionPolicy": {
+          "additionalProperties": false,
+          "properties": {
+            "preset": {
+              "$ref": "#/$defs/ExecutionPolicyPreset",
+              "default": "balanced"
+            },
+            "scope": {
+              "$ref": "#/$defs/ScopePolicy"
+            }
+          },
+          "title": "MissionPolicy",
+          "type": "object"
+        },
+        "MissionState": {
+          "enum": [
+            "draft",
+            "planning",
+            "awaiting_approval",
+            "running",
+            "needs_decision",
+            "verifying",
+            "review_ready",
+            "draft_pr_created",
+            "closed",
+            "paused",
+            "cancelled",
+            "failed",
+            "budget_exhausted",
+            "scope_blocked",
+            "ci_failed"
+          ],
+          "title": "MissionState",
+          "type": "string"
+        },
+        "MissionTransitionAudit": {
+          "additionalProperties": false,
+          "properties": {
+            "actor_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Actor Id",
+              "type": "string"
+            },
+            "approval_subject": {
+              "anyOf": [
+                {
+                  "discriminator": {
+                    "mapping": {
+                      "draft_pr": "#/$defs/DraftPRApprovalSubject",
+                      "plan": "#/$defs/PlanApprovalSubject",
+                      "scope_expansion": "#/$defs/ScopeApprovalSubject"
+                    },
+                    "propertyName": "kind"
+                  },
+                  "oneOf": [
+                    {
+                      "$ref": "#/$defs/PlanApprovalSubject"
+                    },
+                    {
+                      "$ref": "#/$defs/ScopeApprovalSubject"
+                    },
+                    {
+                      "$ref": "#/$defs/DraftPRApprovalSubject"
+                    }
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Approval Subject"
+            },
+            "audit_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Audit Id",
+              "type": "string"
+            },
+            "event": {
+              "$ref": "#/$defs/MissionEvent"
+            },
+            "from_revision": {
+              "minimum": 0,
+              "title": "From Revision",
+              "type": "integer"
+            },
+            "from_state": {
+              "$ref": "#/$defs/MissionState"
+            },
+            "idempotency_key": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Idempotency Key",
+              "type": "string"
+            },
+            "occurred_at": {
+              "format": "date-time",
+              "title": "Occurred At",
+              "type": "string"
+            },
+            "to_revision": {
+              "minimum": 1,
+              "title": "To Revision",
+              "type": "integer"
+            },
+            "to_state": {
+              "$ref": "#/$defs/MissionState"
+            }
+          },
+          "required": [
+            "audit_id",
+            "event",
+            "from_state",
+            "to_state",
+            "from_revision",
+            "to_revision",
+            "actor_id",
+            "idempotency_key"
+          ],
+          "title": "MissionTransitionAudit",
+          "type": "object"
+        },
+        "MissionUsageSummary": {
+          "additionalProperties": false,
+          "properties": {
+            "accounted_at": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Accounted At"
+            },
+            "accounting_revision": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Accounting Revision",
+              "type": "integer"
+            },
+            "actual_cost": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Actual Cost"
+            },
+            "currency": {
+              "default": "USD",
+              "maxLength": 3,
+              "minLength": 3,
+              "title": "Currency",
+              "type": "string"
+            },
+            "healing_calls": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Healing Calls",
+              "type": "integer"
+            },
+            "input_tokens": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Input Tokens",
+              "type": "integer"
+            },
+            "output_tokens": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Output Tokens",
+              "type": "integer"
+            },
+            "provider_calls": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Provider Calls",
+              "type": "integer"
+            },
+            "retries": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Retries",
+              "type": "integer"
+            }
+          },
+          "title": "MissionUsageSummary",
+          "type": "object"
+        },
+        "PlanApprovalSubject": {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "plan",
+              "default": "plan",
+              "title": "Kind",
+              "type": "string"
+            },
+            "plan_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Plan Id",
+              "type": "string"
+            },
+            "plan_revision": {
+              "minimum": 1,
+              "title": "Plan Revision",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "plan_id",
+            "plan_revision"
+          ],
+          "title": "PlanApprovalSubject",
+          "type": "object"
+        },
+        "PlanTask": {
+          "additionalProperties": false,
+          "properties": {
+            "approval_status": {
+              "$ref": "#/$defs/ApprovalStatus",
+              "default": "pending"
+            },
+            "assigned_role": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Assigned Role"
+            },
+            "assignment": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/AgentAssignment"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "dependencies": {
+              "default": [],
+              "items": {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+                "type": "string"
+              },
+              "title": "Dependencies",
+              "type": "array"
+            },
+            "description": {
+              "default": "",
+              "maxLength": 4000,
+              "title": "Description",
+              "type": "string"
+            },
+            "estimated_provider_calls_max": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Estimated Provider Calls Max",
+              "type": "integer"
+            },
+            "estimated_provider_calls_min": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Estimated Provider Calls Min",
+              "type": "integer"
+            },
+            "estimated_risk": {
+              "$ref": "#/$defs/RiskLevel",
+              "default": "medium"
+            },
+            "expected_paths": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Expected Paths",
+              "type": "array"
+            },
+            "order": {
+              "minimum": 1,
+              "title": "Order",
+              "type": "integer"
+            },
+            "task_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Task Id",
+              "type": "string"
+            },
+            "title": {
+              "maxLength": 256,
+              "minLength": 1,
+              "title": "Title",
+              "type": "string"
+            },
+            "verification_requirements": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Verification Requirements",
+              "type": "array"
+            }
+          },
+          "required": [
+            "task_id",
+            "title",
+            "order"
+          ],
+          "title": "PlanTask",
+          "type": "object"
+        },
+        "RiskLevel": {
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "title": "RiskLevel",
+          "type": "string"
+        },
+        "ScopeApprovalSubject": {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "scope_expansion",
+              "default": "scope_expansion",
+              "title": "Kind",
+              "type": "string"
+            },
+            "scope_request_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Scope Request Id",
+              "type": "string"
+            }
+          },
+          "required": [
+            "scope_request_id"
+          ],
+          "title": "ScopeApprovalSubject",
+          "type": "object"
+        },
+        "ScopeExpansionRequest": {
+          "additionalProperties": false,
+          "properties": {
+            "impact": {
+              "maxLength": 4000,
+              "minLength": 1,
+              "title": "Impact",
+              "type": "string"
+            },
+            "mission_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Mission Id",
+              "type": "string"
+            },
+            "reason": {
+              "maxLength": 4000,
+              "minLength": 1,
+              "title": "Reason",
+              "type": "string"
+            },
+            "request_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Request Id",
+              "type": "string"
+            },
+            "requested_by": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Requested By"
+            },
+            "requested_paths": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Requested Paths",
+              "type": "array"
+            },
+            "risk": {
+              "$ref": "#/$defs/RiskLevel"
+            },
+            "status": {
+              "$ref": "#/$defs/ApprovalStatus",
+              "default": "pending"
+            }
+          },
+          "required": [
+            "request_id",
+            "mission_id",
+            "requested_paths",
+            "reason",
+            "impact",
+            "risk"
+          ],
+          "title": "ScopeExpansionRequest",
+          "type": "object"
+        },
+        "ScopePolicy": {
+          "additionalProperties": false,
+          "properties": {
+            "allowed_paths": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Allowed Paths",
+              "type": "array"
+            },
+            "auto_merge_allowed": {
+              "const": false,
+              "default": false,
+              "title": "Auto Merge Allowed",
+              "type": "boolean"
+            },
+            "ci_change_permission": {
+              "default": false,
+              "title": "Ci Change Permission",
+              "type": "boolean"
+            },
+            "commit_permission": {
+              "default": false,
+              "title": "Commit Permission",
+              "type": "boolean"
+            },
+            "dependency_change_permission": {
+              "default": false,
+              "title": "Dependency Change Permission",
+              "type": "boolean"
+            },
+            "draft_pr_permission": {
+              "default": false,
+              "title": "Draft Pr Permission",
+              "type": "boolean"
+            },
+            "protected_paths": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Protected Paths",
+              "type": "array"
+            },
+            "push_permission": {
+              "default": false,
+              "title": "Push Permission",
+              "type": "boolean"
+            },
+            "schema_change_permission": {
+              "default": false,
+              "title": "Schema Change Permission",
+              "type": "boolean"
+            }
+          },
+          "title": "ScopePolicy",
+          "type": "object"
+        },
+        "VerificationGate": {
+          "additionalProperties": false,
+          "properties": {
+            "evidence_refs": {
+              "default": [],
+              "items": {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+                "type": "string"
+              },
+              "title": "Evidence Refs",
+              "type": "array"
+            },
+            "gate": {
+              "$ref": "#/$defs/VerificationGateName"
+            },
+            "status": {
+              "$ref": "#/$defs/GateStatus",
+              "default": "pending"
+            }
+          },
+          "required": [
+            "gate"
+          ],
+          "title": "VerificationGate",
+          "type": "object"
+        },
+        "VerificationGateName": {
+          "enum": [
+            "requirement",
+            "scope",
+            "architecture",
+            "tests",
+            "security",
+            "quality",
+            "ci",
+            "cost"
+          ],
+          "title": "VerificationGateName",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "audit": {
+          "$ref": "#/$defs/MissionTransitionAudit"
+        },
+        "mission": {
+          "$ref": "#/$defs/Mission"
+        },
+        "replayed": {
+          "title": "Replayed",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "mission",
+        "audit",
+        "replayed"
+      ],
+      "title": "MissionTransitionResponse",
+      "type": "object"
+    },
+    "PlanAttachRequest": {
+      "$defs": {
+        "AgentAssignment": {
+          "additionalProperties": false,
+          "properties": {
+            "agent_id": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Agent Id"
+            },
+            "assignment_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Assignment Id",
+              "type": "string"
+            },
+            "model": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Model"
+            },
+            "provider": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Provider"
+            },
+            "role": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Role",
+              "type": "string"
+            }
+          },
+          "required": [
+            "assignment_id",
+            "role"
+          ],
+          "title": "AgentAssignment",
+          "type": "object"
+        },
+        "ApprovalStatus": {
+          "enum": [
+            "pending",
+            "approved",
+            "rejected"
+          ],
+          "title": "ApprovalStatus",
+          "type": "string"
+        },
+        "ExecutionPlan": {
+          "additionalProperties": false,
+          "properties": {
+            "approval_status": {
+              "$ref": "#/$defs/ApprovalStatus",
+              "default": "pending"
+            },
+            "approved_revision": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Approved Revision"
+            },
+            "estimated_risk": {
+              "$ref": "#/$defs/RiskLevel",
+              "default": "medium"
+            },
+            "mission_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Mission Id",
+              "type": "string"
+            },
+            "plan_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Plan Id",
+              "type": "string"
+            },
+            "required_verification": {
+              "default": [
+                "requirement",
+                "scope",
+                "architecture",
+                "tests",
+                "security",
+                "quality",
+                "ci",
+                "cost"
+              ],
+              "items": {
+                "$ref": "#/$defs/VerificationGateName"
+              },
+              "title": "Required Verification",
+              "type": "array"
+            },
+            "revision": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Revision",
+              "type": "integer"
+            },
+            "schema_version": {
+              "default": "1.0",
+              "title": "Schema Version",
+              "type": "string"
+            },
+            "tasks": {
+              "items": {
+                "$ref": "#/$defs/PlanTask"
+              },
+              "minItems": 1,
+              "title": "Tasks",
+              "type": "array"
+            }
+          },
+          "required": [
+            "plan_id",
+            "mission_id",
+            "tasks"
+          ],
+          "title": "ExecutionPlan",
+          "type": "object"
+        },
+        "PlanTask": {
+          "additionalProperties": false,
+          "properties": {
+            "approval_status": {
+              "$ref": "#/$defs/ApprovalStatus",
+              "default": "pending"
+            },
+            "assigned_role": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Assigned Role"
+            },
+            "assignment": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/AgentAssignment"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "dependencies": {
+              "default": [],
+              "items": {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+                "type": "string"
+              },
+              "title": "Dependencies",
+              "type": "array"
+            },
+            "description": {
+              "default": "",
+              "maxLength": 4000,
+              "title": "Description",
+              "type": "string"
+            },
+            "estimated_provider_calls_max": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Estimated Provider Calls Max",
+              "type": "integer"
+            },
+            "estimated_provider_calls_min": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Estimated Provider Calls Min",
+              "type": "integer"
+            },
+            "estimated_risk": {
+              "$ref": "#/$defs/RiskLevel",
+              "default": "medium"
+            },
+            "expected_paths": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Expected Paths",
+              "type": "array"
+            },
+            "order": {
+              "minimum": 1,
+              "title": "Order",
+              "type": "integer"
+            },
+            "task_id": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "title": "Task Id",
+              "type": "string"
+            },
+            "title": {
+              "maxLength": 256,
+              "minLength": 1,
+              "title": "Title",
+              "type": "string"
+            },
+            "verification_requirements": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Verification Requirements",
+              "type": "array"
+            }
+          },
+          "required": [
+            "task_id",
+            "title",
+            "order"
+          ],
+          "title": "PlanTask",
+          "type": "object"
+        },
+        "RiskLevel": {
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "title": "RiskLevel",
+          "type": "string"
+        },
+        "VerificationGateName": {
+          "enum": [
+            "requirement",
+            "scope",
+            "architecture",
+            "tests",
+            "security",
+            "quality",
+            "ci",
+            "cost"
+          ],
+          "title": "VerificationGateName",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "execution_plan": {
+          "$ref": "#/$defs/ExecutionPlan"
+        },
+        "expected_revision": {
+          "minimum": 0,
+          "title": "Expected Revision",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "execution_plan",
+        "expected_revision"
+      ],
+      "title": "PlanAttachRequest",
+      "type": "object"
+    },
+    "VerificationRecordRequest": {
+      "$defs": {
+        "GateStatus": {
+          "enum": [
+            "pending",
+            "passed",
+            "failed",
+            "blocked",
+            "not_applicable"
+          ],
+          "title": "GateStatus",
+          "type": "string"
+        },
+        "VerificationGate": {
+          "additionalProperties": false,
+          "properties": {
+            "evidence_refs": {
+              "default": [],
+              "items": {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+                "type": "string"
+              },
+              "title": "Evidence Refs",
+              "type": "array"
+            },
+            "gate": {
+              "$ref": "#/$defs/VerificationGateName"
+            },
+            "status": {
+              "$ref": "#/$defs/GateStatus",
+              "default": "pending"
+            }
+          },
+          "required": [
+            "gate"
+          ],
+          "title": "VerificationGate",
+          "type": "object"
+        },
+        "VerificationGateName": {
+          "enum": [
+            "requirement",
+            "scope",
+            "architecture",
+            "tests",
+            "security",
+            "quality",
+            "ci",
+            "cost"
+          ],
+          "title": "VerificationGateName",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "expected_revision": {
+          "minimum": 0,
+          "title": "Expected Revision",
+          "type": "integer"
+        },
+        "gate": {
+          "$ref": "#/$defs/VerificationGate"
+        }
+      },
+      "required": [
+        "gate",
+        "expected_revision"
+      ],
+      "title": "VerificationRecordRequest",
+      "type": "object"
+    }
+  }
+}

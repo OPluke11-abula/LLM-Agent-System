@@ -79,10 +79,10 @@ profile's machine-local `local_path` is excluded from serialized output. No
 secret-bearing field is part of the canonical model surface. Existing API and
 workflow models remain compatibility boundaries; P1 does not replace them.
 
-TypeScript synchronization is deferred until a Viewer contract is needed. A
-future generated or validated TypeScript representation must consume this
-Python source and verify enum values and required fields rather than introduce
-a manually divergent contract. P1 changes no Viewer types.
+The machine-readable Mission API schema is generated from these Python contracts
+at `schemas/mission_api.json`. A drift test compares the checked-in artifact to
+fresh output, so a future Viewer representation must consume this seam rather
+than introduce a manually divergent contract. P1 changes no Viewer types.
 
 ## Mission state machine
 
@@ -161,18 +161,36 @@ The implementation is split by responsibility:
 - `agent_workspace/core/mission_contracts.py`: `AgentAssignment`, `PlanTask`,
   `ExecutionPlan`, `ApprovalRequest`, `ApprovalDecision`, `ApprovalGate`,
   `ScopeExpansionRequest`, `EvidenceRecord`, `VerificationGate`,
-  `MissionCostSummary`, `DraftPullRequestDelivery`, and deterministic JSON.
+  `MissionBudgetPolicy`, `MissionUsageSummary`, `DraftPullRequestDelivery`,
+  and deterministic JSON.
 - `agent_workspace/core/mission_model.py`: `MissionState`, `MissionEvent`,
   transition errors and audit records, and the immutable `Mission` aggregate.
 - `agent_workspace/core/mission_state_machine.py`: the central transition map,
   guards, terminal behavior, pause/resume behavior, and idempotency behavior.
 
 `VerificationGateName` covers requirement, scope, architecture, tests, security,
-quality, CI, and cost. A passed gate requires at least one evidence reference.
-Evidence output is bounded and linked to requirements and tasks rather than
-treated as an unbounded log payload.
+quality, CI, and cost. Completion requires every required gate to be either
+`passed` or `not_applicable`; a passed gate requires evidence. Evidence output is
+bounded and linked to requirements and tasks rather than treated as an unbounded
+log payload. Approval subjects bind plan, scope, and Draft PR decisions to the
+exact revision or request being approved.
+
+## Mission persistence and API seam
+
+The Mission aggregate is durably stored in SQLite at `memory/missions.db`. The
+store uses optimistic revision checks and an atomic transaction for each state
+transition, including its transition audit receipt and idempotency replay
+record. Listing is bounded and deterministic. Store recovery validates the
+versioned serialized aggregate and fails closed on corruption.
+
+The protected `/v1/missions` API exposes create, get, bounded list, transition
+history, plan attachment, approval recording, evidence recording, and
+verification-gate recording. Authentication supplies the actor identity; a
+request-body actor cannot override it. These routes persist control-plane state
+only. They do not execute providers, mutate Git, create pull requests, or
+perform merge operations.
 
 This P1 boundary does not implement GitHub connection, real Mission execution,
 plan-generation provider calls, Agent scheduling, pause/cancel runtime
-integration, scope-expansion UI, full Viewer pages, Draft PR creation, durable
-Mission persistence, database migrations, or installer changes.
+integration, scope-expansion UI, full Viewer pages, Draft PR creation,
+database migrations, or installer changes.
