@@ -1,31 +1,37 @@
-"""Canonical Developer Agent Control Plane contracts for P1."""
+"""Canonical immutable product contracts for the Developer Agent Control Plane."""
 
 from __future__ import annotations
 
 from enum import StrEnum, unique
 from pathlib import PurePosixPath
-from typing import Final, Literal, NewType
+from typing import Annotated, Final, Literal
 from urllib.parse import urlsplit
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
 
 
 SCHEMA_VERSION: Final[str] = "1.0"
-MissionId = NewType("MissionId", str)
-RepositoryId = NewType("RepositoryId", str)
-PlanId = NewType("PlanId", str)
-ActorId = NewType("ActorId", str)
-IdempotencyKey = NewType("IdempotencyKey", str)
+_IDENTIFIER = StringConstraints(
+    min_length=1,
+    max_length=128,
+    pattern=r"^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+)
+MissionId = Annotated[str, _IDENTIFIER]
+RepositoryId = Annotated[str, _IDENTIFIER]
+PlanId = Annotated[str, _IDENTIFIER]
+TaskId = Annotated[str, _IDENTIFIER]
+ActorId = Annotated[str, _IDENTIFIER]
+ApprovalId = Annotated[str, _IDENTIFIER]
+ScopeRequestId = Annotated[str, _IDENTIFIER]
+EvidenceId = Annotated[str, _IDENTIFIER]
+GateId = Annotated[str, _IDENTIFIER]
+IdempotencyKey = Annotated[str, _IDENTIFIER]
 
 
 class ContractModel(BaseModel):
-    """Immutable, strict Pydantic boundary model shared by product contracts."""
+    """Immutable, strict Pydantic boundary model for product contracts."""
 
-    model_config = ConfigDict(
-        extra="forbid",
-        frozen=True,
-        str_strip_whitespace=True,
-    )
+    model_config = ConfigDict(extra="forbid", frozen=True, str_strip_whitespace=True)
 
 
 @unique
@@ -74,6 +80,18 @@ class VerificationGateName(StrEnum):
     QUALITY = "quality"
     CI = "ci"
     COST = "cost"
+
+
+DEFAULT_REQUIRED_VERIFICATION: Final[tuple[VerificationGateName, ...]] = (
+    VerificationGateName.REQUIREMENT,
+    VerificationGateName.SCOPE,
+    VerificationGateName.ARCHITECTURE,
+    VerificationGateName.TESTS,
+    VerificationGateName.SECURITY,
+    VerificationGateName.QUALITY,
+    VerificationGateName.CI,
+    VerificationGateName.COST,
+)
 
 
 @unique
@@ -136,10 +154,10 @@ class RepositorySizeIndicators(ContractModel):
 
 class RepositoryProfile(ContractModel):
     repository_id: RepositoryId
-    repository_name: str = Field(min_length=1)
+    repository_name: str = Field(min_length=1, max_length=128)
     local_path: str | None = Field(default=None, exclude=True)
     remote_url: str | None = None
-    base_branch: str = Field(default="main", min_length=1)
+    base_branch: str = Field(default="main", min_length=1, max_length=128)
     detected_languages: tuple[str, ...] = ()
     detected_frameworks: tuple[str, ...] = ()
     package_managers: tuple[str, ...] = ()
@@ -184,7 +202,3 @@ class ScopePolicy(ContractModel):
 class MissionPolicy(ContractModel):
     preset: ExecutionPolicyPreset = ExecutionPolicyPreset.BALANCED
     scope: ScopePolicy = Field(default_factory=ScopePolicy)
-    allow_database_changes: bool = False
-    allow_ci_changes: bool = False
-    max_provider_calls: int = Field(default=64, ge=1)
-    max_cost: float | None = Field(default=None, ge=0)

@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from pydantic import ValidationError
@@ -21,14 +21,18 @@ from agent_workspace.core.mission_contracts import (
     ApprovalRequest,
     ApprovalStatus,
     ApprovalType,
+    DraftPRApprovalSubject,
     DraftPullRequestDelivery,
     EvidenceRecord,
     EvidenceType,
     ExecutionPlan,
     GateStatus,
-    MissionCostSummary,
+    MissionBudgetPolicy,
+    MissionUsageSummary,
     PlanTask,
+    PlanApprovalSubject,
     serialize_contract,
+    ScopeApprovalSubject,
     ScopeExpansionRequest,
     VerificationGate,
     VerificationGateName,
@@ -65,6 +69,15 @@ def make_policy(*, draft_pr_permission: bool = True) -> MissionPolicy:
     )
 
 
+def make_plan(*, revision: int = 1) -> ExecutionPlan:
+    return ExecutionPlan(
+        plan_id="plan-1",
+        mission_id="mission-1",
+        revision=revision,
+        tasks=[PlanTask(task_id="task-1", title="Inspect architecture", order=1)],
+    )
+
+
 def make_mission(
     *,
     state: MissionState = MissionState.DRAFT,
@@ -72,27 +85,53 @@ def make_mission(
     approvals: tuple[ApprovalGate, ...] = (),
     verification_gates: tuple[VerificationGate, ...] = (),
     scope_requests: tuple[ScopeExpansionRequest, ...] = (),
+    execution_plan: ExecutionPlan | None = None,
+    draft_pr_review_subject: DraftPRApprovalSubject | None = None,
+    required_verification: tuple[VerificationGateName, ...] | None = None,
 ) -> Mission:
     selected_policy = policy or make_policy()
+    values = {
+        "mission_id": "mission-1",
+        "requirement": "Add a PR risk summary.",
+        "repository_id": "repo-1",
+        "current_state": state,
+        "execution_policy": selected_policy,
+        "execution_plan": execution_plan,
+        "budget_policy": MissionBudgetPolicy(provider_call_limit=64),
+        "usage_summary": MissionUsageSummary(),
+        "approval_gates": approvals,
+        "verification_gates": verification_gates,
+        "scope_expansion_requests": scope_requests,
+        "actor_id": "developer-1",
+        "draft_pr_review_subject": draft_pr_review_subject,
+    }
+    if required_verification is not None:
+        values["required_verification"] = required_verification
+    if execution_plan is not None:
+        values["plan_reference"] = execution_plan.plan_id
+        values["plan_revision"] = execution_plan.revision
     return Mission(
-        mission_id="mission-1",
-        requirement="Add a PR risk summary.",
-        repository_id="repo-1",
-        current_state=state,
-        execution_policy=selected_policy,
-        plan_reference="plan-1",
-        budget_policy=MissionCostSummary(provider_call_limit=64),
-        approval_gates=approvals,
-        verification_gates=verification_gates,
-        scope_expansion_requests=scope_requests,
-        actor_id="developer-1",
+        **values,
     )
 
 
 def approved_gate(gate_type: ApprovalType, gate_id: str) -> ApprovalGate:
+    if gate_type is ApprovalType.PLAN:
+        subject = PlanApprovalSubject(plan_id="plan-1", plan_revision=1)
+    elif gate_type is ApprovalType.SCOPE_EXPANSION:
+        subject = ScopeApprovalSubject(scope_request_id="scope-1")
+    else:
+        subject = DraftPRApprovalSubject(
+            review_id="review-1",
+            plan_id="plan-1",
+            plan_revision=1,
+            branch="feature/p1",
+            head_sha="a" * 40,
+        )
     return ApprovalGate(
         gate_id=gate_id,
         gate_type=gate_type,
+        subject=subject,
         status=ApprovalStatus.APPROVED,
         actor_id="developer-1",
         decided_at=datetime.now(timezone.utc),
@@ -211,6 +250,7 @@ def test_state_machine_transitions_to_running_after_approved_plan() -> None:
     mission = make_mission(
         state=MissionState.AWAITING_APPROVAL,
         approvals=(approved_gate(ApprovalType.PLAN, "plan-gate"),),
+        execution_plan=make_plan(),
     )
 
     result = transition(
@@ -219,6 +259,7 @@ def test_state_machine_transitions_to_running_after_approved_plan() -> None:
             event=MissionEvent.APPROVE_PLAN,
             actor_id="developer-1",
             idempotency_key="approve-plan",
+            approval_subject=PlanApprovalSubject(plan_id="plan-1", plan_revision=1),
         ),
     )
 
@@ -228,7 +269,10 @@ def test_state_machine_transitions_to_running_after_approved_plan() -> None:
 
 
 def test_review_ready_requires_completed_verification_gates() -> None:
-    mission = make_mission(state=MissionState.VERIFYING)
+    mission = make_mission(
+        state=MissionState.VERIFYING,
+        required_verification=(VerificationGateName.TESTS,),
+    )
 
     with pytest.raises(MissionTransitionError) as error:
         transition(
@@ -259,6 +303,7 @@ def test_draft_pr_requires_permission_and_explicit_approval() -> None:
         state=MissionState.REVIEW_READY,
         policy=make_policy(draft_pr_permission=True),
         verification_gates=(passed_verification(),),
+        draft_pr_review_subject=approved_gate(ApprovalType.DRAFT_PR, "draft-pr-gate").subject,
     )
 
     with pytest.raises(MissionTransitionError) as error:
@@ -284,6 +329,7 @@ def test_draft_pr_requires_permission_and_explicit_approval() -> None:
             event=MissionEvent.CREATE_DRAFT_PR,
             actor_id="developer-1",
             idempotency_key="create-draft-pr-approved",
+            approval_subject=approved_gate(ApprovalType.DRAFT_PR, "draft-pr-gate").subject,
         ),
     )
 
@@ -307,6 +353,7 @@ def test_scope_blocked_work_requires_an_approved_scope_decision() -> None:
                 event=MissionEvent.APPROVE_SCOPE,
                 actor_id="developer-1",
                 idempotency_key="approve-scope",
+                approval_subject=ScopeApprovalSubject(scope_request_id="scope-1"),
             ),
         )
     assert "scope" in str(error.value).lower()
@@ -324,13 +371,15 @@ def test_scope_blocked_work_requires_an_approved_scope_decision() -> None:
                         risk=RiskLevel.LOW,
                         status=ApprovalStatus.APPROVED,
                     ),
-                )
+                ),
+                "approval_gates": (approved_gate(ApprovalType.SCOPE_EXPANSION, "scope-gate"),),
             }
         ),
         TransitionRequest(
             event=MissionEvent.APPROVE_SCOPE,
             actor_id="developer-1",
             idempotency_key="approve-scope-approved",
+            approval_subject=ScopeApprovalSubject(scope_request_id="scope-1"),
         ),
     )
 
@@ -402,6 +451,7 @@ def test_approval_request_captures_human_decision_boundary() -> None:
         reason="The tests verify the requested product contract.",
         impact="Adds one repository-relative test path.",
         requested_actor="developer-1",
+        subject=ScopeApprovalSubject(scope_request_id="scope-1"),
         idempotency_key="approval-request-1",
     )
 
@@ -412,17 +462,32 @@ def test_approval_request_captures_human_decision_boundary() -> None:
 def test_every_declared_transition_is_executable() -> None:
     for (state, event), expected_state in _LEGAL_TRANSITIONS.items():
         mission = make_mission(state=state)
+        subject = None
         if event is MissionEvent.APPROVE_PLAN:
             mission = mission.model_copy(
-                update={"approval_gates": (approved_gate(ApprovalType.PLAN, "plan-gate"),)}
+                update={
+                    "execution_plan": make_plan(),
+                    "approval_gates": (approved_gate(ApprovalType.PLAN, "plan-gate"),),
+                }
             )
+            subject = PlanApprovalSubject(plan_id="plan-1", plan_revision=1)
         elif event is MissionEvent.COMPLETE_VERIFICATION:
-            mission = mission.model_copy(update={"verification_gates": (passed_verification(),)})
-        elif event is MissionEvent.CREATE_DRAFT_PR:
             mission = mission.model_copy(
-                update={"approval_gates": (approved_gate(ApprovalType.DRAFT_PR, "draft-pr-gate"),)}
+                update={
+                    "required_verification": (VerificationGateName.TESTS,),
+                    "verification_gates": (passed_verification(),),
+                }
+            )
+        elif event is MissionEvent.CREATE_DRAFT_PR:
+            subject = approved_gate(ApprovalType.DRAFT_PR, "draft-pr-gate").subject
+            mission = mission.model_copy(
+                update={
+                    "draft_pr_review_subject": subject,
+                    "approval_gates": (approved_gate(ApprovalType.DRAFT_PR, "draft-pr-gate"),),
+                }
             )
         elif event is MissionEvent.APPROVE_SCOPE:
+            subject = ScopeApprovalSubject(scope_request_id="scope-1")
             mission = mission.model_copy(
                 update={
                     "scope_expansion_requests": (
@@ -435,7 +500,8 @@ def test_every_declared_transition_is_executable() -> None:
                             risk=RiskLevel.LOW,
                             status=ApprovalStatus.APPROVED,
                         ),
-                    )
+                    ),
+                    "approval_gates": (approved_gate(ApprovalType.SCOPE_EXPANSION, "scope-gate"),),
                 }
             )
 
@@ -445,6 +511,7 @@ def test_every_declared_transition_is_executable() -> None:
                 event=event,
                 actor_id="developer-1",
                 idempotency_key=f"legal-{state.value}-{event.value}",
+                approval_subject=subject,
             ),
         )
 
@@ -486,6 +553,239 @@ def test_pause_resume_and_idempotency_conflict_are_explicit() -> None:
                 event=MissionEvent.SUBMIT_PLAN,
                 actor_id="developer-1",
                 idempotency_key="conflicting-key",
+            ),
+        )
+
+    assert error.value.code is TransitionErrorCode.IDEMPOTENCY_CONFLICT
+
+
+def test_default_mission_requires_complete_developer_beta_verification() -> None:
+    mission = make_mission(
+        state=MissionState.VERIFYING,
+        verification_gates=(passed_verification(),),
+    )
+
+    with pytest.raises(MissionTransitionError) as error:
+        transition(
+            mission,
+            TransitionRequest(
+                event=MissionEvent.COMPLETE_VERIFICATION,
+                actor_id="developer-1",
+                idempotency_key="complete-tests-only",
+            ),
+        )
+
+    assert error.value.code is TransitionErrorCode.VERIFICATION_REQUIRED
+
+
+def test_execution_plan_rejects_duplicate_order_dependency_cycle_and_bad_estimate() -> None:
+    task_one = PlanTask(task_id="task-1", title="One", order=1)
+    task_two = PlanTask(
+        task_id="task-2",
+        title="Two",
+        order=1,
+        dependencies=["task-1"],
+        estimated_provider_calls_min=1,
+        estimated_provider_calls_max=2,
+    )
+
+    with pytest.raises(ValidationError):
+        ExecutionPlan(
+            plan_id="plan-1",
+            mission_id="mission-1",
+            tasks=[task_one, task_two],
+        )
+
+    cyclic_one = task_one.model_copy(update={"dependencies": ["task-2"]})
+    cyclic_two = task_two.model_copy(
+        update={
+            "order": 2,
+            "estimated_provider_calls_min": 1,
+            "estimated_provider_calls_max": 2,
+            "dependencies": ["task-1"],
+        }
+    )
+    with pytest.raises(ValidationError):
+        ExecutionPlan(
+            plan_id="plan-1",
+            mission_id="mission-1",
+            tasks=[cyclic_one, cyclic_two],
+        )
+
+    with pytest.raises(ValidationError):
+        PlanTask(
+            task_id="bad-estimate",
+            title="Bad estimate",
+            order=1,
+            estimated_provider_calls_min=3,
+            estimated_provider_calls_max=2,
+        )
+
+
+def test_pending_approval_cannot_claim_decision_metadata() -> None:
+    with pytest.raises(ValidationError):
+        ApprovalGate(
+            gate_id="pending-gate",
+            gate_type=ApprovalType.PLAN,
+            actor_id="developer-1",
+            idempotency_key="pending-gate-key",
+        )
+
+
+def test_mission_policy_does_not_duplicate_scope_permissions() -> None:
+    with pytest.raises(ValidationError):
+        MissionPolicy(allow_database_changes=True)
+
+    with pytest.raises(ValidationError):
+        MissionPolicy(allow_ci_changes=True)
+
+
+def test_transition_clock_and_revision_are_deterministic() -> None:
+    first_time = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    second_time = first_time + timedelta(seconds=1)
+    times = iter((first_time, second_time))
+    machine = MissionStateMachine(clock=lambda: next(times))
+
+    result = machine.transition(
+        make_mission(),
+        TransitionRequest(
+            event=MissionEvent.START_PLANNING,
+            actor_id="developer-1",
+            idempotency_key="clocked-start",
+        ),
+    )
+
+    assert result.mission.revision == 1
+    assert result.audit.occurred_at == first_time
+
+
+def test_stale_plan_approval_cannot_approve_a_new_plan_revision() -> None:
+    mission = make_mission(
+        state=MissionState.AWAITING_APPROVAL,
+        execution_plan=make_plan(revision=2),
+        approvals=(approved_gate(ApprovalType.PLAN, "stale-plan-gate"),),
+    )
+
+    with pytest.raises(MissionTransitionError) as error:
+        transition(
+            mission,
+            TransitionRequest(
+                event=MissionEvent.APPROVE_PLAN,
+                actor_id="developer-1",
+                idempotency_key="stale-plan-approval",
+                approval_subject=PlanApprovalSubject(plan_id="plan-1", plan_revision=1),
+            ),
+        )
+
+    assert error.value.code is TransitionErrorCode.APPROVAL_SUBJECT_MISMATCH
+
+
+def test_scope_approval_cannot_unblock_an_unrelated_scope_request() -> None:
+    mission = make_mission(
+        state=MissionState.SCOPE_BLOCKED,
+        scope_requests=(
+            ScopeExpansionRequest(
+                request_id="scope-2",
+                mission_id="mission-1",
+                requested_paths=["docs"],
+                reason="Documentation is required.",
+                impact="Adds documentation scope.",
+                risk=RiskLevel.LOW,
+            ),
+        ),
+        approvals=(approved_gate(ApprovalType.SCOPE_EXPANSION, "scope-1-gate"),),
+    )
+
+    with pytest.raises(MissionTransitionError) as error:
+        transition(
+            mission,
+            TransitionRequest(
+                event=MissionEvent.APPROVE_SCOPE,
+                actor_id="developer-1",
+                idempotency_key="wrong-scope-approval",
+                approval_subject=ScopeApprovalSubject(scope_request_id="scope-1"),
+            ),
+        )
+
+    assert error.value.code is TransitionErrorCode.SCOPE_DECISION_REQUIRED
+
+
+def test_draft_pr_approval_cannot_be_reused_after_head_changes() -> None:
+    reviewed = approved_gate(ApprovalType.DRAFT_PR, "draft-review-gate").subject
+    changed = DraftPRApprovalSubject(
+        review_id="review-2",
+        plan_id="plan-1",
+        plan_revision=1,
+        branch="feature/p1",
+        head_sha="b" * 40,
+    )
+    mission = make_mission(
+        state=MissionState.REVIEW_READY,
+        draft_pr_review_subject=changed,
+        approvals=(approved_gate(ApprovalType.DRAFT_PR, "draft-review-gate"),),
+    )
+
+    with pytest.raises(MissionTransitionError) as error:
+        transition(
+            mission,
+            TransitionRequest(
+                event=MissionEvent.CREATE_DRAFT_PR,
+                actor_id="developer-1",
+                idempotency_key="changed-head",
+                approval_subject=reviewed,
+            ),
+        )
+
+    assert error.value.code is TransitionErrorCode.DRAFT_PR_APPROVAL_REQUIRED
+
+
+def test_duplicate_verification_gates_and_invalid_identifiers_are_rejected() -> None:
+    with pytest.raises(ValidationError):
+        make_mission(
+            verification_gates=(passed_verification(), passed_verification()),
+        )
+
+    with pytest.raises(ValidationError):
+        RepositoryProfile(repository_id="")
+
+    with pytest.raises(ValidationError):
+        PlanTask(task_id="task with spaces", title="Invalid", order=1)
+
+
+def test_approved_plan_revision_is_bound_on_round_trip() -> None:
+    plan = make_plan().model_copy(
+        update={"approval_status": ApprovalStatus.APPROVED, "approved_revision": 1}
+    )
+    serialized = plan.model_dump(mode="json")
+
+    with pytest.raises(ValidationError):
+        ExecutionPlan.model_validate({**serialized, "revision": 2})
+
+
+def test_idempotency_key_cannot_reauthorize_a_different_subject() -> None:
+    mission = make_mission(
+        state=MissionState.AWAITING_APPROVAL,
+        execution_plan=make_plan(),
+        approvals=(approved_gate(ApprovalType.PLAN, "plan-gate"),),
+    )
+    subject = PlanApprovalSubject(plan_id="plan-1", plan_revision=1)
+    request = TransitionRequest(
+        event=MissionEvent.APPROVE_PLAN,
+        actor_id="developer-1",
+        idempotency_key="subject-bound-key",
+        approval_subject=subject,
+    )
+    first = transition(mission, request)
+
+    with pytest.raises(MissionTransitionError) as error:
+        transition(
+            first.mission,
+            request.model_copy(
+                update={
+                    "approval_subject": PlanApprovalSubject(
+                        plan_id="plan-1", plan_revision=2
+                    )
+                }
             ),
         )
 
