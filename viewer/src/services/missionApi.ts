@@ -13,6 +13,7 @@ import type {
   PlanAttachRequest,
   VerificationRecordRequest,
 } from "../generated/missionContracts";
+import { MissionEvent, MissionState, MISSION_API_SCHEMA_VERSION } from "../generated/missionContracts";
 import { missionAuth, type MissionAuthProvider } from "./missionAuth";
 
 type Fetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
@@ -53,11 +54,11 @@ function isInteger(value: unknown): value is number {
 }
 
 function isMissionState(value: unknown): boolean {
-  return typeof value === "string" && ["draft", "planning", "awaiting_approval", "running", "needs_decision", "verifying", "review_ready", "draft_pr_created", "closed", "paused", "cancelled", "failed", "budget_exhausted", "scope_blocked", "ci_failed"].includes(value);
+  return typeof value === "string" && Object.values(MissionState).includes(value as MissionState);
 }
 
 function isMissionEvent(value: unknown): boolean {
-  return typeof value === "string" && ["start_planning", "submit_plan", "approve_plan", "reject_plan", "begin_verification", "complete_verification", "fail_ci", "retry_verification", "create_draft_pr", "request_scope_expansion", "block_scope", "approve_scope", "reject_scope", "pause", "resume", "cancel", "fail", "exhaust_budget", "close"].includes(value);
+  return typeof value === "string" && Object.values(MissionEvent).includes(value as MissionEvent);
 }
 
 function isApprovalSubject(value: unknown): boolean {
@@ -102,7 +103,7 @@ function isCapabilities(value: unknown): value is MissionCapabilitiesResponse {
 }
 
 function isSystemCapabilities(value: unknown): value is MissionSystemCapabilities {
-  return isRecord(value) && value.api_reachable === true && typeof value.authentication_valid === "boolean" && typeof value.workspace_root_available === "boolean" && typeof value.mission_store_available === "boolean" && isString(value.contract_schema_version) && isString(value.viewer_expected_schema_version) && typeof value.schema_compatible === "boolean" && ["configured", "not_configured", "unavailable"].includes(String(value.provider_configuration)) && value.git_integration === "not_implemented" && value.github_integration === "not_implemented" && value.repository_inspection === "not_implemented" && value.agent_execution === "not_implemented" && value.draft_pr_delivery === "not_implemented";
+  return isRecord(value) && value.api_reachable === true && typeof value.authentication_valid === "boolean" && typeof value.workspace_root_available === "boolean" && typeof value.mission_store_available === "boolean" && isString(value.contract_schema_version) && typeof value.schema_compatible === "boolean" && value.schema_compatible === (value.contract_schema_version === MISSION_API_SCHEMA_VERSION) && ["configured", "not_configured", "unavailable"].includes(String(value.provider_configuration)) && value.git_integration === "not_implemented" && value.github_integration === "not_implemented" && value.repository_inspection === "not_implemented" && value.agent_execution === "not_implemented" && value.draft_pr_delivery === "not_implemented";
 }
 
 function errorCode(value: string): MissionErrorCode {

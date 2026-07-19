@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import os
 from pathlib import Path
 from uuid import uuid4
 
@@ -306,6 +307,20 @@ def record_evidence(
         return _aggregate_error(error)
     except MissionStoreError as error:
         return _store_error(error)
+
+
+@router.post("/{mission_id}/test-fixture/evidence", response_model=Mission)
+def record_test_fixture_evidence(
+    mission_id: str,
+    payload: EvidenceRecordRequest,
+    actor: MissionActor = Depends(require_mission_actor),
+    store: MissionStore = Depends(get_mission_store),
+) -> Mission | JSONResponse:
+    if os.environ.get("LAS_ENABLE_MISSION_TEST_FIXTURE") != "true":
+        return JSONResponse(status_code=404, content={"code": "mission_not_found", "message": "Mission does not exist"})
+    if payload.evidence.source != "test_fixture":
+        return JSONResponse(status_code=422, content={"code": "invalid_contract", "message": "Test fixture evidence must use test_fixture provenance"})
+    return record_evidence(mission_id, payload, actor, store)
 
 
 @router.put("/{mission_id}/verification-gates", response_model=Mission)

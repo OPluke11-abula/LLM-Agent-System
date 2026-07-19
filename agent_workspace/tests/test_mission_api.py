@@ -81,6 +81,19 @@ def test_mission_api_requires_authentication(client) -> None:
     assert response.status_code == 401
 
 
+def test_mission_test_fixture_is_disabled_by_default(client, monkeypatch) -> None:
+    test_client, _ = client
+    monkeypatch.delenv("LAS_ENABLE_MISSION_TEST_FIXTURE", raising=False)
+
+    response = test_client.post(
+        "/v1/missions/missing/test-fixture/evidence",
+        headers=auth_headers(),
+        json=evidence_payload("fixture-disabled"),
+    )
+
+    assert response.status_code == 404
+
+
 def test_create_get_and_list_missions(client) -> None:
     test_client, _ = client
     created = test_client.post(

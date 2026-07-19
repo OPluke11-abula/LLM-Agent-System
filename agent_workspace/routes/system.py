@@ -19,7 +19,6 @@ from agent_workspace.routes.missions import get_mission_store, require_mission_a
 
 
 router = APIRouter(prefix="/v1/system", tags=["system"])
-VIEWER_EXPECTED_SCHEMA_VERSION = SCHEMA_VERSION
 
 
 def _provider_configuration() -> Literal["configured", "not_configured", "unavailable"]:
@@ -57,8 +56,7 @@ def get_system_capabilities(actor: MissionActor = Depends(require_mission_actor)
         workspace_root_available=workspace_root.is_dir(),
         mission_store_available=store_available,
         contract_schema_version=SCHEMA_VERSION,
-        viewer_expected_schema_version=VIEWER_EXPECTED_SCHEMA_VERSION,
-        schema_compatible=SCHEMA_VERSION == VIEWER_EXPECTED_SCHEMA_VERSION,
+        schema_compatible=True,
         provider_configuration=_provider_configuration(),
         git_integration="not_implemented",
         github_integration="not_implemented",
