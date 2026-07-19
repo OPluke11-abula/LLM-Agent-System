@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from datetime import datetime
-from typing import Annotated, Literal
+from types import MappingProxyType
+from typing import Annotated, Final, Literal
 
 from pydantic import Field, field_validator, model_validator
 
@@ -120,11 +122,15 @@ class ExecutionPlan(ContractModel):
             raise ValueError("only approved plans may record an approved revision")
         return self
 
+    def canonical_digest(self) -> str:
+        return hashlib.sha256(serialize_contract(self).encode("utf-8")).hexdigest()
+
 
 class PlanApprovalSubject(ContractModel):
     kind: Literal["plan"] = "plan"
     plan_id: PlanId
     plan_revision: int = Field(ge=1)
+    plan_digest: str = Field(min_length=64, max_length=64, pattern=r"^[0-9a-f]{64}$")
 
 
 class ScopeApprovalSubject(ContractModel):
@@ -232,6 +238,7 @@ class EvidenceRecord(ContractModel):
     producing_agent: ActorId
     requirement_links: tuple[str, ...] = ()
     task_links: tuple[TaskId, ...] = ()
+    plan_revision: int | None = Field(default=None, ge=1)
     verification_status: GateStatus = GateStatus.PENDING
 
     @model_validator(mode="after")
@@ -239,6 +246,11 @@ class EvidenceRecord(ContractModel):
         if self.finished_at < self.started_at:
             raise ValueError("evidence must finish at or after it starts")
         return self
+
+    def with_producing_agent(self, actor_id: ActorId) -> EvidenceRecord:
+        return EvidenceRecord.model_validate(
+            {**self.model_dump(mode="python"), "producing_agent": actor_id}
+        )
 
 
 class VerificationGate(ContractModel):
@@ -251,6 +263,28 @@ class VerificationGate(ContractModel):
         if self.status is GateStatus.PASSED and not self.evidence_refs:
             raise ValueError("passed verification gates require evidence references")
         return self
+
+
+EVIDENCE_TYPE_COMPATIBILITY: Final[MappingProxyType] = MappingProxyType(
+    {
+        VerificationGateName.REQUIREMENT: frozenset(
+            {EvidenceType.COMMAND, EvidenceType.REVIEW, EvidenceType.TEST}
+        ),
+        VerificationGateName.SCOPE: frozenset(
+            {EvidenceType.SCOPE, EvidenceType.COMMAND, EvidenceType.REVIEW}
+        ),
+        VerificationGateName.ARCHITECTURE: frozenset(
+            {EvidenceType.ARCHITECTURE, EvidenceType.COMMAND, EvidenceType.REVIEW}
+        ),
+        VerificationGateName.TESTS: frozenset({EvidenceType.TEST, EvidenceType.COMMAND}),
+        VerificationGateName.SECURITY: frozenset({EvidenceType.SECURITY, EvidenceType.COMMAND}),
+        VerificationGateName.QUALITY: frozenset(
+            {EvidenceType.QUALITY, EvidenceType.TEST, EvidenceType.COMMAND}
+        ),
+        VerificationGateName.CI: frozenset({EvidenceType.CI}),
+        VerificationGateName.COST: frozenset({EvidenceType.COST, EvidenceType.PROVIDER_CALL}),
+    }
+)
 
 
 class MissionBudgetPolicy(ContractModel):

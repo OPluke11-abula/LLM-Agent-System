@@ -8,6 +8,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from fastapi.responses import JSONResponse
+from pydantic import ValidationError
 
 from agent_workspace.core.mission_api_contracts import (
     ApprovalRecordRequest,
@@ -16,18 +17,23 @@ from agent_workspace.core.mission_api_contracts import (
     MissionCreateRequest,
     MissionTransitionAPIRequest,
     MissionTransitionResponse,
+    MissionCapabilitiesResponse,
+    MissionErrorResponse,
     PlanAttachRequest,
     VerificationRecordRequest,
 )
 from agent_workspace.core.mission_contracts import ApprovalGate, EvidenceRecord
-from agent_workspace.core.mission_model import Mission, TransitionRequest
-from agent_workspace.core.mission_state_machine import MissionTransitionError
+from agent_workspace.core.mission_model import Mission, MissionAggregateError, TransitionRequest
+from agent_workspace.core.mission_state_machine import MissionStateMachine, MissionTransitionError
 from agent_workspace.core.mission_store import (
     MAX_MISSION_PAGE_SIZE,
     MissionPage,
     MissionStore,
     MissionStoreConflictError,
+    MissionStoreCorruptionError,
     MissionStoreError,
+    MissionTransitionPage,
+    MissionStoreValidationError,
 )
 from agent_workspace.routes.dependencies import (
     _api_key_principal,
@@ -36,7 +42,18 @@ from agent_workspace.routes.dependencies import (
 )
 
 
-router = APIRouter(prefix="/v1/missions", tags=["missions"])
+router = APIRouter(
+    prefix="/v1/missions",
+    tags=["missions"],
+    responses={
+        401: {"model": MissionErrorResponse},
+        404: {"model": MissionErrorResponse},
+        409: {"model": MissionErrorResponse},
+        422: {"model": MissionErrorResponse},
+        500: {"model": MissionErrorResponse},
+        503: {"model": MissionErrorResponse},
+    },
+)
 
 
 def get_mission_store() -> MissionStore:
@@ -64,7 +81,16 @@ def require_mission_actor(
 
 
 def _store_error(error: MissionStoreError) -> JSONResponse:
-    response_status = status.HTTP_404_NOT_FOUND if error.code == "mission_not_found" else status.HTTP_409_CONFLICT
+    if error.code == "mission_not_found":
+        response_status = status.HTTP_404_NOT_FOUND
+    elif isinstance(error, MissionStoreValidationError):
+        response_status = status.HTTP_422_UNPROCESSABLE_CONTENT
+    elif isinstance(error, MissionStoreCorruptionError):
+        response_status = status.HTTP_500_INTERNAL_SERVER_ERROR
+    elif error.code == "store_unavailable":
+        response_status = status.HTTP_503_SERVICE_UNAVAILABLE
+    else:
+        response_status = status.HTTP_409_CONFLICT
     return JSONResponse(status_code=response_status, content={"code": error.code, "message": error.detail})
 
 
@@ -73,6 +99,24 @@ def _transition_error(error: MissionTransitionError) -> JSONResponse:
         status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         content={"code": error.code.value, "message": error.detail},
     )
+
+
+def _aggregate_error(error: MissionAggregateError | ValidationError) -> JSONResponse:
+    code = error.code if isinstance(error, MissionAggregateError) else "invalid_aggregate_contract"
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        content={"code": code, "message": "Mission aggregate validation failed"},
+    )
+
+
+def _owned_mission(store: MissionStore, mission_id: str, actor: MissionActor) -> Mission | JSONResponse:
+    try:
+        mission = store.get(mission_id, owner_id=actor.actor_id)
+    except MissionStoreError as error:
+        return _store_error(error)
+    if mission is None:
+        return JSONResponse(status_code=404, content={"code": "mission_not_found", "message": "Mission does not exist"})
+    return mission
 
 
 @router.post("", response_model=Mission, status_code=status.HTTP_201_CREATED)
@@ -89,10 +133,11 @@ def create_mission(
         execution_policy=payload.execution_policy,
         budget_policy=payload.budget_policy,
         actor_id=actor.actor_id,
+        owner_actor_id=actor.actor_id,
     )
     try:
         return store.create(mission)
-    except MissionStoreConflictError as error:
+    except MissionStoreError as error:
         return _store_error(error)
 
 
@@ -100,11 +145,11 @@ def create_mission(
 def list_missions(
     limit: int = Query(default=50, ge=1, le=MAX_MISSION_PAGE_SIZE),
     offset: int = Query(default=0, ge=0),
-    _: MissionActor = Depends(require_mission_actor),
+    actor: MissionActor = Depends(require_mission_actor),
     store: MissionStore = Depends(get_mission_store),
 ) -> MissionPage | JSONResponse:
     try:
-        return store.list(limit=limit, offset=offset)
+        return store.list(limit=limit, offset=offset, owner_id=actor.actor_id)
     except MissionStoreError as error:
         return _store_error(error)
 
@@ -112,13 +157,22 @@ def list_missions(
 @router.get("/{mission_id}", response_model=Mission)
 def get_mission(
     mission_id: str,
-    _: MissionActor = Depends(require_mission_actor),
+    actor: MissionActor = Depends(require_mission_actor),
     store: MissionStore = Depends(get_mission_store),
 ) -> Mission | JSONResponse:
-    mission = store.get(mission_id)
-    if mission is None:
-        return JSONResponse(status_code=404, content={"code": "mission_not_found", "message": "Mission does not exist"})
-    return mission
+    return _owned_mission(store, mission_id, actor)
+
+
+@router.get("/{mission_id}/capabilities", response_model=MissionCapabilitiesResponse)
+def get_mission_capabilities(
+    mission_id: str,
+    actor: MissionActor = Depends(require_mission_actor),
+    store: MissionStore = Depends(get_mission_store),
+) -> MissionCapabilitiesResponse | JSONResponse:
+    mission_result = _owned_mission(store, mission_id, actor)
+    if isinstance(mission_result, JSONResponse):
+        return mission_result
+    return MissionStateMachine().capabilities(mission_result)
 
 
 @router.post("/{mission_id}/transitions", response_model=MissionTransitionResponse)
@@ -138,6 +192,7 @@ def submit_transition(
                 approval_subject=payload.approval_subject,
             ),
             expected_revision=payload.expected_revision,
+            owner_id=actor.actor_id,
         )
         return MissionTransitionResponse(
             mission=result.mission,
@@ -150,40 +205,43 @@ def submit_transition(
         return _transition_error(error)
 
 
-@router.get("/{mission_id}/transitions")
+@router.get("/{mission_id}/transitions", response_model=MissionTransitionPage)
 def get_transition_history(
     mission_id: str,
-    _: MissionActor = Depends(require_mission_actor),
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    actor: MissionActor = Depends(require_mission_actor),
     store: MissionStore = Depends(get_mission_store),
-) -> JSONResponse:
-    mission = store.get(mission_id)
-    if mission is None:
-        return JSONResponse(status_code=404, content={"code": "mission_not_found", "message": "Mission does not exist"})
-    return JSONResponse(content=[audit.model_dump(mode="json") for audit in mission.transition_audit])
+) -> MissionTransitionPage | JSONResponse:
+    try:
+        return store.transition_history(
+            mission_id,
+            limit=limit,
+            offset=offset,
+            owner_id=actor.actor_id,
+        )
+    except MissionStoreError as error:
+        return _store_error(error)
 
 
 @router.put("/{mission_id}/plan", response_model=Mission)
 def attach_plan(
     mission_id: str,
     payload: PlanAttachRequest,
-    _: MissionActor = Depends(require_mission_actor),
+    actor: MissionActor = Depends(require_mission_actor),
     store: MissionStore = Depends(get_mission_store),
 ) -> Mission | JSONResponse:
-    mission = store.get(mission_id)
-    if mission is None:
-        return JSONResponse(status_code=404, content={"code": "mission_not_found", "message": "Mission does not exist"})
-    if payload.execution_plan.mission_id != mission_id:
-        return JSONResponse(status_code=422, content={"code": "plan_mission_mismatch", "message": "Plan Mission ID does not match"})
-    updated = mission.model_copy(
-        update={
-            "execution_plan": payload.execution_plan,
-            "plan_reference": payload.execution_plan.plan_id,
-            "plan_revision": payload.execution_plan.revision,
-            "required_verification": payload.execution_plan.required_verification,
-        }
-    )
+    mission_result = _owned_mission(store, mission_id, actor)
+    if isinstance(mission_result, JSONResponse):
+        return mission_result
+    mission = mission_result
     try:
-        return store.save(updated, expected_revision=payload.expected_revision)
+        updated = mission.attach_plan(payload.execution_plan)
+        if updated == mission:
+            return mission
+        return store.save(updated, expected_revision=payload.expected_revision, owner_id=actor.actor_id)
+    except (MissionAggregateError, ValidationError) as error:
+        return _aggregate_error(error)
     except MissionStoreError as error:
         return _store_error(error)
 
@@ -195,22 +253,27 @@ def record_approval(
     actor: MissionActor = Depends(require_mission_actor),
     store: MissionStore = Depends(get_mission_store),
 ) -> Mission | JSONResponse:
-    mission = store.get(mission_id)
-    if mission is None:
-        return JSONResponse(status_code=404, content={"code": "mission_not_found", "message": "Mission does not exist"})
+    mission_result = _owned_mission(store, mission_id, actor)
+    if isinstance(mission_result, JSONResponse):
+        return mission_result
+    mission = mission_result
     gate = ApprovalGate(
         gate_id=payload.gate_id,
         gate_type=payload.gate_type,
         subject=payload.subject,
         status=payload.status,
         actor_id=actor.actor_id,
-        decided_at=datetime.now(timezone.utc),
+        decided_at=store.now(),
         evidence_refs=payload.evidence_refs,
-        idempotency_key=f"api-approval-{payload.gate_id}",
+        idempotency_key=payload.idempotency_key,
     )
-    updated = mission.model_copy(update={"approval_gates": mission.approval_gates + (gate,)})
     try:
-        return store.save(updated, expected_revision=payload.expected_revision)
+        updated = mission.add_approval_gate(gate)
+        if updated == mission:
+            return mission
+        return store.save(updated, expected_revision=payload.expected_revision, owner_id=actor.actor_id)
+    except (MissionAggregateError, ValidationError) as error:
+        return _aggregate_error(error)
     except MissionStoreError as error:
         return _store_error(error)
 
@@ -222,13 +285,16 @@ def record_evidence(
     actor: MissionActor = Depends(require_mission_actor),
     store: MissionStore = Depends(get_mission_store),
 ) -> Mission | JSONResponse:
-    mission = store.get(mission_id)
-    if mission is None:
-        return JSONResponse(status_code=404, content={"code": "mission_not_found", "message": "Mission does not exist"})
-    evidence: EvidenceRecord = payload.evidence.model_copy(update={"producing_agent": actor.actor_id})
-    updated = mission.model_copy(update={"evidence_records": mission.evidence_records + (evidence,)})
+    mission_result = _owned_mission(store, mission_id, actor)
+    if isinstance(mission_result, JSONResponse):
+        return mission_result
+    mission = mission_result
+    evidence: EvidenceRecord = payload.evidence.with_producing_agent(actor.actor_id)
     try:
-        return store.save(updated, expected_revision=payload.expected_revision)
+        updated = mission.add_evidence_record(evidence)
+        return store.save(updated, expected_revision=payload.expected_revision, owner_id=actor.actor_id)
+    except (MissionAggregateError, ValidationError) as error:
+        return _aggregate_error(error)
     except MissionStoreError as error:
         return _store_error(error)
 
@@ -237,15 +303,17 @@ def record_evidence(
 def record_verification(
     mission_id: str,
     payload: VerificationRecordRequest,
-    _: MissionActor = Depends(require_mission_actor),
+    actor: MissionActor = Depends(require_mission_actor),
     store: MissionStore = Depends(get_mission_store),
 ) -> Mission | JSONResponse:
-    mission = store.get(mission_id)
-    if mission is None:
-        return JSONResponse(status_code=404, content={"code": "mission_not_found", "message": "Mission does not exist"})
-    gates = tuple(gate for gate in mission.verification_gates if gate.gate != payload.gate.gate)
-    updated = mission.model_copy(update={"verification_gates": gates + (payload.gate,)})
+    mission_result = _owned_mission(store, mission_id, actor)
+    if isinstance(mission_result, JSONResponse):
+        return mission_result
+    mission = mission_result
     try:
-        return store.save(updated, expected_revision=payload.expected_revision)
+        updated = mission.record_verification_gate(payload.gate)
+        return store.save(updated, expected_revision=payload.expected_revision, owner_id=actor.actor_id)
+    except (MissionAggregateError, ValidationError) as error:
+        return _aggregate_error(error)
     except MissionStoreError as error:
         return _store_error(error)

@@ -18,7 +18,9 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, Request, Depends
+from fastapi import FastAPI, HTTPException, Request, Depends
+from fastapi.exception_handlers import http_exception_handler, request_validation_exception_handler
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 import dotenv
 
@@ -168,6 +170,30 @@ app = FastAPI(
     description="Non-invasive REST/SSE adapter for the LLM-Agent-System runtime.",
     lifespan=lifespan
 )
+
+
+def _is_mission_request(request: Request) -> bool:
+    return request.url.path == "/v1/missions" or request.url.path.startswith("/v1/missions/")
+
+
+@app.exception_handler(RequestValidationError)
+async def mission_validation_handler(request: Request, exc: RequestValidationError):
+    if _is_mission_request(request):
+        return JSONResponse(
+            status_code=422,
+            content={"code": "invalid_contract", "message": "Mission request contract is invalid"},
+        )
+    return await request_validation_exception_handler(request, exc)
+
+
+@app.exception_handler(HTTPException)
+async def mission_http_exception_handler(request: Request, exc: HTTPException):
+    if _is_mission_request(request) and exc.status_code == 401:
+        return JSONResponse(
+            status_code=401,
+            content={"code": "auth_required", "message": "Mission authentication required"},
+        )
+    return await http_exception_handler(request, exc)
 
 # Exception handlers
 from agent_workspace.core.billing import QuotaExceededError, TenantSubscriptionInactiveError, TenantRateLimitError

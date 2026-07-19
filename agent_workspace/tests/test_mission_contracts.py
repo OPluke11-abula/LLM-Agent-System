@@ -110,6 +110,22 @@ def make_mission(
     if execution_plan is not None:
         values["plan_reference"] = execution_plan.plan_id
         values["plan_revision"] = execution_plan.revision
+    if verification_gates:
+        now = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        values["evidence_records"] = (
+            EvidenceRecord(
+                evidence_id="evidence-1",
+                evidence_type=EvidenceType.TEST,
+                source="pytest",
+                operation="python -m pytest",
+                started_at=now,
+                finished_at=now,
+                exit_status=0,
+                bounded_output_summary="passed",
+                producing_agent="developer-1",
+                verification_status=GateStatus.PASSED,
+            ),
+        )
     return Mission(
         **values,
     )
@@ -117,7 +133,11 @@ def make_mission(
 
 def approved_gate(gate_type: ApprovalType, gate_id: str) -> ApprovalGate:
     if gate_type is ApprovalType.PLAN:
-        subject = PlanApprovalSubject(plan_id="plan-1", plan_revision=1)
+        subject = PlanApprovalSubject(
+            plan_id="plan-1",
+            plan_revision=1,
+            plan_digest=make_plan().canonical_digest(),
+        )
     elif gate_type is ApprovalType.SCOPE_EXPANSION:
         subject = ScopeApprovalSubject(scope_request_id="scope-1")
     else:
@@ -259,7 +279,11 @@ def test_state_machine_transitions_to_running_after_approved_plan() -> None:
             event=MissionEvent.APPROVE_PLAN,
             actor_id="developer-1",
             idempotency_key="approve-plan",
-            approval_subject=PlanApprovalSubject(plan_id="plan-1", plan_revision=1),
+            approval_subject=PlanApprovalSubject(
+                plan_id="plan-1",
+                plan_revision=1,
+                plan_digest=make_plan().canonical_digest(),
+            ),
         ),
     )
 
@@ -470,7 +494,11 @@ def test_every_declared_transition_is_executable() -> None:
                     "approval_gates": (approved_gate(ApprovalType.PLAN, "plan-gate"),),
                 }
             )
-            subject = PlanApprovalSubject(plan_id="plan-1", plan_revision=1)
+            subject = PlanApprovalSubject(
+                plan_id="plan-1",
+                plan_revision=1,
+                plan_digest=make_plan().canonical_digest(),
+            )
         elif event is MissionEvent.COMPLETE_VERIFICATION:
             mission = mission.model_copy(
                 update={
@@ -673,7 +701,11 @@ def test_stale_plan_approval_cannot_approve_a_new_plan_revision() -> None:
                 event=MissionEvent.APPROVE_PLAN,
                 actor_id="developer-1",
                 idempotency_key="stale-plan-approval",
-                approval_subject=PlanApprovalSubject(plan_id="plan-1", plan_revision=1),
+                approval_subject=PlanApprovalSubject(
+                    plan_id="plan-1",
+                    plan_revision=1,
+                    plan_digest=make_plan().canonical_digest(),
+                ),
             ),
         )
 
@@ -768,7 +800,11 @@ def test_idempotency_key_cannot_reauthorize_a_different_subject() -> None:
         execution_plan=make_plan(),
         approvals=(approved_gate(ApprovalType.PLAN, "plan-gate"),),
     )
-    subject = PlanApprovalSubject(plan_id="plan-1", plan_revision=1)
+    subject = PlanApprovalSubject(
+        plan_id="plan-1",
+        plan_revision=1,
+        plan_digest=make_plan().canonical_digest(),
+    )
     request = TransitionRequest(
         event=MissionEvent.APPROVE_PLAN,
         actor_id="developer-1",
@@ -783,7 +819,9 @@ def test_idempotency_key_cannot_reauthorize_a_different_subject() -> None:
             request.model_copy(
                 update={
                     "approval_subject": PlanApprovalSubject(
-                        plan_id="plan-1", plan_revision=2
+                        plan_id="plan-1",
+                        plan_revision=2,
+                        plan_digest=make_plan(revision=2).canonical_digest(),
                     )
                 }
             ),

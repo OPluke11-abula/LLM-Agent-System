@@ -1,11 +1,12 @@
 from datetime import datetime, timezone
+import sqlite3
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
 from agent_workspace.api import app
-from agent_workspace.core.mission_contracts import ExecutionPlan, PlanTask
+from agent_workspace.core.mission_contracts import EvidenceRecord, EvidenceType, ExecutionPlan, GateStatus, PlanTask
 from agent_workspace.core.mission_model import Mission, MissionState
 from agent_workspace.core.mission_store import MissionStore
 from agent_workspace.core.product_contracts import MissionPolicy
@@ -51,6 +52,29 @@ def auth_headers() -> dict[str, str]:
     return {"x-api-key": "mission-test-key"}
 
 
+def auth_headers_for(key: str) -> dict[str, str]:
+    return {"x-api-key": key}
+
+
+def evidence_payload(evidence_id: str) -> dict[str, object]:
+    timestamp = datetime(2026, 1, 1, tzinfo=timezone.utc).isoformat()
+    return {
+        "evidence": {
+            "evidence_id": evidence_id,
+            "evidence_type": "test",
+            "source": "pytest",
+            "operation": "python -m pytest",
+            "started_at": timestamp,
+            "finished_at": timestamp,
+            "exit_status": 0,
+            "bounded_output_summary": "passed",
+            "producing_agent": "spoofed-agent",
+            "verification_status": "passed",
+        },
+        "expected_revision": 0,
+    }
+
+
 def test_mission_api_requires_authentication(client) -> None:
     test_client, _ = client
     response = test_client.get("/v1/missions")
@@ -76,6 +100,22 @@ def test_create_get_and_list_missions(client) -> None:
     listing = test_client.get("/v1/missions?limit=1", headers=auth_headers())
     assert listing.status_code == 200
     assert len(listing.json()["items"]) == 1
+
+
+def test_mission_api_exposes_backend_capabilities(client) -> None:
+    test_client, _ = client
+    created = test_client.post(
+        "/v1/missions",
+        headers=auth_headers(),
+        json={"requirement": "Read capabilities.", "repository_id": "repo-1"},
+    )
+    mission_id = created.json()["mission_id"]
+
+    response = test_client.get(f"/v1/missions/{mission_id}/capabilities", headers=auth_headers())
+
+    assert response.status_code == 200
+    assert response.json()["current_state"] == "draft"
+    assert "start_planning" in response.json()["allowed_events"]
 
 
 def test_mission_api_transition_is_centralized_and_idempotent(client) -> None:
@@ -176,8 +216,14 @@ def test_mission_api_binds_plan_approval_subject(client) -> None:
         json={
             "gate_id": "plan-gate",
             "gate_type": "plan",
-            "subject": {"kind": "plan", "plan_id": "plan-api-1", "plan_revision": 1},
+            "subject": {
+                "kind": "plan",
+                "plan_id": "plan-api-1",
+                "plan_revision": 1,
+                "plan_digest": plan.canonical_digest(),
+            },
             "status": "approved",
+            "idempotency_key": "plan-approval-1",
             "expected_revision": 3,
         },
     )
@@ -190,7 +236,12 @@ def test_mission_api_binds_plan_approval_subject(client) -> None:
             "event": "approve_plan",
             "idempotency_key": "stale-approval",
             "expected_revision": 4,
-            "approval_subject": {"kind": "plan", "plan_id": "plan-api-1", "plan_revision": 2},
+            "approval_subject": {
+                "kind": "plan",
+                "plan_id": "plan-api-1",
+                "plan_revision": 2,
+                "plan_digest": plan.canonical_digest(),
+            },
         },
     )
     assert stale.status_code == 422
@@ -230,5 +281,94 @@ def test_mission_api_exposes_audit_history_without_side_effect_routes(client) ->
     unknown = test_client.get("/v1/missions/missing/transitions", headers=auth_headers())
 
     assert history.status_code == 200
-    assert len(history.json()) == 1
+    assert len(history.json()["items"]) == 1
     assert unknown.status_code == 404
+
+
+def test_mission_api_rejects_invalid_mutation_without_corrupting_prior_state(client) -> None:
+    test_client, store = client
+    created = test_client.post(
+        "/v1/missions",
+        headers=auth_headers(),
+        json={"requirement": "Protect evidence writes.", "repository_id": "repo-1"},
+    )
+    mission_id = created.json()["mission_id"]
+    first = test_client.post(
+        f"/v1/missions/{mission_id}/evidence",
+        headers=auth_headers(),
+        json=evidence_payload("evidence-api-1"),
+    )
+    duplicate = test_client.post(
+        f"/v1/missions/{mission_id}/evidence",
+        headers=auth_headers(),
+        json={**evidence_payload("evidence-api-1"), "expected_revision": 1},
+    )
+    persisted = store.get(mission_id, owner_id="actor-1")
+
+    assert first.status_code == 200
+    assert duplicate.status_code == 422
+    assert duplicate.json()["code"] == "duplicate_evidence"
+    assert persisted is not None
+    assert persisted.revision == 1
+    assert len(persisted.evidence_records) == 1
+
+
+def test_mission_api_isolates_two_authenticated_owners(client) -> None:
+    test_client, _ = client
+    API_KEYS["mission-owner-two-key"] = {
+        "tenant": "tenant-2",
+        "sub": "actor-2",
+        "role": "tenant",
+    }
+    try:
+        created = test_client.post(
+            "/v1/missions",
+            headers=auth_headers(),
+            json={"requirement": "Owner isolation.", "repository_id": "repo-1"},
+        )
+        mission_id = created.json()["mission_id"]
+        hidden_get = test_client.get(
+            f"/v1/missions/{mission_id}",
+            headers=auth_headers_for("mission-owner-two-key"),
+        )
+        hidden_list = test_client.get(
+            "/v1/missions",
+            headers=auth_headers_for("mission-owner-two-key"),
+        )
+        hidden_transition = test_client.post(
+            f"/v1/missions/{mission_id}/transitions",
+            headers=auth_headers_for("mission-owner-two-key"),
+            json={
+                "event": "start_planning",
+                "idempotency_key": "owner-two-transition",
+                "expected_revision": 0,
+            },
+        )
+
+        assert hidden_get.status_code == 404
+        assert hidden_list.json()["items"] == []
+        assert hidden_transition.status_code == 404
+    finally:
+        API_KEYS.pop("mission-owner-two-key", None)
+
+
+def test_mission_api_maps_corrupt_payload_to_server_error(client) -> None:
+    test_client, store = client
+    created = test_client.post(
+        "/v1/missions",
+        headers=auth_headers(),
+        json={"requirement": "Corruption mapping.", "repository_id": "repo-1"},
+    )
+    mission_id = created.json()["mission_id"]
+    with sqlite3.connect(store.database_path) as connection:
+        connection.execute(
+            "UPDATE missions SET payload = ? WHERE mission_id = ?",
+            ("{not-json}", mission_id),
+        )
+        connection.commit()
+
+    response = test_client.get(f"/v1/missions/{mission_id}", headers=auth_headers())
+
+    assert response.status_code == 500
+    assert response.json()["code"] == "corrupt_mission_payload"
+    assert "payload" not in response.json()["message"].lower()

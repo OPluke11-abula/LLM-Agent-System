@@ -18,6 +18,7 @@ from agent_workspace.core.mission_contracts import (
 )
 from agent_workspace.core.mission_model import (
     Mission,
+    MissionCapabilities,
     MissionEvent,
     MissionState,
     MissionTransitionAudit,
@@ -153,6 +154,7 @@ def _require_plan_approval(mission: Mission, request: TransitionRequest) -> None
         mission.execution_plan is None
         or subject.plan_id != mission.execution_plan.plan_id
         or subject.plan_revision != mission.execution_plan.revision
+        or subject.plan_digest != mission.execution_plan.canonical_digest()
     ):
         raise MissionTransitionError(
             TransitionErrorCode.APPROVAL_SUBJECT_MISMATCH,
@@ -258,6 +260,54 @@ _GUARDS: Final[Mapping[MissionEvent, Callable[[Mission, TransitionRequest], None
 class MissionStateMachine:
     def __init__(self, clock: Clock | None = None) -> None:
         self._clock = clock or _utc_now
+
+    def capabilities(self, mission: Mission) -> MissionCapabilities:
+        allowed = tuple(
+            event
+            for (state, event), _target in _LEGAL_TRANSITIONS.items()
+            if state is mission.current_state
+        )
+        if mission.current_state is MissionState.PAUSED and mission.resume_state is not None:
+            allowed = allowed + (MissionEvent.RESUME,)
+        plan_approval_required = mission.current_state is MissionState.AWAITING_APPROVAL
+        verification_incomplete = mission.current_state is MissionState.VERIFYING and not self._verification_complete(mission)
+        draft_pr_permission_disabled = (
+            mission.current_state is MissionState.REVIEW_READY
+            and not mission.execution_policy.scope.draft_pr_permission
+        )
+        required_approval_type = {
+            MissionState.AWAITING_APPROVAL: ApprovalType.PLAN,
+            MissionState.NEEDS_DECISION: ApprovalType.SCOPE_EXPANSION,
+            MissionState.SCOPE_BLOCKED: ApprovalType.SCOPE_EXPANSION,
+            MissionState.REVIEW_READY: ApprovalType.DRAFT_PR,
+        }.get(mission.current_state)
+        blocked_reason = None
+        if plan_approval_required and mission.execution_plan is None:
+            blocked_reason = TransitionErrorCode.PLAN_APPROVAL_REQUIRED.value
+        elif verification_incomplete:
+            blocked_reason = TransitionErrorCode.VERIFICATION_REQUIRED.value
+        elif draft_pr_permission_disabled:
+            blocked_reason = TransitionErrorCode.DRAFT_PR_PERMISSION_REQUIRED.value
+        return MissionCapabilities(
+            mission_id=mission.mission_id,
+            revision=mission.revision,
+            current_state=mission.current_state,
+            allowed_events=allowed,
+            required_approval_type=required_approval_type,
+            plan_approval_required=plan_approval_required,
+            verification_incomplete=verification_incomplete,
+            draft_pr_permission_disabled=draft_pr_permission_disabled,
+            blocked_reason=blocked_reason,
+        )
+
+    @staticmethod
+    def _verification_complete(mission: Mission) -> bool:
+        by_name = {gate.gate: gate for gate in mission.verification_gates}
+        return all(
+            gate_name in by_name
+            and by_name[gate_name].status in (GateStatus.PASSED, GateStatus.NOT_APPLICABLE)
+            for gate_name in mission.required_verification
+        )
 
     def transition(self, mission: Mission, request: TransitionRequest) -> TransitionResult:
         existing = next(

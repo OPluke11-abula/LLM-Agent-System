@@ -10,12 +10,17 @@ from pydantic import Field, model_validator
 from agent_workspace.core.mission_contracts import (
     ApprovalGate,
     ApprovalSubject,
+    ApprovalStatus,
+    ApprovalType,
     DraftPRApprovalSubject,
     DraftPullRequestDelivery,
+    EVIDENCE_TYPE_COMPATIBILITY,
     ExecutionPlan,
     EvidenceRecord,
+    GateStatus,
     MissionBudgetPolicy,
     MissionUsageSummary,
+    PlanApprovalSubject,
     ScopeExpansionRequest,
     VerificationGate,
 )
@@ -99,6 +104,25 @@ class TransitionRequest(ContractModel):
     approval_subject: ApprovalSubject | None = None
 
 
+class MissionCapabilities(ContractModel):
+    mission_id: MissionId
+    revision: int = Field(ge=0)
+    current_state: MissionState
+    allowed_events: tuple[MissionEvent, ...]
+    required_approval_type: ApprovalType | None = None
+    plan_approval_required: bool
+    verification_incomplete: bool
+    draft_pr_permission_disabled: bool
+    blocked_reason: str | None = None
+
+
+class MissionAggregateError(ValueError):
+    def __init__(self, code: str, detail: str) -> None:
+        self.code = code
+        self.detail = detail
+        super().__init__(detail)
+
+
 class MissionTransitionAudit(ContractModel):
     audit_id: ApprovalId
     event: MissionEvent
@@ -125,18 +149,23 @@ class Mission(ContractModel):
     plan_revision: int | None = Field(default=None, ge=1)
     budget_policy: MissionBudgetPolicy = Field(default_factory=MissionBudgetPolicy)
     usage_summary: MissionUsageSummary = Field(default_factory=MissionUsageSummary)
-    approval_gates: tuple[ApprovalGate, ...] = ()
+    approval_gates: tuple[ApprovalGate, ...] = Field(default=(), max_length=256)
     scope_expansion_requests: tuple[ScopeExpansionRequest, ...] = ()
-    evidence_records: tuple[EvidenceRecord, ...] = ()
+    evidence_records: tuple[EvidenceRecord, ...] = Field(default=(), max_length=1000)
     required_verification: tuple[VerificationGateName, ...] = DEFAULT_REQUIRED_VERIFICATION
-    verification_gates: tuple[VerificationGate, ...] = ()
+    verification_gates: tuple[VerificationGate, ...] = Field(default=(), max_length=32)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     actor_id: ActorId
+    owner_actor_id: ActorId | None = None
     draft_pr_review_subject: DraftPRApprovalSubject | None = None
     final_draft_pr: DraftPullRequestDelivery | None = None
     resume_state: MissionState | None = None
-    transition_audit: tuple[MissionTransitionAudit, ...] = ()
+    transition_audit: tuple[MissionTransitionAudit, ...] = Field(default=(), max_length=1000)
+
+    @property
+    def owner_id(self) -> ActorId:
+        return self.owner_actor_id or self.actor_id
 
     @model_validator(mode="after")
     def validate_aggregate_references(self) -> Mission:
@@ -164,4 +193,120 @@ class Mission(ContractModel):
             self.transition_audit
         ):
             raise ValueError("transition idempotency keys must be unique")
+        evidence_by_id = {record.evidence_id: record for record in self.evidence_records}
+        if self.execution_plan is not None:
+            task_ids = {task.task_id for task in self.execution_plan.tasks}
+            for record in self.evidence_records:
+                if record.task_links and record.plan_revision != self.execution_plan.revision:
+                    raise ValueError("evidence task links must bind the current plan revision")
+                if any(task_id not in task_ids for task_id in record.task_links):
+                    raise ValueError("evidence task links must reference current plan tasks")
+        final_decisions: set[ApprovalSubject] = set()
+        for gate in self.approval_gates:
+            if any(ref not in evidence_by_id for ref in gate.evidence_refs):
+                raise ValueError("approval evidence references must exist in the Mission")
+            if gate.status is not ApprovalStatus.PENDING:
+                if gate.subject in final_decisions:
+                    raise ValueError("an approval subject can have only one final decision")
+                final_decisions.add(gate.subject)
+        for gate in self.verification_gates:
+            records = tuple(evidence_by_id.get(ref) for ref in gate.evidence_refs)
+            if any(record is None for record in records):
+                raise ValueError("verification evidence references must exist in the Mission")
+            if gate.status is GateStatus.PASSED:
+                if any(record.verification_status is not GateStatus.PASSED for record in records):
+                    raise ValueError("passed verification gates require passed evidence")
+                compatible = EVIDENCE_TYPE_COMPATIBILITY[gate.gate]
+                if any(record.evidence_type not in compatible for record in records):
+                    raise ValueError("verification evidence type is incompatible with the gate")
         return self
+
+    def attach_plan(self, plan: ExecutionPlan) -> Mission:
+        if plan.mission_id != self.mission_id:
+            raise MissionAggregateError("plan_mission_mismatch", "Plan Mission ID does not match")
+        if self.execution_plan is not None:
+            if plan.plan_id == self.execution_plan.plan_id and plan.revision == self.execution_plan.revision:
+                if plan.canonical_digest() == self.execution_plan.canonical_digest():
+                    return self
+                raise MissionAggregateError(
+                    "immutable_plan_conflict",
+                    "Plan content cannot change under the same ID and revision",
+                )
+            if plan.plan_id != self.execution_plan.plan_id or plan.revision <= self.execution_plan.revision:
+                raise MissionAggregateError("plan_revision_conflict", "Plan revisions must increase monotonically")
+            if self.current_state in {
+                MissionState.RUNNING,
+                MissionState.VERIFYING,
+                MissionState.REVIEW_READY,
+                MissionState.DRAFT_PR_CREATED,
+                MissionState.CLOSED,
+            }:
+                raise MissionAggregateError(
+                    "approved_plan_locked",
+                    "The current Mission state cannot replace its plan",
+                )
+        return Mission.model_validate(
+            {
+                **self.model_dump(mode="python"),
+                "execution_plan": plan,
+                "plan_reference": plan.plan_id,
+                "plan_revision": plan.revision,
+                "required_verification": plan.required_verification,
+            }
+        )
+
+    def add_approval_gate(self, gate: ApprovalGate) -> Mission:
+        if gate.gate_id in {item.gate_id for item in self.approval_gates}:
+            raise MissionAggregateError("duplicate_approval_gate", "Approval gate ID already exists")
+        if gate.gate_type is ApprovalType.PLAN:
+            if self.execution_plan is None:
+                raise MissionAggregateError("plan_required", "Plan approval requires an attached plan")
+            subject = gate.subject
+            if not isinstance(subject, PlanApprovalSubject):
+                raise MissionAggregateError("approval_subject_mismatch", "Plan approval subject is invalid")
+            if (
+                subject.plan_id != self.execution_plan.plan_id
+                or subject.plan_revision != self.execution_plan.revision
+                or subject.plan_digest != self.execution_plan.canonical_digest()
+            ):
+                raise MissionAggregateError("approval_subject_mismatch", "Plan approval subject is stale")
+        existing = next((item for item in self.approval_gates if item.subject == gate.subject), None)
+        if existing is not None:
+            if (
+                existing.status is gate.status
+                and existing.idempotency_key == gate.idempotency_key
+                and existing.evidence_refs == gate.evidence_refs
+            ):
+                return self
+            raise MissionAggregateError(
+                "immutable_decision_conflict",
+                "Approval subject already has a final decision",
+            )
+        return Mission.model_validate(
+            {
+                **self.model_dump(mode="python"),
+                "approval_gates": self.approval_gates + (gate,),
+            }
+        )
+
+    def add_evidence_record(self, evidence: EvidenceRecord) -> Mission:
+        if evidence.evidence_id in {item.evidence_id for item in self.evidence_records}:
+            raise MissionAggregateError("duplicate_evidence", "Evidence ID already exists")
+        return Mission.model_validate(
+            {
+                **self.model_dump(mode="python"),
+                "evidence_records": self.evidence_records + (evidence,),
+            }
+        )
+
+    def record_verification_gate(self, gate: VerificationGate) -> Mission:
+        existing = next((item for item in self.verification_gates if item.gate == gate.gate), None)
+        if existing is not None:
+            refs = tuple(dict.fromkeys(existing.evidence_refs + gate.evidence_refs))
+            gate = VerificationGate.model_validate(
+                {**gate.model_dump(mode="python"), "evidence_refs": refs}
+            )
+        gates = tuple(item for item in self.verification_gates if item.gate != gate.gate) + (gate,)
+        return Mission.model_validate(
+            {**self.model_dump(mode="python"), "verification_gates": gates}
+        )

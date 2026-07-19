@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import Field, model_validator
 
 from agent_workspace.core.mission_contracts import (
@@ -14,6 +16,7 @@ from agent_workspace.core.mission_contracts import (
 )
 from agent_workspace.core.mission_model import (
     Mission,
+    MissionCapabilities,
     MissionTransitionAudit,
     MissionEvent,
 )
@@ -61,6 +64,7 @@ class ApprovalRecordRequest(ContractModel):
     subject: ApprovalSubject
     status: ApprovalStatus
     evidence_refs: tuple[EvidenceId, ...] = ()
+    idempotency_key: IdempotencyKey
     expected_revision: int = Field(ge=0)
 
     @model_validator(mode="after")
@@ -88,6 +92,47 @@ class MissionTransitionResponse(ContractModel):
     replayed: bool
 
 
+MissionErrorCode = Literal[
+    "auth_required",
+    "invalid_contract",
+    "mission_not_found",
+    "duplicate_mission",
+    "stale_revision",
+    "idempotency_conflict",
+    "invalid_pagination",
+    "plan_required",
+    "plan_mission_mismatch",
+    "plan_revision_conflict",
+    "immutable_plan_conflict",
+    "approved_plan_locked",
+    "duplicate_approval_gate",
+    "immutable_decision_conflict",
+    "approval_subject_mismatch",
+    "duplicate_evidence",
+    "evidence_integrity_violation",
+    "invalid_aggregate_contract",
+    "invalid_transition",
+    "terminal_state",
+    "plan_approval_required",
+    "verification_required",
+    "draft_pr_permission_required",
+    "draft_pr_approval_required",
+    "scope_decision_required",
+    "approval_subject_required",
+    "resume_state_missing",
+    "corrupt_mission_payload",
+    "corrupt_transition_receipt",
+    "unsupported_contract_schema",
+    "unsupported_store_schema",
+    "store_corruption",
+    "store_unavailable",
+]
+
+
 class MissionErrorResponse(ContractModel):
-    code: str
+    code: MissionErrorCode
     message: str
+
+
+class MissionCapabilitiesResponse(MissionCapabilities):
+    pass
