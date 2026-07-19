@@ -13,22 +13,25 @@ from the request body. A valid actor can only read or mutate its own Missions;
 a second authenticated actor receives `404` for a Mission it cannot see.
 
 The browser Viewer keeps a development credential in memory for the current
-tab. Tauri obtains session headers through the native auth provider. API keys
-are not persisted by the Viewer and are not embedded in the production bundle.
+tab. The P1 Mission journey is browser-only; Tauri authentication is unavailable.
+API keys are not persisted by the Mission Viewer and are not embedded in the
+production bundle.
 
 ## First-run flow
 
-1. Open `System Check` and run the read-only capability check.
+1. Open `System Check`, enter the browser session credential, and run the read-only capability check.
 2. Continue only when authentication, storage, and schema compatibility pass.
 3. Define a requirement, repository reference, relative scope, permissions, and
    budget in `New mission`.
 4. Start planning, attach the deterministic P1 plan, submit it, and approve its
    canonical SHA-256 subject.
-5. Record bounded evidence and verification gates, then enter `Review`.
+5. Record explicitly supplied bounded evidence and link it to verification gates, then enter `Review`.
 
-The deterministic plan/evidence control is a P1 verification seam. It is not an
-Agent execution button and cannot create code, commits, pushes, pull requests,
-or merges.
+The plan approval and evidence linkage are P1 control-plane seams. Evidence is
+not fabricated by the production Viewer; a passed gate must reference valid
+passed evidence records. A disabled test-only fixture can provide bounded
+`test_fixture` provenance for automated E2E coverage and is unavailable by
+default.
 
 ## Contract and persistence
 

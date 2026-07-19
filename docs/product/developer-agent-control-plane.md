@@ -203,8 +203,8 @@ labels in the Viewer; they are not hidden behind optimistic status claims.
 Mission routes require an authenticated actor and scope every read and write to
 that actor. Browser development credentials are held in tab memory only; they
 are not read from `localStorage`, environment variables, or built assets. The
-Tauri path delegates to a native session provider and rejects an API-key header
-returned by native code. CORS is allowlisted for local Viewer origins and
+P1 Mission journey is browser-only; Tauri authentication is unavailable and
+cannot enter the authenticated Mission journey. CORS is allowlisted for local Viewer origins and
 remains configurable through `LAS_CORS_ORIGINS`.
 
 The System Check endpoint reports reachability, authentication, workspace and
