@@ -136,3 +136,19 @@ class MissionErrorResponse(ContractModel):
 
 class MissionCapabilitiesResponse(MissionCapabilities):
     pass
+
+
+class MissionSystemCapabilities(ContractModel):
+    api_reachable: bool
+    authentication_valid: bool
+    workspace_root_available: bool
+    mission_store_available: bool
+    contract_schema_version: str
+    viewer_expected_schema_version: str
+    schema_compatible: bool
+    provider_configuration: Literal["configured", "not_configured", "unavailable"]
+    git_integration: Literal["not_implemented"]
+    github_integration: Literal["not_implemented"]
+    repository_inspection: Literal["not_implemented"]
+    agent_execution: Literal["not_implemented"]
+    draft_pr_delivery: Literal["not_implemented"]

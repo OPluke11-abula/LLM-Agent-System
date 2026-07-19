@@ -372,3 +372,61 @@ def test_mission_api_maps_corrupt_payload_to_server_error(client) -> None:
     assert response.status_code == 500
     assert response.json()["code"] == "corrupt_mission_payload"
     assert "payload" not in response.json()["message"].lower()
+
+
+def test_mission_api_system_capabilities_reports_safe_readiness(client) -> None:
+    test_client, _ = client
+
+    response = test_client.get("/v1/system/capabilities", headers=auth_headers())
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["api_reachable"] is True
+    assert body["authentication_valid"] is True
+    assert body["mission_store_available"] is True
+    assert body["schema_compatible"] is True
+    assert body["agent_execution"] == "not_implemented"
+    assert body["draft_pr_delivery"] == "not_implemented"
+    assert "api_key" not in str(body).lower()
+
+
+def test_mission_api_rejects_stale_idempotent_plan_replay(client) -> None:
+    test_client, store = client
+    mission = Mission(
+        mission_id="mission-stale-plan",
+        requirement="Stale plan replay.",
+        repository_id="repo-1",
+        execution_policy=MissionPolicy(),
+        actor_id="actor-1",
+    )
+    store.create(mission)
+    plan = ExecutionPlan(
+        plan_id="plan-stale-replay",
+        mission_id=mission.mission_id,
+        tasks=[PlanTask(task_id="task-1", title="Inspect", order=1)],
+    )
+    path = f"/v1/missions/{mission.mission_id}/plan"
+    first = test_client.put(path, headers=auth_headers(), json={"execution_plan": plan.model_dump(mode="json"), "expected_revision": 0})
+    replay_with_stale_revision = test_client.put(path, headers=auth_headers(), json={"execution_plan": plan.model_dump(mode="json"), "expected_revision": 0})
+
+    assert first.status_code == 200
+    assert replay_with_stale_revision.status_code == 409
+    assert replay_with_stale_revision.json()["code"] == "stale_revision"
+
+
+def test_mission_api_maps_conflicting_approval_replay_to_conflict(client) -> None:
+    test_client, _ = client
+    created = test_client.post(
+        "/v1/missions",
+        headers=auth_headers(),
+        json={"requirement": "Conflicting approval.", "repository_id": "repo-1"},
+    )
+    mission_id = created.json()["mission_id"]
+    subject = {"kind": "scope_expansion", "scope_request_id": "scope-1"}
+    body = {"gate_id": "scope-gate-1", "gate_type": "scope_expansion", "subject": subject, "status": "approved", "evidence_refs": [], "idempotency_key": "approval-1", "expected_revision": 0}
+    first = test_client.post(f"/v1/missions/{mission_id}/approvals", headers=auth_headers(), json=body)
+    conflict = test_client.post(f"/v1/missions/{mission_id}/approvals", headers=auth_headers(), json={**body, "gate_id": "scope-gate-2", "status": "rejected", "idempotency_key": "approval-2", "expected_revision": 1})
+
+    assert first.status_code == 200
+    assert conflict.status_code == 409
+    assert conflict.json()["code"] == "immutable_decision_conflict"

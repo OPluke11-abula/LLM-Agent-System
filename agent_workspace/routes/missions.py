@@ -103,8 +103,13 @@ def _transition_error(error: MissionTransitionError) -> JSONResponse:
 
 def _aggregate_error(error: MissionAggregateError | ValidationError) -> JSONResponse:
     code = error.code if isinstance(error, MissionAggregateError) else "invalid_aggregate_contract"
+    response_status = (
+        status.HTTP_409_CONFLICT
+        if code in {"immutable_decision_conflict", "immutable_plan_conflict", "idempotency_conflict"}
+        else status.HTTP_422_UNPROCESSABLE_CONTENT
+    )
     return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        status_code=response_status,
         content={"code": code, "message": "Mission aggregate validation failed"},
     )
 
@@ -238,6 +243,8 @@ def attach_plan(
     try:
         updated = mission.attach_plan(payload.execution_plan)
         if updated == mission:
+            if payload.expected_revision != mission.revision:
+                raise MissionStoreConflictError("stale_revision", "Mission revision does not match expected revision")
             return mission
         return store.save(updated, expected_revision=payload.expected_revision, owner_id=actor.actor_id)
     except (MissionAggregateError, ValidationError) as error:
@@ -270,6 +277,8 @@ def record_approval(
     try:
         updated = mission.add_approval_gate(gate)
         if updated == mission:
+            if payload.expected_revision != mission.revision:
+                raise MissionStoreConflictError("stale_revision", "Mission revision does not match expected revision")
             return mission
         return store.save(updated, expected_revision=payload.expected_revision, owner_id=actor.actor_id)
     except (MissionAggregateError, ValidationError) as error:

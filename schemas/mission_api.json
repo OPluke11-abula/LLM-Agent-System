@@ -3910,6 +3910,90 @@
       "title": "MissionPage",
       "type": "object"
     },
+    "MissionSystemCapabilities": {
+      "additionalProperties": false,
+      "properties": {
+        "agent_execution": {
+          "const": "not_implemented",
+          "title": "Agent Execution",
+          "type": "string"
+        },
+        "api_reachable": {
+          "title": "Api Reachable",
+          "type": "boolean"
+        },
+        "authentication_valid": {
+          "title": "Authentication Valid",
+          "type": "boolean"
+        },
+        "contract_schema_version": {
+          "title": "Contract Schema Version",
+          "type": "string"
+        },
+        "draft_pr_delivery": {
+          "const": "not_implemented",
+          "title": "Draft Pr Delivery",
+          "type": "string"
+        },
+        "git_integration": {
+          "const": "not_implemented",
+          "title": "Git Integration",
+          "type": "string"
+        },
+        "github_integration": {
+          "const": "not_implemented",
+          "title": "Github Integration",
+          "type": "string"
+        },
+        "mission_store_available": {
+          "title": "Mission Store Available",
+          "type": "boolean"
+        },
+        "provider_configuration": {
+          "enum": [
+            "configured",
+            "not_configured",
+            "unavailable"
+          ],
+          "title": "Provider Configuration",
+          "type": "string"
+        },
+        "repository_inspection": {
+          "const": "not_implemented",
+          "title": "Repository Inspection",
+          "type": "string"
+        },
+        "schema_compatible": {
+          "title": "Schema Compatible",
+          "type": "boolean"
+        },
+        "viewer_expected_schema_version": {
+          "title": "Viewer Expected Schema Version",
+          "type": "string"
+        },
+        "workspace_root_available": {
+          "title": "Workspace Root Available",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "api_reachable",
+        "authentication_valid",
+        "workspace_root_available",
+        "mission_store_available",
+        "contract_schema_version",
+        "viewer_expected_schema_version",
+        "schema_compatible",
+        "provider_configuration",
+        "git_integration",
+        "github_integration",
+        "repository_inspection",
+        "agent_execution",
+        "draft_pr_delivery"
+      ],
+      "title": "MissionSystemCapabilities",
+      "type": "object"
+    },
     "MissionTransitionAPIRequest": {
       "$defs": {
         "DraftPRApprovalSubject": {
