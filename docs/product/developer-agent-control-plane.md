@@ -1,8 +1,9 @@
 # Developer Agent Control Plane
 
-This document is the authoritative Developer Beta product contract for LAS.
-It defines the product boundary and the P1 Mission and contract vocabulary;
-it does not claim that the later runtime, API, or Viewer batches are complete.
+This document is the authoritative Developer Beta product contract for LAS. It
+defines the product boundary, P1 Mission vocabulary, protected API seam, and
+the implemented first-run Viewer journey. It does not claim that execution or
+repository delivery exists.
 
 ## Product identity
 
@@ -30,9 +31,9 @@ The official flow is:
 8. **Review Draft PR**
 9. **Human Decision**
 
-P1 defines the contract vocabulary and Mission transitions used by this flow.
-Repository connection, execution, Draft PR creation, and Viewer presentation
-remain later implementation work.
+P1 implements System Check, Mission definition, plan attachment and exact
+approval, evidence-backed verification, and Review presentation. Repository
+connection, execution, Draft PR creation, and delivery actions remain deferred.
 
 ## Core guarantees
 
@@ -81,8 +82,9 @@ workflow models remain compatibility boundaries; P1 does not replace them.
 
 The machine-readable Mission API schema is generated from these Python contracts
 at `schemas/mission_api.json`. A drift test compares the checked-in artifact to
-fresh output, so a future Viewer representation must consume this seam rather
-than introduce a manually divergent contract. P1 changes no Viewer types.
+fresh output. The Viewer consumes the generated TypeScript artifact at
+`viewer/src/generated/missionContracts.ts`; it does not define a parallel Mission
+contract.
 
 ## Mission state machine
 
@@ -190,7 +192,22 @@ request-body actor cannot override it. These routes persist control-plane state
 only. They do not execute providers, mutate Git, create pull requests, or
 perform merge operations.
 
-This P1 boundary does not implement GitHub connection, real Mission execution,
+P1 deliberately does not implement GitHub connection, real Mission execution,
 plan-generation provider calls, Agent scheduling, pause/cancel runtime
-integration, scope-expansion UI, full Viewer pages, Draft PR creation,
-database migrations, or installer changes.
+integration, scope-expansion UI, Draft PR creation, database migrations, or
+installer changes. The unavailable features are surfaced as explicit product
+labels in the Viewer; they are not hidden behind optimistic status claims.
+
+## P1 security boundary
+
+Mission routes require an authenticated actor and scope every read and write to
+that actor. Browser development credentials are held in tab memory only; they
+are not read from `localStorage`, environment variables, or built assets. The
+Tauri path delegates to a native session provider and rejects an API-key header
+returned by native code. CORS is allowlisted for local Viewer origins and
+remains configurable through `LAS_CORS_ORIGINS`.
+
+The System Check endpoint reports reachability, authentication, workspace and
+store readiness, schema compatibility, provider configuration state, and the
+explicitly unimplemented integration statuses. It never returns credentials,
+provider URLs, or machine-local paths.

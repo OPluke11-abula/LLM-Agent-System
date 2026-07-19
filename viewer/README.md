@@ -57,6 +57,25 @@ npm.cmd --prefix viewer run verify:ui:screenshots
 Set `UI_VERIFY_STRICT_SCREENSHOTS=1` to make unavailable or failed screenshot
 capture fail the command.
 
+## Developer Beta Mission control plane
+
+The authenticated P1 Mission surface starts at `System Check`. In browser
+development, enter a session credential for the current tab; it is held in
+memory only. The Viewer then consumes the protected `/v1/missions` API and the
+generated contract at `src/generated/missionContracts.ts`.
+
+The complete local Golden Path can be verified with a real FastAPI process,
+SQLite Mission store, built Viewer, and Playwright:
+
+```powershell
+npm.cmd --prefix viewer run build
+npm.cmd --prefix viewer run test:e2e:missions
+```
+
+The P1 Viewer exposes no Agent execution, repository mutation, Git push, Draft
+PR creation, or merge control. Those unavailable features are labeled in the
+Mission and Review surfaces.
+
 ## Runtime integration
 
 - `useTopology` reads `topology_state.json` through the Tauri bridge and
