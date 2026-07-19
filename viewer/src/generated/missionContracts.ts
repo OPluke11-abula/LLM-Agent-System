@@ -370,6 +370,22 @@ export type MissionPage = {
   readonly offset: number;
 };
 
+export type MissionSystemCapabilities = {
+  readonly agent_execution: "not_implemented";
+  readonly api_reachable: boolean;
+  readonly authentication_valid: boolean;
+  readonly contract_schema_version: string;
+  readonly draft_pr_delivery: "not_implemented";
+  readonly git_integration: "not_implemented";
+  readonly github_integration: "not_implemented";
+  readonly mission_store_available: boolean;
+  readonly provider_configuration: "configured" | "not_configured" | "unavailable";
+  readonly repository_inspection: "not_implemented";
+  readonly schema_compatible: boolean;
+  readonly viewer_expected_schema_version: string;
+  readonly workspace_root_available: boolean;
+};
+
 export type MissionTransitionAPIRequest = {
   readonly approval_subject?: PlanApprovalSubject | ScopeApprovalSubject | DraftPRApprovalSubject | null;
   readonly event: MissionEvent;

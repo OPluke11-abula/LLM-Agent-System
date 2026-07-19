@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import {
   ALL_SKILLS,
   DEFAULT_MEMORY,
@@ -22,6 +22,7 @@ import { useActivityLog } from "./hooks/useActivityLog";
 import { usePersistedState } from "./hooks/usePersistedState";
 import { useTopology } from "./hooks/useTopology";
 import { useWorkspace } from "./hooks/useWorkspace";
+import { missionAuth } from "./services/missionAuth";
 import type { AgentMemory, Lang, ThemeId, Workspace } from "./types";
 
 const AdminDashboardView = lazy(() =>
@@ -68,7 +69,8 @@ export default function App() {
   const [rules, setRules] = usePersistedState<string[]>("ai_rules_arr", DEFAULT_RULES);
   const [agentsEnabled, setAgentsEnabled] = usePersistedState("mods_agents_enabled", false);
   const [activeSkills, setActiveSkills] = usePersistedState<Record<string, boolean>>("mods_skills", {});
-  const [hasOnboarded, setHasOnboarded] = usePersistedState("has_onboarded", false);
+  const [, setHasOnboarded] = usePersistedState("has_onboarded", false);
+  const navigate = useNavigate();
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const { activityEntries, recordActivity, clearActivityLog } = useActivityLog();
   const { sessionList, lastUpdatedSessionId } = useTopology();
@@ -127,37 +129,18 @@ export default function App() {
     }).catch(() => undefined);
   }, [activeSkills, activeWorkspaceId, agentsEnabled, rules, workspaces]);
 
-  if (!hasOnboarded) {
-    return (
-      <Suspense fallback={<PageFallback />}>
-        <OnboardingWizard
-          lang={lang}
-          onFinish={({ name, path }) => {
-            const workspaceId = `ws-${Date.now()}`;
-            const workspace = {
-              id: workspaceId,
-              name,
-              lang: "TypeScript",
-              path,
-            };
-
-            setWorkspaces((prev) => {
-              const filtered = prev.filter((w) => w.path !== "");
-              if (filtered.some((w) => w.path === path && w.name === name)) {
-                return prev;
-              }
-              if (filtered.length === 0) {
-                return [workspace];
-              }
-              return [...filtered, workspace];
-            });
-            setActiveWorkspaceId(workspaceId);
-            setMemoryMap((prev) => ({ ...prev, [workspaceId]: EMPTY_MEMORY }));
-            setHasOnboarded(true);
-          }}
-        />
-      </Suspense>
-    );
+  function finishLegacyOnboarding({ name, path }: { readonly name: string; readonly path: string }): void {
+    const workspaceId = `ws-${Date.now()}`;
+    const workspace = { id: workspaceId, name, lang: "TypeScript", path };
+    setWorkspaces((prev) => {
+      const filtered = prev.filter((workspaceItem) => workspaceItem.path !== "");
+      if (filtered.some((workspaceItem) => workspaceItem.path === path && workspaceItem.name === name)) return prev;
+      return filtered.length === 0 ? [workspace] : [...filtered, workspace];
+    });
+    setActiveWorkspaceId(workspaceId);
+    setMemoryMap((prev) => ({ ...prev, [workspaceId]: EMPTY_MEMORY }));
+    setHasOnboarded(true);
+    navigate("/workspace");
   }
 
   return (
@@ -165,7 +148,7 @@ export default function App() {
       <div className="relative z-10 flex h-full flex-col md:flex-row">
         <Sidebar
           t={t}
-          relaunchOnboarding={() => setHasOnboarded(false)}
+          relaunchOnboarding={() => navigate("/workspace/onboarding")}
           onOpenCommandPalette={() => setCommandPaletteOpen(true)}
         />
         <main className="min-h-0 min-w-0 flex-1 overflow-hidden p-4 md:ml-64 md:h-screen md:p-5">
@@ -178,8 +161,9 @@ export default function App() {
               <Route path="/review/:missionId" element={<ReviewPage />} />
               <Route path="/knowledge" element={<KnowledgePage />} />
               <Route path="/system" element={<SystemCheckPage />} />
+              <Route path="/" element={<Navigate to={missionAuth.configured ? "/missions" : "/system"} replace />} />
               <Route
-                path="/"
+                path="/workspace"
                 element={
                   <MissionControlView
                     memory={activeMemory}
@@ -193,6 +177,7 @@ export default function App() {
                   />
                 }
               />
+              <Route path="/workspace/onboarding" element={<OnboardingWizard lang={lang} onFinish={finishLegacyOnboarding} />} />
               <Route
                 path="/topology"
                 element={
@@ -249,7 +234,7 @@ export default function App() {
                     workspaces={workspaces}
                     setWorkspaces={setWorkspaces}
                     t={t}
-                    relaunchOnboarding={() => setHasOnboarded(false)}
+                    relaunchOnboarding={() => navigate("/workspace/onboarding")}
                   />
                 }
               />
