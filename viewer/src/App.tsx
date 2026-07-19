@@ -11,6 +11,13 @@ import {
 } from "./constants";
 import { Sidebar } from "./components/Sidebar";
 import { CommandPalette } from "./components/CommandPalette";
+import { KnowledgePage } from "./components/mission/KnowledgePage";
+import { MissionDetailPage } from "./components/mission/MissionDetailPage";
+import { MissionListPage } from "./components/mission/MissionListPage";
+import { MissionNewPage } from "./components/mission/MissionNewPage";
+import { ReviewPage } from "./components/mission/ReviewPage";
+import { ReviewIndexPage } from "./components/mission/ReviewIndexPage";
+import { SystemCheckPage } from "./components/mission/SystemCheckPage";
 import { useActivityLog } from "./hooks/useActivityLog";
 import { usePersistedState } from "./hooks/usePersistedState";
 import { useTopology } from "./hooks/useTopology";
@@ -164,6 +171,13 @@ export default function App() {
         <main className="min-h-0 min-w-0 flex-1 overflow-hidden p-4 md:ml-64 md:h-screen md:p-5">
           <Suspense fallback={<PageFallback />}>
             <Routes>
+              <Route path="/missions" element={<MissionListPage />} />
+              <Route path="/missions/new" element={<MissionNewPage />} />
+              <Route path="/missions/:missionId" element={<MissionDetailPage />} />
+              <Route path="/review" element={<ReviewIndexPage />} />
+              <Route path="/review/:missionId" element={<ReviewPage />} />
+              <Route path="/knowledge" element={<KnowledgePage />} />
+              <Route path="/system" element={<SystemCheckPage />} />
               <Route
                 path="/"
                 element={

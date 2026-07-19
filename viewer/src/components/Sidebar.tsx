@@ -1,103 +1,23 @@
 import { Link, useLocation } from "react-router-dom";
 import type { TranslationMessages } from "../types";
 
-type SidebarProps = {
-  t: TranslationMessages;
-  relaunchOnboarding?: () => void;
-  onOpenCommandPalette?: () => void;
-};
+type SidebarProps = { t: TranslationMessages; relaunchOnboarding?: () => void; onOpenCommandPalette?: () => void };
+type NavItem = { label: string; to: string; kicker: string };
+type NavSection = { label: string; items: NavItem[]; mobileHidden?: boolean };
 
 export function Sidebar({ t, relaunchOnboarding, onOpenCommandPalette }: SidebarProps) {
   const location = useLocation();
-  const items = [
-    { label: t.appTitle, to: "/", kicker: "Live" },
-    { label: t.taskFlow, to: "/tasks", kicker: "Flow" },
-    { label: "Topology", to: "/topology", kicker: "Graph" },
-    { label: "Intelligence", to: "/intelligence", kicker: "Map" },
-    { label: t.memoryTitle, to: "/memory", kicker: "Brain" },
-    { label: t.rules, to: "/rules", kicker: "Policy" },
-    { label: t.mods, to: "/mods", kicker: "Skills" },
-    { label: t.settings, to: "/settings", kicker: "Config" },
-    { label: t.adminConsole, to: "/admin", kicker: "Ops" },
+  const sections: NavSection[] = [
+    { label: "Missions", items: [{ label: "Missions", to: "/missions", kicker: "Queue" }, { label: "New mission", to: "/missions/new", kicker: "Intake" }] },
+    { label: "Review", items: [{ label: "Review", to: "/review", kicker: "Audit" }] },
+    { label: "Knowledge", items: [{ label: "Knowledge", to: "/knowledge", kicker: "Records" }] },
+    { label: "System", items: [{ label: "System Check", to: "/system", kicker: "Health" }] },
+    { label: "Workspace", mobileHidden: true, items: [{ label: t.appTitle, to: "/", kicker: "Live" }, { label: t.taskFlow, to: "/tasks", kicker: "Flow" }, { label: "Topology", to: "/topology", kicker: "Graph" }, { label: "Intelligence", to: "/intelligence", kicker: "Map" }, { label: t.memoryTitle, to: "/memory", kicker: "Brain" }, { label: t.rules, to: "/rules", kicker: "Policy" }, { label: t.mods, to: "/mods", kicker: "Skills" }, { label: t.settings, to: "/settings", kicker: "Config" }, { label: t.adminConsole, to: "/admin", kicker: "Ops" }] },
   ];
 
-  return (
-    <aside
-      className="relative z-50 flex w-full flex-col border-b p-4 md:fixed md:left-0 md:top-0 md:h-screen md:w-64 md:border-r md:border-b-0 md:p-5"
-      style={{ background: "var(--sidebar)", borderColor: "var(--border-c)" }}
-    >
-      <div className="mb-4 px-1 md:mt-1 md:mb-8">
-        <div className="mb-4 flex items-center gap-3">
-          <div
-            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border text-[11px] font-semibold tracking-[0.16em]"
-            style={{ borderColor: "rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.055)", color: "white" }}
-          >
-            LAS
-          </div>
-          <div className="min-w-0">
-            <span className="block truncate text-sm font-semibold leading-tight" style={{ color: "var(--t1)" }}>
-              {t.appTitle}
-            </span>
-            <span
-              className="mt-1 block text-[10px] font-medium uppercase tracking-[0.18em]"
-              style={{ color: "rgba(255,255,255,0.42)" }}
-            >
-              Agent Runtime
-            </span>
-          </div>
-        </div>
-        {onOpenCommandPalette && (
-          <button
-            type="button"
-            onClick={onOpenCommandPalette}
-            className="quiet-button flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold"
-          >
-            <span>Command Palette</span>
-            <span className="font-mono text-[10px] t3">Ctrl K</span>
-          </button>
-        )}
-      </div>
-
-      <nav className="grid grid-cols-2 gap-1 sm:grid-cols-4 md:block md:flex-1 md:space-y-1.5">
-        {items.map(({ label, to, kicker }) => {
-          const active = location.pathname === to;
-
-          return (
-            <Link
-              key={to}
-              to={to}
-              aria-current={active ? "page" : undefined}
-              className={`nav-link ${active ? "nav-link-active" : ""} group flex min-w-0 items-center justify-between gap-3 rounded-lg px-3 py-2 text-sm font-medium`}
-            >
-              <span className="min-w-0 break-words leading-tight">{label}</span>
-              <span className="shrink-0 text-right text-[9px] font-semibold uppercase tracking-[0.14em] opacity-45 group-hover:opacity-70">
-                {kicker}
-              </span>
-            </Link>
-          );
-        })}
-      </nav>
-
-      <div className="hidden space-y-3 border-t pt-4 md:block" style={{ borderColor: "rgba(255,255,255,0.09)" }}>
-        {relaunchOnboarding && (
-          <button
-            type="button"
-            onClick={relaunchOnboarding}
-            className="w-full rounded-lg border border-dashed py-2 text-center text-xs font-semibold transition-all hover:bg-white/5 active:translate-y-px"
-            style={{ borderColor: "rgba(255,255,255,0.14)", color: "rgba(255,255,255,0.72)" }}
-          >
-            {t.relaunchTutorialBtn}
-          </button>
-        )}
-        <p
-          className="text-[9px] font-medium uppercase leading-relaxed tracking-[0.16em]"
-          style={{ color: "rgba(255,255,255,0.36)" }}
-        >
-          Visual Control Plane
-          <br />
-          Tauri 2.0 / TS 5.8 / ReactFlow 11
-        </p>
-      </div>
-    </aside>
-  );
+  return <aside className="relative z-50 flex w-full flex-col border-b p-4 md:fixed md:left-0 md:top-0 md:h-screen md:w-64 md:border-r md:border-b-0 md:p-5" style={{ background: "var(--sidebar)", borderColor: "var(--border-c)" }}>
+    <div className="mb-4 px-1 md:mt-1 md:mb-8"><div className="mb-4 flex items-center gap-3"><div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border text-[11px] font-semibold tracking-[0.16em]" style={{ borderColor: "rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.055)", color: "white" }}>LAS</div><div className="min-w-0"><span className="block truncate text-sm font-semibold leading-tight" style={{ color: "var(--t1)" }}>{t.appTitle}</span><span className="mt-1 block text-[10px] font-medium uppercase tracking-[0.18em]" style={{ color: "rgba(255,255,255,0.42)" }}>Agent Runtime</span></div></div>{onOpenCommandPalette && <button type="button" onClick={onOpenCommandPalette} className="quiet-button flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold"><span>Command Palette</span><span className="font-mono text-[10px] t3">Ctrl K</span></button>}</div>
+    <nav className="grid grid-cols-2 gap-3 sm:grid-cols-4 md:block md:flex-1 md:space-y-4" aria-label="Primary navigation">{sections.map((section) => <div key={section.label} className={section.mobileHidden ? "hidden md:block" : undefined}><p className="mb-1 px-3 text-[9px] font-bold uppercase tracking-[0.18em] t3">{section.label}</p><div className="space-y-1">{section.items.map(({ label, to, kicker }) => { const active = location.pathname === to || (to !== "/" && to !== "/missions" && location.pathname.startsWith(`${to}/`)); return <Link key={to} to={to} aria-current={active ? "page" : undefined} className={`nav-link ${active ? "nav-link-active" : ""} group flex min-w-0 items-center justify-between gap-3 rounded-lg px-3 py-2 text-sm font-medium`}><span className="min-w-0 break-words leading-tight">{label}</span><span className="shrink-0 text-right text-[9px] font-semibold uppercase tracking-[0.14em] opacity-45 group-hover:opacity-70">{kicker}</span></Link>; })}</div></div>)}</nav>
+    <div className="hidden space-y-3 border-t pt-4 md:block" style={{ borderColor: "rgba(255,255,255,0.09)" }}>{relaunchOnboarding && <button type="button" onClick={relaunchOnboarding} className="w-full rounded-lg border border-dashed py-2 text-center text-xs font-semibold transition-all hover:bg-white/5 active:translate-y-px" style={{ borderColor: "rgba(255,255,255,0.14)", color: "rgba(255,255,255,0.72)" }}>{t.relaunchTutorialBtn}</button>}<p className="text-[9px] font-medium uppercase leading-relaxed tracking-[0.16em]" style={{ color: "rgba(255,255,255,0.36)" }}>Visual Control Plane<br />Tauri 2.0 / TS 5.8 / ReactFlow 11</p></div>
+  </aside>;
 }
