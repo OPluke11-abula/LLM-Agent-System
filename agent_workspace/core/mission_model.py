@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from enum import StrEnum, unique
+from typing import assert_never
 
 from pydantic import Field, model_validator
 
@@ -166,6 +167,38 @@ class Mission(ContractModel):
     @property
     def owner_id(self) -> ActorId:
         return self.owner_actor_id or self.actor_id
+
+    def verification_complete(self) -> bool:
+        evidence_by_id = {record.evidence_id: record for record in self.evidence_records}
+        gates_by_name = {gate.gate: gate for gate in self.verification_gates}
+        for gate_name in self.required_verification:
+            gate = gates_by_name.get(gate_name)
+            if gate is None:
+                return False
+            match gate.status:
+                case GateStatus.NOT_APPLICABLE:
+                    continue
+                case GateStatus.PASSED:
+                    if not gate.evidence_refs:
+                        return False
+                    linked_records: list[EvidenceRecord] = []
+                    for evidence_ref in gate.evidence_refs:
+                        record = evidence_by_id.get(evidence_ref)
+                        if record is None:
+                            return False
+                        linked_records.append(record)
+                    compatible = EVIDENCE_TYPE_COMPATIBILITY[gate.gate]
+                    if any(
+                        record.verification_status is not GateStatus.PASSED
+                        or record.evidence_type not in compatible
+                        for record in linked_records
+                    ):
+                        return False
+                case GateStatus.PENDING | GateStatus.FAILED | GateStatus.BLOCKED:
+                    return False
+                case unreachable:
+                    assert_never(unreachable)
+        return True
 
     @model_validator(mode="after")
     def validate_aggregate_references(self) -> Mission:

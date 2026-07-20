@@ -107,7 +107,26 @@ try {
     current = await (await fetch(`http://127.0.0.1:${apiPort}/v1/missions/${missionId}`, { headers: apiHeaders })).json();
   }
   assert(current.current_state === "running", `plan approval did not reach running state: ${current.current_state}`);
-  for (const gate of current.required_verification ?? []) {
+  assert((current.required_verification ?? []).includes("requirement"), "requirement gate was not required");
+  await page.getByRole("heading", { name: "Record bounded evidence" }).waitFor();
+  await page.getByLabel("Gate").selectOption("requirement");
+  await page.getByLabel("Evidence type").selectOption("test");
+  await page.getByLabel("Source").fill("golden-path-production");
+  await page.getByLabel("Operation").fill("production evidence form submission");
+  await page.getByLabel("Verification status").selectOption("passed");
+  await page.getByLabel("Bounded output summary").fill("Production Viewer evidence form submitted a bounded passed record.");
+  await page.getByLabel("Exit status (optional)").fill("0");
+  const productionEvidenceResponse = page.waitForResponse((response) => response.url().endsWith(`/v1/missions/${missionId}/evidence`) && response.request().method() === "POST" && response.status() === 200);
+  const productionVerificationResponse = page.waitForResponse((response) => response.url().endsWith(`/v1/missions/${missionId}/verification-gates`) && response.request().method() === "PUT" && response.status() === 200);
+  await page.getByRole("button", { name: "Record bounded evidence", exact: true }).click();
+  const [productionEvidence, productionVerification] = await Promise.all([productionEvidenceResponse, productionVerificationResponse]);
+  assert(productionEvidence.ok && productionVerification.ok, "production evidence form did not complete both writes");
+  current = await productionVerification.json();
+  const productionRecord = current.evidence_records.find((record) => record.source === "golden-path-production");
+  assert(productionRecord && productionRecord.source !== "test_fixture", "production evidence provenance was invalid");
+  const productionGate = current.verification_gates.find((gate) => gate.gate === "requirement");
+  assert(productionGate?.status === "passed" && productionGate.evidence_refs.includes(productionRecord.evidence_id), "production evidence was not linked to the requirement gate");
+  for (const gate of (current.required_verification ?? []).filter((requiredGate) => requiredGate !== "requirement")) {
     const timestamp = new Date().toISOString();
     const evidence = { evidence_id: `fixture-${gate}-${randomUUID()}`, evidence_type: fixtureTypes[gate] || "command", source: "test_fixture", operation: `fixture verification ${gate}`, started_at: timestamp, finished_at: timestamp, exit_status: 0, bounded_output_summary: `Bounded test fixture evidence for ${gate}.`, producing_agent: "p1-e2e-actor", requirement_links: [current.requirement], task_links: current.execution_plan?.tasks.map((task) => task.task_id) ?? [], plan_revision: current.plan_revision ?? 1, verification_status: "passed" };
     const evidenceResponse = await fetch(`http://127.0.0.1:${apiPort}/v1/missions/${missionId}/test-fixture/evidence`, { method: "POST", headers: { ...apiHeaders, "content-type": "application/json" }, body: JSON.stringify({ evidence, expected_revision: current.revision }) });
@@ -153,6 +172,8 @@ try {
   const reviewText = await page.locator("body").textContent();
   assert(reviewText.includes("All linked evidence records are present, passed, and type-compatible."), "Review did not expose linked passed evidence");
   assert(reviewText.includes("Evidence ID:") && reviewText.includes("Started:") && reviewText.includes("Bounded output summary:"), "Review did not expose complete gate-level evidence metadata");
+  assert(reviewText.includes("golden-path-production"), "Review did not expose production evidence source metadata");
+  assert(reviewText.includes("test_fixture"), "Review did not retain fixture evidence metadata for remaining gates");
   await page.goto(`http://127.0.0.1:${viewerPort}/#/system`, { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Clear session" }).click();
   await page.reload({ waitUntil: "networkidle" });
@@ -166,7 +187,7 @@ try {
   const fixtureEnabled = await fetch(`http://127.0.0.1:${apiPort}/v1/missions/${missionId}/test-fixture/evidence`, { method: "POST", headers: { ...apiHeaders, "content-type": "application/json" }, body: JSON.stringify({ evidence: { evidence_id: `enabled-${randomUUID()}`, evidence_type: "command", source: "test_fixture", operation: "enabled fixture probe", started_at: new Date().toISOString(), finished_at: new Date().toISOString(), producing_agent: "p1-e2e-actor", verification_status: "pending" }, expected_revision: current.revision }) });
   assert(fixtureEnabled.status === 200, `enabled fixture was not available in the E2E process: ${fixtureEnabled.status}`);
   await context.close();
-  console.log(JSON.stringify({ authenticatedGoldenPath: "passed", unauthorized: 401, ownershipIsolation: 404, staleRevision: 409, immutableApproval: 409, nonexistentVerificationRef: 422, fixtureDisabled: 404, fixtureProvenance: "test_fixture", reviewMetadata: "complete", browserCredentialCleared: true, tauri: "unavailable" }));
+  console.log(JSON.stringify({ authenticatedGoldenPath: "passed", productionEvidenceSource: "golden-path-production", unauthorized: 401, ownershipIsolation: 404, staleRevision: 409, immutableApproval: 409, nonexistentVerificationRef: 422, fixtureDisabled: 404, fixtureProvenance: "test_fixture", reviewMetadata: "complete", browserCredentialCleared: true, tauri: "unavailable" }));
 } finally {
   if (browser) await browser.close();
   if (viewerServer) await new Promise((resolveClose) => viewerServer.close(resolveClose));

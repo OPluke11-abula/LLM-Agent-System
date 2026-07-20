@@ -69,6 +69,9 @@ jobs:
       - name: Build viewer
         working-directory: viewer
         run: npm run build
+      - name: Run Mission UI failure verification
+        working-directory: viewer
+        run: npm run verify:ui:missions
       - name: Run authenticated Mission E2E
         working-directory: viewer
         run: npm run test:e2e:missions

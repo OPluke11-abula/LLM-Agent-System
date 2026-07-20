@@ -6,10 +6,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 from agent_workspace.api import app
-from agent_workspace.core.mission_contracts import EvidenceRecord, EvidenceType, ExecutionPlan, GateStatus, PlanTask
+from agent_workspace.core.mission_contracts import EvidenceRecord, EvidenceType, ExecutionPlan, GateStatus, PlanTask, VerificationGate
 from agent_workspace.core.mission_model import Mission, MissionState
 from agent_workspace.core.mission_store import MissionStore
-from agent_workspace.core.product_contracts import MissionPolicy
+from agent_workspace.core.product_contracts import MissionPolicy, VerificationGateName
 from agent_workspace.routes.dependencies import API_KEYS
 from agent_workspace.routes.missions import get_mission_store
 
@@ -274,6 +274,128 @@ def test_mission_api_enforces_verification_completeness_and_pagination_bounds(cl
     assert incomplete.status_code == 422
     assert incomplete.json()["code"] == "verification_required"
     assert too_large.status_code == 422
+
+
+def test_mission_api_blocks_begin_verification_without_resolved_gates(client) -> None:
+    test_client, store = client
+    mission = Mission(
+        mission_id="mission-api-running-incomplete",
+        requirement="Begin only after verification.",
+        repository_id="repo-1",
+        current_state=MissionState.RUNNING,
+        execution_policy=MissionPolicy(),
+        required_verification=(VerificationGateName.REQUIREMENT,),
+        actor_id="actor-1",
+    )
+    store.create(mission)
+
+    capabilities = test_client.get(
+        f"/v1/missions/{mission.mission_id}/capabilities", headers=auth_headers()
+    )
+    begin = test_client.post(
+        f"/v1/missions/{mission.mission_id}/transitions",
+        headers=auth_headers(),
+        json={
+            "event": "begin_verification",
+            "idempotency_key": "api-begin-incomplete",
+            "expected_revision": 0,
+        },
+    )
+    persisted = test_client.get(
+        f"/v1/missions/{mission.mission_id}", headers=auth_headers()
+    )
+
+    assert begin.status_code == 422
+    assert begin.json()["code"] == "verification_required"
+    assert persisted.json()["current_state"] == "running"
+    assert persisted.json()["revision"] == 0
+    assert capabilities.json()["blocked_reason"] == "verification_required"
+    assert "begin_verification" not in capabilities.json()["allowed_events"]
+
+
+def test_mission_api_allows_begin_verification_after_passed_gate_resolves(client) -> None:
+    test_client, store = client
+    timestamp = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    evidence = EvidenceRecord(
+        evidence_id="api-requirement-evidence",
+        evidence_type=EvidenceType.TEST,
+        source="pytest",
+        operation="python -m pytest",
+        started_at=timestamp,
+        finished_at=timestamp,
+        exit_status=0,
+        bounded_output_summary="passed",
+        producing_agent="actor-1",
+        verification_status=GateStatus.PASSED,
+    )
+    mission = Mission(
+        mission_id="mission-api-running-complete",
+        requirement="Begin after verification.",
+        repository_id="repo-1",
+        current_state=MissionState.RUNNING,
+        execution_policy=MissionPolicy(),
+        required_verification=(VerificationGateName.REQUIREMENT,),
+        evidence_records=(evidence,),
+        verification_gates=(
+            VerificationGate(
+                gate=VerificationGateName.REQUIREMENT,
+                status=GateStatus.PASSED,
+                evidence_refs=(evidence.evidence_id,),
+            ),
+        ),
+        actor_id="actor-1",
+    )
+    store.create(mission)
+
+    capabilities = test_client.get(
+        f"/v1/missions/{mission.mission_id}/capabilities", headers=auth_headers()
+    )
+    begin = test_client.post(
+        f"/v1/missions/{mission.mission_id}/transitions",
+        headers=auth_headers(),
+        json={
+            "event": "begin_verification",
+            "idempotency_key": "api-begin-complete",
+            "expected_revision": 0,
+        },
+    )
+
+    assert begin.status_code == 200
+    assert "begin_verification" in capabilities.json()["allowed_events"]
+    assert begin.json()["mission"]["current_state"] == "verifying"
+
+
+def test_mission_api_allows_begin_verification_for_not_applicable_gate(client) -> None:
+    test_client, store = client
+    mission = Mission(
+        mission_id="mission-api-not-applicable",
+        requirement="Skip an inapplicable gate.",
+        repository_id="repo-1",
+        current_state=MissionState.RUNNING,
+        execution_policy=MissionPolicy(),
+        required_verification=(VerificationGateName.REQUIREMENT,),
+        verification_gates=(
+            VerificationGate(
+                gate=VerificationGateName.REQUIREMENT,
+                status=GateStatus.NOT_APPLICABLE,
+            ),
+        ),
+        actor_id="actor-1",
+    )
+    store.create(mission)
+
+    begin = test_client.post(
+        f"/v1/missions/{mission.mission_id}/transitions",
+        headers=auth_headers(),
+        json={
+            "event": "begin_verification",
+            "idempotency_key": "api-begin-not-applicable",
+            "expected_revision": 0,
+        },
+    )
+
+    assert begin.status_code == 200
+    assert begin.json()["mission"]["current_state"] == "verifying"
 
 
 def test_mission_api_exposes_audit_history_without_side_effect_routes(client) -> None:

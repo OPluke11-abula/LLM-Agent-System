@@ -12,7 +12,6 @@ from agent_workspace.core.mission_contracts import (
     ApprovalType,
     ApprovalSubject,
     DraftPRApprovalSubject,
-    GateStatus,
     PlanApprovalSubject,
     ScopeApprovalSubject,
 )
@@ -177,13 +176,7 @@ def _require_plan_approval(mission: Mission, request: TransitionRequest) -> None
 
 
 def _require_verification(mission: Mission, request: TransitionRequest) -> None:
-    by_name = {gate.gate: gate for gate in mission.verification_gates}
-    complete = all(
-        gate_name in by_name
-        and by_name[gate_name].status in (GateStatus.PASSED, GateStatus.NOT_APPLICABLE)
-        for gate_name in mission.required_verification
-    )
-    if not complete:
+    if not mission.verification_complete():
         raise MissionTransitionError(
             TransitionErrorCode.VERIFICATION_REQUIRED,
             mission.current_state,
@@ -250,6 +243,7 @@ def _require_draft_pr(mission: Mission, request: TransitionRequest) -> None:
 _GUARDS: Final[Mapping[MissionEvent, Callable[[Mission, TransitionRequest], None]]] = MappingProxyType(
     {
         MissionEvent.APPROVE_PLAN: _require_plan_approval,
+        MissionEvent.BEGIN_VERIFICATION: _require_verification,
         MissionEvent.COMPLETE_VERIFICATION: _require_verification,
         MissionEvent.CREATE_DRAFT_PR: _require_draft_pr,
         MissionEvent.APPROVE_SCOPE: _require_scope_decision,
@@ -262,15 +256,20 @@ class MissionStateMachine:
         self._clock = clock or _utc_now
 
     def capabilities(self, mission: Mission) -> MissionCapabilities:
+        verification_complete = mission.verification_complete()
         allowed = tuple(
             event
             for (state, event), _target in _LEGAL_TRANSITIONS.items()
             if state is mission.current_state
+            and (event is not MissionEvent.BEGIN_VERIFICATION or verification_complete)
         )
         if mission.current_state is MissionState.PAUSED and mission.resume_state is not None:
             allowed = allowed + (MissionEvent.RESUME,)
         plan_approval_required = mission.current_state is MissionState.AWAITING_APPROVAL
-        verification_incomplete = mission.current_state is MissionState.VERIFYING and not self._verification_complete(mission)
+        verification_incomplete = (
+            mission.current_state in {MissionState.RUNNING, MissionState.VERIFYING}
+            and not verification_complete
+        )
         draft_pr_permission_disabled = (
             mission.current_state is MissionState.REVIEW_READY
             and not mission.execution_policy.scope.draft_pr_permission
@@ -298,15 +297,6 @@ class MissionStateMachine:
             verification_incomplete=verification_incomplete,
             draft_pr_permission_disabled=draft_pr_permission_disabled,
             blocked_reason=blocked_reason,
-        )
-
-    @staticmethod
-    def _verification_complete(mission: Mission) -> bool:
-        by_name = {gate.gate: gate for gate in mission.verification_gates}
-        return all(
-            gate_name in by_name
-            and by_name[gate_name].status in (GateStatus.PASSED, GateStatus.NOT_APPLICABLE)
-            for gate_name in mission.required_verification
         )
 
     def transition(self, mission: Mission, request: TransitionRequest) -> TransitionResult:

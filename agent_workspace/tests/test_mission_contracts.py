@@ -311,7 +311,11 @@ def test_review_ready_requires_completed_verification_gates() -> None:
     assert "verification" in str(error.value).lower()
 
     ready = transition(
-        mission.model_copy(update={"verification_gates": (passed_verification(),)}),
+        make_mission(
+            state=MissionState.VERIFYING,
+            required_verification=(VerificationGateName.TESTS,),
+            verification_gates=(passed_verification(),),
+        ),
         TransitionRequest(
             event=MissionEvent.COMPLETE_VERIFICATION,
             actor_id="developer-1",
@@ -320,6 +324,68 @@ def test_review_ready_requires_completed_verification_gates() -> None:
     )
 
     assert ready.mission.current_state is MissionState.REVIEW_READY
+
+
+def test_running_mission_rejects_begin_verification_until_required_gates_resolve() -> None:
+    mission = make_mission(
+        state=MissionState.RUNNING,
+        required_verification=(VerificationGateName.TESTS,),
+    )
+    machine = MissionStateMachine()
+
+    capabilities = machine.capabilities(mission)
+    with pytest.raises(MissionTransitionError) as error:
+        machine.transition(
+            mission,
+            TransitionRequest(
+                event=MissionEvent.BEGIN_VERIFICATION,
+                actor_id="developer-1",
+                idempotency_key="begin-incomplete-verification",
+            ),
+        )
+
+    assert error.value.code is TransitionErrorCode.VERIFICATION_REQUIRED
+    assert capabilities.current_state is MissionState.RUNNING
+    assert capabilities.revision == mission.revision
+    assert MissionEvent.BEGIN_VERIFICATION not in capabilities.allowed_events
+    assert capabilities.blocked_reason == TransitionErrorCode.VERIFICATION_REQUIRED.value
+
+
+def test_running_mission_begins_verification_after_passed_gate_resolves() -> None:
+    mission = make_mission(
+        state=MissionState.RUNNING,
+        required_verification=(VerificationGateName.TESTS,),
+        verification_gates=(passed_verification(),),
+    )
+    machine = MissionStateMachine()
+
+    capabilities = machine.capabilities(mission)
+    result = machine.transition(
+        mission,
+        TransitionRequest(
+            event=MissionEvent.BEGIN_VERIFICATION,
+            actor_id="developer-1",
+            idempotency_key="begin-complete-verification",
+        ),
+    )
+
+    assert MissionEvent.BEGIN_VERIFICATION in capabilities.allowed_events
+    assert result.mission.current_state is MissionState.VERIFYING
+
+
+def test_not_applicable_gate_resolves_verification_without_pass_claim() -> None:
+    mission = make_mission(
+        state=MissionState.RUNNING,
+        required_verification=(VerificationGateName.TESTS,),
+        verification_gates=(
+            VerificationGate(gate=VerificationGateName.TESTS, status=GateStatus.NOT_APPLICABLE),
+        ),
+    ).model_copy(update={"evidence_records": ()})
+
+    capabilities = MissionStateMachine().capabilities(mission)
+
+    assert MissionEvent.BEGIN_VERIFICATION in capabilities.allowed_events
+    assert capabilities.verification_incomplete is False
 
 
 def test_draft_pr_requires_permission_and_explicit_approval() -> None:
@@ -485,7 +551,7 @@ def test_approval_request_captures_human_decision_boundary() -> None:
 
 def test_every_declared_transition_is_executable() -> None:
     for (state, event), expected_state in _LEGAL_TRANSITIONS.items():
-        mission = make_mission(state=state)
+        mission = make_mission(state=state, verification_gates=(passed_verification(),))
         subject = None
         if event is MissionEvent.APPROVE_PLAN:
             mission = mission.model_copy(
@@ -498,6 +564,13 @@ def test_every_declared_transition_is_executable() -> None:
                 plan_id="plan-1",
                 plan_revision=1,
                 plan_digest=make_plan().canonical_digest(),
+            )
+        elif event is MissionEvent.BEGIN_VERIFICATION:
+            mission = mission.model_copy(
+                update={
+                    "required_verification": (VerificationGateName.TESTS,),
+                    "verification_gates": (passed_verification(),),
+                }
             )
         elif event is MissionEvent.COMPLETE_VERIFICATION:
             mission = mission.model_copy(
