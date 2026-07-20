@@ -208,6 +208,8 @@ cannot enter the authenticated Mission journey. CORS is allowlisted for local Vi
 remains configurable through `LAS_CORS_ORIGINS`.
 
 The System Check endpoint reports reachability, authentication, workspace and
-store readiness, schema compatibility, provider configuration state, and the
-explicitly unimplemented integration statuses. It never returns credentials,
-provider URLs, or machine-local paths.
+store readiness, the actual backend contract schema version, provider
+configuration state, and the explicitly unimplemented integration statuses.
+The Viewer compares that version with its generated local version and blocks
+continuation on mismatch. It never returns credentials, provider URLs, or
+machine-local paths.

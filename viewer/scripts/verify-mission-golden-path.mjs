@@ -31,11 +31,11 @@ function startViewer() {
   return new Promise((resolveServer) => server.listen(viewerPort, "127.0.0.1", () => resolveServer(server)));
 }
 
-function startApi() {
-  return spawn(python, ["-m", "uvicorn", "agent_workspace.api:app", "--host", "127.0.0.1", "--port", String(apiPort)], {
+function startApi(portNumber, enableFixture) {
+  return spawn(python, ["-m", "uvicorn", "agent_workspace.api:app", "--host", "127.0.0.1", "--port", String(portNumber)], {
     cwd: repo,
     stdio: "inherit",
-    env: { ...process.env, OTEL_SDK_DISABLED: "true", AGENT_WORKSPACE_DIR: workspace, LAS_BOOTSTRAP_API_KEY: credential, LAS_JWT_SECRET: jwtSecret, LAS_BOOTSTRAP_TENANT_ID: "p1-e2e-tenant", LAS_BOOTSTRAP_SUBJECT: "p1-e2e-actor", LAS_BOOTSTRAP_ROLE: "tenant", LAS_ENABLE_REDIS_SWARM: "false", LAS_ENABLE_AUDIT_CONSENSUS: "false", LAS_ENABLE_STRIPE: "false", LAS_ENABLE_MISSION_TEST_FIXTURE: "true" },
+    env: { ...process.env, OTEL_SDK_DISABLED: "true", AGENT_WORKSPACE_DIR: workspace, LAS_BOOTSTRAP_API_KEY: credential, LAS_JWT_SECRET: jwtSecret, LAS_BOOTSTRAP_TENANT_ID: "p1-e2e-tenant", LAS_BOOTSTRAP_SUBJECT: "p1-e2e-actor", LAS_BOOTSTRAP_ROLE: "tenant", LAS_ENABLE_REDIS_SWARM: "false", LAS_ENABLE_AUDIT_CONSENSUS: "false", LAS_ENABLE_STRIPE: "false", LAS_ENABLE_MISSION_TEST_FIXTURE: enableFixture ? "true" : "false" },
   });
 }
 
@@ -66,9 +66,10 @@ const apiHeaders = { "x-api-key": credential };
 const fixtureTypes = { requirement: "command", scope: "scope", architecture: "architecture", tests: "test", security: "security", quality: "quality", ci: "ci", cost: "cost" };
 let viewerServer;
 let apiProcess;
+let disabledFixtureApiProcess;
 let browser;
 try {
-  apiProcess = startApi();
+  apiProcess = startApi(apiPort, true);
   const authenticatedCapabilities = await waitFor(`http://127.0.0.1:${apiPort}/v1/system/capabilities`, apiHeaders);
   assert(authenticatedCapabilities.ok, `system preflight failed: ${authenticatedCapabilities.status}`);
   viewerServer = await startViewer();
@@ -123,6 +124,23 @@ try {
     assert(response.ok, `${event} failed: ${response.status}`);
     current = (await response.json()).mission;
   }
+  const staleRevision = await fetch(`http://127.0.0.1:${apiPort}/v1/missions/${missionId}/transitions`, { method: "POST", headers: { ...apiHeaders, "content-type": "application/json" }, body: JSON.stringify({ event: "close", idempotency_key: `e2e-stale-${randomUUID()}`, expected_revision: Math.max(0, current.revision - 1) }) });
+  assert(staleRevision.status === 409, `stale revision did not return 409: ${staleRevision.status}`);
+  assert((await staleRevision.json()).code === "stale_revision", "stale revision returned the wrong error code");
+  const planApproval = current.approval_gates?.find((gate) => gate.gate_type === "plan");
+  assert(planApproval, "plan approval gate was not retained");
+  const immutableApproval = await fetch(`http://127.0.0.1:${apiPort}/v1/missions/${missionId}/approvals`, { method: "POST", headers: { ...apiHeaders, "content-type": "application/json" }, body: JSON.stringify({ gate_id: `conflicting-plan-${randomUUID()}`, gate_type: "plan", subject: planApproval.subject, status: "rejected", evidence_refs: [], idempotency_key: `e2e-immutable-${randomUUID()}`, expected_revision: current.revision }) });
+  assert(immutableApproval.status === 409, `immutable approval did not return 409: ${immutableApproval.status}`);
+  assert((await immutableApproval.json()).code === "immutable_decision_conflict", "immutable approval returned the wrong error code");
+  const missingEvidenceVerification = await fetch(`http://127.0.0.1:${apiPort}/v1/missions/${missionId}/verification-gates`, { method: "PUT", headers: { ...apiHeaders, "content-type": "application/json" }, body: JSON.stringify({ gate: { gate: current.required_verification[0], status: "passed", evidence_refs: [`missing-${randomUUID()}`] }, expected_revision: current.revision }) });
+  assert(missingEvidenceVerification.status === 422, `nonexistent verification ref was accepted: ${missingEvidenceVerification.status}`);
+  const disabledFixturePort = apiPort + 2;
+  disabledFixtureApiProcess = startApi(disabledFixturePort, false);
+  await waitFor(`http://127.0.0.1:${disabledFixturePort}/v1/system/capabilities`, apiHeaders);
+  const fixtureDisabled = await fetch(`http://127.0.0.1:${disabledFixturePort}/v1/missions/${missionId}/test-fixture/evidence`, { method: "POST", headers: { ...apiHeaders, "content-type": "application/json" }, body: JSON.stringify({ evidence: { evidence_id: `disabled-${randomUUID()}`, evidence_type: "command", source: "test_fixture", operation: "disabled fixture probe", started_at: new Date().toISOString(), finished_at: new Date().toISOString(), producing_agent: "p1-e2e-actor", verification_status: "pending" }, expected_revision: current.revision }) });
+  assert(fixtureDisabled.status === 404, `disabled fixture endpoint returned ${fixtureDisabled.status}`);
+  disabledFixtureApiProcess.kill();
+  disabledFixtureApiProcess = undefined;
   await page.goto(`http://127.0.0.1:${viewerPort}/#/system`, { waitUntil: "networkidle" });
   await page.getByLabel("Browser session credential").fill(credential);
   await page.getByRole("button", { name: "Check session" }).click();
@@ -132,7 +150,9 @@ try {
   await page.goto(`http://127.0.0.1:${viewerPort}/#/review/${missionId}`, { waitUntil: "networkidle" });
   await page.getByText("Evidence-backed review").waitFor();
   await page.getByRole("heading", { name: "Evidence records" }).waitFor();
-  assert((await page.locator("body").textContent()).includes("All linked evidence records are present and passed."), "Review did not expose linked passed evidence");
+  const reviewText = await page.locator("body").textContent();
+  assert(reviewText.includes("All linked evidence records are present, passed, and type-compatible."), "Review did not expose linked passed evidence");
+  assert(reviewText.includes("Evidence ID:") && reviewText.includes("Started:") && reviewText.includes("Bounded output summary:"), "Review did not expose complete gate-level evidence metadata");
   await page.goto(`http://127.0.0.1:${viewerPort}/#/system`, { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Clear session" }).click();
   await page.reload({ waitUntil: "networkidle" });
@@ -146,10 +166,11 @@ try {
   const fixtureEnabled = await fetch(`http://127.0.0.1:${apiPort}/v1/missions/${missionId}/test-fixture/evidence`, { method: "POST", headers: { ...apiHeaders, "content-type": "application/json" }, body: JSON.stringify({ evidence: { evidence_id: `enabled-${randomUUID()}`, evidence_type: "command", source: "test_fixture", operation: "enabled fixture probe", started_at: new Date().toISOString(), finished_at: new Date().toISOString(), producing_agent: "p1-e2e-actor", verification_status: "pending" }, expected_revision: current.revision }) });
   assert(fixtureEnabled.status === 200, `enabled fixture was not available in the E2E process: ${fixtureEnabled.status}`);
   await context.close();
-  console.log(JSON.stringify({ authenticatedGoldenPath: "passed", unauthorized: 401, ownershipIsolation: 404, fixtureProvenance: "test_fixture", browserCredentialCleared: true, tauri: "unavailable" }));
+  console.log(JSON.stringify({ authenticatedGoldenPath: "passed", unauthorized: 401, ownershipIsolation: 404, staleRevision: 409, immutableApproval: 409, nonexistentVerificationRef: 422, fixtureDisabled: 404, fixtureProvenance: "test_fixture", reviewMetadata: "complete", browserCredentialCleared: true, tauri: "unavailable" }));
 } finally {
   if (browser) await browser.close();
   if (viewerServer) await new Promise((resolveClose) => viewerServer.close(resolveClose));
+  if (disabledFixtureApiProcess && !disabledFixtureApiProcess.killed) disabledFixtureApiProcess.kill();
   if (apiProcess && !apiProcess.killed) apiProcess.kill();
   rmSync(workspace, { recursive: true, force: true });
 }

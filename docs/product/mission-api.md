@@ -20,16 +20,21 @@ production bundle.
 ## First-run flow
 
 1. Open `System Check`, enter the browser session credential, and run the read-only capability check.
-2. Continue only when authentication, storage, and schema compatibility pass.
+2. Continue only when authentication, storage, and the backend/Viewer schema versions match.
 3. Define a requirement, repository reference, relative scope, permissions, and
    budget in `New mission`.
 4. Start planning, attach the deterministic P1 plan, submit it, and approve its
    canonical SHA-256 subject.
 5. Record explicitly supplied bounded evidence and link it to verification gates, then enter `Review`.
 
-The plan approval and evidence linkage are P1 control-plane seams. Evidence is
-not fabricated by the production Viewer; a passed gate must reference valid
-passed evidence records. A disabled test-only fixture can provide bounded
+The plan approval and evidence linkage are P1 control-plane seams. While a
+Mission is `running`, the production Viewer requires an explicit gate, evidence
+type, source, operation, verification status, bounded output summary, and
+optional artifact reference or exit status. It POSTs one evidence record to
+`/v1/missions/{id}/evidence`, then PUTs one verification gate with that record's
+ID. It does not fabricate evidence, auto-pass all gates, begin, or complete a
+Mission. A passed gate must reference valid passed evidence records with a
+compatible evidence type. A disabled test-only fixture can provide bounded
 `test_fixture` provenance for automated E2E coverage and is unavailable by
 default.
 

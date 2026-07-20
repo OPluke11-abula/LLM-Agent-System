@@ -27,7 +27,10 @@ npm.cmd --prefix viewer run tauri -- dev
 ```
 
 `AGENT_WORKSPACE_DIR` can point to another workspace directory. The web build
-works without Tauri; native-only features use browser-safe fallbacks.
+works without Tauri. The P1 Mission journey is browser-only; native Tauri
+Mission authentication is unavailable and cannot enter that authenticated
+journey. Other native-only viewer surfaces retain their existing browser-safe
+fallbacks.
 
 ## Build and verify
 
@@ -74,7 +77,10 @@ npm.cmd --prefix viewer run test:e2e:missions
 
 The P1 Viewer exposes no Agent execution, repository mutation, Git push, Draft
 PR creation, or merge control. Those unavailable features are labeled in the
-Mission and Review surfaces.
+Mission and Review surfaces. Running Mission evidence is entered explicitly in
+the production form and linked to one required verification gate at a time;
+the deterministic `test_fixture` route is disabled by default and reserved for
+focused E2E setup.
 
 ## Runtime integration
 
