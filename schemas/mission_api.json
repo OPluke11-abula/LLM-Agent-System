@@ -3964,10 +3964,6 @@
           "title": "Repository Inspection",
           "type": "string"
         },
-        "schema_compatible": {
-          "title": "Schema Compatible",
-          "type": "boolean"
-        },
         "workspace_root_available": {
           "title": "Workspace Root Available",
           "type": "boolean"
@@ -3979,7 +3975,6 @@
         "workspace_root_available",
         "mission_store_available",
         "contract_schema_version",
-        "schema_compatible",
         "provider_configuration",
         "git_integration",
         "github_integration",

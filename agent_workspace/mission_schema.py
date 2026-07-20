@@ -22,7 +22,7 @@ from agent_workspace.core.mission_api_contracts import (
     VerificationRecordRequest,
 )
 from agent_workspace.core.product_contracts import SCHEMA_VERSION
-from agent_workspace.core.mission_contracts import ExecutionPlan
+from agent_workspace.core.mission_contracts import EVIDENCE_TYPE_COMPATIBILITY, ExecutionPlan
 from agent_workspace.core.mission_model import Mission
 from agent_workspace.core.mission_store import MissionPage, MissionTransitionPage
 
@@ -128,6 +128,11 @@ def render_typescript_contracts(schema_text: str) -> str:
             lines.extend([f"export type {name} = {_typescript_type(definition)};", ""])
     for name in sorted(bundle["models"]):
         lines.extend([f"export type {name} = {_typescript_type(bundle['models'][name])};", ""])
+    lines.append("export const EVIDENCE_TYPE_COMPATIBILITY = {")
+    for gate, evidence_types in sorted(EVIDENCE_TYPE_COMPATIBILITY.items(), key=lambda item: item[0].value):
+        values = ", ".join(f"EvidenceType.{evidence_type.name}" for evidence_type in sorted(evidence_types, key=lambda item: item.value))
+        lines.append(f"  {gate.value}: [{values}] as const,")
+    lines.extend(["} as const;", ""])
     return "\n".join(lines)
 
 

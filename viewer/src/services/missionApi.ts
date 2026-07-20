@@ -13,7 +13,7 @@ import type {
   PlanAttachRequest,
   VerificationRecordRequest,
 } from "../generated/missionContracts";
-import { MissionEvent, MissionState, MISSION_API_SCHEMA_VERSION } from "../generated/missionContracts";
+import { MissionEvent, MissionState } from "../generated/missionContracts";
 import { missionAuth, type MissionAuthProvider } from "./missionAuth";
 
 type Fetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
@@ -103,7 +103,7 @@ function isCapabilities(value: unknown): value is MissionCapabilitiesResponse {
 }
 
 function isSystemCapabilities(value: unknown): value is MissionSystemCapabilities {
-  return isRecord(value) && value.api_reachable === true && typeof value.authentication_valid === "boolean" && typeof value.workspace_root_available === "boolean" && typeof value.mission_store_available === "boolean" && isString(value.contract_schema_version) && typeof value.schema_compatible === "boolean" && value.schema_compatible === (value.contract_schema_version === MISSION_API_SCHEMA_VERSION) && ["configured", "not_configured", "unavailable"].includes(String(value.provider_configuration)) && value.git_integration === "not_implemented" && value.github_integration === "not_implemented" && value.repository_inspection === "not_implemented" && value.agent_execution === "not_implemented" && value.draft_pr_delivery === "not_implemented";
+  return isRecord(value) && value.api_reachable === true && typeof value.authentication_valid === "boolean" && typeof value.workspace_root_available === "boolean" && typeof value.mission_store_available === "boolean" && isString(value.contract_schema_version) && ["configured", "not_configured", "unavailable"].includes(String(value.provider_configuration)) && value.git_integration === "not_implemented" && value.github_integration === "not_implemented" && value.repository_inspection === "not_implemented" && value.agent_execution === "not_implemented" && value.draft_pr_delivery === "not_implemented";
 }
 
 function errorCode(value: string): MissionErrorCode {
@@ -156,8 +156,8 @@ export class MissionApiClient {
     return body;
   }
 
-  async checkSystem(): Promise<MissionSystemCapabilities> {
-    return this.request("/v1/system/capabilities", isSystemCapabilities);
+  async checkSystem(signal?: AbortSignal): Promise<MissionSystemCapabilities> {
+    return this.request("/v1/system/capabilities", isSystemCapabilities, { signal });
   }
 
   create(payload: MissionCreateRequest, signal?: AbortSignal): Promise<Mission> { return this.request("/v1/missions", isMission, { method: "POST", body: JSON.stringify(payload), signal }); }

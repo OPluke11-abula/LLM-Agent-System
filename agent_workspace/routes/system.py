@@ -56,7 +56,6 @@ def get_system_capabilities(actor: MissionActor = Depends(require_mission_actor)
         workspace_root_available=workspace_root.is_dir(),
         mission_store_available=store_available,
         contract_schema_version=SCHEMA_VERSION,
-        schema_compatible=True,
         provider_configuration=_provider_configuration(),
         git_integration="not_implemented",
         github_integration="not_implemented",

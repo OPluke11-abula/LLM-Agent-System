@@ -144,7 +144,6 @@ class MissionSystemCapabilities(ContractModel):
     workspace_root_available: bool
     mission_store_available: bool
     contract_schema_version: str
-    schema_compatible: bool
     provider_configuration: Literal["configured", "not_configured", "unavailable"]
     git_integration: Literal["not_implemented"]
     github_integration: Literal["not_implemented"]

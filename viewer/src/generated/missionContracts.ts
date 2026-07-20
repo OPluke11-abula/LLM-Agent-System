@@ -383,7 +383,6 @@ export type MissionSystemCapabilities = {
   readonly mission_store_available: boolean;
   readonly provider_configuration: "configured" | "not_configured" | "unavailable";
   readonly repository_inspection: "not_implemented";
-  readonly schema_compatible: boolean;
   readonly workspace_root_available: boolean;
 };
 
@@ -416,3 +415,14 @@ export type VerificationRecordRequest = {
   readonly expected_revision: number;
   readonly gate: VerificationGate;
 };
+
+export const EVIDENCE_TYPE_COMPATIBILITY = {
+  architecture: [EvidenceType.ARCHITECTURE, EvidenceType.COMMAND, EvidenceType.REVIEW] as const,
+  ci: [EvidenceType.CI] as const,
+  cost: [EvidenceType.COST, EvidenceType.PROVIDER_CALL] as const,
+  quality: [EvidenceType.COMMAND, EvidenceType.QUALITY, EvidenceType.TEST] as const,
+  requirement: [EvidenceType.COMMAND, EvidenceType.REVIEW, EvidenceType.TEST] as const,
+  scope: [EvidenceType.COMMAND, EvidenceType.REVIEW, EvidenceType.SCOPE] as const,
+  security: [EvidenceType.COMMAND, EvidenceType.SECURITY] as const,
+  tests: [EvidenceType.COMMAND, EvidenceType.TEST] as const,
+} as const;

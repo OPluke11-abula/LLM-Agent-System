@@ -397,7 +397,8 @@ def test_mission_api_system_capabilities_reports_safe_readiness(client) -> None:
     assert body["api_reachable"] is True
     assert body["authentication_valid"] is True
     assert body["mission_store_available"] is True
-    assert body["schema_compatible"] is True
+    assert body["contract_schema_version"] == "1.0"
+    assert "schema_compatible" not in body
     assert body["agent_execution"] == "not_implemented"
     assert body["draft_pr_delivery"] == "not_implemented"
     assert "api_key" not in str(body).lower()
