@@ -56,13 +56,13 @@ def auth_headers_for(key: str) -> dict[str, str]:
     return {"x-api-key": key}
 
 
-def evidence_payload(evidence_id: str) -> dict[str, object]:
+def evidence_payload(evidence_id: str, *, source: str = "pytest") -> dict[str, object]:
     timestamp = datetime(2026, 1, 1, tzinfo=timezone.utc).isoformat()
     return {
         "evidence": {
             "evidence_id": evidence_id,
             "evidence_type": "test",
-            "source": "pytest",
+            "source": source,
             "operation": "python -m pytest",
             "started_at": timestamp,
             "finished_at": timestamp,
@@ -92,6 +92,69 @@ def test_mission_test_fixture_is_disabled_by_default(client, monkeypatch) -> Non
     )
 
     assert response.status_code == 404
+
+
+def test_mission_production_evidence_rejects_reserved_fixture_provenance(client) -> None:
+    test_client, store = client
+    store.create(
+        Mission(
+            mission_id="mission-api-production-provenance",
+            requirement="Reject reserved provenance.",
+            repository_id="repo-1",
+            execution_policy=MissionPolicy(),
+            actor_id="actor-1",
+        )
+    )
+
+    response = test_client.post(
+        "/v1/missions/mission-api-production-provenance/evidence",
+        headers=auth_headers(),
+        json=evidence_payload("reserved-production", source="test_fixture"),
+    )
+
+    assert response.status_code == 422
+    assert response.json()["code"] == "invalid_contract"
+    assert store.get("mission-api-production-provenance", owner_id="actor-1").revision == 0
+
+
+def test_mission_fixture_provenance_boundary_is_owner_scoped(client, monkeypatch) -> None:
+    test_client, store = client
+    monkeypatch.setenv("LAS_ENABLE_MISSION_TEST_FIXTURE", "true")
+    store.create(
+        Mission(
+            mission_id="mission-api-fixture-provenance",
+            requirement="Check fixture provenance.",
+            repository_id="repo-1",
+            execution_policy=MissionPolicy(),
+            actor_id="actor-1",
+        )
+    )
+
+    wrong_source = test_client.post(
+        "/v1/missions/mission-api-fixture-provenance/test-fixture/evidence",
+        headers=auth_headers(),
+        json=evidence_payload("fixture-wrong", source="pytest"),
+    )
+    valid = test_client.post(
+        "/v1/missions/mission-api-fixture-provenance/test-fixture/evidence",
+        headers=auth_headers(),
+        json=evidence_payload("fixture-valid", source="test_fixture"),
+    )
+    API_KEYS["mission-other-key"] = {"tenant": "tenant-1", "sub": "other-actor", "role": "tenant"}
+    try:
+        cross_owner = test_client.post(
+            "/v1/missions/mission-api-fixture-provenance/test-fixture/evidence",
+            headers=auth_headers_for("mission-other-key"),
+            json=evidence_payload("fixture-cross-owner", source="test_fixture"),
+        )
+    finally:
+        API_KEYS.pop("mission-other-key", None)
+
+    assert wrong_source.status_code == 422
+    assert wrong_source.json()["code"] == "invalid_contract"
+    assert valid.status_code == 200
+    assert valid.json()["evidence_records"][-1]["source"] == "test_fixture"
+    assert cross_owner.status_code == 404
 
 
 def test_create_get_and_list_missions(client) -> None:

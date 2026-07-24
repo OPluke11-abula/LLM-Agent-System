@@ -51,6 +51,25 @@ const fixtureMission = {
   transition_audit: [],
   usage_summary: { provider_calls: 0, retries: 0, healing_calls: 0, input_tokens: 0, output_tokens: 0, currency: "USD", accounting_revision: 0 },
 };
+const fixtureMissionNaEvidence = {
+  ...fixtureMission,
+  mission_id: "ui-fixture-na-explanatory",
+  current_state: "review_ready",
+  verification_gates: [{ gate: "requirement", status: "not_applicable", evidence_refs: ["na-explanation"] }],
+  evidence_records: [{ evidence_id: "na-explanation", evidence_type: "security", source: "manual-review", operation: "documented non-applicability", started_at: "2026-01-01T00:00:00Z", finished_at: "2026-01-01T00:00:00Z", bounded_output_summary: "Requirement is outside this mission's bounded scope.", producing_agent: "reviewer", verification_status: "pending" }],
+};
+const fixtureMissionIncompatiblePassed = {
+  ...fixtureMission,
+  mission_id: "ui-fixture-incompatible-passed",
+  current_state: "review_ready",
+  verification_gates: [{ gate: "requirement", status: "passed", evidence_refs: ["incompatible-passed"] }],
+  evidence_records: [{ evidence_id: "incompatible-passed", evidence_type: "security", source: "manual-review", operation: "incompatible passed evidence", started_at: "2026-01-01T00:00:00Z", finished_at: "2026-01-01T00:00:00Z", exit_status: 0, bounded_output_summary: "Passed evidence with the wrong type.", producing_agent: "reviewer", verification_status: "passed" }],
+};
+const fixtureMissions = new Map([
+  [fixtureMission.mission_id, fixtureMission],
+  [fixtureMissionNaEvidence.mission_id, fixtureMissionNaEvidence],
+  [fixtureMissionIncompatiblePassed.mission_id, fixtureMissionIncompatiblePassed],
+]);
 const fixtureCapabilities = {
   mission_id: fixtureMission.mission_id,
   revision: 0,
@@ -60,6 +79,7 @@ const fixtureCapabilities = {
   verification_incomplete: false,
   draft_pr_permission_disabled: false,
 };
+let productionEvidenceRequests = 0;
 const fixtureSystemCapabilities = {
   api_reachable: true,
   authentication_valid: true,
@@ -77,11 +97,18 @@ const missionFixtureServer = createServer((request, response) => {
   const headers = { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "content-type,x-api-key", "Access-Control-Allow-Methods": "GET,OPTIONS" };
   if (request.method === "OPTIONS") { response.writeHead(204, headers); response.end(); return; }
   const pathname = new URL(request.url || "/", `http://127.0.0.1:${missionFixturePort}`).pathname;
+  if (request.method === "POST" || request.method === "PUT") {
+    if (pathname.endsWith("/evidence") || pathname.endsWith("/verification-gates")) productionEvidenceRequests += 1;
+    response.writeHead(500, headers);
+    response.end(JSON.stringify({ code: "unexpected_network_request" }));
+    return;
+  }
+  const missionId = pathname.match(/^\/v1\/missions\/([^/]+)/)?.[1];
   const body = pathname === "/v1/system/capabilities" ? fixtureSystemCapabilities
-    : pathname === "/v1/missions/ui-fixture-running" ? fixtureMission
-      : pathname === "/v1/missions/ui-fixture-running/capabilities" ? fixtureCapabilities
-        : pathname === "/v1/missions/ui-fixture-running/transitions" ? { items: [], limit: 50, offset: 0, next_offset: null }
-          : pathname === "/v1/missions" ? { items: [fixtureMission], limit: 50, offset: 0, next_offset: null }
+    : pathname === "/v1/missions" ? { items: [...fixtureMissions.values()], limit: 50, offset: 0, next_offset: null }
+      : missionId && fixtureMissions.has(missionId) && pathname.endsWith("/capabilities") ? fixtureCapabilities
+        : missionId && fixtureMissions.has(missionId) && pathname.endsWith("/transitions") ? { items: [], limit: 50, offset: 0, next_offset: null }
+          : missionId ? fixtureMissions.get(missionId)
             : undefined;
   if (body === undefined) { response.writeHead(404, headers); response.end(JSON.stringify({ code: "mission_not_found", message: "Mission does not exist" })); return; }
   response.writeHead(200, headers);
@@ -125,10 +152,28 @@ try {
   const submitEvidence = fixturePage.getByRole("button", { name: "Record bounded evidence", exact: true });
   if (await submitEvidence.count() !== 1 || !(await submitEvidence.isVisible())) throw new Error("production evidence submission control is not accessible");
   if (await submitEvidence.evaluate((element) => element instanceof HTMLElement && element.tabIndex < 0)) throw new Error("production evidence submission control is not keyboard accessible");
+  await fixturePage.getByLabel("Source").fill("test_fixture");
+  await fixturePage.getByLabel("Operation").fill("reserved provenance validation");
+  await fixturePage.getByLabel("Bounded output summary").fill("The production form must reject fixture provenance.");
+  await submitEvidence.click();
+  await fixturePage.getByText("test_fixture provenance is reserved for the test-fixture endpoint.", { exact: true }).waitFor();
+  if (productionEvidenceRequests !== 0) throw new Error("reserved fixture provenance issued a production network request");
+  console.log("production-form-provenance blocked");
   await fixturePage.goto(`http://127.0.0.1:${port}/#/review/${fixtureMission.mission_id}`, { waitUntil: "networkidle" });
   await fixturePage.getByText("Evidence-backed review").waitFor();
   if (await fixturePage.getByText("not applicable", { exact: true }).count() === 0) throw new Error("Review did not display not applicable distinctly");
   if ((await fixturePage.locator("body").innerText()).includes("Residual uncertainty")) throw new Error("not applicable gate appeared unresolved in Review");
+  await fixturePage.goto(`http://127.0.0.1:${port}/#/review/${fixtureMissionNaEvidence.mission_id}`, { waitUntil: "networkidle" });
+  await fixturePage.getByText("Evidence-backed review").waitFor();
+  await fixturePage.getByText("na-explanation", { exact: true }).click();
+  const explanatoryText = await fixturePage.locator("body").innerText();
+  if (!explanatoryText.includes("manual-review") || explanatoryText.includes("Evidence type is incompatible with this gate") || explanatoryText.includes("Residual uncertainty")) throw new Error("N/A explanatory evidence was rendered with an incorrect warning or unresolved state");
+  await fixturePage.goto(`http://127.0.0.1:${port}/#/review/${fixtureMissionIncompatiblePassed.mission_id}`, { waitUntil: "networkidle" });
+  await fixturePage.getByText("Evidence-backed review").waitFor();
+  await fixturePage.getByText("requirement", { exact: true }).click();
+  const incompatibleText = await fixturePage.locator("body").innerText();
+  if (!incompatibleText.includes("Evidence type is incompatible with this gate") || !incompatibleText.includes("Residual uncertainty")) throw new Error("incompatible PASSED evidence was not rendered as unresolved");
+  console.log("review-na-semantics passed");
   console.log("production-form-boundary passed");
   await fixtureContext.close();
 

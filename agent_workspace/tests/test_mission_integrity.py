@@ -145,6 +145,73 @@ def test_verification_rejects_fake_pending_and_incompatible_evidence() -> None:
             )
         )
 
+    with pytest.raises(ValueError):
+        VerificationGate(
+            gate=VerificationGateName.TESTS,
+            status=GateStatus.PASSED,
+            evidence_refs=(),
+        )
+
+
+def test_verification_retry_replaces_refs_and_preserves_evidence_history() -> None:
+    failed = make_evidence("evidence-failed", status=GateStatus.FAILED)
+    passed = make_evidence("evidence-passed", status=GateStatus.PASSED)
+    mission = make_mission(plan=make_plan()).model_copy(
+        update={"required_verification": (VerificationGateName.TESTS,)}
+    )
+    mission = mission.add_evidence_record(failed).add_evidence_record(passed)
+
+    failed_gate = mission.record_verification_gate(
+        VerificationGate(
+            gate=VerificationGateName.TESTS,
+            status=GateStatus.FAILED,
+            evidence_refs=(failed.evidence_id,),
+        )
+    )
+    retried = failed_gate.record_verification_gate(
+        VerificationGate(
+            gate=VerificationGateName.TESTS,
+            status=GateStatus.PASSED,
+            evidence_refs=(passed.evidence_id,),
+        )
+    )
+
+    current_gate = retried.verification_gates[0]
+    assert current_gate.status is GateStatus.PASSED
+    assert current_gate.evidence_refs == (passed.evidence_id,)
+    assert {record.evidence_id for record in retried.evidence_records} == {
+        failed.evidence_id,
+        passed.evidence_id,
+    }
+    assert retried.verification_complete() is True
+
+
+def test_pending_verification_retry_replaces_refs_with_passed_evidence() -> None:
+    pending = make_evidence("evidence-pending", status=GateStatus.PENDING)
+    passed = make_evidence("evidence-passed", status=GateStatus.PASSED)
+    mission = make_mission(plan=make_plan()).model_copy(
+        update={"required_verification": (VerificationGateName.TESTS,)}
+    )
+    mission = mission.add_evidence_record(pending).add_evidence_record(passed)
+
+    pending_gate = mission.record_verification_gate(
+        VerificationGate(
+            gate=VerificationGateName.TESTS,
+            status=GateStatus.PENDING,
+            evidence_refs=(pending.evidence_id,),
+        )
+    )
+    retried = pending_gate.record_verification_gate(
+        VerificationGate(
+            gate=VerificationGateName.TESTS,
+            status=GateStatus.PASSED,
+            evidence_refs=(passed.evidence_id,),
+        )
+    )
+
+    assert retried.verification_gates[0].evidence_refs == (passed.evidence_id,)
+    assert retried.verification_complete() is True
+
 
 def test_final_approval_decision_cannot_be_replaced() -> None:
     plan = make_plan()

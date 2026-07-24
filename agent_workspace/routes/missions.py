@@ -288,13 +288,22 @@ def record_approval(
         return _store_error(error)
 
 
-@router.post("/{mission_id}/evidence", response_model=Mission)
-def record_evidence(
+def _record_evidence(
     mission_id: str,
     payload: EvidenceRecordRequest,
     actor: MissionActor = Depends(require_mission_actor),
     store: MissionStore = Depends(get_mission_store),
+    *,
+    allow_test_fixture: bool,
 ) -> Mission | JSONResponse:
+    if payload.evidence.source == "test_fixture" and not allow_test_fixture:
+        return JSONResponse(
+            status_code=422,
+            content={
+                "code": "invalid_contract",
+                "message": "test_fixture provenance is reserved for the test-fixture endpoint",
+            },
+        )
     mission_result = _owned_mission(store, mission_id, actor)
     if isinstance(mission_result, JSONResponse):
         return mission_result
@@ -309,6 +318,16 @@ def record_evidence(
         return _store_error(error)
 
 
+@router.post("/{mission_id}/evidence", response_model=Mission)
+def record_evidence(
+    mission_id: str,
+    payload: EvidenceRecordRequest,
+    actor: MissionActor = Depends(require_mission_actor),
+    store: MissionStore = Depends(get_mission_store),
+) -> Mission | JSONResponse:
+    return _record_evidence(mission_id, payload, actor, store, allow_test_fixture=False)
+
+
 @router.post("/{mission_id}/test-fixture/evidence", response_model=Mission)
 def record_test_fixture_evidence(
     mission_id: str,
@@ -320,7 +339,7 @@ def record_test_fixture_evidence(
         return JSONResponse(status_code=404, content={"code": "mission_not_found", "message": "Mission does not exist"})
     if payload.evidence.source != "test_fixture":
         return JSONResponse(status_code=422, content={"code": "invalid_contract", "message": "Test fixture evidence must use test_fixture provenance"})
-    return record_evidence(mission_id, payload, actor, store)
+    return _record_evidence(mission_id, payload, actor, store, allow_test_fixture=True)
 
 
 @router.put("/{mission_id}/verification-gates", response_model=Mission)

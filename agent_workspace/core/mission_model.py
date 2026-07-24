@@ -333,12 +333,6 @@ class Mission(ContractModel):
         )
 
     def record_verification_gate(self, gate: VerificationGate) -> Mission:
-        existing = next((item for item in self.verification_gates if item.gate == gate.gate), None)
-        if existing is not None:
-            refs = tuple(dict.fromkeys(existing.evidence_refs + gate.evidence_refs))
-            gate = VerificationGate.model_validate(
-                {**gate.model_dump(mode="python"), "evidence_refs": refs}
-            )
         gates = tuple(item for item in self.verification_gates if item.gate != gate.gate) + (gate,)
         return Mission.model_validate(
             {**self.model_dump(mode="python"), "verification_gates": gates}

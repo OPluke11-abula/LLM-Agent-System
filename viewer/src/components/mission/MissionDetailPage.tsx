@@ -83,6 +83,10 @@ export function MissionDetailPage() {
     const source = evidenceSource.trim();
     const operation = evidenceOperation.trim();
     const summary = evidenceSummary.trim();
+    if (source === "test_fixture") {
+      setError("test_fixture provenance is reserved for the test-fixture endpoint.");
+      return;
+    }
     if (!gate || !source || !operation || !summary) {
       setError("Gate, evidence type, source, operation, verification status, and bounded output summary are required.");
       return;
