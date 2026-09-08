@@ -1,5 +1,11 @@
 # LAS Agent Knowledge Log
 
+## 2026-09-08
+
+- `notebooklm-preparation`: added a reviewed source manifest for a future manual NotebookLM import. No source was uploaded and no external account or service was changed.
+- `generated-pack-index-exclusion`: excluded generated preflight context packs from the metadata inventory so task artifacts cannot outrank durable project notes.
+- Connected the repository-local knowledge base to Codex through `AGENTS.md` and to Antigravity through `.agents/rules/knowledge-base.md`. The preflight generated a validated, metadata-only context pack for `agent knowledge base startup context`; application code and external services were not changed.
+
 ## 2026-07-12
 
 - release-0.1.1-wrap-up-and-hygiene: verified the completed local queue and

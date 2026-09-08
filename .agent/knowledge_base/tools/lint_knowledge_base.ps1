@@ -139,7 +139,8 @@ foreach ($file in $markdownFiles) {
     if ($slashRelative -ne 'index.md' -and $slashRelative -ne 'log.md') {
         $topDir = ($slashRelative -split '/')[0]
         $slashWithoutExt = $slashRelative -replace '\.md$', ''
-        if ($indexedDirs -contains $topDir -and $indexText -and -not ($indexedPathSet.Contains($slashRelative) -or $indexedPathSet.Contains($slashWithoutExt))) {
+        $isGeneratedPreflightPack = $slashRelative -match '^handoffs/agent-start-preflight-latest-.+\.md$'
+        if ($indexedDirs -contains $topDir -and -not $isGeneratedPreflightPack -and $indexText -and -not ($indexedPathSet.Contains($slashRelative) -or $indexedPathSet.Contains($slashWithoutExt))) {
             Add-Finding $findings 'Medium' 'orphan-note' $slashRelative 'Task-facing note is not linked from index.md.'
         }
     }

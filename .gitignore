@@ -285,6 +285,15 @@ viewer/src-tauri/gen/
 .windsurf/
 .aider*
 
+# Shared coding-agent entry points. Keep all other local tool state ignored.
+!AGENTS.md
+!.agents/
+!.agents/rules/
+!.agents/rules/knowledge-base.md
+
+# Generated per-task context packs are local runtime artifacts, not durable wiki notes.
+.agent/knowledge_base/handoffs/agent-start-preflight-latest-*.md
+
 # Local editors and operating-system metadata
 .idea/
 .vscode/
