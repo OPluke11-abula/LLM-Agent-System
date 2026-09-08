@@ -23,15 +23,31 @@ class WorkflowLintResult:
     checkpoint_count: int
 
 
+@dataclass(frozen=True)
+class DeclarativeWorkflowLintResult:
+    workflow_id: str
+    workflow_name: str
+    step_count: int
+
+
 def lint_workflow(
     root: str | Path,
     workflow_path: str | Path,
     checkpoint_paths: Iterable[str | Path] | None = None,
+    declarative: bool = False,
 ) -> WorkflowLintResult:
     """Validate a workflow manifest and optional checkpoint records without executing stages."""
 
     root_path = Path(root).resolve()
     manifest_path = _resolve_existing_file(root_path, workflow_path, "workflow")
+    if declarative or manifest_path.suffix == ".md":
+        decl = lint_declarative_workflow(root_path, manifest_path)
+        return WorkflowLintResult(
+            workflow_id=decl.workflow_id,
+            stage_count=decl.step_count,
+            checkpoint_count=0,
+        )
+
     manifest = _read_yaml_mapping(manifest_path)
     _validate_schema(root_path, "workflow-stage.schema.json", manifest)
 
@@ -52,6 +68,65 @@ def lint_workflow(
         stage_count=len(stages),
         checkpoint_count=checkpoint_count,
     )
+
+
+def lint_declarative_workflow(
+    root: str | Path,
+    workflow_path: str | Path,
+) -> DeclarativeWorkflowLintResult:
+    """Validate a declarative markdown workflow (.agent/workflows/*.md) against workflow.schema.json."""
+
+    root_path = Path(root).resolve()
+    manifest_path = _resolve_existing_file(root_path, workflow_path, "declarative workflow")
+    manifest = _read_yaml_frontmatter(manifest_path)
+    _validate_schema(root_path, "workflow.schema.json", manifest)
+
+    steps = manifest.get("steps", [])
+    _validate_declarative_steps(steps)
+
+    workflow_id = str(manifest.get("id") or manifest.get("name", "declarative-workflow"))
+    workflow_name = str(manifest.get("name", workflow_id))
+    return DeclarativeWorkflowLintResult(
+        workflow_id=workflow_id,
+        workflow_name=workflow_name,
+        step_count=len(steps),
+    )
+
+
+def _read_yaml_frontmatter(path: Path) -> dict[str, Any]:
+    text = path.read_text(encoding="utf-8")
+    if text.startswith("---"):
+        parts = text.split("---", 2)
+        content = parts[1] if len(parts) >= 3 else text
+    else:
+        content = text
+    try:
+        data = yaml.safe_load(content)
+    except Exception as error:
+        raise WorkflowLintError(f"{path} could not be parsed as YAML frontmatter: {error}") from error
+    if not isinstance(data, dict):
+        raise WorkflowLintError(f"{path} frontmatter must be a YAML mapping")
+    return data
+
+
+def _validate_declarative_steps(steps: list[dict[str, Any]]) -> set[str]:
+    step_ids: set[str] = set()
+    for step in steps:
+        step_id = step.get("id") or step.get("step_id")
+        if not step_id:
+            raise WorkflowLintError("each step must have an 'id' or 'step_id'")
+        if step_id in step_ids:
+            raise WorkflowLintError(f"duplicate step id: {step_id}")
+        step_ids.add(step_id)
+
+    for step in steps:
+        for dep in step.get("depends_on", []):
+            if dep not in step_ids:
+                raise WorkflowLintError(f"step {step.get('id') or step.get('step_id')} has unknown dependency: {dep}")
+        next_step = step.get("next_step")
+        if next_step and next_step not in step_ids:
+            raise WorkflowLintError(f"step {step.get('id') or step.get('step_id')} has unknown next_step: {next_step}")
+    return step_ids
 
 
 def _read_yaml_mapping(path: Path) -> dict[str, Any]:
@@ -175,13 +250,26 @@ def _build_parser() -> argparse.ArgumentParser:
         default=[],
         help="Optional checkpoint YAML path. May be passed multiple times.",
     )
+    parser.add_argument(
+        "--declarative",
+        action="store_true",
+        help="Validate a declarative markdown workflow (.agent/workflows/*.md) against workflow.schema.json.",
+    )
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
+    is_decl = args.declarative or str(args.workflow).endswith(".md")
     try:
+        if is_decl:
+            decl_result = lint_declarative_workflow(args.root, args.workflow)
+            print(
+                f"Declarative workflow valid: {decl_result.workflow_id} "
+                f"('{decl_result.workflow_name}', {decl_result.step_count} step(s))"
+            )
+            return 0
         result = lint_workflow(args.root, args.workflow, args.checkpoint)
     except WorkflowLintError as error:
         parser.exit(1, f"Workflow lint failed: {error}\n")

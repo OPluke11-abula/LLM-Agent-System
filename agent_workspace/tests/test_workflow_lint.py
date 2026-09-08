@@ -3,7 +3,11 @@ from pathlib import Path
 import pytest
 import yaml
 
-from agent_workspace.workflow_lint import WorkflowLintError, lint_workflow
+from agent_workspace.workflow_lint import (
+    WorkflowLintError,
+    lint_workflow,
+    lint_declarative_workflow,
+)
 
 
 def _write_yaml(path: Path, data: dict) -> Path:
@@ -120,3 +124,81 @@ def test_lint_workflow_accepts_valid_checkpoint(tmp_path):
     result = lint_workflow(tmp_path, manifest, [checkpoint])
 
     assert result.checkpoint_count == 1
+
+
+def test_lint_declarative_workflow_markdown(tmp_path):
+    (tmp_path / "spec").mkdir(parents=True, exist_ok=True)
+    # Copy spec/workflow.schema.json
+    spec_source = Path("spec/workflow.schema.json").read_text(encoding="utf-8")
+    (tmp_path / "spec" / "workflow.schema.json").write_text(spec_source, encoding="utf-8")
+
+    md_path = tmp_path / "workflow.md"
+    md_path.write_text(
+        "---\n"
+        "id: test_wf\n"
+        "name: Test Markdown Workflow\n"
+        "description: Testing declarative workflow\n"
+        "version: 1.0.0\n"
+        "steps:\n"
+        "  - step_id: s1\n"
+        "    skill_id: my_tool\n"
+        "    params:\n"
+        "      key: val\n"
+        "    next_step: null\n"
+        "---\n"
+        "# Content\n",
+        encoding="utf-8",
+    )
+
+    result = lint_declarative_workflow(tmp_path, md_path)
+    assert result.workflow_id == "test_wf"
+    assert result.workflow_name == "Test Markdown Workflow"
+    assert result.step_count == 1
+
+    # Also test via lint_workflow with .md extension
+    poly_result = lint_workflow(tmp_path, md_path)
+    assert poly_result.workflow_id == "test_wf"
+    assert poly_result.stage_count == 1
+
+
+def test_lint_declarative_workflow_rejects_duplicate_step(tmp_path):
+    (tmp_path / "spec").mkdir(parents=True, exist_ok=True)
+    spec_source = Path("spec/workflow.schema.json").read_text(encoding="utf-8")
+    (tmp_path / "spec" / "workflow.schema.json").write_text(spec_source, encoding="utf-8")
+
+    md_path = tmp_path / "workflow_dup.md"
+    md_path.write_text(
+        "---\n"
+        "name: Dup Workflow\n"
+        "steps:\n"
+        "  - id: step1\n"
+        "    tool: tool_a\n"
+        "  - id: step1\n"
+        "    tool: tool_b\n"
+        "---\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(WorkflowLintError, match="duplicate step id"):
+        lint_declarative_workflow(tmp_path, md_path)
+
+
+def test_lint_declarative_workflow_rejects_unknown_dependency(tmp_path):
+    (tmp_path / "spec").mkdir(parents=True, exist_ok=True)
+    spec_source = Path("spec/workflow.schema.json").read_text(encoding="utf-8")
+    (tmp_path / "spec" / "workflow.schema.json").write_text(spec_source, encoding="utf-8")
+
+    md_path = tmp_path / "workflow_dep.md"
+    md_path.write_text(
+        "---\n"
+        "name: Dep Workflow\n"
+        "steps:\n"
+        "  - id: step1\n"
+        "    tool: tool_a\n"
+        "    depends_on: ['nonexistent']\n"
+        "---\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(WorkflowLintError, match="unknown dependency"):
+        lint_declarative_workflow(tmp_path, md_path)

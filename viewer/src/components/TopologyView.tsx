@@ -347,8 +347,8 @@ function ConductorTracePanel({
                   </p>
                 )}
                 <div className="max-h-20 space-y-1 overflow-y-auto pr-1">
-                  {codeGraphRefs.slice(0, 3).map((ref, index) => (
-                    <div key={`${ref.path}-${ref.symbol ?? index}`} className="flex items-center justify-between gap-2">
+                  {codeGraphRefs.slice(0, 3).map((ref) => (
+                    <div key={`ref-${ref.path}-${ref.ref_type ?? "ref"}-${ref.symbol ?? "sym"}`} className="flex items-center justify-between gap-2">
                       <span className="shrink-0 font-bold uppercase tracking-[0.14em] t3">
                         {ref.ref_type || "ref"}
                       </span>
@@ -507,6 +507,22 @@ function SessionCanvas({ state, onOpenNode }: SessionCanvasProps) {
   );
 }
 
+const DEFAULT_SUBSCRIBED_CHANNELS = ["logs", "telemetry", "ledger", "topology", "stdout", "state_sync"];
+
+function generateSparklinePath(data: number[], width: number, height: number) {
+  if (data.length < 2) return "";
+  const max = Math.max(...data, 0.5);
+  const min = Math.min(...data, 0);
+  const range = max - min || 1;
+  return data
+    .map((val, index) => {
+      const x = (index / (data.length - 1)) * width;
+      const y = height - ((val - min) / range) * height;
+      return `${index === 0 ? "M" : "L"} ${x} ${y}`;
+    })
+    .join(" ");
+}
+
 function useTopologyController({ sessions, lastUpdatedSessionId, activityEntries, onClearActivityLog, lang }: TopologyViewProps) {
   const copy = COPY[lang];
   const [visibleSessionIds, setVisibleSessionIds] = useState<string[]>([]);
@@ -524,23 +540,9 @@ function useTopologyController({ sessions, lastUpdatedSessionId, activityEntries
   const [activityStream, setActivityStream] = useState<any[]>([]);
   const [routerStatus, setRouterStatus] = useState<{ routes: any[]; pruned_history: any[] } | null>(null);
   const [pruning, setPruning] = useState(false);
-  const subscribedChannels = ["logs", "telemetry", "ledger", "topology", "stdout", "state_sync"];
+  const subscribedChannels = DEFAULT_SUBSCRIBED_CHANNELS;
 
   const activeSessionId = visibleSessionIds[0] || (sessions[0]?.session_id);
-
-  const generateSparklinePath = (data: number[], width: number, height: number) => {
-    if (data.length < 2) return "";
-    const max = Math.max(...data, 0.5);
-    const min = Math.min(...data, 0);
-    const range = max - min || 1;
-    return data
-      .map((val, index) => {
-        const x = (index / (data.length - 1)) * width;
-        const y = height - ((val - min) / range) * height;
-        return `${index === 0 ? "M" : "L"} ${x} ${y}`;
-      })
-      .join(" ");
-  };
 
   useEffect(() => {
     if (!activeSessionId) return;
@@ -722,81 +724,61 @@ function useTopologyController({ sessions, lastUpdatedSessionId, activityEntries
 
   useEffect(() => {
     if (!activeSessionId) return;
-    let ws: WebSocket | null = null;
-    let cancelled = false;
 
-    const connectCollab = () => {
-      if (cancelled) return;
+    const ws = new WebSocket(`ws://localhost:8000/v1/collaboration/${activeSessionId}`);
+
+    ws.onopen = () => {
+      setCollabConnected(true);
+      // Subscribe to channels
+      const channels = ["logs", "telemetry", "ledger", "topology", "stdout", "state_sync"];
+      channels.forEach(ch => {
+        ws.send(JSON.stringify({
+          action: "subscribe",
+          channel: ch
+        }));
+      });
+    };
+
+    ws.onmessage = (event) => {
       try {
-        ws = new WebSocket(`ws://localhost:8000/v1/collaboration/${activeSessionId}`);
-        
-        ws.onopen = () => {
-          if (cancelled) {
-            ws?.close();
-            return;
+        const data = JSON.parse(event.data);
+        // Append incoming event to the scrolling stream
+        setActivityStream(prev => {
+          const next = [...prev, data];
+          if (next.length > 25) {
+            next.shift(); // Limit to 25 items
           }
-          setCollabConnected(true);
-          // Subscribe to channels
-          const channels = ["logs", "telemetry", "ledger", "topology", "stdout", "state_sync"];
-          channels.forEach(ch => {
-            ws?.send(JSON.stringify({
-              action: "subscribe",
-              channel: ch
-            }));
-          });
-        };
+          return next;
+        });
 
-        ws.onmessage = (event) => {
-          if (cancelled) return;
-          try {
-            const data = JSON.parse(event.data);
-            // Append incoming event to the scrolling stream
-            setActivityStream(prev => {
-              const next = [...prev, data];
-              if (next.length > 25) {
-                next.shift(); // Limit to 25 items
-              }
-              return next;
-            });
-
-            // Optimistic update of component states on message arrival
-            if (data.channel === "telemetry" && data.payload) {
-              setTelemetryData({ metrics: [data.payload] });
-            } else if (data.channel === "ledger" && data.payload) {
-              setLedgerData(prev => prev ? {
-                ...prev,
-                total_cost: data.payload.total_cost || prev.total_cost,
-                transactions: data.payload.transactions || prev.transactions
-              } : null);
-            }
-          } catch (e) {
-            logUiDiagnostic("Failed to parse websocket message", e);
-          }
-        };
-
-        ws.onclose = () => {
-          setCollabConnected(false);
-          // Reconnect logic
-          setTimeout(connectCollab, 3000);
-        };
-
-        ws.onerror = () => {
-          ws?.close();
-        };
+        // Optimistic update of component states on message arrival
+        if (data.channel === "telemetry" && data.payload) {
+          setTelemetryData({ metrics: [data.payload] });
+        } else if (data.channel === "ledger" && data.payload) {
+          setLedgerData(prev => prev ? {
+            ...prev,
+            total_cost: data.payload.total_cost || prev.total_cost,
+            transactions: data.payload.transactions || prev.transactions
+          } : null);
+        }
       } catch (e) {
-        logUiDiagnostic("WebSocket collab connection failed", e);
+        logUiDiagnostic("Failed to parse websocket message", e);
       }
     };
 
-    connectCollab();
+    ws.onclose = () => {
+      setCollabConnected(false);
+    };
+
+    ws.onerror = () => {
+      setCollabConnected(false);
+      ws.close();
+    };
 
     return () => {
-      cancelled = true;
-      if (ws) {
-        ws.close();
-      }
+      ws.close();
     };
-  }, [activeSessionId, sessions]);
+  }, [activeSessionId]);
 
   const handleHandoff = async () => {
     if (!activeSessionId) return;
@@ -901,7 +883,8 @@ function useTopologyController({ sessions, lastUpdatedSessionId, activityEntries
     });
   }, [lastUpdatedSessionId, sessions]);
 
-  const visibleSessions = sessions.filter((session) => visibleSessionIds.includes(session.session_id)).slice(0, 2);
+  const visibleSessionSet = useMemo(() => new Set(visibleSessionIds), [visibleSessionIds]);
+  const visibleSessions = sessions.filter((session) => visibleSessionSet.has(session.session_id)).slice(0, 2);
   const activeSession = visibleSessions[0] || sessions.find((session) => session.session_id === activeSessionId);
   const conductorTrace = useMemo(() => latestConductorTrace(activeSession), [activeSession]);
   const aggregate = sessions.reduce(
@@ -1154,8 +1137,8 @@ function CostLedgerControl({ controller }: { readonly controller: TopologyContro
         </span>
         <div className="max-h-20 overflow-y-auto space-y-1 pr-1 font-mono text-[9px]">
           {ledgerData && ledgerData.transactions.length > 0 ? (
-            ledgerData.transactions.slice().reverse().map((tx: any, idx: number) => (
-              <div key={idx} className="flex items-center justify-between transition-colors t3 hover:t2">
+            ledgerData.transactions.slice().reverse().map((tx: any) => (
+              <div key={`tx-${tx.id ?? `${tx.timestamp}-${tx.cost}-${tx.model}`}`} className="flex items-center justify-between transition-colors t3 hover:t2">
                 <span className="truncate max-w-[80px]" title={tx.model}>{tx.model.replace("gemini-2.5-", "")}</span>
                 <span className="text-[8px] t3">{new Date(tx.timestamp).toLocaleTimeString()}</span>
                 <span className="font-bold" style={{ color: "var(--success)" }}>${tx.cost.toFixed(5)}</span>
@@ -1290,13 +1273,13 @@ function RouterControl({ controller }: { readonly controller: TopologyController
           </span>
           <div className="max-h-20 space-y-1.5 overflow-y-auto font-mono text-[8px] scrollbar-thin">
             {routerStatus?.pruned_history?.length ? (
-              routerStatus.pruned_history.slice().reverse().map((path: any, idx: number) => (
-                <div key={idx} className="flex flex-col rounded border p-1 t3" style={{ background: "var(--danger-bg)", borderColor: "color-mix(in srgb, var(--danger) 28%, transparent)" }}>
+              routerStatus.pruned_history.slice().reverse().map((path: any) => (
+                <div key={`prune-${path.id ?? `${path.node_id}-${path.pruned_at}`}`} className="flex flex-col rounded border p-1 t3" style={{ background: "var(--danger-bg)", borderColor: "color-mix(in srgb, var(--danger) 28%, transparent)" }}>
                   <div className="flex items-center justify-between text-[7px] font-bold">
                     <span style={{ color: "var(--danger)" }}>{path.node_id}</span>
                     <span className="t3">{new Date(path.pruned_at).toLocaleTimeString()}</span>
                   </div>
-                  <span className="mt-0.5 break-all text-[7.5px] leading-relaxed t2">{path.reason}</span>
+                  <span className="truncate t3">{path.reason || "pruned"}</span>
                 </div>
               ))
             ) : (
@@ -1385,7 +1368,7 @@ function ActivityStreamControl({ controller }: { readonly controller: TopologyCo
 
       <div className="max-h-24 space-y-1.5 overflow-y-auto pr-1 font-mono text-[9px] t3">
         {activityStream.length > 0 ? (
-          activityStream.slice().reverse().map((activity: any, idx: number) => {
+          activityStream.slice().reverse().map((activity: any) => {
             const channelLabel = activity.channel || "logs";
             const timestamp = activity.timestamp ? new Date(activity.timestamp).toLocaleTimeString() : "";
             const payload = activity.payload || {};
@@ -1406,7 +1389,7 @@ function ActivityStreamControl({ controller }: { readonly controller: TopologyCo
             }
 
             return (
-              <div key={idx} className="flex flex-col border-b pb-1 last:border-b-0" style={{ borderColor: "var(--border-c)" }}>
+              <div key={`act-${activity.id ?? `${channelLabel}-${timestamp}-${displayMsg}`}`} className="flex flex-col border-b pb-1 last:border-b-0" style={{ borderColor: "var(--border-c)" }}>
                 <div className="mb-0.5 flex justify-between text-[7px] font-bold t3">
                   <span style={{ color: "var(--accent)" }}>#{channelLabel}</span>
                   <span>{timestamp}</span>
@@ -1417,14 +1400,14 @@ function ActivityStreamControl({ controller }: { readonly controller: TopologyCo
           })
         ) : (
           <div className="py-4 text-center text-[8px] t3">
-            {lang === "zh" ? "等待實時廣播活動中..." : "Awaiting collaboration streams..."}
+            {lang === "zh" ? "等待協同廣播動態..." : "Awaiting collaboration streams..."}
           </div>
         )}
       </div>
 
       <Tooltip>
         {lang === "zh"
-          ? "活動流：呈現當前 Session 發送至多通道之最新 logs、stdout 與 delta 狀態變化"
+          ? "活動流：即時呈現多頻道 logs、stdout 與狀態同步增量"
           : "Activity stream: chronological live feed of multi-channel logs, stdout, and delta states"}
       </Tooltip>
     </Surface>
@@ -1433,13 +1416,14 @@ function ActivityStreamControl({ controller }: { readonly controller: TopologyCo
 
 function SessionPicker({ controller }: { readonly controller: TopologyController }) {
   const { copy, lang, sessions, toggleSession, visibleSessionIds } = controller;
+  const visibleSet = useMemo(() => new Set(visibleSessionIds), [visibleSessionIds]);
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto p-3">
       <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] t3">{copy.sessions}</p>
       <div className="space-y-2">
         {sessions.map((session) => {
-          const isVisible = visibleSessionIds.includes(session.session_id);
+          const isVisible = visibleSet.has(session.session_id);
           const summary = summarizeTopology(session);
 
           return (
@@ -1447,7 +1431,7 @@ function SessionPicker({ controller }: { readonly controller: TopologyController
               key={session.session_id}
               type="button"
               onClick={() => toggleSession(session.session_id)}
-              className="w-full rounded-lg border p-3 text-left transition-all"
+              className="w-full rounded-lg border p-3 text-left transition-colors"
               style={
                 isVisible
                   ? { background: "var(--accent-bg)", borderColor: "var(--accent)" }

@@ -24,7 +24,7 @@ export function SettingsAiGuidePanel({ t }: SettingsAiGuidePanelProps) {
         </Surface>
         <div className="grid gap-3">
           {t.aiGuideSteps.map((step, index) => (
-            <Surface key={`${step.title}-${index}`} className="p-4">
+            <Surface key={`guide-step-${step.title}`} className="p-4">
               <div className="mb-2 flex items-start justify-between gap-3">
                 <p
                   className="text-sm font-bold t1"
@@ -55,7 +55,7 @@ export function SettingsAiGuidePanel({ t }: SettingsAiGuidePanelProps) {
         <p className="mb-4 text-xs t3">{t.aiTipsDesc}</p>
         <div className="space-y-2">
           {t.tips.map((tip, index) => (
-            <Surface key={`${tip.title}-${index}`} className="overflow-hidden">
+            <Surface key={`guide-tip-${tip.title}`} className="overflow-hidden">
               <button
                 type="button"
                 onClick={() => setOpenTip(openTip === index ? null : index)}

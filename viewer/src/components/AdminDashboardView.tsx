@@ -9,7 +9,8 @@ import {
   type Node,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { Button, ProgressBar, StatusBadge, Surface, toneForStatus } from "./ui/primitives";
+import { Button, ProgressBar, StatusBadge, Surface, toneForStatus, cx } from "./ui/primitives";
+import { RefreshCw, Play, Pause, Terminal, AlertTriangle, ShieldCheck } from "./ui/icons";
 import {
   ReplayPlaybackWidget,
   SwarmGovernanceConsole,
@@ -393,11 +394,13 @@ function useAdminDashboardController({ t, lang }: AdminDashboardViewProps) {
       const statusResp = await fetch("http://localhost:8000/v1/audit/status", {
         headers: adminAuthHeaders(),
       });
+      if (!statusResp.ok) throw new Error(`Audit status failed with status ${statusResp.status}`);
       const statusData = await statusResp.json();
       
       const logsResp = await fetch("http://localhost:8000/v1/audit/logs", {
         headers: adminAuthHeaders(),
       });
+      if (!logsResp.ok) throw new Error(`Audit logs failed with status ${logsResp.status}`);
       const logsData = await logsResp.json();
 
       if (statusData.status === "success" && logsData.status === "success") {
@@ -423,6 +426,7 @@ function useAdminDashboardController({ t, lang }: AdminDashboardViewProps) {
         headers: adminJsonHeaders(),
         body: JSON.stringify({ tenant_id: tenantId })
       });
+      if (!resp.ok) throw new Error(`Key rotation failed with status ${resp.status}`);
       const data = await resp.json();
       if (data.status === "success") {
         setRotatedKeyInfo(prev => ({ ...prev, [tenantId]: data.api_key }));
@@ -441,6 +445,7 @@ function useAdminDashboardController({ t, lang }: AdminDashboardViewProps) {
         headers: adminJsonHeaders(),
         body: JSON.stringify({ tenant_id: tenantId, status })
       });
+      if (!resp.ok) throw new Error(`Update subscription failed with status ${resp.status}`);
       const data = await resp.json();
       if (data.status === "success") {
         void fetchTenants();
@@ -457,6 +462,7 @@ function useAdminDashboardController({ t, lang }: AdminDashboardViewProps) {
         method: "POST",
         headers: adminAuthHeaders(),
       });
+      if (!resp.ok) throw new Error(`Pause swarm failed with status ${resp.status}`);
       const data = await resp.json();
       if (data.status === "success") {
         setSwarmStatus("paused");
@@ -472,6 +478,7 @@ function useAdminDashboardController({ t, lang }: AdminDashboardViewProps) {
         method: "POST",
         headers: adminAuthHeaders(),
       });
+      if (!resp.ok) throw new Error(`Resume swarm failed with status ${resp.status}`);
       const data = await resp.json();
       if (data.status === "success") {
         setSwarmStatus("running");
@@ -489,6 +496,7 @@ function useAdminDashboardController({ t, lang }: AdminDashboardViewProps) {
         headers: adminJsonHeaders(),
         body: JSON.stringify({ hijack_value: hijackText })
       });
+      if (!resp.ok) throw new Error(`Hijack failed with status ${resp.status}`);
       const data = await resp.json();
       if (data.status === "success") {
         setTimedActionStatus(copy.hijackSuccess);
@@ -714,7 +722,7 @@ function useAdminDashboardController({ t, lang }: AdminDashboardViewProps) {
 
     setLedgerNodes(nodes);
     setLedgerEdges(edges);
-  }, [auditBlocks, auditStatus, copy.blockLabel, copy.hashLabel]);
+  }, [auditBlocks, auditStatus, copy.blockLabel, copy.hashLabel, setLedgerEdges, setLedgerNodes]);
 
   const simulateTamper = () => {
     setAuditStatus({
@@ -803,7 +811,7 @@ function AdminDashboardHeader({
 }: {
   readonly controller: AdminDashboardController;
 }) {
-  const { actionStatus, copy, fetchLedger, fetchTenants, setLoadingTenants, t } = controller;
+  const { actionStatus, copy, fetchLedger, fetchTenants, loadingTenants, setLoadingTenants, t } = controller;
 
   return (
     <div className="flex justify-between items-center border-b pb-3" style={{ borderColor: "var(--border-c)" }}>
@@ -820,9 +828,10 @@ function AdminDashboardHeader({
             void fetchLedger();
           }}
           variant="quiet"
-          className="px-3 py-1.5"
+          className="px-3 py-1.5 flex items-center gap-1.5"
         >
-          {copy.refresh}
+          <RefreshCw className={cx("h-3.5 w-3.5", loadingTenants && "animate-spin")} />
+          <span>{copy.refresh}</span>
         </Button>
       </div>
     </div>
@@ -1021,22 +1030,25 @@ function LiveInterceptorSection({
         <Button
           onClick={handlePauseSwarm}
           variant={swarmStatus === "paused" ? "warning" : "quiet"}
-          className="flex-1"
+          className="flex-1 flex items-center justify-center gap-1.5"
         >
-          {t.pauseSwarm}
+          <Pause className="h-3.5 w-3.5" />
+          <span>{t.pauseSwarm}</span>
         </Button>
         <Button
           onClick={handleResumeSwarm}
           variant={swarmStatus === "running" ? "primary" : "quiet"}
-          className="flex-1"
+          className="flex-1 flex items-center justify-center gap-1.5"
         >
-          {t.resumeSwarm}
+          <Play className="h-3.5 w-3.5" />
+          <span>{t.resumeSwarm}</span>
         </Button>
         <Button
           onClick={() => setShowHijackInput(!showHijackInput)}
-          className="flex-1"
+          className="flex-1 flex items-center justify-center gap-1.5"
         >
-          {t.hijackInput}
+          <Terminal className="h-3.5 w-3.5" />
+          <span>{t.hijackInput}</span>
         </Button>
       </div>
 
@@ -1133,16 +1145,18 @@ function AuditLedgerSection({
         <Button
           onClick={fetchLedger}
           disabled={checkingLedger}
-          className="flex-1"
+          className="flex-1 flex items-center justify-center gap-1.5"
         >
-          {checkingLedger ? copy.verifying : copy.verifyChain}
+          <ShieldCheck className="h-3.5 w-3.5" />
+          <span>{checkingLedger ? copy.verifying : copy.verifyChain}</span>
         </Button>
         <Button
           onClick={simulateTamper}
           variant="danger"
-          className="flex-1"
+          className="flex-1 flex items-center justify-center gap-1.5"
         >
-          {copy.simulateTamper}
+          <AlertTriangle className="h-3.5 w-3.5" />
+          <span>{copy.simulateTamper}</span>
         </Button>
       </div>
     </Surface>

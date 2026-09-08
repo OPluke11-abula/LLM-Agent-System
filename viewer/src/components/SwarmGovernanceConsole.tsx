@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PromptCalibrationDashboard } from "./PromptCalibrationDashboard";
 import { Button, MetricTile, ProgressBar, StatusBadge, Surface, toneForStatus } from "./ui/primitives";
 import { adminApiUrl, adminJsonHeaders, adminWsUrl } from "../services/adminRuntimeAuth";
@@ -542,8 +542,10 @@ function mapTelemetry(raw: unknown) {
   const apiCostValue = telemetry.usd_cost ?? telemetry.api_cost_usd ?? telemetry.apiCostUsd;
   const creditsValue = telemetry.credits_remaining ?? telemetry.creditsRemaining ?? telemetry.remaining_credits;
   const activeRoles = readArray(record.active_roles ?? telemetry.active_roles ?? record.activeRoles ?? telemetry.activeRoles, ["roles"])
-    .map(role => String(role))
-    .filter(Boolean);
+    .flatMap(role => {
+      const s = String(role);
+      return s ? [s] : [];
+    });
   return {
     sessionId: asString(record.session_id ?? telemetry.session_id, "global-session"),
     timestamp: asString(telemetry.timestamp ?? record.timestamp, new Date().toISOString()),
@@ -577,10 +579,11 @@ function deriveTelemetryNodes(current: SwarmNode[], raw: unknown) {
   const source = current.length > 0
     ? current
     : roles.map((role, index) => ({ id: `${role.toLowerCase()}-${index + 1}`, role, status: "active", taskLoad: 0 }));
+  const roleSet = new Set(roles);
   return source.map((node, index) => ({
     ...node,
-    role: roles.includes(node.role) ? node.role : node.role,
-    status: roles.length === 0 || roles.includes(node.role) ? "active" : node.status,
+    role: node.role,
+    status: roleSet.size === 0 || roleSet.has(node.role) ? "active" : node.status,
     taskLoad: Math.max(node.taskLoad, Math.round(telemetry.cpuPercent)),
     cpuPercent: telemetry.cpuPercent,
     memoryMb: telemetry.memoryMb,
@@ -648,13 +651,18 @@ function mapMTLSStatus(raw: unknown): MTLSTunnelStatus {
 
 function mapRevokedCertificates(raw: unknown): RevokedCertificate[] {
   const items = readArray(raw, ["revoked_certificates", "revokedCertificates", "certificates", "data"]);
-  return items.map(item => {
+  const result: RevokedCertificate[] = [];
+  for (const item of items) {
     const record = asRecord(item);
-    return {
-      certSha: asString(record.cert_sha ?? record.client_cert_sha ?? record.sha ?? item, String(item)),
-      revokedAt: asString(record.revoked_at ?? record.revokedAt ?? record.timestamp, "") || null,
-    };
-  }).filter(item => item.certSha.length > 0);
+    const certSha = asString(record.cert_sha ?? record.client_cert_sha ?? record.sha ?? item, String(item));
+    if (certSha.length > 0) {
+      result.push({
+        certSha,
+        revokedAt: asString(record.revoked_at ?? record.revokedAt ?? record.timestamp, "") || null,
+      });
+    }
+  }
+  return result;
 }
 
 function secondsUntil(status: MTLSTunnelStatus, nowMs: number) {
@@ -682,14 +690,16 @@ function truncateFingerprint(value: string) {
   return value.length > 18 ? `${value.slice(0, 12)}...${value.slice(-6)}` : value;
 }
 
+const revokedDateFormatter = new Intl.DateTimeFormat(undefined, {
+  dateStyle: "medium",
+  timeStyle: "medium",
+});
+
 function formatRevokedAt(value: string | null) {
   if (!value) return "not reported";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: "medium",
-    timeStyle: "medium",
-  }).format(date);
+  return revokedDateFormatter.format(date);
 }
 
 function deriveGatewayAlerts(peers: PeerNode[]) {
@@ -1182,7 +1192,7 @@ export function MTLSTunnelingStatusPanel({
             return (
               <div
                 key={certificate.certSha}
-                className="grid grid-cols-1 gap-2 border-b px-3 py-2 text-[10px] transition-all duration-200 last:border-b-0 hover:grayscale hover:brightness-110 md:grid-cols-[1fr_1fr_auto]"
+                className="grid grid-cols-1 gap-2 border-b px-3 py-2 text-[10px] transition-colors duration-200 last:border-b-0 hover:grayscale hover:brightness-110 md:grid-cols-[1fr_1fr_auto]"
                 style={{ borderColor: "hsl(214 24% 24% / 0.9)", background: "hsl(220 18% 9% / 0.58)" }}
               >
                 <div className="min-w-0">
@@ -1200,7 +1210,7 @@ export function MTLSTunnelingStatusPanel({
                   onClick={() => onReinstateCertificate(certificate.certSha)}
                   disabled={loading}
                   variant={success ? "primary" : "warning"}
-                  className="justify-self-start px-3 py-1 text-[10px] transition-all duration-300 md:justify-self-end"
+                  className="justify-self-start px-3 py-1 text-[10px] transition-colors duration-300 md:justify-self-end"
                   style={{
                     borderColor: success ? "hsl(194 90% 58%)" : "hsl(38 78% 55% / 0.78)",
                     boxShadow: success ? "0 0 18px hsl(194 95% 56% / 0.52)" : "none",
@@ -1224,19 +1234,20 @@ function CreditProgressRing({
   credits,
   maxCredits = 2000,
 }: {
-  credits: number;
-  maxCredits?: number;
+  readonly credits: number;
+  readonly maxCredits?: number;
 }) {
   const percent = Math.max(0, Math.min(100, (credits / Math.max(1, maxCredits)) * 100));
   const radius = 35;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (percent / 100) * circumference;
   const gradientEnd = percent > 35 ? "hsl(154 55% 48%)" : "hsl(38 80% 56%)";
+
   return (
     <div className="relative grid place-items-center">
       <svg viewBox="0 0 92 92" className="h-24 w-24 -rotate-90">
         <defs>
-          <linearGradient id="credits-ring-gradient" x1="0" y1="0" x2="1" y2="1">
+          <linearGradient id="credits-ring-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="hsl(166 58% 45%)" />
             <stop offset="100%" stopColor={gradientEnd} />
           </linearGradient>
@@ -1252,7 +1263,7 @@ function CreditProgressRing({
           strokeWidth="8"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
-          className="transition-all duration-500"
+          className="transition-[stroke-dashoffset] duration-500"
         />
       </svg>
       <div className="absolute text-center">
@@ -1263,7 +1274,7 @@ function CreditProgressRing({
   );
 }
 
-function MeteredUsageSparkline({ points }: { points: number[] }) {
+function MeteredUsageSparkline({ points }: { readonly points: readonly number[] }) {
   const max = Math.max(...points, 0.001);
   return (
     <div className="flex h-20 items-end gap-1 overflow-hidden rounded-lg border px-2 py-2" style={{ borderColor: "hsl(214 24% 24% / 0.9)", background: "linear-gradient(180deg, hsl(216 18% 12% / 0.82), hsl(220 22% 8% / 0.72))" }}>
@@ -1271,15 +1282,13 @@ function MeteredUsageSparkline({ points }: { points: number[] }) {
         const height = Math.max(8, (point / max) * 64);
         return (
           <span
-            key={`${index}-${point}`}
-            className="w-full rounded-t-sm transition-all duration-300 ease-out"
+            key={`spark-${index}-${point}`}
+            className="w-full rounded-t-sm transition-[height] duration-300 ease-out"
             style={{
               height,
               background: "linear-gradient(180deg, hsl(190 72% 55%), hsl(156 50% 42%))",
               opacity: 0.36 + (index / Math.max(1, points.length - 1)) * 0.58,
-              transform: `translateX(${Math.max(0, points.length - 20) * -2}px)`,
             }}
-            title={`$${point.toFixed(4)}`}
           />
         );
       })}
@@ -1438,7 +1447,7 @@ export function CryptographicProofInspector({
                 <div className="flex flex-col gap-1">
                   {proof?.merkleProof.length
                     ? proof.merkleProof.map((step, index) => (
-                      <div key={`${step.hash}-${index}`} className="rounded border px-2 py-1 font-mono text-[10px] t2" style={{ borderColor: "var(--border-c)" }}>
+                      <div key={`proof-step-${step.position}-${step.hash}`} className="rounded border px-2 py-1 font-mono text-[10px] t2" style={{ borderColor: "var(--border-c)" }}>
                         <span className="font-semibold">{index + 1}. {step.position}</span> {step.hash}
                       </div>
                     ))
@@ -1462,14 +1471,18 @@ export function ReplayPlaybackWidget({
   lang,
   onReplayEvent,
 }: {
-  sessionId: string;
-  lang: Lang;
-  onReplayEvent: (event: SwarmReplayEvent) => void;
+  readonly sessionId: string;
+  readonly lang: Lang;
+  readonly onReplayEvent: (event: SwarmReplayEvent) => void;
 }) {
   const copy = GOVERNANCE_COPY[lang];
   const [events, setEvents] = useState<SwarmReplayEvent[]>(fallbackReplay);
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const indexRef = useRef(0);
+  useEffect(() => {
+    indexRef.current = index;
+  }, [index]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1479,9 +1492,13 @@ export function ReplayPlaybackWidget({
         const nextEvents = mapReplay(raw);
         setEvents(nextEvents.length > 0 ? nextEvents : fallbackReplay);
         setIndex(0);
+        indexRef.current = 0;
       })
       .catch(() => {
-        if (!cancelled) setEvents(fallbackReplay);
+        if (cancelled) return;
+        setEvents(fallbackReplay);
+        setIndex(0);
+        indexRef.current = 0;
       });
     return () => {
       cancelled = true;
@@ -1491,11 +1508,10 @@ export function ReplayPlaybackWidget({
   useEffect(() => {
     if (!playing || events.length === 0) return undefined;
     const timer = window.setInterval(() => {
-      setIndex(current => {
-        const next = current >= events.length - 1 ? 0 : current + 1;
-        onReplayEvent(events[next]);
-        return next;
-      });
+      const next = indexRef.current >= events.length - 1 ? 0 : indexRef.current + 1;
+      indexRef.current = next;
+      setIndex(next);
+      onReplayEvent(events[next]);
     }, 1400);
     return () => window.clearInterval(timer);
   }, [events, onReplayEvent, playing]);
@@ -1503,7 +1519,8 @@ export function ReplayPlaybackWidget({
   const current = events[index] ?? fallbackReplay[0];
 
   function stepForward() {
-    const next = index >= events.length - 1 ? 0 : index + 1;
+    const next = indexRef.current >= events.length - 1 ? 0 : indexRef.current + 1;
+    indexRef.current = next;
     setIndex(next);
     onReplayEvent(events[next]);
   }
@@ -1615,66 +1632,69 @@ function useSwarmGovernanceController({
 
   const loadGovernanceData = useCallback(async () => {
     setLoading(true);
-    const [nodeResult, healthResult, sessionResult, peerResult, billingResult, mtlsResult, revokedResult] = await Promise.allSettled([
-      fetchJson<unknown>(apiUrl("/v1/swarm/nodes")),
-      fetchJson<unknown>(apiUrl("/v1/swarm/health")),
-      fetchJson<unknown>(apiUrl("/v1/swarm/sessions")),
-      fetchJson<unknown>(apiUrl("/v1/swarm/peers")),
-      fetchJson<unknown>(apiUrl("/v1/swarm/billing/status")),
-      fetchJson<unknown>(apiUrl("/v1/cross-cloud/cert/status")),
-      fetchJson<unknown>(apiUrl("/v1/cross-cloud/revoked")),
-    ]);
+    try {
+      const [nodeResult, healthResult, sessionResult, peerResult, billingResult, mtlsResult, revokedResult] = await Promise.allSettled([
+        fetchJson<unknown>(apiUrl("/v1/swarm/nodes")),
+        fetchJson<unknown>(apiUrl("/v1/swarm/health")),
+        fetchJson<unknown>(apiUrl("/v1/swarm/sessions")),
+        fetchJson<unknown>(apiUrl("/v1/swarm/peers")),
+        fetchJson<unknown>(apiUrl("/v1/swarm/billing/status")),
+        fetchJson<unknown>(apiUrl("/v1/cross-cloud/cert/status")),
+        fetchJson<unknown>(apiUrl("/v1/cross-cloud/revoked")),
+      ]);
 
-    let usedFallback = false;
-    if (nodeResult.status === "fulfilled") {
-      const nextNodes = mapNodes(nodeResult.value);
-      setNodes(nextNodes.length > 0 ? nextNodes : fallbackNodes);
-    } else {
-      usedFallback = true;
-      setNodes(fallbackNodes);
+      let usedFallback = false;
+      if (nodeResult.status === "fulfilled") {
+        const nextNodes = mapNodes(nodeResult.value);
+        setNodes(nextNodes.length > 0 ? nextNodes : fallbackNodes);
+      } else {
+        usedFallback = true;
+        setNodes(fallbackNodes);
+      }
+      if (healthResult.status === "fulfilled") {
+        const nextLogs = mapHealth(healthResult.value);
+        setHealthLogs(nextLogs.length > 0 ? nextLogs : fallbackHealth);
+      } else {
+        usedFallback = true;
+        setHealthLogs(fallbackHealth);
+      }
+      if (sessionResult.status === "fulfilled") {
+        const nextSessions = mapSessions(sessionResult.value);
+        setSessions(nextSessions.length > 0 ? nextSessions : fallbackSessions);
+      } else {
+        usedFallback = true;
+        setSessions(fallbackSessions);
+      }
+      if (peerResult.status === "fulfilled") {
+        const nextPeers = mapPeers(peerResult.value);
+        setPeers(nextPeers.length > 0 ? nextPeers : fallbackPeers);
+      } else {
+        usedFallback = true;
+        setPeers(fallbackPeers);
+      }
+      if (billingResult.status === "fulfilled") {
+        setBilling(mapBilling(billingResult.value));
+      } else {
+        usedFallback = true;
+        setBilling(fallbackBilling);
+      }
+      if (mtlsResult.status === "fulfilled") {
+        setMTLSStatus(mapMTLSStatus(mtlsResult.value));
+      } else {
+        usedFallback = true;
+        setMTLSStatus(fallbackMTLSStatus);
+      }
+      if (revokedResult.status === "fulfilled") {
+        const nextRevoked = mapRevokedCertificates(revokedResult.value);
+        setRevokedCertificates(nextRevoked.length > 0 ? nextRevoked : []);
+      } else {
+        usedFallback = true;
+        setRevokedCertificates(fallbackRevokedCertificates);
+      }
+      onStatus(usedFallback ? copy.offline : copy.loaded, usedFallback ? "warning" : "success");
+    } finally {
+      setLoading(false);
     }
-    if (healthResult.status === "fulfilled") {
-      const nextLogs = mapHealth(healthResult.value);
-      setHealthLogs(nextLogs.length > 0 ? nextLogs : fallbackHealth);
-    } else {
-      usedFallback = true;
-      setHealthLogs(fallbackHealth);
-    }
-    if (sessionResult.status === "fulfilled") {
-      const nextSessions = mapSessions(sessionResult.value);
-      setSessions(nextSessions.length > 0 ? nextSessions : fallbackSessions);
-    } else {
-      usedFallback = true;
-      setSessions(fallbackSessions);
-    }
-    if (peerResult.status === "fulfilled") {
-      const nextPeers = mapPeers(peerResult.value);
-      setPeers(nextPeers.length > 0 ? nextPeers : fallbackPeers);
-    } else {
-      usedFallback = true;
-      setPeers(fallbackPeers);
-    }
-    if (billingResult.status === "fulfilled") {
-      setBilling(mapBilling(billingResult.value));
-    } else {
-      usedFallback = true;
-      setBilling(fallbackBilling);
-    }
-    if (mtlsResult.status === "fulfilled") {
-      setMTLSStatus(mapMTLSStatus(mtlsResult.value));
-    } else {
-      usedFallback = true;
-      setMTLSStatus(fallbackMTLSStatus);
-    }
-    if (revokedResult.status === "fulfilled") {
-      const nextRevoked = mapRevokedCertificates(revokedResult.value);
-      setRevokedCertificates(nextRevoked.length > 0 ? nextRevoked : []);
-    } else {
-      usedFallback = true;
-      setRevokedCertificates(fallbackRevokedCertificates);
-    }
-    setLoading(false);
-    onStatus(usedFallback ? copy.offline : copy.loaded, usedFallback ? "warning" : "success");
   }, [copy.loaded, copy.offline, onStatus]);
 
   useEffect(() => {

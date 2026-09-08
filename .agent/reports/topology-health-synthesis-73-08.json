@@ -1,0 +1,105 @@
+{
+  "task": "73-08",
+  "title": "Evidence Synthesis and Owner Decision Queue",
+  "generated_at": "2026-09-08T11:26:05.593736+00:00",
+  "scorecard": {
+    "baseline_date": "2026-09-02",
+    "baseline_overall_score": 82.0,
+    "audited_date": "2026-09-08",
+    "audited_overall_score": 90.6,
+    "domains": {
+      "Runtime / Core": {
+        "baseline": 86,
+        "current": 90,
+        "delta": 4
+      },
+      "Workflow / PAP": {
+        "baseline": 88,
+        "current": 92,
+        "delta": 4
+      },
+      "Mission API / Governance": {
+        "baseline": 84,
+        "current": 90,
+        "delta": 6
+      },
+      "Viewer / Task Topology": {
+        "baseline": 78,
+        "current": 86,
+        "delta": 8
+      },
+      "Supply Chain & Dependencies": {
+        "baseline": 80,
+        "current": 88,
+        "delta": 8
+      },
+      "CI / Release Evidence": {
+        "baseline": 90,
+        "current": 94,
+        "delta": 4
+      },
+      "Docs / Agent Memory": {
+        "baseline": 86,
+        "current": 94,
+        "delta": 8
+      }
+    }
+  },
+  "decision_queue": [
+    {
+      "priority": "P1",
+      "id": "ODQ-01",
+      "domain": "Supply Chain",
+      "title": "Remove Unused httpx2 Dependency",
+      "target": "requirements.txt",
+      "action": "Remove line httpx2>=2.4.0",
+      "rationale": "Zero consumers in codebase; httpx is the real dependency. Eliminates bloat and supply-chain ambiguity."
+    },
+    {
+      "priority": "P1",
+      "id": "ODQ-02",
+      "domain": "Security & Infrastructure",
+      "title": "Isolate Redis Port in Microservices Compose",
+      "target": "docker-compose.microservices.yml:L7-8",
+      "action": "Change 6379:6379 to 127.0.0.1:6379:6379 or remove host port publish entirely",
+      "rationale": "Prevents unauthenticated Redis access on external interfaces."
+    },
+    {
+      "priority": "P2",
+      "id": "ODQ-03",
+      "domain": "Security & API",
+      "title": "Enforce Non-Mock Webhook Secrets in Production Mode",
+      "target": "agent_workspace/routes/collaboration.py:L720-723",
+      "action": "Fail-closed if SLACK_SIGNING_SECRET or LINE_CHANNEL_SECRET is unset in non-development runtime",
+      "rationale": "Prevents forgery using known static mock secret strings."
+    },
+    {
+      "priority": "P2",
+      "id": "ODQ-04",
+      "domain": "Frontend & Infrastructure",
+      "title": "Harden Nginx Reverse Proxy Headers",
+      "target": "nginx.conf",
+      "action": "Add server_tokens off; and security headers (X-Frame-Options, X-Content-Type-Options)",
+      "rationale": "Prevents MIME sniffing, clickjacking, and server version banner disclosure."
+    },
+    {
+      "priority": "P3",
+      "id": "ODQ-05",
+      "domain": "PAP Specification",
+      "title": "Wire Passive spec/ Schemas to Runtime Linter",
+      "target": "spec/workflow.schema.json & agent_workspace/workflow_lint.py",
+      "action": "Add optional CLI flag to validate workflow.schema.json",
+      "rationale": "Closes the schema consumer alignment gap for PAP v0.2.0 compatibility."
+    }
+  ],
+  "subtasks_completed": [
+    "73-01: Inventory and Topology Map (.agent/reports/topology-inventory-73-01.json)",
+    "73-02: Runtime and Provider Boundary Review (.agent/reports/runtime-boundary-review-73-02.json)",
+    "73-03: API, Security, and Configuration Review (.agent/reports/api-security-review-73-03.json)",
+    "73-04: Viewer Architecture, Complexity, and Bundle Audit (.agent/reports/viewer-architecture-review-73-04.json)",
+    "73-05: Test, Fixture, and Verification Necessity Review (.agent/reports/test-verification-review-73-05.json)",
+    "73-06: Documentation, Spec, and Agent-Knowledge Review (.agent/reports/documentation-knowledge-review-73-06.json)",
+    "73-07: Dependency, Build, and Artifact Review (.agent/reports/dependency-build-review-73-07.json)",
+    "73-08: Evidence Synthesis and Owner Decision Queue (.agent/reports/topology-health-synthesis-73-08.json)"
+  ]
+}

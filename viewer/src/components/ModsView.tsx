@@ -1,6 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
 import { ALL_SKILLS, CAT_KEYS } from "../constants";
-import { MetricTile, StatusBadge, Surface } from "./ui/primitives";
+import { Card, CardContent, CardHeader, CardTitle, MetricTile, StatusBadge, Surface, Switch } from "./ui/primitives";
+import { Boxes, Cpu } from "./ui/icons";
 import type { Lang, TranslationMessages } from "../types";
 
 type ModsViewProps = {
@@ -32,7 +33,10 @@ export function ModsView({
     <Surface elevated className="h-full overflow-y-auto p-6">
       <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.18em] t3">{t.modsIntroLabel}</p>
+          <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--accent)]">
+            <Boxes className="h-3.5 w-3.5" />
+            <span>{t.modsIntroLabel}</span>
+          </p>
           <h2 className="mt-1 text-xl font-bold t1">{t.mods}</h2>
           <p className="mt-1 max-w-2xl text-xs leading-relaxed t3">{t.modsIntroBody}</p>
         </div>
@@ -52,79 +56,83 @@ export function ModsView({
         />
       </div>
 
-      <Surface className="mb-6 flex items-center justify-between gap-4 p-5">
-        <div>
-          <p className="text-sm font-bold t1">{t.agentsMdToggle}</p>
-          <p className="mt-0.5 text-xs t3">{t.agentsMdDesc}</p>
-        </div>
-        <button
-          type="button"
-          aria-label={t.agentsMdToggle}
-          onClick={() => setAgentsEnabled((current) => !current)}
-          className="relative h-6 w-12 flex-shrink-0 rounded-full transition-colors duration-300"
-          style={{
-            background: agentsEnabled ? "var(--accent)" : "var(--bg-card)",
-            border: "1px solid var(--border-c)",
-          }}
-        >
-          <span
-            className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform duration-300 ${
-              agentsEnabled ? "translate-x-6" : "translate-x-0"
-            }`}
+      <Card className="mb-6 p-4">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-bold t1">{t.agentsMdToggle}</p>
+            <p className="mt-0.5 text-xs t3">{t.agentsMdDesc}</p>
+          </div>
+          <Switch
+            aria-label={t.agentsMdToggle}
+            checked={agentsEnabled}
+            onCheckedChange={(checked) => setAgentsEnabled(checked)}
           />
-        </button>
-      </Surface>
+        </div>
+      </Card>
 
       <p className="mb-1 text-[10px] font-bold uppercase tracking-widest t3">{t.skillsTitle}</p>
       <p className="mb-5 text-xs t3">{t.skillsDesc}</p>
       <div className="grid gap-4 xl:grid-cols-2">
-        {CAT_KEYS.map((category) => (
-          <Surface key={category} className="p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <p className="text-[10px] font-bold uppercase tracking-widest t3">
-                {categoryLabels[category]}
-              </p>
-              <StatusBadge tone="neutral">
-                {ALL_SKILLS.filter((skill) => skill.cat === category && activeSkills[skill.id]).length}/
-                {ALL_SKILLS.filter((skill) => skill.cat === category).length}
-              </StatusBadge>
-            </div>
-            <div className="grid gap-2">
-              {ALL_SKILLS.filter((skill) => skill.cat === category).map((skill, index) => (
-                <label
-                  key={skill.id}
-                  className="group flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-3 transition-all"
-                  style={{
-                    background: activeSkills[skill.id] ? "var(--accent-bg)" : "var(--bg-panel)",
-                    borderColor: activeSkills[skill.id] ? "var(--accent)" : "var(--border-c)",
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 flex-shrink-0"
-                    style={{ accentColor: "var(--accent)" }}
-                    checked={Boolean(activeSkills[skill.id])}
-                    onChange={(event) =>
-                      setActiveSkills((current) => ({
-                        ...current,
-                        [skill.id]: event.target.checked,
-                      }))
-                    }
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-[9px] t3">
-                        {category.slice(0, 2).toUpperCase()}-{String(index + 1).padStart(2, "0")}
-                      </span>
-                      {activeSkills[skill.id] && <StatusBadge tone="success">{t.activeBadge}</StatusBadge>}
-                    </div>
-                    <span className="mt-1 block text-sm leading-snug t1">{lang === "zh" ? skill.zh : skill.en}</span>
+        {CAT_KEYS.map((category) => {
+          const categorySkills = ALL_SKILLS.filter((skill) => skill.cat === category);
+          const activeCount = categorySkills.filter((skill) => activeSkills[skill.id]).length;
+          return (
+            <Card key={category}>
+              <CardHeader className="p-4 pb-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Cpu className="h-4 w-4 text-[var(--accent)]" />
+                    <CardTitle className="text-xs uppercase tracking-widest t3">
+                      {categoryLabels[category]}
+                    </CardTitle>
                   </div>
-                </label>
-              ))}
-            </div>
-          </Surface>
-        ))}
+                  <StatusBadge tone="neutral">
+                    {activeCount}/{categorySkills.length}
+                  </StatusBadge>
+                </div>
+              </CardHeader>
+              <CardContent className="p-4 pt-2">
+                <div className="grid gap-2">
+                  {categorySkills.map((skill, index) => {
+                    const isActive = Boolean(activeSkills[skill.id]);
+                    return (
+                      <div
+                        key={skill.id}
+                        className="group flex items-center justify-between gap-3 rounded-lg border px-3.5 py-2.5 transition-colors"
+                        style={{
+                          background: isActive ? "var(--accent-bg)" : "var(--bg-panel)",
+                          borderColor: isActive ? "var(--accent)" : "var(--border-c)",
+                        }}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-[9px] t3">
+                              {category.slice(0, 2).toUpperCase()}-{String(index + 1).padStart(2, "0")}
+                            </span>
+                            {isActive && <StatusBadge tone="success">{t.activeBadge}</StatusBadge>}
+                          </div>
+                          <span className="mt-0.5 block text-xs font-medium leading-snug t1">
+                            {lang === "zh" ? skill.zh : skill.en}
+                          </span>
+                        </div>
+                        <Switch
+                          aria-label={lang === "zh" ? skill.zh : skill.en}
+                          checked={isActive}
+                          onCheckedChange={(checked) =>
+                            setActiveSkills((current) => ({
+                              ...current,
+                              [skill.id]: checked,
+                            }))
+                          }
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
     </Surface>
   );

@@ -9,10 +9,22 @@
     "steps"
   ],
   "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique, machine-readable identifier of this workflow.",
+      "pattern": "^[a-zA-Z0-9_-]+$"
+    },
     "name": {
       "type": "string",
-      "description": "Unique, machine-readable name of this workflow.",
-      "pattern": "^[a-zA-Z0-9_-]+$"
+      "description": "Human-readable or machine-readable name of this workflow."
+    },
+    "description": {
+      "type": "string",
+      "description": "High-level summary of what this workflow executes."
+    },
+    "version": {
+      "type": "string",
+      "description": "Semantic version of the workflow manifest."
     },
     "steps": {
       "type": "array",
@@ -26,15 +38,22 @@
   "$defs": {
     "workflow_step": {
       "type": "object",
-      "required": ["id"],
+      "anyOf": [
+        { "required": ["id"] },
+        { "required": ["step_id"] }
+      ],
       "oneOf": [
         {
           "required": ["tool"],
-          "not": { "required": ["action"] }
+          "not": { "anyOf": [{ "required": ["action"] }, { "required": ["skill_id"] }] }
         },
         {
           "required": ["action"],
-          "not": { "required": ["tool"] }
+          "not": { "anyOf": [{ "required": ["tool"] }, { "required": ["skill_id"] }] }
+        },
+        {
+          "required": ["skill_id"],
+          "not": { "anyOf": [{ "required": ["tool"] }, { "required": ["action"] }] }
         }
       ],
       "properties": {
@@ -43,9 +62,18 @@
           "description": "Unique, machine-readable identifier of this workflow step.",
           "pattern": "^[a-zA-Z0-9_-]+$"
         },
+        "step_id": {
+          "type": "string",
+          "description": "Alias for step id.",
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
         "tool": {
           "type": "string",
           "description": "The name of the PAP skill/tool to execute for this step."
+        },
+        "skill_id": {
+          "type": "string",
+          "description": "Alias for tool name."
         },
         "action": {
           "type": "string",
@@ -58,6 +86,10 @@
           "items": {
             "type": "string"
           }
+        },
+        "next_step": {
+          "type": ["string", "null"],
+          "description": "Identifier of the next step or null if terminal."
         },
         "params": {
           "type": "object",

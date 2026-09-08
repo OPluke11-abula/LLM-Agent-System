@@ -1,0 +1,1234 @@
+{
+  "task": "73-05",
+  "title": "Test, Fixture, and Verification Necessity Review",
+  "generated_at": "2026-09-08T11:24:45.052174+00:00",
+  "total_test_modules": 108,
+  "total_test_functions": 566,
+  "summary": {
+    "domains": {
+      "Security & Sandboxing": {
+        "modules": 11,
+        "test_functions": 74
+      },
+      "Multi-Tenant & Billing": {
+        "modules": 8,
+        "test_functions": 37
+      },
+      "Swarm, P2P & Consensus": {
+        "modules": 19,
+        "test_functions": 111
+      },
+      "Memory & Context": {
+        "modules": 12,
+        "test_functions": 44
+      },
+      "PAP & Protocol": {
+        "modules": 11,
+        "test_functions": 70
+      },
+      "API & Integration": {
+        "modules": 12,
+        "test_functions": 65
+      },
+      "Core Engine & Execution": {
+        "modules": 26,
+        "test_functions": 122
+      },
+      "Tooling & Verification": {
+        "modules": 9,
+        "test_functions": 43
+      }
+    },
+    "ci_workflows": 2
+  },
+  "ci_jobs": [
+    {
+      "workflow": ".github/workflows/ci.yml",
+      "jobs": [
+        "test-matrix (Python 3.11, 3.12, 3.13)",
+        "lint-and-format",
+        "viewer-build",
+        "playwright-ui-qa"
+      ],
+      "purpose": "Continuous integration matrix validating all 566 Python unit tests, lint gates, and frontend build"
+    },
+    {
+      "workflow": ".github/workflows/react-doctor.yml",
+      "jobs": [
+        "react-doctor-audit"
+      ],
+      "purpose": "Advisory React Doctor AST code quality and accessibility scan on viewer components"
+    }
+  ],
+  "tests": [
+    {
+      "file": "agent_workspace/tests/test_account_failover.py",
+      "domain": "Multi-Tenant & Billing",
+      "test_count": 2,
+      "test_functions": [
+        "test_account_failover_budget_exhaustion",
+        "test_discussion_room_failover_rate_limit"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_account_manager.py",
+      "domain": "Multi-Tenant & Billing",
+      "test_count": 2,
+      "test_functions": [
+        "test_account_manager_lifecycle",
+        "test_router_account_budget_failover"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_admin_console.py",
+      "domain": "API & Integration",
+      "test_count": 8,
+      "test_functions": [
+        "test_workspace",
+        "test_admin_get_tenants_auth_gating",
+        "test_admin_api_key_rotation",
+        "test_admin_read_scope_cannot_mutate",
+        "test_admin_manual_subscription_simulation"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_agent_crew.py",
+      "domain": "Core Engine & Execution",
+      "test_count": 6,
+      "test_functions": [
+        "test_swarm_p2p_crypto_keys",
+        "test_agent_crew_orchestration_dispatches",
+        "test_agent_crew_resolves_explicit_workspace_path",
+        "test_delegate_task_tool_schema_enforcement",
+        "test_crew_api_endpoints"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_agent_engine.py",
+      "domain": "Core Engine & Execution",
+      "test_count": 12,
+      "test_functions": [
+        "test_agent_engine_pap_loading",
+        "test_agent_engine_version_mismatches",
+        "test_agent_engine_parse_version_corners",
+        "test_agent_engine_prompt_render_failures",
+        "test_agent_engine_render_subagent_fallback"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_agent_eval.py",
+      "domain": "Core Engine & Execution",
+      "test_count": 1,
+      "test_functions": [
+        "test_agent_eval_smoke_report_contains_required_fields"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_api.py",
+      "domain": "API & Integration",
+      "test_count": 21,
+      "test_functions": [
+        "test_health_endpoint",
+        "test_metrics_endpoint",
+        "test_list_tools_endpoint",
+        "test_config_endpoints",
+        "test_config_rejects_unsafe_provider_urls_before_persisting"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_bottleneck_profiler.py",
+      "domain": "Core Engine & Execution",
+      "test_count": 3,
+      "test_functions": [
+        "test_event_loop_stutter_detection",
+        "test_sync_blocking_call_profiling",
+        "test_dynamic_concurrency_scaling"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_cli.py",
+      "domain": "Tooling & Verification",
+      "test_count": 5,
+      "test_functions": [
+        "test_cli_list_skills",
+        "test_cli_describe_skill",
+        "test_cli_validate",
+        "test_cli_memory_operations",
+        "test_cli_run_workflow"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_cli_init.py",
+      "domain": "Tooling & Verification",
+      "test_count": 2,
+      "test_functions": [
+        "test_cli_init_dry_run",
+        "test_cli_init_success"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_cli_lint.py",
+      "domain": "Tooling & Verification",
+      "test_count": 5,
+      "test_functions": [
+        "test_cli_lint_happy_path",
+        "test_cli_lint_missing_keys",
+        "test_cli_lint_invalid_semver",
+        "test_cli_lint_workflow_broken_references",
+        "test_cli_lint_orphan_contract_warning"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_code_generation.py",
+      "domain": "Tooling & Verification",
+      "test_count": 5,
+      "test_functions": [
+        "test_dynamic_code_generator_success",
+        "test_dynamic_code_generator_security_violations",
+        "test_dynamic_code_generator_contract_violations",
+        "test_dynamic_code_generator_pytest_failure",
+        "test_dynamic_code_generator_rejects_traversal_name"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_codebase_index.py",
+      "domain": "Tooling & Verification",
+      "test_count": 4,
+      "test_functions": [
+        "test_codebase_index_records_python_symbols_routes_calls_and_tests",
+        "test_codebase_index_records_script_symbols_imports_and_config_keys_without_values",
+        "test_codebase_index_ignores_generated_dependency_dirs",
+        "test_codebase_index_rejects_output_path_escape"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_codebase_memory_tools.py",
+      "domain": "Memory & Context",
+      "test_count": 5,
+      "test_functions": [
+        "test_code_graph_tools_query_indexed_workspace",
+        "test_code_index_repo_tool_refreshes_database",
+        "test_code_graph_query_tools_do_not_create_missing_index",
+        "test_code_graph_tools_reject_workspace_escape",
+        "test_agent_engine_registers_code_graph_tools_and_enforces_allowlist"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_concurrency_auditor.py",
+      "domain": "Core Engine & Execution",
+      "test_count": 2,
+      "test_functions": [
+        "test_static_concurrency_audit",
+        "test_concurrency_audit_and_broadcast"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_conductor_plan.py",
+      "domain": "Core Engine & Execution",
+      "test_count": 10,
+      "test_functions": [
+        "test_conductor_plan_serializes_stable_default_plan",
+        "test_conductor_plan_serializes_workflow_metadata_without_changing_selection",
+        "test_conductor_plan_serializes_code_graph_metadata_without_changing_selection",
+        "test_conductor_plan_serializes_optional_token_efficient_profile_without_changing_selection",
+        "test_conductor_plan_rejects_unknown_mode_and_topology"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_consensus.py",
+      "domain": "Swarm, P2P & Consensus",
+      "test_count": 4,
+      "test_functions": [
+        "test_poc_member_signatures_and_master_signing",
+        "test_poc_rejects_unknown_member_signature",
+        "test_synthesis_rejected_without_consensus",
+        "test_synthesis_accepted_with_consensus_registered"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_context_budget_preflight.py",
+      "domain": "Core Engine & Execution",
+      "test_count": 2,
+      "test_functions": [
+        "test_preflight_reports_component_totals_and_advisory_reduction_without_trimming",
+        "test_preflight_recommends_handoff_for_history_change_and_evidence_thresholds"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_context_minimizer.py",
+      "domain": "Core Engine & Execution",
+      "test_count": 1,
+      "test_functions": [
+        "test_context_minimizer_purges_junk_and_protects_core"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_cost_ledger.py",
+      "domain": "Multi-Tenant & Billing",
+      "test_count": 3,
+      "test_functions": [
+        "test_financial_ledger_sqlite_operations",
+        "test_billing_failover_rotator_downscaling_and_credential_rotation",
+        "test_api_ledger_endpoints"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_cross_cloud.py",
+      "domain": "Swarm, P2P & Consensus",
+      "test_count": 7,
+      "test_functions": [
+        "test_handshake_validation",
+        "test_peer_discovery_and_routing",
+        "test_websocket_tunnel_endpoint",
+        "test_websocket_tunnel_endpoint_rejection",
+        "test_cost_router_utility_scores"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_cryptographic_consensus.py",
+      "domain": "Swarm, P2P & Consensus",
+      "test_count": 6,
+      "test_functions": [
+        "test_merkle_tree_computation",
+        "test_verify_chain_integrity_merkle_root",
+        "test_daemon_consensus_and_self_healing",
+        "test_daemon_tampering_and_fork_detection",
+        "test_daemon_tampered_recovery_logs"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_defragmentation.py",
+      "domain": "Memory & Context",
+      "test_count": 2,
+      "test_functions": [
+        "test_context_defragmenter_core_logic",
+        "test_api_defragment_endpoints"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_delegation_limits.py",
+      "domain": "Core Engine & Execution",
+      "test_count": 5,
+      "test_functions": [
+        "test_delegate_task_uses_a_valid_child_session_id",
+        "test_delegate_task_timeout",
+        "test_router_tool_limit",
+        "test_stream_router_tool_limit",
+        "test_workspace_cancel_task"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_discussion_compaction.py",
+      "domain": "Swarm, P2P & Consensus",
+      "test_count": 6,
+      "test_functions": [
+        "test_discussion_room_participant_ceiling",
+        "test_discussion_room_nested_swarm_ceiling",
+        "test_discussion_room_nested_participant_ceiling",
+        "test_discussion_room_is_line_protected",
+        "test_discussion_room_compact_transcript"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_discussion_roles.py",
+      "domain": "Swarm, P2P & Consensus",
+      "test_count": 4,
+      "test_functions": [
+        "test_discussion_room_builds_twv_role_contracts",
+        "test_verifier_verdict_is_durable_and_serializable",
+        "test_high_risk_verdict_requires_approval_or_consensus",
+        "test_high_risk_verdict_accepts_consensus_certificate"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_discussion_room.py",
+      "domain": "Swarm, P2P & Consensus",
+      "test_count": 5,
+      "test_functions": [
+        "test_discussion_room_round_robin",
+        "test_discussion_room_graceful_fallback",
+        "test_run_corporate_audit_async",
+        "test_dynamic_role_guide_injection",
+        "test_dynamic_role_fallback_and_scaffolding"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_discussion_room_characterization.py",
+      "domain": "Swarm, P2P & Consensus",
+      "test_count": 26,
+      "test_functions": [
+        "test_characterization_successful_debate_path",
+        "test_characterization_one_transient_failure_and_healing",
+        "test_characterization_repeated_transient_failures",
+        "test_characterization_permanent_authentication_failure_is_not_retried",
+        "test_characterization_malformed_request_failure_is_not_retried"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_distributed_broker.py",
+      "domain": "Swarm, P2P & Consensus",
+      "test_count": 6,
+      "test_functions": [
+        "test_disabled_broker_reset_replaces_and_closes_cached_instance",
+        "test_disabled_broker_reuses_cached_instance_without_reset",
+        "test_disabled_broker_does_not_load_redis",
+        "test_redis_broker_broadcasting",
+        "test_microservice_fault_tolerance_and_recovery"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_elastic_billing.py",
+      "domain": "Multi-Tenant & Billing",
+      "test_count": 3,
+      "test_functions": [
+        "test_model_tier_downscaling",
+        "test_model_tier_upscaling",
+        "test_invoice_persistence_and_fields"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_episodic_summarizer.py",
+      "domain": "Memory & Context",
+      "test_count": 1,
+      "test_functions": [
+        "test_episodic_summarizer_error_compilation_and_duplicate_free_merge"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_evolution.py",
+      "domain": "Core Engine & Execution",
+      "test_count": 5,
+      "test_functions": [
+        "test_log_compaction",
+        "test_lessons_learned_prompt_composer",
+        "test_parallel_workflow_concurrency",
+        "test_dynamic_log_compaction_threshold",
+        "test_multilanguage_prompt_composer"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_federated_exchange.py",
+      "domain": "Swarm, P2P & Consensus",
+      "test_count": 2,
+      "test_functions": [
+        "test_federated_asymmetric_cryptography",
+        "test_secure_websocket_handlers"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_federated_sync.py",
+      "domain": "Swarm, P2P & Consensus",
+      "test_count": 2,
+      "test_functions": [
+        "test_federated_sync_no_failures",
+        "test_federated_sync_discover_and_merge"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_git_guard.py",
+      "domain": "Security & Sandboxing",
+      "test_count": 9,
+      "test_functions": [
+        "test_blocks_force_push_argv",
+        "test_blocks_hard_reset_argv",
+        "test_blocks_clean_force_argv",
+        "test_allows_bypass_env",
+        "test_blocks_pre_push_non_fast_forward_record"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_handoff.py",
+      "domain": "Memory & Context",
+      "test_count": 3,
+      "test_functions": [
+        "test_handoff_export_and_import",
+        "test_handoff_import_accepts_legacy_packet_without_pending_steps",
+        "test_handoff_checksum_tamper_detection"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_handoff_turns.py",
+      "domain": "Memory & Context",
+      "test_count": 2,
+      "test_functions": [
+        "test_session_turns_increment_and_auto_handoff",
+        "test_api_turns_and_handoff_endpoints"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_hitl.py",
+      "domain": "Core Engine & Execution",
+      "test_count": 2,
+      "test_functions": [
+        "test_hitl_approval_success",
+        "test_hitl_approval_rejection"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_knowledge_base.py",
+      "domain": "Core Engine & Execution",
+      "test_count": 4,
+      "test_functions": [
+        "test_knowledge_base_happy_path",
+        "test_knowledge_base_boundary_protection",
+        "test_knowledge_base_semantic_fallback",
+        "test_knowledge_base_external_slot"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_license_audit.py",
+      "domain": "Tooling & Verification",
+      "test_count": 9,
+      "test_functions": [
+        "test_parse_requirements",
+        "test_parse_pyproject_dependencies_pep621",
+        "test_parse_pyproject_dependencies_poetry",
+        "test_audit_dependency_license_allow",
+        "test_audit_dependency_license_warn"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_live_collaboration.py",
+      "domain": "Core Engine & Execution",
+      "test_count": 5,
+      "test_functions": [
+        "test_crdt_element_set_reconciliation",
+        "test_delta_state_reconciler_thread_safety",
+        "test_local_publish_starts_all_eligible_sends_concurrently",
+        "test_local_publish_bounds_concurrent_sends_and_isolates_failures",
+        "test_websocket_pubsub_collaboration"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_memory_backend.py",
+      "domain": "Memory & Context",
+      "test_count": 4,
+      "test_functions": [
+        "test_file_backend_crud",
+        "test_preference_request_preserves_category_for_memory_console",
+        "test_route_outcome_memory_records_adaptive_routing_payload",
+        "test_recent_route_outcomes_are_task_scoped_and_bounded"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_memory_concurrency.py",
+      "domain": "Memory & Context",
+      "test_count": 1,
+      "test_functions": [
+        "test_sqlite_concurrency"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_memory_fts5.py",
+      "domain": "Memory & Context",
+      "test_count": 8,
+      "test_functions": [
+        "test_fts5_semantic_query_syntax_parsing",
+        "test_fts5_table_indexing_and_query_cache",
+        "test_concurrent_multi_agent_long_term_memory_queries",
+        "test_query_cache_is_invalidated_after_memory_update",
+        "test_memory_context_treats_stored_text_as_untrusted_data"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_memory_pack.py",
+      "domain": "Memory & Context",
+      "test_count": 4,
+      "test_functions": [
+        "test_pack_evidence_writes_ref_atom_scenario_persona_and_canvas",
+        "test_pack_evidence_rejects_workspace_escape_for_task_id",
+        "test_workflow_memory_record_uses_traceable_record_type",
+        "test_workflow_memory_record_rejects_untraceable_payload"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_memory_reranking.py",
+      "domain": "Memory & Context",
+      "test_count": 3,
+      "test_functions": [
+        "test_record_backwards_compatibility",
+        "test_re_ranking_and_diversity",
+        "test_update_and_batch_move_apis"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_memory_skill.py",
+      "domain": "Memory & Context",
+      "test_count": 1,
+      "test_functions": [
+        "test_memory_skills"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_milestone_reflection.py",
+      "domain": "Core Engine & Execution",
+      "test_count": 2,
+      "test_functions": [
+        "test_run_milestone_reflection_explicit",
+        "test_compaction_auto_triggers_reflection"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_mtls_rotation.py",
+      "domain": "Swarm, P2P & Consensus",
+      "test_count": 9,
+      "test_functions": [
+        "test_cert_generation_and_fingerprint",
+        "test_gateway_rotation_and_grace_period",
+        "test_handshake_revocation",
+        "test_api_mtls_endpoints",
+        "test_asymmetric_signing_and_verification"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_multi_swarm.py",
+      "domain": "Swarm, P2P & Consensus",
+      "test_count": 1,
+      "test_functions": [
+        "test_hierarchical_multi_swarm_delegation"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_p2p_and_mirroring.py",
+      "domain": "Swarm, P2P & Consensus",
+      "test_count": 4,
+      "test_functions": [
+        "test_p2p_chunking_and_reassembly",
+        "test_p2p_tamper_detection",
+        "test_state_vault_mirroring",
+        "test_state_vault_failover_and_auto_healing"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_p2p_encryption.py",
+      "domain": "Swarm, P2P & Consensus",
+      "test_count": 3,
+      "test_functions": [
+        "test_ecdh_aes_gcm_math",
+        "test_handshake_rejection_rogue_clients",
+        "test_successful_secure_handshake_and_exchange"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_p2p_swarm.py",
+      "domain": "Swarm, P2P & Consensus",
+      "test_count": 5,
+      "test_functions": [
+        "test_p2p_handshake_success_and_failure",
+        "test_gossip_discovery",
+        "test_direct_websocket_task_execution",
+        "test_hybrid_routing_fallback_offline_broker",
+        "test_http_api_peers_endpoint"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_pap_conformance.py",
+      "domain": "PAP & Protocol",
+      "test_count": 4,
+      "test_functions": [
+        "test_pap_conformance_cases_load_from_upstream_fixtures",
+        "test_pap_schema_conformance_runner_tracks_las_deviations",
+        "test_pap_layout_conformance_runner_tracks_ambiguous_layout_cases",
+        "test_pap_conformance_runner_main_accepts_tracked_deviations"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_pap_registry.py",
+      "domain": "PAP & Protocol",
+      "test_count": 8,
+      "test_functions": [
+        "test_validate_registry_hub_accepts_empty_registry",
+        "test_validate_registry_hub_accepts_skill_descriptor",
+        "test_validate_registry_hub_rejects_missing_required_descriptor_field",
+        "test_validate_registry_hub_rejects_descriptor_path_escape",
+        "test_validate_registry_hub_rejects_descriptor_memory_path"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_pap_review_findings_validate.py",
+      "domain": "PAP & Protocol",
+      "test_count": 5,
+      "test_functions": [
+        "test_validate_review_findings_accepts_pap_report_with_exploit_path",
+        "test_validate_review_findings_rejects_pap_report_without_report_only_policy",
+        "test_validate_review_findings_rejects_pap_high_finding_without_exploit_or_graph",
+        "test_validate_review_findings_accepts_pap_high_finding_with_code_graph_evidence",
+        "test_validate_review_findings_rejects_pap_source_trace_workspace_escape"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_pap_v020.py",
+      "domain": "PAP & Protocol",
+      "test_count": 12,
+      "test_functions": [
+        "test_schema_validation_success",
+        "test_las_manifest_formal_semantics_accepts_existing_workspace",
+        "test_memory_tier_unknown_name_rejected",
+        "test_schema_evolution_self_evolution_requires_strict_forward_compatibility",
+        "test_schema_validation_failure"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_policy_gate.py",
+      "domain": "Security & Sandboxing",
+      "test_count": 5,
+      "test_functions": [
+        "test_external_api_requires_proof_of_consensus_and_logs_denial",
+        "test_consensus_certificate_allows_browser_use_and_records_policy_decision",
+        "test_registered_consensus_allows_computer_use_without_inline_certificate",
+        "test_safety_scan_is_audit_only_but_still_scope_guarded",
+        "test_scope_guard_rejects_workspace_escape_before_consensus"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_precheck.py",
+      "domain": "Core Engine & Execution",
+      "test_count": 6,
+      "test_functions": [
+        "test_prechecker_cli_check",
+        "test_prechecker_credentials",
+        "test_prechecker_run_precheck_with_contract",
+        "test_engine_executes_tool_precheck_interception",
+        "test_router_loop_continuation_approval"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_prompt_composer.py",
+      "domain": "Core Engine & Execution",
+      "test_count": 3,
+      "test_functions": [
+        "test_prompt_composer_happy_path",
+        "test_prompt_composer_missing_variables",
+        "test_prompt_composer_ssti_protection"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_prompt_evolution.py",
+      "domain": "Core Engine & Execution",
+      "test_count": 4,
+      "test_functions": [
+        "test_prompt_optimization_failure",
+        "test_prompt_optimization_high_token_usage",
+        "test_prompt_optimization_low_efficiency",
+        "test_multiple_optimizations_cumulative"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_prompt_minimizer.py",
+      "domain": "Core Engine & Execution",
+      "test_count": 2,
+      "test_functions": [
+        "test_prompt_under_threshold_not_compacted",
+        "test_prompt_over_threshold_cleanly_compacted"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_provider_lifecycle.py",
+      "domain": "Core Engine & Execution",
+      "test_count": 5,
+      "test_functions": [
+        "test_stream_does_not_failover_after_partial_output",
+        "test_auth_failure_does_not_failover",
+        "test_never_ending_stream_is_bounded",
+        "test_openai_client_is_reused_and_closed",
+        "test_usage_id_makes_ledger_recording_idempotent"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_provider_security.py",
+      "domain": "Security & Sandboxing",
+      "test_count": 3,
+      "test_functions": [
+        "test_provider_factory_rejects_unsafe_base_urls",
+        "test_provider_factory_accepts_official_and_local_provider_urls",
+        "test_openai_rejects_unsafe_runtime_config_url_before_http"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_rbac.py",
+      "domain": "Security & Sandboxing",
+      "test_count": 1,
+      "test_functions": [
+        "test_rbac_authorization"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_react_doctor_report.py",
+      "domain": "Tooling & Verification",
+      "test_count": 5,
+      "test_functions": [
+        "test_parse_react_doctor_report_redacts_secret_like_values",
+        "test_write_react_doctor_summary_uses_bounded_las_output",
+        "test_write_react_doctor_summary_includes_changed_scope_and_snapshot",
+        "test_write_react_doctor_summary_rejects_non_object_json",
+        "test_write_react_doctor_summary_accepts_npm_wrapped_json"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_review_findings_validate.py",
+      "domain": "PAP & Protocol",
+      "test_count": 10,
+      "test_functions": [
+        "test_validate_review_findings_accepts_traceable_report",
+        "test_validate_review_findings_accepts_high_finding_with_code_graph_evidence",
+        "test_validate_review_findings_rejects_missing_evidence_trace",
+        "test_validate_review_findings_rejects_high_finding_without_concrete_impact",
+        "test_validate_review_findings_rejects_high_finding_without_code_graph_evidence"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_route_inventory.py",
+      "domain": "API & Integration",
+      "test_count": 1,
+      "test_functions": [
+        "test_api_route_inventory"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_router_allowlist.py",
+      "domain": "API & Integration",
+      "test_count": 5,
+      "test_functions": [
+        "test_router_allowlist_intersection",
+        "test_router_allowlist_missing_agent_md",
+        "test_router_allowlist_invalid_yaml",
+        "test_router_allowlist_not_a_dict",
+        "test_router_allowlist_tools_not_a_list"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_router_conductor.py",
+      "domain": "API & Integration",
+      "test_count": 5,
+      "test_functions": [
+        "test_router_builds_conductor_plan_without_changing_tool_allowlist",
+        "test_router_builds_conductor_trace_event",
+        "test_router_conductor_trace_and_span_include_workflow_metadata_when_present",
+        "test_router_adds_route_outcome_hints_without_changing_selected_model",
+        "test_router_persists_route_outcome_after_agent_loop"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_router_optimization.py",
+      "domain": "API & Integration",
+      "test_count": 5,
+      "test_functions": [
+        "test_swarm_route_registry_logic",
+        "test_agent_router_wrapping",
+        "test_agent_router_streaming_wrapping",
+        "test_router_api_endpoints",
+        "test_concurrent_dispatches_concurrency"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_router_validation.py",
+      "domain": "API & Integration",
+      "test_count": 2,
+      "test_functions": [
+        "test_router_validation_loading",
+        "test_router_validation_with_real_skills"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_runtime_features.py",
+      "domain": "Core Engine & Execution",
+      "test_count": 10,
+      "test_functions": [
+        "test_runtime_features_default_disabled",
+        "test_runtime_features_explicit_false",
+        "test_runtime_features_all_explicit_false",
+        "test_runtime_features_explicit_true",
+        "test_runtime_features_reject_invalid_boolean"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_saas_builder.py",
+      "domain": "API & Integration",
+      "test_count": 5,
+      "test_functions": [
+        "test_jinja2_system_prompt_rendering",
+        "test_agent_builder_registry",
+        "test_mock_webhook_telemetry",
+        "test_saas_billing_tracker_and_invoice",
+        "test_builder_api_endpoints"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_saas_integration.py",
+      "domain": "API & Integration",
+      "test_count": 8,
+      "test_functions": [
+        "test_workspace",
+        "test_workspace_config_endpoint",
+        "test_stripe_webhook_signature_verification",
+        "test_stripe_signature_rejects_stale_timestamp",
+        "test_stripe_webhook_replay_and_tenant_binding"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_sandbox.py",
+      "domain": "Security & Sandboxing",
+      "test_count": 4,
+      "test_functions": [
+        "test_sandbox_guard_rejects_missing_consensus",
+        "test_sandbox_guard_rejects_consensus_approved_without_docker",
+        "test_sandbox_guard_ast_blocks_imports",
+        "test_sandbox_guard_ast_blocks_unsafe_builtins"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_sandbox_audit.py",
+      "domain": "Security & Sandboxing",
+      "test_count": 4,
+      "test_functions": [
+        "test_audit_ledger_chaining_and_tampering",
+        "test_sandbox_docker_fallback_to_ast",
+        "test_sandbox_docker_success_mock",
+        "test_audit_endpoints"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_sandbox_defense.py",
+      "domain": "Security & Sandboxing",
+      "test_count": 14,
+      "test_functions": [
+        "test_ast_sandbox_blockades",
+        "test_safe_open_traversal",
+        "test_safe_open_relative_path_reads_from_workspace",
+        "test_safe_open_blocks_pathlike_traversal",
+        "test_safe_open_allows_dotdot_prefix_filename_inside_workspace"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_secret_hardening.py",
+      "domain": "Security & Sandboxing",
+      "test_count": 3,
+      "test_functions": [
+        "test_consensus_requires_configured_secret",
+        "test_consensus_test_mode_uses_nonproduction_mock_secret",
+        "test_audit_proof_requires_configured_secret"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_self_healing.py",
+      "domain": "Core Engine & Execution",
+      "test_count": 1,
+      "test_functions": [
+        "test_self_healing_success"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_service_smoke.py",
+      "domain": "API & Integration",
+      "test_count": 1,
+      "test_functions": [
+        "test_service_compiles"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_session_security.py",
+      "domain": "Security & Sandboxing",
+      "test_count": 15,
+      "test_functions": [
+        "test_validate_session_id_accepts_contract_values",
+        "test_child_session_id_preserves_short_readable_form",
+        "test_child_session_id_preserves_exact_128_character_boundary",
+        "test_child_session_id_bounds_oversized_values_with_stable_hash",
+        "test_child_session_id_is_deterministic_and_distinguishes_long_values"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_skill_contracts.py",
+      "domain": "PAP & Protocol",
+      "test_count": 4,
+      "test_functions": [
+        "test_schema_file_exists",
+        "test_skills_directory_not_empty",
+        "test_skill_contract_validation",
+        "test_skills_registry_format"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_skill_discovery.py",
+      "domain": "PAP & Protocol",
+      "test_count": 3,
+      "test_functions": [
+        "test_dynamic_skill_discovery_and_verification",
+        "test_invalid_skill_contract_rejection",
+        "test_skill_discovery_stream_chunk_parsing"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_skill_loader.py",
+      "domain": "PAP & Protocol",
+      "test_count": 7,
+      "test_functions": [
+        "test_skill_loader_discovery",
+        "test_skill_loader_metadata",
+        "test_skill_loader_tool_execution",
+        "test_skill_loader_split_frontmatter_fallback",
+        "test_skill_loader_path_traversal_guards"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_skill_synthesis.py",
+      "domain": "PAP & Protocol",
+      "test_count": 5,
+      "test_functions": [
+        "test_ast_audit_blocks_unsafe_execution",
+        "test_validation_blocks_missing_pydantic_base",
+        "test_validation_blocks_missing_annotated_function",
+        "test_synthesis_and_dynamic_registration_success",
+        "test_synthesis_rejects_traversal_name"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_startup_security.py",
+      "domain": "Security & Sandboxing",
+      "test_count": 11,
+      "test_functions": [
+        "test_loopback_bindings_are_allowed_without_auth",
+        "test_external_bindings_require_secure_auth",
+        "test_external_binding_rejects_blank_or_placeholder_secrets",
+        "test_external_binding_accepts_secure_authentication",
+        "test_hostname_resolution_ambiguity_requires_auth"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_subscription_lifecycle.py",
+      "domain": "Multi-Tenant & Billing",
+      "test_count": 6,
+      "test_functions": [
+        "test_workspace",
+        "test_stripe_subscription_webhook_lifecycle",
+        "test_tenant_access_control_gating",
+        "test_websocket_inactive_subscription_close",
+        "test_rate_limiting_rest_and_websockets"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_swarm_adaptive_billing.py",
+      "domain": "Multi-Tenant & Billing",
+      "test_count": 6,
+      "test_functions": [
+        "test_workspace",
+        "test_rest_billing_status_and_policy",
+        "test_credit_exhaustion_rest_blocking",
+        "test_credit_exhaustion_websocket_close",
+        "test_adaptive_model_downscaling_threshold"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_swarm_coordinator.py",
+      "domain": "Swarm, P2P & Consensus",
+      "test_count": 6,
+      "test_functions": [
+        "test_swarm_coordinator_registration",
+        "test_swarm_coordinator_stale_heartbeats",
+        "test_swarm_coordinator_load_balancing",
+        "test_swarm_coordinator_scaling",
+        "test_swarm_coordinator_api_endpoints"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_swarm_governance.py",
+      "domain": "Swarm, P2P & Consensus",
+      "test_count": 6,
+      "test_functions": [
+        "test_governance_anomaly_scanning",
+        "test_governance_cryptographic_voting_consensus",
+        "test_prompt_composer_calibration_injection",
+        "test_discussion_room_governance_vote",
+        "test_api_governance_endpoints"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_swarm_replays.py",
+      "domain": "Swarm, P2P & Consensus",
+      "test_count": 4,
+      "test_functions": [
+        "test_replay_logger_event_logging",
+        "test_replay_logger_nonexistent_session",
+        "test_replay_logger_cleanup",
+        "test_http_endpoints"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_swarm_replication.py",
+      "domain": "Swarm, P2P & Consensus",
+      "test_count": 5,
+      "test_functions": [
+        "test_checkpoint_signature_verification",
+        "test_state_checkpointing_in_broker",
+        "test_automated_failover_and_resumption",
+        "test_consensus_validation_gate_failure",
+        "test_http_api_endpoints"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_system_verification.py",
+      "domain": "Tooling & Verification",
+      "test_count": 4,
+      "test_functions": [
+        "test_run_tests_success",
+        "test_run_tests_failure",
+        "test_verify_workspace_success",
+        "test_verify_workspace_no_sync"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_task_compaction.py",
+      "domain": "Core Engine & Execution",
+      "test_count": 2,
+      "test_functions": [
+        "test_task_compaction_below_threshold",
+        "test_task_compaction_above_threshold_triggers_sweep"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_task_execution_limits.py",
+      "domain": "Core Engine & Execution",
+      "test_count": 6,
+      "test_functions": [
+        "test_task_concurrency_uses_documented_environment_name",
+        "test_task_admission_is_bounded",
+        "test_duplicate_task_submission_is_idempotent",
+        "test_task_timeout_sets_terminal_status",
+        "test_task_cancellation_sets_terminal_status"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_telemetry.py",
+      "domain": "API & Integration",
+      "test_count": 1,
+      "test_functions": [
+        "test_telemetry_latency_and_cost_warnings"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_telemetry_router.py",
+      "domain": "API & Integration",
+      "test_count": 3,
+      "test_functions": [
+        "test_telemetry_router_buffering",
+        "test_telemetry_router_thread_safety",
+        "test_api_endpoints_for_sandbox_and_telemetry"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_tenant_channels.py",
+      "domain": "Multi-Tenant & Billing",
+      "test_count": 12,
+      "test_functions": [
+        "test_jwt_generation_and_verification",
+        "test_jwt_secret_can_be_rotated_with_environment",
+        "test_auth_token_route",
+        "test_auth_token_requires_authenticated_principal",
+        "test_jwt_required_claims_and_secret_fail_closed"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_thread_balancer.py",
+      "domain": "Core Engine & Execution",
+      "test_count": 3,
+      "test_functions": [
+        "test_concurrency_balancer_offload_routing",
+        "test_concurrency_balancer_dynamic_load_balancing",
+        "test_global_balancer_singleton"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_token_counter.py",
+      "domain": "Core Engine & Execution",
+      "test_count": 15,
+      "test_functions": [
+        "test_count_text_with_tiktoken",
+        "test_get_encoding_reuses_cached_encoding",
+        "test_count_text_fallback_character_division",
+        "test_count_messages",
+        "test_count_tool_schemas"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_token_efficient_governance.py",
+      "domain": "Core Engine & Execution",
+      "test_count": 5,
+      "test_functions": [
+        "test_profile_selection_accepts_supported_verification_profiles",
+        "test_profile_selection_rejects_unknown_verification_profile",
+        "test_structural_lookup_contract_requires_bounded_broad_read_justification",
+        "test_verification_profile_contract_maps_all_profiles_to_live_commands",
+        "test_rollout_contract_keeps_token_mode_advisory_and_report_only"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_vector_memory.py",
+      "domain": "Memory & Context",
+      "test_count": 10,
+      "test_functions": [
+        "test_generate_mock_embedding",
+        "test_embedding_generator_mock_provider",
+        "test_embedding_generator_defaults_to_mock_without_network_opt_in",
+        "test_embedding_generator_openai_provider",
+        "test_embedding_generator_google_provider"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_version_compat.py",
+      "domain": "Tooling & Verification",
+      "test_count": 4,
+      "test_functions": [
+        "test_parse_version",
+        "test_version_compat_happy_path",
+        "test_min_runtime_version_warning",
+        "test_protocol_version_major_warning"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_workflow_engine.py",
+      "domain": "PAP & Protocol",
+      "test_count": 7,
+      "test_functions": [
+        "test_workflow_engine_happy_path",
+        "test_workflow_engine_branching_and_skip",
+        "test_workflow_engine_on_failure_policies",
+        "test_workflow_engine_checkpoint_resume",
+        "test_workflow_engine_rejects_dependency_cycle"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_workflow_lint.py",
+      "domain": "PAP & Protocol",
+      "test_count": 5,
+      "test_functions": [
+        "test_lint_workflow_accepts_valid_manifest_without_executing_stages",
+        "test_lint_workflow_rejects_missing_required_stage_field",
+        "test_lint_workflow_rejects_unknown_stage_dependency",
+        "test_lint_workflow_rejects_checkpoint_workspace_escape",
+        "test_lint_workflow_accepts_valid_checkpoint"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_ws_quota_security.py",
+      "domain": "Security & Sandboxing",
+      "test_count": 5,
+      "test_functions": [
+        "test_websocket_rejects_query_string_credentials",
+        "test_websocket_header_jwt_binds_verified_tenant",
+        "test_websocket_does_not_trust_forged_session_mapping",
+        "test_websocket_rejects_unsafe_session_id_before_authentication",
+        "test_tenant_request_limiter_is_shared_by_db"
+      ]
+    },
+    {
+      "file": "agent_workspace/tests/test_zk_ledger.py",
+      "domain": "Multi-Tenant & Billing",
+      "test_count": 3,
+      "test_functions": [
+        "test_merkle_proof_generation_and_verification",
+        "test_zk_proof_generation_and_verification",
+        "test_http_proof_endpoints"
+      ]
+    }
+  ]
+}

@@ -408,7 +408,7 @@ function changedLines(before: string, after: string) {
   const afterLines = after.split(/\s+/).filter(Boolean);
   return {
     before: beforeLines,
-    after: afterLines,
+    after: afterLines.map((word, idx) => ({ id: `token-${idx}-${word}`, word })),
     changed: new Set(afterLines.filter((line, index) => beforeLines[index] !== line)),
   };
 }
@@ -630,16 +630,16 @@ function RuleDiffPanel({ copy, selectedRule, diff }: { copy: CalibrationCopy; se
         <div className="min-h-[170px] rounded-lg border p-3" style={{ borderColor: "color-mix(in srgb, var(--accent) 36%, transparent)", background: "var(--bg-muted)" }}>
           <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] t3">{copy.after}</p>
           <p className="font-mono text-[11px] leading-relaxed">
-            {diff.after.map((word, index) => (
+            {diff.after.map(item => (
               <span
-                key={`${word}-${index}`}
+                key={item.id}
                 className="mr-1 rounded px-0.5"
                 style={{
-                  color: diff.changed.has(word) ? "var(--accent-strong)" : "var(--t2)",
-                  background: diff.changed.has(word) ? "var(--accent-bg)" : "transparent",
+                  color: diff.changed.has(item.word) ? "var(--accent-strong)" : "var(--t2)",
+                  background: diff.changed.has(item.word) ? "var(--accent-bg)" : "transparent",
                 }}
               >
-                {word}
+                {item.word}
               </span>
             ))}
           </p>
@@ -702,10 +702,13 @@ export function PromptCalibrationDashboard({
   onStatus: (message: string, tone?: Tone) => void;
 }) {
   const copy = COPY[lang];
-  const [proposals, setProposals] = useState<GovernanceProposal[]>(fallbackProposals);
-  const [rules, setRules] = useState<PromptRule[]>(fallbackRules);
-  const [logs, setLogs] = useState<CalibrationLog[]>(fallbackLogs);
-  const [anomalies, setAnomalies] = useState<AnomalyEvent[]>(fallbackAnomalies);
+  const [data, setData] = useState({
+    proposals: fallbackProposals,
+    rules: fallbackRules,
+    logs: fallbackLogs,
+    anomalies: fallbackAnomalies,
+  });
+  const { proposals, rules, logs, anomalies } = data;
   const [selectedProposalId, setSelectedProposalId] = useState(fallbackProposals[0].id);
   const [selectedRuleId, setSelectedRuleId] = useState(fallbackRules[0].id);
   const [selectedValidatorRole, setSelectedValidatorRole] = useState("dev");
@@ -734,30 +737,38 @@ export function PromptCalibrationDashboard({
     ]);
 
     let usedFallback = false;
+    let nextProposals = fallbackProposals;
+    let nextRules = fallbackRules;
+    let nextLogs = fallbackLogs;
+    let nextAnomalies = fallbackAnomalies;
+
     if (rulesResult.status === "fulfilled") {
       const record = asRecord(rulesResult.value);
-      const nextProposals = mapProposals(rulesResult.value);
-      const nextRules = mapRules(rulesResult.value);
-      const nextLogs = mapLogs(record.logs ?? record.calibrations ?? rulesResult.value);
-      setProposals(nextProposals.length > 0 ? nextProposals : fallbackProposals);
-      setRules(nextRules.length > 0 ? nextRules : fallbackRules);
-      setLogs(nextLogs.length > 0 ? nextLogs : fallbackLogs);
+      const parsedProposals = mapProposals(rulesResult.value);
+      const parsedRules = mapRules(rulesResult.value);
+      const parsedLogs = mapLogs(record.logs ?? record.calibrations ?? rulesResult.value);
+      nextProposals = parsedProposals.length > 0 ? parsedProposals : fallbackProposals;
+      nextRules = parsedRules.length > 0 ? parsedRules : fallbackRules;
+      nextLogs = parsedLogs.length > 0 ? parsedLogs : fallbackLogs;
       setSelectedProposalId((nextProposals[0] ?? fallbackProposals[0]).id);
       setSelectedRuleId((nextRules[0] ?? fallbackRules[0]).id);
     } else {
       usedFallback = true;
-      setProposals(fallbackProposals);
-      setRules(fallbackRules);
-      setLogs(fallbackLogs);
     }
 
     if (anomalyResult.status === "fulfilled") {
-      const nextAnomalies = mapAnomalies(anomalyResult.value);
-      setAnomalies(nextAnomalies.length > 0 ? nextAnomalies : fallbackAnomalies);
+      const parsedAnomalies = mapAnomalies(anomalyResult.value);
+      nextAnomalies = parsedAnomalies.length > 0 ? parsedAnomalies : fallbackAnomalies;
     } else {
       usedFallback = true;
-      setAnomalies(fallbackAnomalies);
     }
+
+    setData({
+      proposals: nextProposals,
+      rules: nextRules,
+      logs: nextLogs,
+      anomalies: nextAnomalies,
+    });
 
     onStatus(usedFallback ? copy.offline : copy.loaded, usedFallback ? "warning" : "success");
   }, [copy.loaded, copy.offline, onStatus]);
@@ -785,15 +796,18 @@ export function PromptCalibrationDashboard({
         }),
       });
       onStatus(copy.voteSent);
-      setProposals(current => current.map(proposal => proposal.id === selectedProposal.id
-        ? {
-          ...proposal,
-          votes: [
-            ...proposal.votes.filter(vote => vote.role.toLowerCase() !== role),
-            { node: role.toUpperCase(), role, vote: choice, signature },
-          ],
-        }
-        : proposal));
+      setData(current => ({
+        ...current,
+        proposals: current.proposals.map(proposal => proposal.id === selectedProposal.id
+          ? {
+            ...proposal,
+            votes: [
+              ...proposal.votes.filter(vote => vote.role.toLowerCase() !== role),
+              { node: role.toUpperCase(), role, vote: choice, signature },
+            ],
+          }
+          : proposal),
+      }));
       void loadCalibrationData();
     } catch (error) {
       onStatus(`${copy.actionFailed}: ${error instanceof Error ? error.message : String(error)}`, "danger");

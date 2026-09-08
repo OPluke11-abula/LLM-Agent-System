@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button, StatusBadge } from "./ui/primitives";
+import { Search, Copy, Check, X } from "./ui/icons";
 import type { Lang } from "../types";
 
 type CommandPaletteProps = {
@@ -136,31 +137,32 @@ export function CommandPalette({ open, onOpenChange, lang }: CommandPaletteProps
 
   const activeCommand = visibleCommands[activeIndex] ?? visibleCommands[0] ?? recent[0] ?? commands[0];
 
+  const onOpenChangeRef = useRef(onOpenChange);
+  useEffect(() => {
+    onOpenChangeRef.current = onOpenChange;
+  }, [onOpenChange]);
+
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
-        onOpenChange(true);
+        onOpenChangeRef.current(true);
         return;
       }
       if (event.key === "Escape" && open) {
         event.preventDefault();
-        onOpenChange(false);
+        onOpenChangeRef.current(false);
       }
     }
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onOpenChange, open]);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
     window.setTimeout(() => inputRef.current?.focus(), 0);
   }, [open]);
-
-  useEffect(() => {
-    setActiveIndex(0);
-  }, [query]);
 
   if (!open) return null;
 
@@ -179,7 +181,7 @@ export function CommandPalette({ open, onOpenChange, lang }: CommandPaletteProps
     }).catch(() => undefined);
   }
 
-  function handleListKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
+  function handleListKeyDown(event: ReactKeyboardEvent<HTMLElement>) {
     if (event.key === "ArrowDown") {
       event.preventDefault();
       setActiveIndex((index) => Math.min(index + 1, Math.max(visibleCommands.length - 1, 0)));
@@ -201,10 +203,9 @@ export function CommandPalette({ open, onOpenChange, lang }: CommandPaletteProps
 
   return (
     <div className="command-palette-overlay" role="presentation" onMouseDown={() => onOpenChange(false)}>
-      <section
-        className="command-palette-shell"
-        role="dialog"
-        aria-modal="true"
+      <dialog
+        className="command-palette-shell block m-0 p-[18px] text-inherit border"
+        open
         aria-label={copy.title}
         onMouseDown={(event) => event.stopPropagation()}
         onKeyDown={handleListKeyDown}
@@ -215,17 +216,23 @@ export function CommandPalette({ open, onOpenChange, lang }: CommandPaletteProps
             <h2 className="mt-1 text-xl font-semibold t1">{copy.title}</h2>
             <p className="mt-1 text-xs t2">{copy.subtitle}</p>
           </div>
-          <Button type="button" variant="quiet" onClick={() => onOpenChange(false)}>{copy.close}</Button>
+          <Button type="button" variant="quiet" size="sm" onClick={() => onOpenChange(false)} className="gap-1.5"><X className="h-3.5 w-3.5" /><span>{copy.close}</span></Button>
         </div>
 
-        <input
-          ref={inputRef}
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          className="field-input mt-4 w-full rounded-xl px-4 py-3 text-sm"
-          placeholder={copy.placeholder}
-          aria-label={copy.placeholder}
-        />
+        <div className="relative mt-4">
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 t3" />
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setActiveIndex(0);
+            }}
+            className="field-input w-full rounded-xl pl-10 pr-4 py-3 text-sm"
+            placeholder={copy.placeholder}
+            aria-label={copy.placeholder}
+          />
+        </div>
 
         <div className="mt-4 grid min-h-0 gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
           <div className="command-palette-list min-h-0 overflow-y-auto pr-1" role="listbox" aria-label={copy.title}>
@@ -271,7 +278,7 @@ export function CommandPalette({ open, onOpenChange, lang }: CommandPaletteProps
             <h3 className="mt-2 text-sm font-semibold t1">{activeCommand?.title}</h3>
             <p className="mt-2 text-xs leading-relaxed t2">{activeCommand?.description}</p>
             <pre className="mt-4 max-h-32 overflow-auto rounded-lg border p-3 text-[11px] leading-relaxed t2" style={{ borderColor: "var(--border-c)", background: "var(--bg-muted)" }}>{activeCommand?.preview}</pre>
-            <Button type="button" variant="primary" className="mt-3 w-full" onClick={copyPreview}>{copied ? copy.copied : copy.copy}</Button>
+            <Button type="button" variant="primary" className="mt-3 w-full flex items-center justify-center gap-1.5" onClick={copyPreview}>{copied ? <><Check className="h-3.5 w-3.5" /><span>{copy.copied}</span></> : <><Copy className="h-3.5 w-3.5" /><span>{copy.copy}</span></>}</Button>
             {recent.length > 0 && (
               <div className="mt-5">
                 <p className="text-[10px] font-bold uppercase tracking-[0.14em] t3">Recent</p>
@@ -291,7 +298,7 @@ export function CommandPalette({ open, onOpenChange, lang }: CommandPaletteProps
             )}
           </aside>
         </div>
-      </section>
+      </dialog>
     </div>
   );
 }

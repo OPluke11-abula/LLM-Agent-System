@@ -251,7 +251,7 @@ export function useWorkspace({
       memoryUnlisten?.();
       topologyUnlisten?.();
     };
-  }, [activeWorkspace?.path, activeWorkspaceId, activeWorkspaceName, fallbackMemory, isTauriAvailable, onActivity, setMemoryMap]);
+  }, [activeWorkspace, activeWorkspaceId, activeWorkspaceName, fallbackMemory, isTauriAvailable, onActivity, setMemoryMap]);
 
   async function applyMemoryMutation(mutator: (memory: AgentMemory) => WorkspaceActivity | undefined) {
     const updated = structuredClone(activeMemory);

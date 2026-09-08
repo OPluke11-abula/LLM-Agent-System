@@ -1,0 +1,1361 @@
+{
+  "task": "73-03",
+  "title": "API, Security, and Configuration Review",
+  "generated_at": "2026-09-08T11:22:25.301039+00:00",
+  "total_endpoints_audited": 101,
+  "summary": {
+    "total_endpoints": 101,
+    "by_auth_tier": {
+      "Tenant Authenticated (Protected Router)": 48,
+      "Tenant Context Required": 27,
+      "Admin Write Required": 8,
+      "Admin Read Required": 1,
+      "Tenant Authenticated (Header/Bearer)": 1,
+      "WebSocket Tenant / Cryptographic Handshake": 9,
+      "HMAC Webhook Signature": 3,
+      "Public Read-Only": 4
+    },
+    "route_modules": 6,
+    "configuration_files_audited": 3,
+    "spec_schemas_audited": 13,
+    "security_findings": 5
+  },
+  "configurations": {
+    "nginx": {
+      "file": "nginx.conf",
+      "listen": 8080,
+      "proxy_backend": "http://backend:8000",
+      "proxy_headers": [
+        "Upgrade",
+        "Connection",
+        "Host",
+        "X-Real-IP",
+        "X-Forwarded-For",
+        "X-Forwarded-Proto"
+      ],
+      "missing_security_headers": [
+        "X-Frame-Options",
+        "X-Content-Type-Options",
+        "Content-Security-Policy",
+        "Referrer-Policy"
+      ],
+      "version_exposure": "server_tokens directive missing (defaults to on)"
+    },
+    "docker_compose": {
+      "file": "docker-compose.yml",
+      "backend_ports": "127.0.0.1:8000:8000 (Protected, localhost bound)",
+      "frontend_ports": "8080:8080 (Published to all interfaces)",
+      "jwt_secret_handling": "Fail-closed: requires LAS_JWT_SECRET >= 32 chars at runtime",
+      "user_privilege": "Root (default container user)"
+    },
+    "docker_compose_microservices": {
+      "file": "docker-compose.microservices.yml",
+      "redis_ports": "6379:6379 (EXPOSED TO 0.0.0.0 WITHOUT AUTH)",
+      "backend_ports": "127.0.0.1:8000:8000 (Protected, localhost bound)",
+      "swarm_workers": [
+        "agent-ceo",
+        "agent-dev",
+        "agent-qa",
+        "agent-cfo"
+      ],
+      "user_privilege": "Root (default container user)"
+    }
+  },
+  "spec_parity": [
+    {
+      "filename": "agent-schema.json",
+      "type": "json_schema",
+      "title": "Portable Agent Protocol Manifest Schema",
+      "required_fields": [
+        "protocol_version",
+        "min_runtime_version",
+        "name",
+        "version",
+        "purpose",
+        "language",
+        "authorization_level",
+        "use_case_tags",
+        "tools"
+      ]
+    },
+    {
+      "filename": "checkpoint.schema.json",
+      "type": "json_schema",
+      "title": "PAP Workflow Checkpoint Schema",
+      "required_fields": [
+        "workflow_id",
+        "stage_id",
+        "status",
+        "artifact_path",
+        "artifact_hash",
+        "evidence_refs",
+        "started_at",
+        "completed_at",
+        "verifier",
+        "unresolved_risks"
+      ]
+    },
+    {
+      "filename": "evidence-memory.schema.json",
+      "type": "json_schema",
+      "title": "PAP Evidence Memory Schema",
+      "required_fields": [
+        "schema_version",
+        "l0_raw_evidence_refs",
+        "canonical_artifacts",
+        "l1_atoms",
+        "l2_scenarios",
+        "l3_profile_claims",
+        "mermaid_canvas_refs"
+      ]
+    },
+    {
+      "filename": "knowledge.schema.json",
+      "type": "json_schema",
+      "title": "Portable Agent Protocol Knowledge Entry Schema",
+      "required_fields": [
+        "id",
+        "title",
+        "tags",
+        "created",
+        "updated"
+      ]
+    },
+    {
+      "filename": "memory.schema.json",
+      "type": "json_schema",
+      "title": "Portable Agent Protocol Memory Schema",
+      "required_fields": []
+    },
+    {
+      "filename": "pap-review-findings.schema.json",
+      "type": "json_schema",
+      "title": "PAP Review Findings Schema",
+      "required_fields": [
+        "schema_version",
+        "report_id",
+        "target",
+        "generated_at",
+        "execution_policy",
+        "findings"
+      ]
+    },
+    {
+      "filename": "registry-schema.json",
+      "type": "json_schema",
+      "title": "PAP Registry Index Schema",
+      "required_fields": [
+        "registry_version",
+        "skills"
+      ]
+    },
+    {
+      "filename": "review-findings.schema.json",
+      "type": "json_schema",
+      "title": "LAS/PAP Review Findings Schema",
+      "required_fields": [
+        "schema_version",
+        "review_id",
+        "target",
+        "review_type",
+        "generated_at",
+        "verdict",
+        "risk_level",
+        "changed_paths",
+        "security_triggers",
+        "findings"
+      ]
+    },
+    {
+      "filename": "runtime-interface.md",
+      "type": "markdown_contract",
+      "title": "Runtime Interface",
+      "required_fields": []
+    },
+    {
+      "filename": "security.md",
+      "type": "markdown_contract",
+      "title": "Security",
+      "required_fields": []
+    },
+    {
+      "filename": "skill-contract.schema.json",
+      "type": "json_schema",
+      "title": "Portable Agent Protocol Skill Contract Schema",
+      "required_fields": [
+        "id",
+        "name",
+        "description",
+        "version",
+        "inputs",
+        "outputs",
+        "safety_notes"
+      ]
+    },
+    {
+      "filename": "workflow-stage.schema.json",
+      "type": "json_schema",
+      "title": "PAP Workflow Manifest Schema",
+      "required_fields": [
+        "id",
+        "version",
+        "stages"
+      ]
+    },
+    {
+      "filename": "workflow.schema.json",
+      "type": "json_schema",
+      "title": "Portable Agent Protocol Workflow Schema",
+      "required_fields": [
+        "name",
+        "steps"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "SEC-73-01",
+      "severity": "Medium",
+      "category": "Insecure Default Fallback Credentials",
+      "target": "agent_workspace/routes/collaboration.py:L720-723",
+      "description": "Slack and LINE webhook signature validation fall back to static mock strings (mock_slack_secret_12345, mock_line_secret_12345) when environment variables are unset.",
+      "impact": "If deployed in production without setting secrets, an attacker knowing the default string could forge incoming webhooks and trigger agent conversations.",
+      "remediation": "Fail-closed: if the signing secret environment variable is missing, raise a 503 Service Unavailable or reject incoming requests rather than falling back to mock strings in non-test mode.",
+      "status": "Documented for Owner Decision"
+    },
+    {
+      "id": "SEC-73-02",
+      "severity": "Medium",
+      "category": "Network Exposure of Unauthenticated Service",
+      "target": "docker-compose.microservices.yml:L7-8",
+      "description": "Redis service publishes port 6379:6379 to all host network interfaces (0.0.0.0) without password authentication.",
+      "impact": "Any network peer with access to the host IP on port 6379 can read/write swarm pubsub messages and cache data without authentication.",
+      "remediation": "Bind Redis port explicitly to localhost (127.0.0.1:6379:6379) or remove host port publishing entirely since swarm worker containers reach Redis via the internal Docker network name redis:6379.",
+      "status": "Documented for Owner Decision"
+    },
+    {
+      "id": "SEC-73-03",
+      "severity": "Low",
+      "category": "Container Least Privilege Violation",
+      "target": "docker-compose.yml & docker-compose.microservices.yml",
+      "description": "All container services run under default root user inside the container.",
+      "impact": "Container breakout vulnerabilities would grant immediate root access to volume mounts and potential kernel surfaces.",
+      "remediation": "Add non-root user directives (e.g. user: 1000:1000) in Dockerfiles and compose definitions.",
+      "status": "Documented for Owner Decision"
+    },
+    {
+      "id": "SEC-73-04",
+      "severity": "Low",
+      "category": "Missing Security Headers & Information Disclosure",
+      "target": "nginx.conf:L1-22",
+      "description": "Nginx configuration lacks standard HTTP security headers (X-Content-Type-Options, X-Frame-Options, CSP) and omits server_tokens off.",
+      "impact": "Server discloses Nginx version banner in response headers and does not protect frontend viewer from clickjacking/MIME-sniffing.",
+      "remediation": "Add server_tokens off; and security headers (X-Frame-Options: SAMEORIGIN, X-Content-Type-Options: nosniff, Referrer-Policy: strict-origin-when-cross-origin) to nginx.conf.",
+      "status": "Documented for Owner Decision"
+    },
+    {
+      "id": "SEC-73-05",
+      "severity": "Info",
+      "category": "Spec Schema Consumer Alignment Gap",
+      "target": "spec/workflow.schema.json & spec/knowledge.schema.json",
+      "description": "Two PAP specification schemas (workflow.schema.json and knowledge.schema.json) are present in spec/ but have no active runtime validators or consumers in agent_workspace/.",
+      "impact": "No security risk; schemas serve as passive PAP specifications but have an alignment gap with active validators.",
+      "remediation": "Integrate workflow.schema.json into workflow_lint.py or document as passive reference contracts.",
+      "status": "Documented for Owner Decision"
+    }
+  ],
+  "endpoints": [
+    {
+      "module": "agent_workspace/routes/admin.py",
+      "function": "stripe_webhook",
+      "method": "POST",
+      "path": "/v1/billing/stripe/webhook",
+      "router": "router",
+      "dependencies": [],
+      "auth_tier": "HMAC Webhook Signature",
+      "line": 207
+    },
+    {
+      "module": "agent_workspace/routes/admin.py",
+      "function": "generate_auth_token",
+      "method": "POST",
+      "path": "/v1/auth/token",
+      "router": "router",
+      "dependencies": [
+        "get_authenticated_principal"
+      ],
+      "auth_tier": "Tenant Authenticated (Header/Bearer)",
+      "line": 306
+    },
+    {
+      "module": "agent_workspace/routes/admin.py",
+      "function": "admin_get_tenants",
+      "method": "GET",
+      "path": "/v1/admin/tenants",
+      "router": "router",
+      "dependencies": [
+        "require_admin_principal"
+      ],
+      "auth_tier": "Admin Read Required",
+      "line": 330
+    },
+    {
+      "module": "agent_workspace/routes/admin.py",
+      "function": "admin_rotate_key",
+      "method": "POST",
+      "path": "/v1/admin/tenants/rotate-key",
+      "router": "router",
+      "dependencies": [
+        "require_admin_write_principal"
+      ],
+      "auth_tier": "Admin Write Required",
+      "line": 412
+    },
+    {
+      "module": "agent_workspace/routes/admin.py",
+      "function": "admin_update_subscription",
+      "method": "POST",
+      "path": "/v1/admin/tenants/update-subscription",
+      "router": "router",
+      "dependencies": [
+        "require_admin_write_principal"
+      ],
+      "auth_tier": "Admin Write Required",
+      "line": 429
+    },
+    {
+      "module": "agent_workspace/routes/admin.py",
+      "function": "pause_session_endpoint",
+      "method": "POST",
+      "path": "/v1/sessions/{session_id}/pause",
+      "router": "router",
+      "dependencies": [
+        "require_admin_write_principal"
+      ],
+      "auth_tier": "Admin Write Required",
+      "line": 448
+    },
+    {
+      "module": "agent_workspace/routes/admin.py",
+      "function": "pause_session_endpoint",
+      "method": "POST",
+      "path": "/v1/session/{session_id}/pause",
+      "router": "router",
+      "dependencies": [
+        "require_admin_write_principal"
+      ],
+      "auth_tier": "Admin Write Required",
+      "line": 448
+    },
+    {
+      "module": "agent_workspace/routes/admin.py",
+      "function": "resume_session_endpoint",
+      "method": "POST",
+      "path": "/v1/sessions/{session_id}/resume",
+      "router": "router",
+      "dependencies": [
+        "require_admin_write_principal"
+      ],
+      "auth_tier": "Admin Write Required",
+      "line": 457
+    },
+    {
+      "module": "agent_workspace/routes/admin.py",
+      "function": "resume_session_endpoint",
+      "method": "POST",
+      "path": "/v1/session/{session_id}/resume",
+      "router": "router",
+      "dependencies": [
+        "require_admin_write_principal"
+      ],
+      "auth_tier": "Admin Write Required",
+      "line": 457
+    },
+    {
+      "module": "agent_workspace/routes/admin.py",
+      "function": "hijack_session_endpoint",
+      "method": "POST",
+      "path": "/v1/sessions/{session_id}/hijack",
+      "router": "router",
+      "dependencies": [
+        "require_admin_write_principal"
+      ],
+      "auth_tier": "Admin Write Required",
+      "line": 466
+    },
+    {
+      "module": "agent_workspace/routes/admin.py",
+      "function": "hijack_session_endpoint",
+      "method": "POST",
+      "path": "/v1/session/{session_id}/hijack",
+      "router": "router",
+      "dependencies": [
+        "require_admin_write_principal"
+      ],
+      "auth_tier": "Admin Write Required",
+      "line": 466
+    },
+    {
+      "module": "agent_workspace/routes/admin.py",
+      "function": "get_saas_invoice",
+      "method": "GET",
+      "path": "/v1/billing/saas/invoice",
+      "router": "router",
+      "dependencies": [
+        "get_tenant_context"
+      ],
+      "auth_tier": "Tenant Context Required",
+      "line": 482
+    },
+    {
+      "module": "agent_workspace/routes/admin.py",
+      "function": "get_workspace_config",
+      "method": "GET",
+      "path": "/v1/workspace/config",
+      "router": "router",
+      "dependencies": [
+        "get_tenant_context"
+      ],
+      "auth_tier": "Tenant Context Required",
+      "line": 493
+    },
+    {
+      "module": "agent_workspace/routes/audit.py",
+      "function": "get_audit_logs",
+      "method": "GET",
+      "path": "/v1/audit/logs",
+      "router": "router",
+      "dependencies": [
+        "get_tenant_context"
+      ],
+      "auth_tier": "Tenant Context Required",
+      "line": 14
+    },
+    {
+      "module": "agent_workspace/routes/audit.py",
+      "function": "verify_audit_chain",
+      "method": "GET",
+      "path": "/v1/audit/verify",
+      "router": "router",
+      "dependencies": [
+        "get_tenant_context"
+      ],
+      "auth_tier": "Tenant Context Required",
+      "line": 21
+    },
+    {
+      "module": "agent_workspace/routes/audit.py",
+      "function": "get_audit_status",
+      "method": "GET",
+      "path": "/v1/audit/status",
+      "router": "router",
+      "dependencies": [
+        "get_tenant_context"
+      ],
+      "auth_tier": "Tenant Context Required",
+      "line": 28
+    },
+    {
+      "module": "agent_workspace/routes/audit.py",
+      "function": "trigger_audit_sync",
+      "method": "POST",
+      "path": "/v1/audit/sync",
+      "router": "router",
+      "dependencies": [
+        "get_tenant_context"
+      ],
+      "auth_tier": "Tenant Context Required",
+      "line": 49
+    },
+    {
+      "module": "agent_workspace/routes/audit.py",
+      "function": "get_audit_proof",
+      "method": "GET",
+      "path": "/v1/audit/proof/{event_id}",
+      "router": "router",
+      "dependencies": [
+        "get_tenant_context"
+      ],
+      "auth_tier": "Tenant Context Required",
+      "line": 63
+    },
+    {
+      "module": "agent_workspace/routes/audit.py",
+      "function": "verify_audit_proof",
+      "method": "POST",
+      "path": "/v1/audit/verify-proof",
+      "router": "router",
+      "dependencies": [
+        "get_tenant_context"
+      ],
+      "auth_tier": "Tenant Context Required",
+      "line": 82
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "health",
+      "method": "GET",
+      "path": "/v1/health",
+      "router": "router",
+      "dependencies": [],
+      "auth_tier": "Public Read-Only",
+      "line": 148
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "metrics",
+      "method": "GET",
+      "path": "/metrics",
+      "router": "router",
+      "dependencies": [],
+      "auth_tier": "Public Read-Only",
+      "line": 165
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "metrics",
+      "method": "GET",
+      "path": "/v1/metrics",
+      "router": "router",
+      "dependencies": [],
+      "auth_tier": "Public Read-Only",
+      "line": 165
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "list_tools",
+      "method": "GET",
+      "path": "/v1/tools",
+      "router": "router",
+      "dependencies": [],
+      "auth_tier": "Public Read-Only",
+      "line": 174
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "chat",
+      "method": "POST",
+      "path": "/v1/chat",
+      "router": "protected_router",
+      "dependencies": [],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 181
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "stream",
+      "method": "POST",
+      "path": "/v1/stream",
+      "router": "protected_router",
+      "dependencies": [],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 190
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "stream_ws",
+      "method": "WEBSOCKET",
+      "path": "/v1/stream_ws",
+      "router": "router",
+      "dependencies": [],
+      "auth_tier": "WebSocket Tenant / Cryptographic Handshake",
+      "line": 203
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "websocket_stream",
+      "method": "WEBSOCKET",
+      "path": "/v1/stream",
+      "router": "router",
+      "dependencies": [],
+      "auth_tier": "WebSocket Tenant / Cryptographic Handshake",
+      "line": 260
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "submit_task",
+      "method": "POST",
+      "path": "/v1/task",
+      "router": "protected_router",
+      "dependencies": [],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 323
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "get_session",
+      "method": "GET",
+      "path": "/v1/session/{session_id}",
+      "router": "protected_router",
+      "dependencies": [],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 351
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "approve_session",
+      "method": "POST",
+      "path": "/v1/sessions/{session_id}/approve",
+      "router": "protected_router",
+      "dependencies": [],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 376
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "approve_session",
+      "method": "POST",
+      "path": "/v1/session/{session_id}/approve",
+      "router": "protected_router",
+      "dependencies": [],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 376
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "reject_session",
+      "method": "POST",
+      "path": "/v1/sessions/{session_id}/reject",
+      "router": "protected_router",
+      "dependencies": [],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 391
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "reject_session",
+      "method": "POST",
+      "path": "/v1/session/{session_id}/reject",
+      "router": "protected_router",
+      "dependencies": [],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 391
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "list_long_term_memory",
+      "method": "GET",
+      "path": "/v1/memory",
+      "router": "protected_router",
+      "dependencies": [],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 405
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "query_long_term_memory",
+      "method": "GET",
+      "path": "/v1/memory/query",
+      "router": "protected_router",
+      "dependencies": [],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 414
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "add_preference",
+      "method": "POST",
+      "path": "/v1/memory/preference",
+      "router": "protected_router",
+      "dependencies": [],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 440
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "delete_memory",
+      "method": "DELETE",
+      "path": "/v1/memory/{session_id}/{key}",
+      "router": "protected_router",
+      "dependencies": [],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 454
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "prune_memory",
+      "method": "POST",
+      "path": "/v1/memory/prune",
+      "router": "protected_router",
+      "dependencies": [],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 464
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "update_memory",
+      "method": "POST",
+      "path": "/v1/memory/update",
+      "router": "protected_router",
+      "dependencies": [],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 471
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "batch_move_memory",
+      "method": "POST",
+      "path": "/v1/memory/batch-move",
+      "router": "protected_router",
+      "dependencies": [],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 490
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "get_config",
+      "method": "GET",
+      "path": "/v1/config",
+      "router": "protected_router",
+      "dependencies": [],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 501
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "update_config",
+      "method": "PUT",
+      "path": "/v1/config",
+      "router": "protected_router",
+      "dependencies": [],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 529
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "list_accounts",
+      "method": "GET",
+      "path": "/v1/accounts",
+      "router": "protected_router",
+      "dependencies": [],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 604
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "add_update_account",
+      "method": "POST",
+      "path": "/v1/accounts",
+      "router": "protected_router",
+      "dependencies": [],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 609
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "delete_account",
+      "method": "DELETE",
+      "path": "/v1/accounts/{account_id}",
+      "router": "protected_router",
+      "dependencies": [],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 616
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "set_active_account",
+      "method": "POST",
+      "path": "/v1/accounts/active",
+      "router": "protected_router",
+      "dependencies": [],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 624
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "get_active_account",
+      "method": "GET",
+      "path": "/v1/accounts/active",
+      "router": "protected_router",
+      "dependencies": [],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 632
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "get_session_turns",
+      "method": "GET",
+      "path": "/v1/sessions/{session_id}/turns",
+      "router": "protected_router",
+      "dependencies": [],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 641
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "get_session_turns",
+      "method": "GET",
+      "path": "/v1/session/{session_id}/turns",
+      "router": "protected_router",
+      "dependencies": [],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 641
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "manual_handoff_export",
+      "method": "POST",
+      "path": "/v1/sessions/{session_id}/handoff",
+      "router": "protected_router",
+      "dependencies": [],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 656
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "manual_handoff_export",
+      "method": "POST",
+      "path": "/v1/session/{session_id}/handoff",
+      "router": "protected_router",
+      "dependencies": [],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 656
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "manual_defragment",
+      "method": "POST",
+      "path": "/v1/sessions/{session_id}/defragment",
+      "router": "protected_router",
+      "dependencies": [],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 693
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "manual_defragment",
+      "method": "POST",
+      "path": "/v1/session/{session_id}/defragment",
+      "router": "protected_router",
+      "dependencies": [],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 693
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "get_defragment_metrics",
+      "method": "GET",
+      "path": "/v1/sessions/{session_id}/defragment/metrics",
+      "router": "protected_router",
+      "dependencies": [],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 712
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "get_defragment_metrics",
+      "method": "GET",
+      "path": "/v1/session/{session_id}/defragment/metrics",
+      "router": "protected_router",
+      "dependencies": [],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 712
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "get_session_ledger",
+      "method": "GET",
+      "path": "/v1/sessions/{session_id}/ledger",
+      "router": "protected_router",
+      "dependencies": [],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 740
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "get_session_ledger",
+      "method": "GET",
+      "path": "/v1/session/{session_id}/ledger",
+      "router": "protected_router",
+      "dependencies": [],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 740
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "reset_session_ledger",
+      "method": "POST",
+      "path": "/v1/sessions/{session_id}/ledger/reset",
+      "router": "protected_router",
+      "dependencies": [],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 771
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "reset_session_ledger",
+      "method": "POST",
+      "path": "/v1/session/{session_id}/ledger/reset",
+      "router": "protected_router",
+      "dependencies": [],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 771
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "get_sandbox_status",
+      "method": "GET",
+      "path": "/v1/sessions/{session_id}/sandbox/status",
+      "router": "protected_router",
+      "dependencies": [],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 781
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "get_sandbox_status",
+      "method": "GET",
+      "path": "/v1/session/{session_id}/sandbox/status",
+      "router": "protected_router",
+      "dependencies": [],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 781
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "get_session_telemetry",
+      "method": "GET",
+      "path": "/v1/sessions/{session_id}/telemetry",
+      "router": "protected_router",
+      "dependencies": [],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 795
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "get_session_telemetry",
+      "method": "GET",
+      "path": "/v1/session/{session_id}/telemetry",
+      "router": "protected_router",
+      "dependencies": [],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 795
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "get_router_status",
+      "method": "GET",
+      "path": "/v1/router/status",
+      "router": "protected_router",
+      "dependencies": [],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 810
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "get_router_status",
+      "method": "GET",
+      "path": "/v1/sessions/{session_id}/router/status",
+      "router": "protected_router",
+      "dependencies": [],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 810
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "get_router_status",
+      "method": "GET",
+      "path": "/v1/session/{session_id}/router/status",
+      "router": "protected_router",
+      "dependencies": [],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 810
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "prune_router_routes",
+      "method": "POST",
+      "path": "/v1/router/prune",
+      "router": "protected_router",
+      "dependencies": [],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 824
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "prune_router_routes",
+      "method": "POST",
+      "path": "/v1/sessions/{session_id}/router/prune",
+      "router": "protected_router",
+      "dependencies": [],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 824
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "prune_router_routes",
+      "method": "POST",
+      "path": "/v1/session/{session_id}/router/prune",
+      "router": "protected_router",
+      "dependencies": [],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 824
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "create_builder_agent",
+      "method": "POST",
+      "path": "/v1/builder/agents",
+      "router": "protected_router",
+      "dependencies": [
+        "get_tenant_context"
+      ],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 839
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "get_builder_templates",
+      "method": "GET",
+      "path": "/v1/builder/templates",
+      "router": "protected_router",
+      "dependencies": [
+        "get_tenant_context"
+      ],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 848
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "test_builder_agent",
+      "method": "POST",
+      "path": "/v1/builder/test",
+      "router": "protected_router",
+      "dependencies": [
+        "get_tenant_context"
+      ],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 855
+    },
+    {
+      "module": "agent_workspace/routes/chat.py",
+      "function": "execute_in_sandbox",
+      "method": "POST",
+      "path": "/v1/sandbox/execute",
+      "router": "protected_router",
+      "dependencies": [
+        "get_tenant_context"
+      ],
+      "auth_tier": "Tenant Authenticated (Protected Router)",
+      "line": 896
+    },
+    {
+      "module": "agent_workspace/routes/collaboration.py",
+      "function": "register_crew_node",
+      "method": "POST",
+      "path": "/v1/crew/register",
+      "router": "router",
+      "dependencies": [
+        "get_tenant_context"
+      ],
+      "auth_tier": "Tenant Context Required",
+      "line": 285
+    },
+    {
+      "module": "agent_workspace/routes/collaboration.py",
+      "function": "get_crew_topology",
+      "method": "GET",
+      "path": "/v1/crew/topology",
+      "router": "router",
+      "dependencies": [
+        "get_tenant_context"
+      ],
+      "auth_tier": "Tenant Context Required",
+      "line": 315
+    },
+    {
+      "module": "agent_workspace/routes/collaboration.py",
+      "function": "collaboration_endpoint",
+      "method": "WEBSOCKET",
+      "path": "/v1/collaboration/{session_id}",
+      "router": "router",
+      "dependencies": [],
+      "auth_tier": "WebSocket Tenant / Cryptographic Handshake",
+      "line": 324
+    },
+    {
+      "module": "agent_workspace/routes/collaboration.py",
+      "function": "dashboard_stream",
+      "method": "WEBSOCKET",
+      "path": "/v1/dashboard/{session_id}/{role}",
+      "router": "router",
+      "dependencies": [],
+      "auth_tier": "WebSocket Tenant / Cryptographic Handshake",
+      "line": 434
+    },
+    {
+      "module": "agent_workspace/routes/collaboration.py",
+      "function": "crew_sync_endpoint",
+      "method": "WEBSOCKET",
+      "path": "/v1/crew/sync/{session_id}",
+      "router": "router",
+      "dependencies": [],
+      "auth_tier": "WebSocket Tenant / Cryptographic Handshake",
+      "line": 474
+    },
+    {
+      "module": "agent_workspace/routes/collaboration.py",
+      "function": "federated_sync_ws",
+      "method": "WEBSOCKET",
+      "path": "/v1/federated/sync",
+      "router": "router",
+      "dependencies": [],
+      "auth_tier": "WebSocket Tenant / Cryptographic Handshake",
+      "line": 581
+    },
+    {
+      "module": "agent_workspace/routes/collaboration.py",
+      "function": "swarm_p2p_tunnel_endpoint",
+      "method": "WEBSOCKET",
+      "path": "/v1/swarm/p2p/tunnel",
+      "router": "router",
+      "dependencies": [],
+      "auth_tier": "WebSocket Tenant / Cryptographic Handshake",
+      "line": 648
+    },
+    {
+      "module": "agent_workspace/routes/collaboration.py",
+      "function": "slack_webhook",
+      "method": "POST",
+      "path": "/v1/channels/slack/webhook",
+      "router": "router",
+      "dependencies": [],
+      "auth_tier": "HMAC Webhook Signature",
+      "line": 821
+    },
+    {
+      "module": "agent_workspace/routes/collaboration.py",
+      "function": "line_webhook",
+      "method": "POST",
+      "path": "/v1/channels/line/webhook",
+      "router": "router",
+      "dependencies": [],
+      "auth_tier": "HMAC Webhook Signature",
+      "line": 851
+    },
+    {
+      "module": "agent_workspace/routes/cross_cloud.py",
+      "function": "get_cross_cloud_cert_status",
+      "method": "GET",
+      "path": "/v1/cross-cloud/cert/status",
+      "router": "router",
+      "dependencies": [
+        "get_tenant_context"
+      ],
+      "auth_tier": "Tenant Context Required",
+      "line": 16
+    },
+    {
+      "module": "agent_workspace/routes/cross_cloud.py",
+      "function": "rotate_cross_cloud_cert",
+      "method": "POST",
+      "path": "/v1/cross-cloud/cert/rotate",
+      "router": "router",
+      "dependencies": [
+        "get_tenant_context"
+      ],
+      "auth_tier": "Tenant Context Required",
+      "line": 38
+    },
+    {
+      "module": "agent_workspace/routes/cross_cloud.py",
+      "function": "revoke_cross_cloud_cert",
+      "method": "POST",
+      "path": "/v1/cross-cloud/revoke",
+      "router": "router",
+      "dependencies": [
+        "get_tenant_context"
+      ],
+      "auth_tier": "Tenant Context Required",
+      "line": 53
+    },
+    {
+      "module": "agent_workspace/routes/cross_cloud.py",
+      "function": "reinstate_cross_cloud_cert",
+      "method": "POST",
+      "path": "/v1/cross-cloud/reinstate",
+      "router": "router",
+      "dependencies": [
+        "get_tenant_context"
+      ],
+      "auth_tier": "Tenant Context Required",
+      "line": 97
+    },
+    {
+      "module": "agent_workspace/routes/cross_cloud.py",
+      "function": "get_revoked_certs",
+      "method": "GET",
+      "path": "/v1/cross-cloud/revoked",
+      "router": "router",
+      "dependencies": [
+        "get_tenant_context"
+      ],
+      "auth_tier": "Tenant Context Required",
+      "line": 112
+    },
+    {
+      "module": "agent_workspace/routes/cross_cloud.py",
+      "function": "cross_cloud_tunnel_endpoint",
+      "method": "WEBSOCKET",
+      "path": "/v1/cross-cloud/tunnel",
+      "router": "router",
+      "dependencies": [],
+      "auth_tier": "WebSocket Tenant / Cryptographic Handshake",
+      "line": 126
+    },
+    {
+      "module": "agent_workspace/routes/swarm.py",
+      "function": "get_swarm_nodes",
+      "method": "GET",
+      "path": "/v1/swarm/nodes",
+      "router": "router",
+      "dependencies": [
+        "get_tenant_context"
+      ],
+      "auth_tier": "Tenant Context Required",
+      "line": 17
+    },
+    {
+      "module": "agent_workspace/routes/swarm.py",
+      "function": "scale_swarm",
+      "method": "POST",
+      "path": "/v1/swarm/scale",
+      "router": "router",
+      "dependencies": [
+        "get_tenant_context"
+      ],
+      "auth_tier": "Tenant Context Required",
+      "line": 22
+    },
+    {
+      "module": "agent_workspace/routes/swarm.py",
+      "function": "get_swarm_health",
+      "method": "GET",
+      "path": "/v1/swarm/health",
+      "router": "router",
+      "dependencies": [
+        "get_tenant_context"
+      ],
+      "auth_tier": "Tenant Context Required",
+      "line": 28
+    },
+    {
+      "module": "agent_workspace/routes/swarm.py",
+      "function": "get_swarm_peers",
+      "method": "GET",
+      "path": "/v1/swarm/peers",
+      "router": "router",
+      "dependencies": [
+        "get_tenant_context"
+      ],
+      "auth_tier": "Tenant Context Required",
+      "line": 43
+    },
+    {
+      "module": "agent_workspace/routes/swarm.py",
+      "function": "get_swarm_billing_status",
+      "method": "GET",
+      "path": "/v1/swarm/billing/status",
+      "router": "router",
+      "dependencies": [
+        "get_tenant_context"
+      ],
+      "auth_tier": "Tenant Context Required",
+      "line": 58
+    },
+    {
+      "module": "agent_workspace/routes/swarm.py",
+      "function": "configure_billing_policy",
+      "method": "POST",
+      "path": "/v1/swarm/billing/policy",
+      "router": "router",
+      "dependencies": [
+        "get_tenant_context"
+      ],
+      "auth_tier": "Tenant Context Required",
+      "line": 104
+    },
+    {
+      "module": "agent_workspace/routes/swarm.py",
+      "function": "get_swarm_sessions",
+      "method": "GET",
+      "path": "/v1/swarm/sessions",
+      "router": "router",
+      "dependencies": [
+        "get_tenant_context"
+      ],
+      "auth_tier": "Tenant Context Required",
+      "line": 154
+    },
+    {
+      "module": "agent_workspace/routes/swarm.py",
+      "function": "resume_session_endpoint",
+      "method": "POST",
+      "path": "/v1/swarm/sessions/resume",
+      "router": "router",
+      "dependencies": [
+        "get_tenant_context"
+      ],
+      "auth_tier": "Tenant Context Required",
+      "line": 179
+    },
+    {
+      "module": "agent_workspace/routes/swarm.py",
+      "function": "get_swarm_replay",
+      "method": "GET",
+      "path": "/v1/swarm/replays/{session_id}",
+      "router": "router",
+      "dependencies": [
+        "get_tenant_context"
+      ],
+      "auth_tier": "Tenant Context Required",
+      "line": 223
+    },
+    {
+      "module": "agent_workspace/routes/swarm.py",
+      "function": "clean_swarm_replays",
+      "method": "POST",
+      "path": "/v1/swarm/replays/clean",
+      "router": "router",
+      "dependencies": [
+        "get_tenant_context"
+      ],
+      "auth_tier": "Tenant Context Required",
+      "line": 239
+    },
+    {
+      "module": "agent_workspace/routes/swarm.py",
+      "function": "swarm_telemetry_ws_endpoint",
+      "method": "WEBSOCKET",
+      "path": "/v1/swarm/telemetry/ws",
+      "router": "router",
+      "dependencies": [],
+      "auth_tier": "WebSocket Tenant / Cryptographic Handshake",
+      "line": 253
+    },
+    {
+      "module": "agent_workspace/routes/swarm.py",
+      "function": "get_governance_rules",
+      "method": "GET",
+      "path": "/v1/swarm/governance/rules",
+      "router": "router",
+      "dependencies": [
+        "get_tenant_context"
+      ],
+      "auth_tier": "Tenant Context Required",
+      "line": 346
+    },
+    {
+      "module": "agent_workspace/routes/swarm.py",
+      "function": "cast_governance_vote",
+      "method": "POST",
+      "path": "/v1/swarm/governance/vote",
+      "router": "router",
+      "dependencies": [
+        "get_tenant_context"
+      ],
+      "auth_tier": "Tenant Context Required",
+      "line": 365
+    }
+  ]
+}

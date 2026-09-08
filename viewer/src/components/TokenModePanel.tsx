@@ -98,9 +98,12 @@ export function TokenModePanel({ session, nextTask, lang, compact = false }: Tok
   const tokenBudget = trace?.budget.token_budget ?? null;
   const usedTokens = session?.stats.total_tokens ?? 0;
   const contextRatio = tokenBudget && tokenBudget > 0 ? Math.min(100, (usedTokens / tokenBudget) * 100) : 0;
-  const contributors = [...(session?.nodes ?? [])]
-    .map((node) => ({ node, tokens: tokenValue(node) }))
-    .filter((item) => item.tokens > 0)
+  const contributors = (session?.nodes ?? [])
+    .reduce<{ node: (NonNullable<typeof session>["nodes"][number]); tokens: number }[]>((acc, node) => {
+      const tokens = tokenValue(node);
+      if (tokens > 0) acc.push({ node, tokens });
+      return acc;
+    }, [])
     .sort((left, right) => right.tokens - left.tokens)
     .slice(0, 3);
   const changedFiles = trace?.impact_summary?.changed_file_count ?? 0;

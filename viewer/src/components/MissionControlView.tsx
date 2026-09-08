@@ -1,7 +1,8 @@
 import { Link } from "react-router-dom";
 import { ActivityLog } from "./ActivityLog";
 import { NextActionRail } from "./NextActionRail";
-import { Button, MetricTile, ProgressBar, StatusBadge, Surface, toneForStatus } from "./ui/primitives";
+import { Button, Card, CardContent, CardHeader, CardTitle, MetricTile, ProgressBar, StatusBadge, Surface, toneForStatus } from "./ui/primitives";
+import { ArrowRight, GitFork, Network, Radio, Workflow } from "./ui/icons";
 import { TokenModePanel } from "./TokenModePanel";
 import type { ActivityLogEntry, AgentMemory, AgentTask, Lang, TopologyEvent, TopologyState, Workspace } from "../types";
 
@@ -172,7 +173,10 @@ function MissionTopology({ session, copy }: { session: TopologyState | null; cop
     <Surface elevated className="mission-focal relative min-h-[360px] overflow-hidden p-4 sm:p-5">
       <div className="relative z-10 flex items-start justify-between gap-4">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.14em] t3">{copy.topology}</p>
+          <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--accent)]">
+            <Radio className="h-3.5 w-3.5 animate-pulse" />
+            <span>{copy.topology}</span>
+          </p>
           <h2 className="mt-1 text-2xl font-semibold t1">{session?.project_name ?? "LAS Runtime"}</h2>
           <p className="mt-2 max-w-xl text-xs leading-relaxed t2">{session?.summary ?? copy.noTopology}</p>
         </div>
@@ -246,24 +250,31 @@ function ConductorPanel({ event, copy }: { event: TopologyEvent | null; copy: (t
   const total = trace?.subtasks.length ?? 0;
 
   return (
-    <Surface as="section" className="p-4">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.14em] t3">{copy.conductor}</p>
-          <h3 className="mt-1 text-sm font-semibold t1">{trace?.task_summary ?? event?.title ?? "No active trace"}</h3>
+    <Card className="conductor-panel">
+      <CardHeader className="p-4 pb-2">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--accent)]">
+              <Workflow className="h-3.5 w-3.5" />
+              <span>{copy.conductor}</span>
+            </p>
+            <CardTitle className="mt-1 text-sm font-semibold t1">{trace?.task_summary ?? event?.title ?? "No active trace"}</CardTitle>
+          </div>
+          <StatusBadge tone={trace?.risk_level === "high" ? "danger" : trace?.risk_level === "medium" ? "warning" : "accent"}>
+            {trace?.risk_level ?? "standby"}
+          </StatusBadge>
         </div>
-        <StatusBadge tone={trace?.risk_level === "high" ? "danger" : trace?.risk_level === "medium" ? "warning" : "accent"}>
-          {trace?.risk_level ?? "standby"}
-        </StatusBadge>
-      </div>
-      <div className="mt-4 grid grid-cols-3 gap-2">
-        <MetricTile label={copy.tasks} value={total ? `${completed}/${total}` : "0"} />
-        <MetricTile label={copy.evidence} value={trace?.evidence_refs?.length ?? 0} tone="accent" />
-        <MetricTile label="Tests" value={trace?.impact_summary?.linked_test_count ?? 0} tone="success" />
-      </div>
-      <ProgressBar ariaLabel={copy.verification} className="mt-4" value={total ? (completed / total) * 100 : 0} tone={trace?.risk_level === "high" ? "danger" : "accent"} />
-      <p className="mt-3 line-clamp-3 text-xs leading-relaxed t2">{trace?.decision_rationale ?? event?.description ?? "Runtime trace will appear after conductor planning."}</p>
-    </Surface>
+      </CardHeader>
+      <CardContent className="p-4 pt-2">
+        <div className="grid grid-cols-3 gap-2">
+          <MetricTile label={copy.tasks} value={total ? `${completed}/${total}` : "0"} />
+          <MetricTile label={copy.evidence} value={trace?.evidence_refs?.length ?? 0} tone="accent" />
+          <MetricTile label="Tests" value={trace?.impact_summary?.linked_test_count ?? 0} tone="success" />
+        </div>
+        <ProgressBar ariaLabel={copy.verification} className="mt-4" value={total ? (completed / total) * 100 : 0} tone={trace?.risk_level === "high" ? "danger" : "accent"} />
+        <p className="mt-3 line-clamp-3 text-xs leading-relaxed t2">{trace?.decision_rationale ?? event?.description ?? "Runtime trace will appear after conductor planning."}</p>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -343,10 +354,19 @@ export function MissionControlView({
           <ActivityLog entries={activityEntries.slice(0, 8)} lang={lang} onClear={onClearActivityLog} />
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="quiet" disabled>{copy.verification}: {verificationScore}%</Button>
-          <Link to="/topology" className="quiet-button rounded-lg px-3 py-1.5 text-xs font-semibold">{copy.live}</Link>
-          <Link to="/tasks" className="primary-button rounded-lg px-3 py-1.5 text-xs font-semibold">{copy.activeMission}</Link>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <Button type="button" variant="quiet" disabled className="text-xs font-semibold">
+            {copy.verification}: {verificationScore}%
+          </Button>
+          <Link to="/topology" className="quiet-button flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold">
+            <Network className="h-3.5 w-3.5" />
+            <span>{copy.live}</span>
+          </Link>
+          <Link to="/tasks" className="primary-button flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold">
+            <GitFork className="h-3.5 w-3.5" />
+            <span>{copy.activeMission}</span>
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
         </div>
       </div>
     </main>
