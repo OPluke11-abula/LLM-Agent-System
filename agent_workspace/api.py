@@ -18,7 +18,10 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, Request, Depends
+from fastapi import FastAPI, HTTPException, Request, Depends
+from fastapi.exception_handlers import http_exception_handler, request_validation_exception_handler
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import dotenv
 
@@ -169,6 +172,50 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+_cors_origins = [
+    origin.strip()
+    for origin in os.environ.get(
+        "LAS_CORS_ORIGINS",
+        "http://localhost:5173,http://127.0.0.1:5173,http://localhost:8766,http://127.0.0.1:8766",
+    ).split(",")
+    if origin.strip()
+]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_cors_origins,
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-API-Key", "Idempotency-Key"],
+)
+
+
+def _is_mission_request(request: Request) -> bool:
+    return request.url.path == "/v1/missions" or request.url.path.startswith("/v1/missions/")
+
+
+def _is_control_plane_request(request: Request) -> bool:
+    return _is_mission_request(request) or request.url.path.startswith("/v1/system/")
+
+
+@app.exception_handler(RequestValidationError)
+async def mission_validation_handler(request: Request, exc: RequestValidationError):
+    if _is_control_plane_request(request):
+        return JSONResponse(
+            status_code=422,
+            content={"code": "invalid_contract", "message": "Mission request contract is invalid"},
+        )
+    return await request_validation_exception_handler(request, exc)
+
+
+@app.exception_handler(HTTPException)
+async def mission_http_exception_handler(request: Request, exc: HTTPException):
+    if _is_control_plane_request(request) and exc.status_code == 401:
+        return JSONResponse(
+            status_code=401,
+            content={"code": "auth_required", "message": "Mission authentication required"},
+        )
+    return await http_exception_handler(request, exc)
+
 # Exception handlers
 from agent_workspace.core.billing import QuotaExceededError, TenantSubscriptionInactiveError, TenantRateLimitError
 
@@ -303,6 +350,8 @@ from agent_workspace.routes.audit import router as audit_router
 from agent_workspace.routes.chat import router as chat_router, protected_router as chat_protected_router
 from agent_workspace.routes.collaboration import router as collab_router
 from agent_workspace.routes.admin import router as admin_router
+from agent_workspace.routes.missions import router as missions_router
+from agent_workspace.routes.system import router as system_router
 
 app.include_router(swarm_router)
 app.include_router(cross_cloud_router)
@@ -311,6 +360,8 @@ app.include_router(chat_router)
 app.include_router(chat_protected_router)
 app.include_router(collab_router)
 app.include_router(admin_router)
+app.include_router(missions_router)
+app.include_router(system_router)
 
 # Backwards compatibility exports for testing and legacy imports
 from agent_workspace.routes.dependencies import (

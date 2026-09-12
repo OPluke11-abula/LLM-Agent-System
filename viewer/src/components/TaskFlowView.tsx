@@ -19,6 +19,7 @@ import { Modal } from "./Modal";
 import { ContextMenu } from "./ContextMenu";
 import { ActivityLog } from "./ActivityLog";
 import { TASK_NODE_TYPES } from "./TaskNode";
+import { TASK_CATEGORY_EDGE_TYPES } from "./edges";
 import { Button, MetricTile, StatusBadge, Surface } from "./ui/primitives";
 import type {
   ActivityLogEntry,
@@ -1052,6 +1053,7 @@ function TaskFlowCanvas({ controller }: { readonly controller: TaskFlowControlle
           maxZoom: 1.05,
         }}
         nodeTypes={TASK_NODE_TYPES}
+        edgeTypes={TASK_CATEGORY_EDGE_TYPES}
       >
         <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="var(--grid)" />
       </ReactFlow>

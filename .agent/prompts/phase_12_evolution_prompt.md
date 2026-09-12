@@ -1,6 +1,10 @@
 # PAP Programmer Job Prompt: Phase 12 — LAS Evolution: Multi-Dimensional Swarms, Self-Learning & Log Compaction
 
-請先閱讀並理解 `ai_programmer_learning_guide.md` 手冊。剩下的引導詞如下：
+> Historical implementation prompt. Phase 12 is included in the compacted
+> completed-history range in `.agent/agent_tasks.md`; use this document to
+> verify or maintain its capabilities rather than reopening completed work.
+
+請先閱讀並理解 `.agent/programmer/programmer_learning_guide.md` 手冊。剩下的引導詞如下：
 
 ---
 
@@ -12,7 +16,7 @@
 ---
 
 ## 🗂️ 核心關聯檔案與路徑
-- **自我學習手冊**：[.agent/ai_programmer_learning_guide.md](file:///d:/GitHub/LLM-Agent-System/.agent/ai_programmer_learning_guide.md)
+- **自我學習手冊**：[.agent/programmer/programmer_learning_guide.md](../programmer/programmer_learning_guide.md)
 - **錯誤與經驗資料庫**：[.agent/knowledge_base/lessons_learned.md](file:///d:/GitHub/LLM-Agent-System/.agent/knowledge_base/lessons_learned.md)
 - **任務規格清單**：[.agent/agent_tasks.md](file:///d:/GitHub/LLM-Agent-System/.agent/agent_tasks.md)
 - **有向圖引擎與記憶體**：
@@ -69,5 +73,5 @@
 
 ## 🚦 自動化與合約維護
 1. 實現所有功能後，必須執行全量 pytest 單元測試套件，確保 100% 通過。
-2. 更新 [agent_tasks.md](file:///d:/GitHub/LLM-Agent-System/.agent/agent_tasks.md) 中的 `PHASE 12` 勾選狀態。
-3. 使用 `git add .` 暫存所有變更，並提交 semantic commit。
+2. 僅在有新的核實證據或未完成工作時，更新 `.agent/agent_tasks.md`；已完成歷史應維持壓縮。
+3. 僅暫存本任務修改的檔案，並提交 semantic commit；不要使用 `git add .`。

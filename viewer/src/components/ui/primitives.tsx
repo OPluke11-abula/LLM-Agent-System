@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from "react";
+import { Link } from "react-router-dom";
 
 type Tone = "neutral" | "accent" | "success" | "warning" | "danger";
 
@@ -83,6 +84,10 @@ export function Button({ variant = "quiet", className, ...props }: ButtonProps) 
       {...props}
     />
   );
+}
+
+export function LinkButton({ to, variant = "quiet", children, className }: { to: string; variant?: ButtonProps["variant"]; children: ReactNode; className?: string }) {
+  return <Link to={to} className={cx("rounded-lg px-3 py-1.5 text-xs font-semibold transition-all", variant === "primary" && "primary-button", variant === "quiet" && "quiet-button", variant === "danger" && "danger-button", variant === "warning" && "warning-button", className)}>{children}</Link>;
 }
 
 export function StatusBadge({ children, tone = "neutral", className }: StatusBadgeProps) {

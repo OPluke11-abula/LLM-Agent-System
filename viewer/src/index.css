@@ -948,6 +948,15 @@ a:focus-visible {
   animation: dash 1.25s linear infinite !important;
 }
 
+@keyframes feedbackEdgePulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+
+.feedback-loop-edge {
+  animation: feedbackEdgePulse 1.6s ease-in-out infinite;
+}
+
 /* Pulsing border animation for active streaming nodes with dynamic transitions */
 @keyframes activeNodePulse {
   0%, 100% {

@@ -98,6 +98,11 @@ export function buildFlow(
         id: `${depId}-${task.id}`,
         source: depId,
         target: task.id,
+        type: "taskCategoryEdge",
+        data: {
+          category,
+          isDimmed: Boolean(visualStateById[depId]?.isDimmed || visualStateById[task.id]?.isDimmed),
+        },
         animated: task.status === "in_progress" || category === "data_flow" || category === "parallel_trigger",
         style: {
           strokeWidth: category === "feedback_loop" ? 2.5 : 2,

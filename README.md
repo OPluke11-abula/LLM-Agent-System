@@ -9,6 +9,8 @@ React/Tauri control plane.
 - Python runtime for routing, memory, governance, audit, sandboxing, providers,
   and multi-agent workflows (`agent_workspace/core`).
 - PAP contracts, workflows, roles, and durable project knowledge (`.agent`).
+- Developer Agent Control Plane product contract
+  ([`docs/product/developer-agent-control-plane.md`](docs/product/developer-agent-control-plane.md)).
 - React 19 + Tauri 2 desktop viewer (`viewer`).
 - Provider adapters for Google Gemini, Anthropic, OpenAI, and local Ollama.
   Configure only the provider you intend to use.

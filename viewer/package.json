@@ -10,8 +10,10 @@
     "doctor:json": "npx --yes react-doctor@latest . --json --json-compact --no-telemetry --no-score --blocking none",
     "doctor:changed": "npx --yes react-doctor@latest . --scope changed --no-telemetry --no-score --blocking none",
     "verify:ui": "node scripts/verify-ui.mjs",
+    "verify:ui:missions": "node scripts/verify-mission-ui.mjs",
     "test:swarm-ui": "node scripts/verify-swarm-governance-ui.mjs",
     "verify:ui:screenshots": "node scripts/verify-ui.mjs --screenshots",
+    "test:e2e:missions": "node scripts/verify-mission-golden-path.mjs",
     "preview": "vite preview",
     "tauri": "tauri"
   },
@@ -22,19 +24,19 @@
     "dagre": "^0.8.5",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "react-router-dom": "^7.14.1",
+    "react-router-dom": "^7.18.2",
     "reactflow": "^11.11.4"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.3.1",
+    "@tailwindcss/postcss": "^4.3.3",
     "@tauri-apps/cli": "^2",
     "@types/dagre": "^0.7.54",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^6.0.3",
     "playwright": "^1.61.1",
-    "postcss": "^8.5.9",
-    "tailwindcss": "^4.3.1",
+    "postcss": "^8.5.26",
+    "tailwindcss": "^4.3.3",
     "typescript": "~6.0.3",
     "vite": "^8.1.0"
   }
