@@ -353,3 +353,44 @@ timeline
     - Python bytecode compilation: `python -m py_compile` (0 errors)
     - Frontend production build: `npm run build` in `viewer/` (Pass, 0 errors, 658ms)
     - Formatting check: `git diff --check` (0 errors)
+
+---
+
+### Milestone T-018: Heterogeneous Reasoning Model Adapters & Dynamic Thinking Router Phase 86
+- **Goal**:
+  - Extend the autonomous coding pipeline and agent committee architecture with first-class reasoning/thinking model integration (DeepSeek-R1, OpenAI o1/o3-mini, Claude 3.7 Sonnet Extended Thinking, local Ollama reasoning models), dynamic role-based budget routing (Architect: 8192 tokens, Security Auditor: 4096 tokens, others: 0), air-gapped offline fallback, and end-to-end telemetry and UI visualization.
+- **Process**:
+  - Extended core LLM provider models and adapters in `agent_workspace/core/providers.py`:
+    - `ProviderResponse`: attached `.reasoning_content: str | None` and `.reasoning_tokens: int = 0` as object attributes while preserving tuple unpacking `(response_type, response_data)`.
+    - `OpenAIProvider`: parsed DeepSeek-R1 `choice.message.reasoning_content` and OpenAI `usage.completion_tokens_details.reasoning_tokens`; supported `reasoning_effort` and `max_completion_tokens`.
+    - `ProviderFactory`: registered `"deepseek"` alias routing to `OpenAIProvider` with default base URL `https://api.deepseek.com`.
+    - `AnthropicProvider`: integrated `thinking: {"type": "enabled", "budget_tokens": ...}` with automatic enforcement of `temperature = 1.0` and `max_tokens > budget_tokens`; parsed `block["type"] == "thinking"` into `reasoning_content`.
+    - `OllamaProvider`: implemented regex isolation for `<think>...</think>` tags to populate `reasoning_content` and sanitized content to prevent markdown/JSON corruption downstream.
+  - Implemented `DynamicThinkingRouter` in `agent_workspace/core/reasoning_router.py`:
+    - `ModelTier`: `REASONING`, `STANDARD_CODING`, `FAST_PRECHECK`, `LOCAL_OFFLINE`.
+    - `ReasoningConfig`: budget tokens, reasoning effort, and offline mode configuration.
+    - `RoleModelProfile`: role-to-tier mappings with default budgets (Architect: 8192, Security Auditor: 4096, Domain Logic/QA/UI: 0).
+    - Air-gapped fallback: seamlessly resolves to local Ollama models (`deepseek-r1:8b`, `qwen2.5-coder:7b`) when `offline_mode=True`.
+  - Upgraded pipeline models and debate orchestration:
+    - `agent_workspace/core/pipeline/models.py`: added `reasoning_content` and `reasoning_tokens` to `DebateSpeechTurn`, `total_reasoning_tokens` to `CommitteeConsensusScorecard`, and `offline_mode`, `thinking_budget`, `reasoning_effort` to `CodingTaskRequest`.
+    - `agent_workspace/core/pipeline/committee.py`: attached `model_tier` and `thinking_budget` in `CommitteeMemberSelection`.
+    - `agent_workspace/core/pipeline/debate_protocol.py`: routed speech calls through reasoning router and aggregated total reasoning tokens into consensus scorecards.
+  - Added CLI toolbelt options in `agent_workspace/cli.py`:
+    - Added `--offline`, `--local`, `--thinking-budget`, and `--reasoning-effort` to `las pipeline run`.
+    - Added `--offline` to `las serve`.
+  - Added Prometheus metrics in `agent_workspace/observability.py`:
+    - `REASONING_TOKENS_COUNT` counter and `THINKING_LATENCY` histogram.
+  - Upgraded frontend cockpit in `viewer/src/components/CodingPipelineView.tsx`:
+    - Added collapsible "Thinking Process (Chain of Thought)" panel with token badge in speech bubbles.
+    - Added `Total Reasoning Tokens` badge in the Committee Consensus scorecard.
+    - Added `Offline Mode` toggle and `Thinking Budget` input to the task creation modal.
+  - Authored unit test suite in `agent_workspace/tests/test_reasoning_router_p86.py` (7 tests).
+  - Authored Obsidian leaf note `docs/obsidian/modules/core/core-reasoning-router.md` and updated indices.
+- **Result**:
+  - Phase 86 (Heterogeneous Reasoning Model Adapters & Dynamic Thinking Router) 100% complete and verified.
+  - Receipts:
+    - `test_reasoning_router_p86.py`: 7/7 PASS (0.07s)
+    - Full combined pipeline regression matrix: 55/55 PASS across 9 test suites (21.19s)
+    - Python bytecode compilation: `python -m py_compile` (0 errors)
+    - Frontend production build: `npm run build` in `viewer/` (Pass, 0 errors, 756ms)
+    - Formatting check: `git diff --check` (0 errors)

@@ -65,6 +65,8 @@ type DebateSpeechTurnItem = {
   content: string;
   critique_points: string[];
   score_impact: number;
+  reasoning_content?: string | null;
+  reasoning_tokens?: number;
   timestamp: string;
 };
 
@@ -79,6 +81,7 @@ type CommitteeConsensusScorecardItem = {
   security_assurance: number;
   test_thoroughness: number;
   composite_score: number;
+  total_reasoning_tokens?: number;
   decision: string;
   dissenting_opinions: string[];
   recommended_actions: string[];
@@ -183,6 +186,8 @@ export function CodingPipelineView({ lang = "zh", activeWorkspacePath }: CodingP
   const [enableCommittee, setEnableCommittee] = useState(true);
   const [debateRounds, setDebateRounds] = useState(1);
   const [triggeringDebate, setTriggeringDebate] = useState(false);
+  const [offlineMode, setOfflineMode] = useState(false);
+  const [thinkingBudget, setThinkingBudget] = useState(4096);
 
   const wsRef = useRef<WebSocket | null>(null);
   const apiBase = "http://localhost:8000/v1/pipeline";
@@ -327,6 +332,8 @@ export function CodingPipelineView({ lang = "zh", activeWorkspacePath }: CodingP
         allowed_roles: [newRole],
         enable_committee: enableCommittee,
         debate_rounds: debateRounds,
+        offline_mode: offlineMode,
+        thinking_budget: thinkingBudget,
       };
 
       const res = await fetch(`${apiBase}/tasks`, {
@@ -724,16 +731,21 @@ export function CodingPipelineView({ lang = "zh", activeWorkspacePath }: CodingP
                               @{m}
                             </span>
                           ))}
-                          <span className="text-[10px] text-slate-500 ml-auto font-mono">
-                            {debate.duration_ms}ms · {debate.rounds?.length || 1} round(s)
+                          <span className="text-[10px] text-slate-500 ml-auto font-mono flex items-center gap-2">
+                            {sc.total_reasoning_tokens !== undefined && sc.total_reasoning_tokens > 0 && (
+                              <span className="text-purple-300 bg-purple-500/10 border border-purple-500/20 px-1.5 py-0.5 rounded">
+                                🧠 {sc.total_reasoning_tokens} thinking tokens
+                              </span>
+                            )}
+                            <span>{debate.duration_ms}ms · {debate.rounds?.length || 1} round(s)</span>
                           </span>
                         </div>
 
                         {/* Deliberation Speech Turns Stream */}
                         {debate.rounds && debate.rounds.length > 0 && (
-                          <div className="rounded-lg border border-white/10 bg-black/30 p-3 space-y-2.5 max-h-[220px] overflow-y-auto">
-                            <div className="text-[10px] uppercase font-mono text-slate-400 tracking-wider">
-                              Deliberation Speeches & Critique Turns
+                          <div className="space-y-2 pt-2 border-t border-white/5 max-h-72 overflow-y-auto pr-1">
+                            <div className="text-[11px] font-mono text-slate-400 font-bold uppercase">
+                              Committee Deliberation Stream:
                             </div>
                             {debate.rounds.flatMap((r) => r.turns || []).map((turn, tIdx) => (
                               <div
@@ -756,6 +768,16 @@ export function CodingPipelineView({ lang = "zh", activeWorkspacePath }: CodingP
                                   )}
                                 </div>
                                 <p className="text-slate-300 text-xs leading-relaxed">{turn.content}</p>
+                                {turn.reasoning_content && (
+                                  <details className="text-[11px] font-mono text-indigo-300/80 bg-indigo-950/30 rounded p-2 border border-indigo-500/20 my-1">
+                                    <summary className="cursor-pointer font-bold text-[10px] text-indigo-400 select-none">
+                                      🧠 Thinking Process ({turn.reasoning_tokens || 0} tokens)
+                                    </summary>
+                                    <div className="pt-1.5 whitespace-pre-wrap text-slate-400 text-[10px] leading-normal font-sans">
+                                      {turn.reasoning_content}
+                                    </div>
+                                  </details>
+                                )}
                                 {turn.critique_points && turn.critique_points.length > 0 && (
                                   <div className="flex flex-wrap gap-1 pt-1">
                                     {turn.critique_points.map((cp, cpIdx) => (
@@ -1153,6 +1175,39 @@ export function CodingPipelineView({ lang = "zh", activeWorkspacePath }: CodingP
                     <span className="text-slate-400 text-[10px]">Auto-engages Architect, Security, QA</span>
                   </div>
                 )}
+              </div>
+
+              {/* Dynamic Reasoning & Offline Controls (Phase 86) */}
+              <div className="rounded-lg border border-purple-500/30 bg-purple-500/10 p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={offlineMode}
+                      onChange={(e) => setOfflineMode(e.target.checked)}
+                      className="rounded border-white/20 bg-black/40 text-purple-600 focus:ring-purple-500"
+                    />
+                    <span className="text-white font-semibold flex items-center gap-1.5">
+                      🔒 Air-Gapped Offline Mode (Phase 86)
+                    </span>
+                  </label>
+                  <span className="text-[10px] text-purple-300 font-mono">Ollama Local</span>
+                </div>
+                <div className="flex items-center justify-between gap-3 pt-1 text-[11px]">
+                  <span className="text-slate-400 font-mono">Thinking Budget:</span>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      value={thinkingBudget}
+                      onChange={(e) => setThinkingBudget(Number(e.target.value))}
+                      step={1024}
+                      min={0}
+                      max={32768}
+                      className="w-24 bg-black/60 border border-white/15 rounded px-2 py-0.5 text-white font-mono text-xs text-right"
+                    />
+                    <span className="text-slate-400 font-mono text-[10px]">tokens</span>
+                  </div>
+                </div>
               </div>
             </div>
 

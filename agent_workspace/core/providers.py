@@ -25,9 +25,18 @@ from agent_workspace.core.security import validate_provider_base_url
 
 
 class ProviderResponse(tuple):
-    def __new__(cls, response_type: str, response_data: Any, usage: dict[str, Any] | None = None):
+    def __new__(
+        cls,
+        response_type: str,
+        response_data: Any,
+        usage: dict[str, Any] | None = None,
+        reasoning_content: str | None = None,
+        reasoning_tokens: int = 0,
+    ):
         obj = super().__new__(cls, (response_type, response_data))
         obj.usage = usage or {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+        obj.reasoning_content = reasoning_content
+        obj.reasoning_tokens = reasoning_tokens
         return obj
 
 
@@ -618,12 +627,22 @@ class OpenAIProvider(BaseLLMProvider):
                 "openai",
                 self.base_url or config.get("base_url") or os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1"),
             )
+            model = config.get("model", "gpt-4o")
             payload: dict[str, Any] = {
-                "model": config.get("model", "gpt-4o"),
+                "model": model,
                 "messages": openai_messages(system_prompt, messages),
-                "temperature": config.get("temperature", 0.0),
-                "max_tokens": config.get("max_tokens", 4096),
             }
+            # Reasoning models (o1, o3-mini) use max_completion_tokens and reasoning_effort
+            is_o_series = str(model).startswith("o1") or str(model).startswith("o3")
+            if is_o_series:
+                max_comp = config.get("max_completion_tokens") or config.get("max_tokens", 4096)
+                payload["max_completion_tokens"] = max_comp
+                if config.get("reasoning_effort"):
+                    payload["reasoning_effort"] = config["reasoning_effort"]
+            else:
+                payload["temperature"] = config.get("temperature", 0.0)
+                payload["max_tokens"] = config.get("max_tokens", 4096)
+
             tools = openai_tools(tool_schemas)
             if tools:
                 payload["tools"] = tools
@@ -640,12 +659,21 @@ class OpenAIProvider(BaseLLMProvider):
             message = data["choices"][0]["message"]
             tool_calls = message.get("tool_calls") or []
             
-            # Extract usage
+            # Extract reasoning content (DeepSeek-R1 / OpenAI compatible)
+            reasoning_content = message.get("reasoning_content") or None
+
+            # Extract usage and reasoning tokens
             usage_data = data.get("usage") or {}
+            completion_details = usage_data.get("completion_tokens_details") or {}
+            reasoning_tokens = completion_details.get("reasoning_tokens", 0) or 0
+            if reasoning_content and reasoning_tokens == 0:
+                reasoning_tokens = len(reasoning_content.split())
+
             usage = {
                 "prompt_tokens": usage_data.get("prompt_tokens", 0) or 0,
                 "completion_tokens": usage_data.get("completion_tokens", 0) or 0,
-                "total_tokens": usage_data.get("total_tokens", 0) or 0
+                "total_tokens": usage_data.get("total_tokens", 0) or 0,
+                "reasoning_tokens": reasoning_tokens,
             }
 
             if tool_calls:
@@ -658,7 +686,13 @@ class OpenAIProvider(BaseLLMProvider):
                 ]
             else:
                 resp_type, resp_data = "text", message.get("content") or ""
-            return ProviderResponse(resp_type, resp_data, usage)
+            return ProviderResponse(
+                resp_type,
+                resp_data,
+                usage,
+                reasoning_content=reasoning_content,
+                reasoning_tokens=reasoning_tokens,
+            )
         except Exception as error:
             logger.error("OpenAI API call failed: %s", error)
             return ProviderResponse("error", str(error))
@@ -725,13 +759,25 @@ class AnthropicProvider(BaseLLMProvider):
             base_url = validate_provider_base_url(
                 "anthropic", self.base_url or config.get("base_url") or "https://api.anthropic.com/v1"
             )
+            max_tokens = config.get("max_tokens", 4096)
+            thinking_budget = config.get("thinking_budget") or 0
             payload: dict[str, Any] = {
                 "model": config.get("model", "claude-3-5-sonnet-latest"),
                 "system": system_prompt,
                 "messages": self._messages(messages),
                 "temperature": config.get("temperature", 0.0),
-                "max_tokens": config.get("max_tokens", 4096),
+                "max_tokens": max_tokens,
             }
+            # Anthropic Extended Thinking requires temperature=1.0 and max_tokens > budget_tokens
+            if thinking_budget > 0:
+                payload["thinking"] = {
+                    "type": "enabled",
+                    "budget_tokens": int(thinking_budget),
+                }
+                payload["temperature"] = 1.0
+                if payload["max_tokens"] <= thinking_budget:
+                    payload["max_tokens"] = int(thinking_budget) + 4096
+
             if tool_schemas:
                 payload["tools"] = [
                     {
@@ -755,12 +801,18 @@ class AnthropicProvider(BaseLLMProvider):
             data = response.json()
             tool_calls = []
             text_parts = []
+            thinking_parts = []
             for block in data.get("content", []):
                 if block.get("type") == "tool_use":
                     tool_calls.append({"name": block.get("name", ""), "arguments": block.get("input", {})})
                 elif block.get("type") == "text":
                     text_parts.append(block.get("text", ""))
+                elif block.get("type") == "thinking":
+                    thinking_parts.append(block.get("thinking", ""))
             
+            reasoning_content = "".join(thinking_parts) if thinking_parts else None
+            reasoning_tokens = len(reasoning_content.split()) if reasoning_content else 0
+
             # Extract usage
             usage_data = data.get("usage") or {}
             prompt_tokens = usage_data.get("input_tokens", 0) or 0
@@ -768,14 +820,21 @@ class AnthropicProvider(BaseLLMProvider):
             usage = {
                 "prompt_tokens": prompt_tokens,
                 "completion_tokens": completion_tokens,
-                "total_tokens": prompt_tokens + completion_tokens
+                "total_tokens": prompt_tokens + completion_tokens,
+                "reasoning_tokens": reasoning_tokens,
             }
 
             if tool_calls:
                 resp_type, resp_data = "tool_calls", tool_calls
             else:
                 resp_type, resp_data = "text", "".join(text_parts)
-            return ProviderResponse(resp_type, resp_data, usage)
+            return ProviderResponse(
+                resp_type,
+                resp_data,
+                usage,
+                reasoning_content=reasoning_content,
+                reasoning_tokens=reasoning_tokens,
+            )
         except Exception as error:
             logger.error("Anthropic API call failed: %s", error)
             return ProviderResponse("error", str(error))
@@ -820,15 +879,34 @@ class OllamaProvider(BaseLLMProvider):
             response.raise_for_status()
             data = response.json()
             message = data.get("message", {})
+            raw_text = message.get("content") or data.get("response", "")
             tool_calls = message.get("tool_calls") or []
             
+            # Extract reasoning/thinking from local models (e.g. <think>...</think> from deepseek-r1)
+            reasoning_content = None
+            reasoning_tokens = 0
+            clean_text = raw_text
+            if raw_text and ("<think>" in raw_text or "</think>" in raw_text):
+                import re
+                think_match = re.search(r"<think>(.*?)</think>", raw_text, re.DOTALL)
+                if think_match:
+                    reasoning_content = think_match.group(1).strip()
+                    clean_text = re.sub(r"<think>.*?</think>", "", raw_text, flags=re.DOTALL).strip()
+                    reasoning_tokens = len(reasoning_content.split())
+                elif "<think>" in raw_text:
+                    parts = raw_text.split("<think>", 1)
+                    clean_text = parts[0].strip()
+                    reasoning_content = parts[1].strip()
+                    reasoning_tokens = len(reasoning_content.split())
+
             # Extract usage
             prompt_tokens = data.get("prompt_eval_count", 0) or 0
             completion_tokens = data.get("eval_count", 0) or 0
             usage = {
                 "prompt_tokens": prompt_tokens,
                 "completion_tokens": completion_tokens,
-                "total_tokens": prompt_tokens + completion_tokens
+                "total_tokens": prompt_tokens + completion_tokens,
+                "reasoning_tokens": reasoning_tokens,
             }
 
             if tool_calls:
@@ -840,8 +918,14 @@ class OllamaProvider(BaseLLMProvider):
                     for call in tool_calls
                 ]
             else:
-                resp_type, resp_data = "text", message.get("content") or data.get("response", "")
-            return ProviderResponse(resp_type, resp_data, usage)
+                resp_type, resp_data = "text", clean_text
+            return ProviderResponse(
+                resp_type,
+                resp_data,
+                usage,
+                reasoning_content=reasoning_content,
+                reasoning_tokens=reasoning_tokens,
+            )
         except Exception as error:
             logger.error("Ollama API call failed: %s", error)
             return ProviderResponse("error", str(error))
@@ -856,6 +940,7 @@ class ProviderFactory:
         "openai": OpenAIProvider,
         "anthropic": AnthropicProvider,
         "ollama": OllamaProvider,
+        "deepseek": OpenAIProvider,
     }
 
     @classmethod

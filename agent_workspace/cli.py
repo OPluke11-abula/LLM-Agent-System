@@ -280,6 +280,9 @@ def handle_pipeline_run(args):
     enable_committee = getattr(args, "committee", False)
     debate_rounds = getattr(args, "debate_rounds", 1)
     committee_roles = [r.strip() for r in args.committee_roles.split(",")] if getattr(args, "committee_roles", None) else ["architect", "securityauditor", "qaengineer"]
+    offline_mode = getattr(args, "offline", False) or getattr(args, "local", False)
+    thinking_budget = getattr(args, "thinking_budget", None)
+    reasoning_effort = getattr(args, "reasoning_effort", None)
 
     manager = CodingPipelineManager(workspace_path=target_dir, ladder_test_commands=ladder_tests)
     req = CodingTaskRequest(
@@ -290,6 +293,9 @@ def handle_pipeline_run(args):
         enable_committee=enable_committee,
         debate_rounds=debate_rounds,
         committee_roles=committee_roles,
+        offline_mode=offline_mode,
+        thinking_budget=thinking_budget,
+        reasoning_effort=reasoning_effort,
     )
 
     print(f"🚀 Initializing LAS Autonomous Coding Task: {requirement}")
@@ -299,6 +305,10 @@ def handle_pipeline_run(args):
     print(f"   Target Files     : {target_files}")
     if enable_committee:
         print(f"   Committee Debate : ENABLED ({debate_rounds} round(s), roles: {', '.join(committee_roles)})")
+    if offline_mode:
+        print("   Execution Mode   : AIR-GAPPED OFFLINE (Ollama local inference)")
+    if thinking_budget:
+        print(f"   Thinking Budget  : {thinking_budget} tokens (Effort: {reasoning_effort or 'auto'})")
 
     auto_approve = getattr(args, "auto_approve", False)
     if auto_approve:
@@ -760,6 +770,10 @@ def main() -> None:
             pipe_sub.add_argument("--committee", action="store_true", help="Enable multi-agent committee debate before architecture gate")
             pipe_sub.add_argument("--debate-rounds", type=int, default=1, help="Number of debate deliberation rounds (default: 1)")
             pipe_sub.add_argument("--committee-roles", type=str, help="Comma-separated specialist personas (e.g. architect,securityauditor,qaengineer)")
+            pipe_sub.add_argument("--offline", action="store_true", help="Enforce air-gapped local model execution via Ollama")
+            pipe_sub.add_argument("--local", action="store_true", help="Alias for --offline")
+            pipe_sub.add_argument("--thinking-budget", type=int, default=None, help="Extended thinking token budget for reasoning roles (e.g. 4096, 8192)")
+            pipe_sub.add_argument("--reasoning-effort", choices=["low", "medium", "high"], default=None, help="Reasoning intensity level for o-series models")
             args = pipe_sub.parse_args(pipe_args[1:])
             handle_pipeline_run(args)
             return
@@ -769,6 +783,7 @@ def main() -> None:
             sub_parser.add_argument("--host", default=os.environ.get("LAS_BIND_HOST", "127.0.0.1"), help="Host to bind")
             sub_parser.add_argument("--port", type=int, default=8000, help="Port to bind")
             sub_parser.add_argument("--reload", action="store_true", help="Enable auto-reload")
+            sub_parser.add_argument("--offline", action="store_true", help="Run server in air-gapped offline mode via Ollama")
             args = sub_parser.parse_args(sys_args[1:])
             handle_serve(args)
             return

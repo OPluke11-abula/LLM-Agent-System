@@ -78,6 +78,18 @@ class CodingTaskRequest(BaseModel):
         default_factory=lambda: ["architect", "securityauditor", "qaengineer"],
         description="Specialist personas participating in the debate"
     )
+    offline_mode: bool = Field(
+        default=False,
+        description="Enforce air-gapped local model execution via Ollama"
+    )
+    thinking_budget: Optional[int] = Field(
+        default=None,
+        description="Thinking token budget override for reasoning roles"
+    )
+    reasoning_effort: Optional[str] = Field(
+        default=None,
+        description="Reasoning intensity level: low, medium, high"
+    )
     metadata: dict[str, Any] = Field(default_factory=dict, description="Arbitrary extension metadata")
 
 
@@ -151,6 +163,8 @@ class DebateSpeechTurn(BaseModel):
     content: str = Field(..., description="Speech content containing critiques, requirements or justifications")
     critique_points: list[str] = Field(default_factory=list, description="Extracted actionable critique items")
     score_impact: float = Field(default=0.0, description="Estimated impact on composite confidence score (-1.0 to 1.0)")
+    reasoning_content: Optional[str] = Field(default=None, description="Internal chain-of-thought or reasoning tokens")
+    reasoning_tokens: int = Field(default=0, ge=0, description="Count of reasoning/thinking tokens consumed")
     timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
@@ -171,6 +185,7 @@ class CommitteeConsensusScorecard(BaseModel):
     security_assurance: float = Field(default=1.0, ge=0.0, le=1.0, description="AST sandboxing, auth & zero-trust compliance")
     test_thoroughness: float = Field(default=1.0, ge=0.0, le=1.0, description="Verification ladder & edge case coverage")
     composite_score: float = Field(default=1.0, ge=0.0, le=1.0, description="Weighted composite confidence score")
+    total_reasoning_tokens: int = Field(default=0, ge=0, description="Sum of reasoning/thinking tokens consumed across deliberation turns")
     decision: str = Field(default="CONSENSUS_APPROVED", description="'CONSENSUS_APPROVED' or 'REJECTED_NEEDS_REVISION'")
     dissenting_opinions: list[str] = Field(default_factory=list, description="Unresolved critiques or minority objections")
     recommended_actions: list[str] = Field(default_factory=list, description="Directives to enrich the mutation plan")
