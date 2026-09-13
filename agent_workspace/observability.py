@@ -232,6 +232,20 @@ ACTIVE_SESSIONS = _get_or_create_metric(
     "Number of currently active agent sessions",
 )
 
+REASONING_TOKENS_COUNT = _get_or_create_metric(
+    Counter,
+    "las_reasoning_tokens_total",
+    "Total reasoning and extended thinking tokens consumed",
+    ["role", "model"],
+)
+
+THINKING_LATENCY = _get_or_create_metric(
+    Histogram,
+    "las_thinking_latency_seconds",
+    "Latency of reasoning model deliberation",
+    ["role"],
+)
+
 
 # ---------------------------------------------------------------------------
 #  Timer context manager (convenient for manual instrumentation)

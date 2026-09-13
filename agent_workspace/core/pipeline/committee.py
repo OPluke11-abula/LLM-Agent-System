@@ -41,6 +41,8 @@ class CommitteeMemberSelection(BaseModel):
     display_name: str
     mandatory: bool
     selection_reason: str
+    model_tier: str = "STANDARD_CODING"
+    thinking_budget: int = 0
 
 
 class CommitteeFormation(BaseModel):
@@ -86,12 +88,15 @@ class CommitteeCoordinator:
         is_security_critical = self._is_security_critical(request)
         if is_security_critical:
             selected_roles.add("securityauditor")
+            sec_budget = getattr(request, "thinking_budget", None) or 4096
             members.append(
                 CommitteeMemberSelection(
                     role="securityauditor",
                     display_name=self.ROLE_DISPLAY_NAMES.get("securityauditor", "Security Auditor"),
                     mandatory=True,
                     selection_reason="Target files or prompt touch security, auth, crypto, or sandbox boundaries.",
+                    model_tier="REASONING",
+                    thinking_budget=sec_budget,
                 )
             )
 
@@ -99,12 +104,15 @@ class CommitteeCoordinator:
         is_architect_critical = self._is_architecture_critical(request)
         if is_architect_critical:
             selected_roles.add("architect")
+            arch_budget = getattr(request, "thinking_budget", None) or 8192
             members.append(
                 CommitteeMemberSelection(
                     role="architect",
                     display_name=self.ROLE_DISPLAY_NAMES.get("architect", "Principal System Architect"),
                     mandatory=True,
                     selection_reason="Cross-cutting architectural modifications, core models, or new subsystems detected.",
+                    model_tier="REASONING",
+                    thinking_budget=arch_budget,
                 )
             )
 

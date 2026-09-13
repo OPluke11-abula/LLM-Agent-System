@@ -43,6 +43,7 @@ graph TD
     T15["T-015: Coding Pipeline P4 (Golden Flow Benchmark)"]:::done
     T16["T-016: Coding Pipeline P5 (Developer Beta & Packaging)"]:::done
     T17["T-017: Committee Debate & Consensus Protocol (P85)"]:::done
+    T18["T-018: Reasoning Adapters & Dynamic Thinking Router (P86)"]:::done
 
     T01 --> T02
     T01 --> T03
@@ -62,6 +63,7 @@ graph TD
     T14 --> T15
     T15 --> T16
     T16 --> T17
+    T17 --> T18
 ```
 
 ---
@@ -221,4 +223,12 @@ graph TD
 - **Scope**: Implemented multi-agent committee debate and consensus scoring protocol integrated into the autonomous coding pipeline. Authored `agent_workspace/core/pipeline/committee.py` providing `CommitteeCoordinator` with keyword and path-based risk heuristics for dynamic role selection (`ARCHITECT_PLANNER_AGENT`, `SECURITY_AUDIT_AGENT`, `QA_TEST_AGENT`, `UI_UX_AGENT`). Authored `agent_workspace/core/pipeline/debate_protocol.py` executing sequential critique rounds, composite consensus scoring ($0.35 \times \text{Arch} + 0.40 \times \text{Sec} + 0.25 \times \text{QA}$), security veto threshold (`security_assurance < 0.70`), and plan enrichment. Integrated `COMMITTEE_DEBATE` stage into `CodingPipelineManager` and Draft PR body export. Exposed `POST /v1/pipeline/tasks/{task_id}/debate` with WebSocket turn broadcast in `agent_workspace/routes/pipeline.py`. Added CLI `--committee` and `--debate-rounds` in `agent_workspace/cli.py`. Added 7-stage visual stepper, debate speeches stream, consensus meter, and modal triggers in `viewer/src/components/CodingPipelineView.tsx`.
 - **Target Files**: `agent_workspace/core/pipeline/models.py`, `agent_workspace/core/pipeline/committee.py`, `agent_workspace/core/pipeline/debate_protocol.py`, `agent_workspace/core/pipeline/manager.py`, `agent_workspace/routes/pipeline.py`, `agent_workspace/cli.py`, `viewer/src/components/CodingPipelineView.tsx`, `agent_workspace/tests/test_pipeline_committee_p85.py`, `docs/obsidian/modules/core/core-pipeline-committee.md`.
 - **Verification**: `test_pipeline_committee_p85.py` (6 tests, 100% PASS in 0.30s); full regression matrix 48 tests PASS in 17.20s; `npm run build` in `viewer/` (Pass, 0 errors, 658ms); `git diff --check` (0 trailing whitespace).
+- **Status**: `PASS` (Completed).
+
+### [DONE] T-018: Heterogeneous Reasoning Model Adapters & Dynamic Thinking Router (Phase 86)
+- **Assigned Role**: `ARCHITECT_PLANNER_AGENT` (Luke) / `BACKEND_INFRA_AGENT` (Ethan) / `APPLICATION_FLOW_AGENT` (Eason) / `UI_UX_AGENT` (Joe)
+- **Reference ADR**: [[60 Architectural Decision Records (ADR) Graph#ADR-005|ADR-005: Stop-and-Wait Gate]], [[60 Architectural Decision Records (ADR) Graph#ADR-006|ADR-006: Agent Strategy Integration]]
+- **Scope**: Extended core LLM providers with first-class reasoning/thinking awareness (`ProviderResponse.reasoning_content` and `reasoning_tokens`) across DeepSeek-R1, OpenAI `completion_tokens_details.reasoning_tokens` / `reasoning_effort`, Anthropic Claude 3.7 Sonnet Extended Thinking (`budget_tokens`, `type: thinking`), and Ollama local `<think>...</think>` regex extraction and text sanitization. Authored `agent_workspace/core/reasoning_router.py` providing `DynamicThinkingRouter` with 4 `ModelTier` levels (`REASONING`, `STANDARD_CODING`, `FAST_PRECHECK`, `LOCAL_OFFLINE`), role-specific budget mapping (`ARCHITECT_PLANNER_AGENT`: 8192, `SECURITY_AUDIT_AGENT`: 4096, others: 0), and air-gapped `offline_mode` fallback to local Ollama models (`deepseek-r1:8b`, `qwen2.5-coder:7b`). Connected reasoning tokens and content to `DebateSpeechTurn`, `CommitteeConsensusScorecard`, and `CodingTaskRequest`. Added Prometheus metrics `REASONING_TOKENS_COUNT` and `THINKING_LATENCY` to `agent_workspace/observability.py`. Added CLI flags `--offline`, `--local`, `--thinking-budget`, and `--reasoning-effort` in `agent_workspace/cli.py`. Upgraded frontend cockpit in `viewer/src/components/CodingPipelineView.tsx` with collapsible Thinking Process inspection in deliberation speeches, total reasoning tokens badge in scorecard, and air-gapped offline & thinking budget controls in task creation modal.
+- **Target Files**: `agent_workspace/core/providers.py`, `agent_workspace/core/reasoning_router.py`, `agent_workspace/core/pipeline/models.py`, `agent_workspace/core/pipeline/committee.py`, `agent_workspace/core/pipeline/debate_protocol.py`, `agent_workspace/cli.py`, `agent_workspace/observability.py`, `viewer/src/components/CodingPipelineView.tsx`, `agent_workspace/tests/test_reasoning_router_p86.py`, `docs/obsidian/modules/core/core-reasoning-router.md`.
+- **Verification**: `test_reasoning_router_p86.py` (7 tests, 100% PASS in 0.07s); full regression matrix 55 tests PASS in 21.19s; `npm run build` in `viewer/` (Pass, 0 errors, 756ms); `git diff --check` (0 trailing whitespace).
 - **Status**: `PASS` (Completed).

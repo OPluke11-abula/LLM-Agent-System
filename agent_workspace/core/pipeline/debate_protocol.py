@@ -132,11 +132,14 @@ class PipelineDebateProtocol:
         else:
             recommended_actions.append("Proceed to Stop-and-Wait Architecture Gate with committee enrichment.")
 
+        total_reasoning = sum(turn.reasoning_tokens for r in round_records for turn in r.turns)
+
         scorecard = CommitteeConsensusScorecard(
             architectural_integrity=round(avg_arch, 3),
             security_assurance=round(avg_sec, 3),
             test_thoroughness=round(avg_qa, 3),
             composite_score=composite,
+            total_reasoning_tokens=total_reasoning,
             decision=decision,
             dissenting_opinions=dissenting_opinions,
             recommended_actions=recommended_actions,
@@ -210,6 +213,8 @@ class PipelineDebateProtocol:
                         "Enforce constant-time secret comparison and token masking",
                     ],
                     score_impact=-0.45,
+                    reasoning_content="Auditing zero-trust boundary, sandbox escape vectors, secret redaction, and credential exposure paths.",
+                    reasoning_tokens=48,
                 )
             else:
                 content = (
@@ -227,6 +232,8 @@ class PipelineDebateProtocol:
                         "Ensure audit logging on security-sensitive state transitions",
                     ],
                     score_impact=0.0,
+                    reasoning_content="Verifying role boundaries, token authentication middleware, and input sanitization.",
+                    reasoning_tokens=36,
                 )
 
         elif role_lower == "architect":
@@ -247,6 +254,8 @@ class PipelineDebateProtocol:
                         "Decouple domain models from presentation and transport layers",
                     ],
                     score_impact=-0.25,
+                    reasoning_content="Analyzing modular cohesion, blast radius expansion, cross-package coupling, and boundary contracts.",
+                    reasoning_tokens=62,
                 )
             else:
                 content = (
@@ -264,6 +273,8 @@ class PipelineDebateProtocol:
                         "Align interfaces with Protocol v3.8.0 invariants",
                     ],
                     score_impact=0.0,
+                    reasoning_content="Evaluating component modularity, single responsibility, and domain abstraction purity.",
+                    reasoning_tokens=52,
                 )
 
         elif role_lower == "qaengineer":
@@ -282,6 +293,8 @@ class PipelineDebateProtocol:
                     "Add regression tests covering edge cases and boundary inputs",
                 ],
                 score_impact=0.0,
+                reasoning_content="Synthesizing test ladder steps, edge-case failure matrix, and fail-fast assertions.",
+                reasoning_tokens=38,
             )
 
         elif role_lower == "frontenddev":

@@ -131,6 +131,7 @@ graph TD
 - [[core-pipeline]]: Autonomous coding pipeline lifecycle, Stop-and-Wait Gate, Draft PR generation.
 - [[core-pipeline-benchmark]]: Official golden flow benchmark engine, 3 canonical scenarios, ADR-006 6 KPIs scorecard.
 - [[core-pipeline-committee]]: Multi-agent committee consensus debate, dynamic role assembly, weighted scorecards, and veto protocol.
+- [[core-reasoning-router]]: Heterogeneous reasoning model adapters, thinking budgets, and air-gapped offline routing.
 - [[core-cli-and-packaging]]: Unified developer CLI toolbelt (las), onboarding engine, and PEP 517/621 packaging.
 - [[core-repository]]: Repository environment sensing, protected paths, native Git worktree isolation.
 - [[core-mission]]: Mission domain aggregate root, durable SQLite mission store, lifecycle state machine.
