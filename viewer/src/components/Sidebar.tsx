@@ -1,20 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
 import type { TranslationMessages } from "../types";
-import { cx } from "./ui/primitives";
-import {
-  LayoutDashboard,
-  GitFork,
-  Network,
-  Compass,
-  Brain,
-  ShieldCheck,
-  Cpu,
-  Settings,
-  Terminal,
-  Search,
-  HelpCircle,
-  Workflow,
-} from "./ui/icons";
 
 type SidebarProps = { t: TranslationMessages; relaunchOnboarding?: () => void; onOpenCommandPalette?: () => void };
 type NavItem = { label: string; to: string; kicker: string };
