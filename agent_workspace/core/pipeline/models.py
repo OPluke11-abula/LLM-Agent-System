@@ -16,6 +16,7 @@ class PipelineStage(str, Enum):
     """Execution stages of the autonomous coding product workflow."""
     INTAKE = "INTAKE"
     PRECHECK = "PRECHECK"
+    COMMITTEE_DEBATE = "COMMITTEE_DEBATE"
     PLAN_AND_GATE = "PLAN_AND_GATE"
     ISOLATED_MUTATION = "ISOLATED_MUTATION"
     VERIFY_AND_EVIDENCE = "VERIFY_AND_EVIDENCE"
@@ -63,6 +64,20 @@ class CodingTaskRequest(BaseModel):
     )
     issue_ref: Optional[str] = Field(default=None, description="Linked issue or ticket number")
     tenant_id: str = Field(default="default_tenant", description="Tenant identifier for audit and billing")
+    enable_committee: bool = Field(
+        default=False,
+        description="Enable multi-agent committee debate before architecture gate"
+    )
+    debate_rounds: int = Field(
+        default=1,
+        ge=1,
+        le=3,
+        description="Number of debate deliberation rounds"
+    )
+    committee_roles: list[str] = Field(
+        default_factory=lambda: ["architect", "securityauditor", "qaengineer"],
+        description="Specialist personas participating in the debate"
+    )
     metadata: dict[str, Any] = Field(default_factory=dict, description="Arbitrary extension metadata")
 
 
@@ -125,6 +140,56 @@ class DraftPRPayload(BaseModel):
     merkle_root: Optional[str] = None
 
 
+class DebateSpeechTurn(BaseModel):
+    """A single turn in the multi-agent committee debate."""
+    model_config = ConfigDict(extra="forbid")
+
+    speaker_role: str = Field(..., description="Role of the speaking agent (e.g., architect, securityauditor)")
+    target_role: Optional[str] = Field(default=None, description="Addressed role or None if addressing the committee")
+    round_index: int = Field(..., ge=1, description="1-indexed debate round number")
+    turn_index: int = Field(..., ge=1, description="1-indexed turn index within the round")
+    content: str = Field(..., description="Speech content containing critiques, requirements or justifications")
+    critique_points: list[str] = Field(default_factory=list, description="Extracted actionable critique items")
+    score_impact: float = Field(default=0.0, description="Estimated impact on composite confidence score (-1.0 to 1.0)")
+    timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+
+class DebateRoundRecord(BaseModel):
+    """Record of a complete deliberation round within the committee."""
+    model_config = ConfigDict(extra="forbid")
+
+    round_index: int = Field(..., ge=1)
+    turns: list[DebateSpeechTurn] = Field(default_factory=list)
+    round_summary: str = Field(default="", description="Summary of agreements and unresolved tensions in this round")
+
+
+class CommitteeConsensusScorecard(BaseModel):
+    """Multi-dimensional consensus scorecard synthesized by the committee."""
+    model_config = ConfigDict(extra="forbid")
+
+    architectural_integrity: float = Field(default=1.0, ge=0.0, le=1.0, description="Boundary compliance & design consistency")
+    security_assurance: float = Field(default=1.0, ge=0.0, le=1.0, description="AST sandboxing, auth & zero-trust compliance")
+    test_thoroughness: float = Field(default=1.0, ge=0.0, le=1.0, description="Verification ladder & edge case coverage")
+    composite_score: float = Field(default=1.0, ge=0.0, le=1.0, description="Weighted composite confidence score")
+    decision: str = Field(default="CONSENSUS_APPROVED", description="'CONSENSUS_APPROVED' or 'REJECTED_NEEDS_REVISION'")
+    dissenting_opinions: list[str] = Field(default_factory=list, description="Unresolved critiques or minority objections")
+    recommended_actions: list[str] = Field(default_factory=list, description="Directives to enrich the mutation plan")
+
+
+class CommitteeDebateRecord(BaseModel):
+    """Complete record of the committee debate deliberation."""
+    model_config = ConfigDict(extra="forbid")
+
+    debate_id: str = Field(..., description="Unique debate session identifier")
+    task_id: str = Field(..., description="Target coding task identifier")
+    committee_members: list[str] = Field(default_factory=list, description="List of participant specialist roles")
+    rounds: list[DebateRoundRecord] = Field(default_factory=list)
+    consensus_scorecard: CommitteeConsensusScorecard = Field(default_factory=CommitteeConsensusScorecard)
+    synthesized_mutation_plan: Optional[ScopedMutationPlan] = Field(default=None, description="Plan enriched with committee findings")
+    duration_ms: int = Field(default=0, description="Deliberation duration in milliseconds")
+    timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+
 class CodingPipelineResult(BaseModel):
     """Comprehensive result emitted upon completion or termination of the coding pipeline."""
     model_config = ConfigDict(extra="forbid")
@@ -134,6 +199,7 @@ class CodingPipelineResult(BaseModel):
     current_stage: PipelineStage
     stage_history: list[dict[str, Any]] = Field(default_factory=list)
     worktree_config: Optional[WorktreeSessionConfig] = None
+    committee_debate: Optional[CommitteeDebateRecord] = Field(default=None, description="Multi-agent deliberation and consensus output")
     mutation_plan: Optional[ScopedMutationPlan] = None
     receipts: list[VerificationReceipt] = Field(default_factory=list)
     pr_payload: Optional[DraftPRPayload] = None

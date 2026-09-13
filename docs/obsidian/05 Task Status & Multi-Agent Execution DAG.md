@@ -42,6 +42,7 @@ graph TD
     T14["T-014: Coding Pipeline P3 (REST/WS Gateways & Cockpit UI)"]:::done
     T15["T-015: Coding Pipeline P4 (Golden Flow Benchmark)"]:::done
     T16["T-016: Coding Pipeline P5 (Developer Beta & Packaging)"]:::done
+    T17["T-017: Committee Debate & Consensus Protocol (P85)"]:::done
 
     T01 --> T02
     T01 --> T03
@@ -60,6 +61,7 @@ graph TD
     T13 --> T14
     T14 --> T15
     T15 --> T16
+    T16 --> T17
 ```
 
 ---
@@ -211,4 +213,12 @@ graph TD
 - **Scope**: Elevated LAS to an installable standalone developer toolbelt. Configured standard PEP 517/621 packaging metadata in `pyproject.toml` with console scripts (`las`, `las-server`, `las-benchmark`). Refactored `agent_workspace/cli.py` with unified subcommands (`init`, `onboard`, `benchmark`, `pipeline run`, `serve`, `status`) while maintaining 100% backward compatibility for legacy flags (`--list-skills`, `--chat`, etc.). Implemented `TargetRepoOnboarder` in `agent_workspace/core/onboarding.py` for automated multi-language ecosystem sensing (Python, Node/TS, Rust, Go) and `TaskEnvironment` scaffolding. Delivered local cross-platform daemon launcher `scripts/start_las.py` and `scripts/start_las.ps1`. Authored publication-grade `docs/DEVELOPER_QUICKSTART_GUIDE.md` and `docs/obsidian/modules/core/core-cli-and-packaging.md`.
 - **Target Files**: `pyproject.toml`, `agent_workspace/cli.py`, `agent_workspace/core/onboarding.py`, `scripts/start_las.py`, `scripts/start_las.ps1`, `docs/DEVELOPER_QUICKSTART_GUIDE.md`, `agent_workspace/tests/test_developer_beta_p5.py`, `docs/obsidian/modules/core/core-cli-and-packaging.md`.
 - **Verification**: `test_developer_beta_p5.py` (8 tests, 100% PASS in 1.754s); Full combined 60-test regression matrix across P1~P5 (100% PASS in 20.465s); `python -m compileall agent_workspace scripts` (Pass, 0 errors); `npm run build` in `viewer/` (Pass, 0 errors, 3.79s); `git diff --check` (0 trailing whitespace).
+- **Status**: `PASS` (Completed).
+
+### [DONE] T-017: Multi-Agent Consensus Debate & Committee Coding Protocol (Phase 85)
+- **Assigned Role**: `ARCHITECT_PLANNER_AGENT` (Luke) / `SECURITY_AUDIT_AGENT` (Victor) / `QA_TEST_AGENT` (Jimmy) / `UI_UX_AGENT` (Joe)
+- **Reference ADR**: [[60 Architectural Decision Records (ADR) Graph#ADR-005|ADR-005: Stop-and-Wait Gate]], [[60 Architectural Decision Records (ADR) Graph#ADR-006|ADR-006: Agent Strategy Integration]]
+- **Scope**: Implemented multi-agent committee debate and consensus scoring protocol integrated into the autonomous coding pipeline. Authored `agent_workspace/core/pipeline/committee.py` providing `CommitteeCoordinator` with keyword and path-based risk heuristics for dynamic role selection (`ARCHITECT_PLANNER_AGENT`, `SECURITY_AUDIT_AGENT`, `QA_TEST_AGENT`, `UI_UX_AGENT`). Authored `agent_workspace/core/pipeline/debate_protocol.py` executing sequential critique rounds, composite consensus scoring ($0.35 \times \text{Arch} + 0.40 \times \text{Sec} + 0.25 \times \text{QA}$), security veto threshold (`security_assurance < 0.70`), and plan enrichment. Integrated `COMMITTEE_DEBATE` stage into `CodingPipelineManager` and Draft PR body export. Exposed `POST /v1/pipeline/tasks/{task_id}/debate` with WebSocket turn broadcast in `agent_workspace/routes/pipeline.py`. Added CLI `--committee` and `--debate-rounds` in `agent_workspace/cli.py`. Added 7-stage visual stepper, debate speeches stream, consensus meter, and modal triggers in `viewer/src/components/CodingPipelineView.tsx`.
+- **Target Files**: `agent_workspace/core/pipeline/models.py`, `agent_workspace/core/pipeline/committee.py`, `agent_workspace/core/pipeline/debate_protocol.py`, `agent_workspace/core/pipeline/manager.py`, `agent_workspace/routes/pipeline.py`, `agent_workspace/cli.py`, `viewer/src/components/CodingPipelineView.tsx`, `agent_workspace/tests/test_pipeline_committee_p85.py`, `docs/obsidian/modules/core/core-pipeline-committee.md`.
+- **Verification**: `test_pipeline_committee_p85.py` (6 tests, 100% PASS in 0.30s); full regression matrix 48 tests PASS in 17.20s; `npm run build` in `viewer/` (Pass, 0 errors, 658ms); `git diff --check` (0 trailing whitespace).
 - **Status**: `PASS` (Completed).

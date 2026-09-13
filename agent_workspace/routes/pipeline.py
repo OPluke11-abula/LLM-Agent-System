@@ -122,6 +122,14 @@ class FullPipelineRunRequest(BaseModel):
     plan: ScopedMutationPlan
 
 
+class CommitteeDebateRequest(BaseModel):
+    """Payload for requesting an explicit committee deliberation."""
+    model_config = ConfigDict(extra="forbid")
+
+    debate_rounds: int = Field(default=1, ge=1, le=3, description="Rounds of deliberation")
+    committee_roles: list[str] = Field(default_factory=list, description="Optional override roles")
+
+
 # ---------------------------------------------------------------------------
 # In-Memory Pipeline Registry
 # ---------------------------------------------------------------------------
@@ -286,6 +294,96 @@ async def submit_mutation_plan(task_id: str, plan: ScopedMutationPlan) -> dict[s
         "task_id": task_id,
         "gate_status": gate_status,
         "plan": plan.model_dump(),
+    }
+
+
+@router.post("/tasks/{task_id}/debate")
+async def trigger_committee_debate(
+    task_id: str,
+    body: Optional[CommitteeDebateRequest] = None,
+) -> dict[str, Any]:
+    """
+    Triggers Stage: COMMITTEE_DEBATE (Milestone P85).
+    Multi-agent committee deliberates on task requirements, produces consensus scorecard,
+    and synthesizes an enriched mutation plan before architecture gate.
+    """
+    with _registry_lock:
+        record = _task_registry.get(task_id)
+
+    if not record:
+        raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found.")
+
+    manager = get_pipeline_manager()
+
+    # Apply overrides if provided
+    if body:
+        record.request.debate_rounds = body.debate_rounds
+        if body.committee_roles:
+            record.request.committee_roles = body.committee_roles
+
+    # Hook debate turns to WebSocket broadcaster
+    def _turn_broadcaster(turn: Any) -> None:
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                asyncio.run_coroutine_threadsafe(
+                    pipeline_broadcaster.broadcast(
+                        {
+                            "event": "pipeline_debate_turn",
+                            "task_id": task_id,
+                            "speaker_role": turn.speaker_role,
+                            "round_index": turn.round_index,
+                            "turn_index": turn.turn_index,
+                            "content": turn.content,
+                            "score_impact": turn.score_impact,
+                        }
+                    ),
+                    loop,
+                )
+        except Exception:
+            pass
+
+    manager.debate_protocol.turn_callback = _turn_broadcaster
+
+    debate_record = manager.run_committee_debate(task_id, record.request, record.plan)
+
+    # If plan was enriched, update record.plan
+    if debate_record.synthesized_mutation_plan:
+        if record.plan:
+            debate_record.synthesized_mutation_plan.human_approved = record.plan.human_approved
+            debate_record.synthesized_mutation_plan.approval_token = record.plan.approval_token
+            debate_record.synthesized_mutation_plan.approval_timestamp = record.plan.approval_timestamp
+        record.plan = debate_record.synthesized_mutation_plan
+
+    record.ledger.record_event(
+        task_id=task_id,
+        event_type=RuntimeEventType.STAGE_TRANSITION,
+        payload={
+            "stage": PipelineStage.COMMITTEE_DEBATE.value,
+            "decision": debate_record.consensus_scorecard.decision,
+            "composite_score": debate_record.consensus_scorecard.composite_score,
+            "members": debate_record.committee_members,
+        },
+    )
+
+    asyncio.create_task(
+        pipeline_broadcaster.broadcast(
+            {
+                "event": "pipeline_debate_completed",
+                "task_id": task_id,
+                "stage": PipelineStage.COMMITTEE_DEBATE.value,
+                "decision": debate_record.consensus_scorecard.decision,
+                "composite_score": debate_record.consensus_scorecard.composite_score,
+                "members": debate_record.committee_members,
+            }
+        )
+    )
+
+    return {
+        "status": "success",
+        "task_id": task_id,
+        "debate": debate_record.model_dump(),
+        "plan": record.plan.model_dump() if record.plan else None,
     }
 
 
@@ -465,6 +563,9 @@ async def list_pipeline_tasks() -> dict[str, Any]:
                 "pr_url": rec.result.pr_payload.pr_url if rec.result.pr_payload else None,
                 "has_plan": rec.plan is not None,
                 "plan_approved": rec.plan.human_approved if rec.plan else False,
+                "has_committee_debate": rec.result.committee_debate is not None,
+                "committee_decision": rec.result.committee_debate.consensus_scorecard.decision if rec.result.committee_debate else None,
+                "committee_score": rec.result.committee_debate.consensus_scorecard.composite_score if rec.result.committee_debate else None,
             }
             for tid, rec in _task_registry.items()
         ]
@@ -487,6 +588,7 @@ async def get_pipeline_task(task_id: str) -> dict[str, Any]:
         "request": record.request.model_dump(),
         "plan": record.plan.model_dump() if record.plan else None,
         "result": record.result.model_dump(),
+        "committee_debate": record.result.committee_debate.model_dump() if record.result.committee_debate else None,
         "preservation_receipt": record.preservation_receipt.model_dump(),
     }
 

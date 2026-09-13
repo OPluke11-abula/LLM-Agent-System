@@ -277,6 +277,9 @@ def handle_pipeline_run(args):
     target_files = [f.strip() for f in args.target_files.split(",")] if getattr(args, "target_files", None) else ["src/"]
     allowed_roles = [getattr(args, "role", "DOMAIN_LOGIC_AGENT")]
     ladder_tests = [cmd.strip() for cmd in args.ladder_tests.split(",")] if getattr(args, "ladder_tests", None) else None
+    enable_committee = getattr(args, "committee", False)
+    debate_rounds = getattr(args, "debate_rounds", 1)
+    committee_roles = [r.strip() for r in args.committee_roles.split(",")] if getattr(args, "committee_roles", None) else ["architect", "securityauditor", "qaengineer"]
 
     manager = CodingPipelineManager(workspace_path=target_dir, ladder_test_commands=ladder_tests)
     req = CodingTaskRequest(
@@ -284,6 +287,9 @@ def handle_pipeline_run(args):
         inspected_files=inspected_files,
         target_files=target_files,
         allowed_roles=allowed_roles,
+        enable_committee=enable_committee,
+        debate_rounds=debate_rounds,
+        committee_roles=committee_roles,
     )
 
     print(f"🚀 Initializing LAS Autonomous Coding Task: {requirement}")
@@ -291,6 +297,8 @@ def handle_pipeline_run(args):
     print(f"   Assigned Role    : {allowed_roles[0]}")
     print(f"   Inspected Files  : {inspected_files}")
     print(f"   Target Files     : {target_files}")
+    if enable_committee:
+        print(f"   Committee Debate : ENABLED ({debate_rounds} round(s), roles: {', '.join(committee_roles)})")
 
     auto_approve = getattr(args, "auto_approve", False)
     if auto_approve:
@@ -749,6 +757,9 @@ def main() -> None:
             pipe_sub.add_argument("--role", type=str, default="DOMAIN_LOGIC_AGENT", help="Assigned Grounded Role")
             pipe_sub.add_argument("--auto-approve", action="store_true", help="Auto-approve Stop-and-Wait gate")
             pipe_sub.add_argument("--ladder-tests", type=str, help="Comma-separated custom verification ladder test commands")
+            pipe_sub.add_argument("--committee", action="store_true", help="Enable multi-agent committee debate before architecture gate")
+            pipe_sub.add_argument("--debate-rounds", type=int, default=1, help="Number of debate deliberation rounds (default: 1)")
+            pipe_sub.add_argument("--committee-roles", type=str, help="Comma-separated specialist personas (e.g. architect,securityauditor,qaengineer)")
             args = pipe_sub.parse_args(pipe_args[1:])
             handle_pipeline_run(args)
             return
