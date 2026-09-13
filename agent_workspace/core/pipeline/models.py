@@ -98,6 +98,10 @@ class CodingTaskRequest(BaseModel):
         default_factory=list,
         description="Explicit mesh peer seed addresses (e.g. host:port)"
     )
+    use_raft_consensus: bool = Field(
+        default=False,
+        description="Enforce distributed Raft quorum consensus and replicated debate log across mesh"
+    )
     metadata: dict[str, Any] = Field(default_factory=dict, description="Arbitrary extension metadata")
 
 
@@ -220,6 +224,8 @@ class CommitteeDebateRecord(BaseModel):
     consensus_scorecard: CommitteeConsensusScorecard = Field(default_factory=CommitteeConsensusScorecard)
     synthesized_mutation_plan: Optional[ScopedMutationPlan] = Field(default=None, description="Plan enriched with committee findings")
     duration_ms: int = Field(default=0, description="Deliberation duration in milliseconds")
+    raft_log_index: Optional[int] = Field(default=None, description="Replicated Raft log commit index")
+    raft_term: Optional[int] = Field(default=None, description="Raft term under which consensus was committed")
     timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 

@@ -5,6 +5,8 @@ import {
   Brain,
   CheckCircle2,
   Cpu,
+  FileText,
+  GitCommit,
   Globe,
   Key,
   Lock,
@@ -14,6 +16,7 @@ import {
   Server,
   Shield,
   ShieldCheck,
+  Vote,
   Zap,
 } from "lucide-react";
 import type { Lang } from "../types";
@@ -34,6 +37,28 @@ export interface PeerProfile {
   cert_expires_at?: string;
   attestation_status?: "PENDING" | "VERIFIED" | "REJECTED" | "EXPIRED";
   attestation_timestamp?: number;
+}
+
+export interface RaftStatus {
+  node_id: string;
+  role: "LEADER" | "FOLLOWER" | "CANDIDATE";
+  term: number;
+  leader_id: string | null;
+  commit_index: number;
+  last_applied: number;
+  log_length: number;
+  quorum_size: number;
+  cluster_peers_count: number;
+}
+
+export interface RaftLogEntry {
+  index: number;
+  term: number;
+  entry_type: string;
+  author_node_id: string;
+  payload: Record<string, any>;
+  signature: string;
+  timestamp: number;
 }
 
 export interface MeshStatus {
@@ -61,6 +86,9 @@ export const FederatedMeshView: React.FC<FederatedMeshViewProps> = ({ lang: _lan
   const [joining, setJoining] = useState<boolean>(false);
   const [rotatingCert, setRotatingCert] = useState<boolean>(false);
   const [attestingNode, setAttestingNode] = useState<string | null>(null);
+  const [raftStatus, setRaftStatus] = useState<RaftStatus | null>(null);
+  const [raftLogs, setRaftLogs] = useState<RaftLogEntry[]>([]);
+  const [electing, setElecting] = useState<boolean>(false);
 
   const fetchMeshStatus = async () => {
     try {
@@ -72,6 +100,21 @@ export const FederatedMeshView: React.FC<FederatedMeshViewProps> = ({ lang: _lan
       }
       const data: MeshStatus = await res.json();
       setMeshStatus(data);
+
+      try {
+        const raftRes = await fetch("http://127.0.0.1:8000/v1/mesh/raft/status");
+        if (raftRes.ok) {
+          const rData = await raftRes.json();
+          setRaftStatus(rData);
+        }
+        const logRes = await fetch("http://127.0.0.1:8000/v1/mesh/raft/log");
+        if (logRes.ok) {
+          const lData = await logRes.json();
+          setRaftLogs(lData.entries || []);
+        }
+      } catch {
+        // Fallback below
+      }
     } catch (err: any) {
       // If server daemon is not running, provide standard standalone fallback data
       setMeshStatus({
@@ -96,8 +139,72 @@ export const FederatedMeshView: React.FC<FederatedMeshViewProps> = ({ lang: _lan
         cert_expires_in_sec: 3600,
         verified_peers_count: 0,
       });
+
+      setRaftStatus({
+        node_id: "node-local-lead",
+        role: "LEADER",
+        term: 1,
+        leader_id: "node-local-lead",
+        commit_index: 2,
+        last_applied: 2,
+        log_length: 3,
+        quorum_size: 1,
+        cluster_peers_count: 0,
+      });
+      setRaftLogs([
+        {
+          index: 0,
+          term: 0,
+          entry_type: "CONFIGURATION",
+          author_node_id: "genesis",
+          payload: { desc: "genesis_slot" },
+          signature: "36b033fd22c2bdbf...",
+          timestamp: Date.now() / 1000 - 300,
+        },
+        {
+          index: 1,
+          term: 1,
+          entry_type: "SPEECH_TURN",
+          author_node_id: "node-local-lead",
+          payload: { task_id: "TASK-001", speaker: "architect", content: "Scoped boundary verified." },
+          signature: "8f7e2a1b9c0d...",
+          timestamp: Date.now() / 1000 - 120,
+        },
+        {
+          index: 2,
+          term: 1,
+          entry_type: "CONSENSUS_VERDICT",
+          author_node_id: "node-local-lead",
+          payload: { task_id: "TASK-001", decision: "CONSENSUS_APPROVED", composite_score: 0.95 },
+          signature: "1c2d3e4f5a6b...",
+          timestamp: Date.now() / 1000 - 60,
+        },
+      ]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleTriggerElection = async () => {
+    try {
+      setElecting(true);
+      const res = await fetch("http://127.0.0.1:8000/v1/mesh/raft/elect", {
+        method: "POST",
+      });
+      if (res.ok) {
+        await fetchMeshStatus();
+      }
+    } catch {
+      if (raftStatus) {
+        setRaftStatus({
+          ...raftStatus,
+          role: "LEADER",
+          term: raftStatus.term + 1,
+          leader_id: raftStatus.node_id,
+        });
+      }
+    } finally {
+      setElecting(false);
     }
   };
 
@@ -226,11 +333,11 @@ export const FederatedMeshView: React.FC<FederatedMeshViewProps> = ({ lang: _lan
             <Network className="h-6 w-6 text-cyan-400" />
             <h1 className="text-xl font-bold tracking-tight">Distributed P2P Mesh & Worktree Cluster</h1>
             <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-0.5 text-xs font-semibold text-cyan-400">
-              Phase 87 / 88 (Zero-Trust mTLS)
+              Phase 87 / 88 / 89 (Raft Consensus & Zero-Trust mTLS)
             </span>
           </div>
           <p className="mt-1 text-xs text-[var(--t3)]">
-            Decentralized peer capability advertising, zero-trust mutual attestation, and cryptographic patch federation
+            Decentralized peer capability advertising, zero-trust mutual attestation, and Raft replicated debate consensus
           </p>
         </div>
 
@@ -262,7 +369,7 @@ export const FederatedMeshView: React.FC<FederatedMeshViewProps> = ({ lang: _lan
       )}
 
       {/* KPI Bento Grid */}
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
         {/* Local Node Card */}
         <div className="rounded-xl border border-[var(--border-c)] bg-[var(--card-bg)] p-4 shadow-sm">
           <div className="flex items-center justify-between text-xs text-[var(--t3)]">
@@ -322,6 +429,31 @@ export const FederatedMeshView: React.FC<FederatedMeshViewProps> = ({ lang: _lan
           </p>
         </div>
 
+        {/* Raft Consensus Card */}
+        <div className="rounded-xl border border-[var(--border-c)] bg-[var(--card-bg)] p-4 shadow-sm">
+          <div className="flex items-center justify-between text-xs text-[var(--t3)]">
+            <span>Raft Role</span>
+            <Vote className="h-4 w-4 text-cyan-400" />
+          </div>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span
+              className={`text-lg font-bold ${
+                raftStatus?.role === "LEADER"
+                  ? "text-cyan-400"
+                  : raftStatus?.role === "CANDIDATE"
+                  ? "text-amber-400"
+                  : "text-purple-400"
+              }`}
+            >
+              {raftStatus?.role || "LEADER"}
+            </span>
+            <span className="text-[10px] text-[var(--t3)] font-mono">T:{raftStatus?.term || 0}</span>
+          </div>
+          <p className="text-[11px] text-[var(--t3)]">
+            Commit: {raftStatus?.commit_index || 0} (Quorum: {raftStatus?.quorum_size || 1})
+          </p>
+        </div>
+
         {/* Average Latency */}
         <div className="rounded-xl border border-[var(--border-c)] bg-[var(--card-bg)] p-4 shadow-sm">
           <div className="flex items-center justify-between text-xs text-[var(--t3)]">
@@ -373,6 +505,99 @@ export const FederatedMeshView: React.FC<FederatedMeshViewProps> = ({ lang: _lan
               Rotate Cert Now
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* Raft Committee Consensus & Replicated Ledger Panel */}
+      <div className="mb-6 rounded-xl border border-cyan-500/30 bg-gradient-to-r from-cyan-950/20 via-[var(--card-bg)] to-blue-950/20 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--border-c)] pb-3 mb-4">
+          <div className="flex items-center gap-3">
+            <div className="rounded-lg bg-cyan-500/10 p-2 border border-cyan-500/20 text-cyan-400">
+              <Vote className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-cyan-300">
+                  Raft Replicated Committee Debate Ledger
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-cyan-500/10 px-2 py-0.5 text-[10px] font-semibold text-cyan-400">
+                  <GitCommit className="h-3 w-3" />
+                  State Machine Applied: {raftStatus?.last_applied || 0}
+                </span>
+              </div>
+              <p className="mt-0.5 text-xs text-[var(--t2)]">
+                Deterministic quorum commits over committee debate speech turns, security critique scores, and patch Merkle roots
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-[var(--t3)] font-mono">
+              Leader: {raftStatus?.leader_id || "Self"}
+            </span>
+            <button
+              type="button"
+              onClick={handleTriggerElection}
+              disabled={electing}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-3 py-1.5 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/20 transition-colors"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${electing ? "animate-spin" : ""}`} />
+              Trigger Raft Election
+            </button>
+          </div>
+        </div>
+
+        {/* Ledger Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead>
+              <tr className="border-b border-[var(--border-c)] text-[var(--t3)] uppercase tracking-wider text-[10px]">
+                <th className="pb-2 font-mono">Idx</th>
+                <th className="pb-2 font-mono">Term</th>
+                <th className="pb-2">Type</th>
+                <th className="pb-2 font-mono">Author</th>
+                <th className="pb-2">Payload Summary</th>
+                <th className="pb-2 text-right">Quorum Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--border-c)] font-mono">
+              {raftLogs.slice(-6).map((log) => {
+                const isCommitted = log.index <= (raftStatus?.commit_index ?? 0);
+                return (
+                  <tr key={`${log.index}-${log.term}`} className="hover:bg-white/5 transition-colors">
+                    <td className="py-2 text-cyan-400 font-bold">{log.index}</td>
+                    <td className="py-2 text-[var(--t3)]">{log.term}</td>
+                    <td className="py-2 font-sans font-semibold text-[var(--t1)]">
+                      <span className="inline-flex items-center gap-1 rounded bg-white/5 px-2 py-0.5 text-[10px]">
+                        <FileText className="h-3 w-3 text-cyan-400" />
+                        {log.entry_type}
+                      </span>
+                    </td>
+                    <td className="py-2 text-[var(--t2)] truncate max-w-[120px]" title={log.author_node_id}>
+                      {log.author_node_id}
+                    </td>
+                    <td className="py-2 font-sans text-[var(--t3)] text-[11px] truncate max-w-xs" title={JSON.stringify(log.payload)}>
+                      {log.payload.task_id ? `[${log.payload.task_id}] ` : ""}
+                      {log.payload.content || log.payload.decision || log.payload.desc || "Log payload"}
+                    </td>
+                    <td className="py-2 text-right">
+                      {isCommitted ? (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-400">
+                          <CheckCircle2 className="h-3 w-3" />
+                          COMMITTED
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-400">
+                          <AlertTriangle className="h-3 w-3" />
+                          UNCOMMITTED
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
 

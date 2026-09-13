@@ -24,6 +24,14 @@ from agent_workspace.core.federated_mesh import (
     PeerCapability,
     get_federated_coordinator,
 )
+from agent_workspace.core.raft_consensus import (
+    AppendEntriesArgs,
+    AppendEntriesReply,
+    CommitteeEntryType,
+    CommitteeLogEntry,
+    RequestVoteArgs,
+    RequestVoteReply,
+)
 
 logger = logging.getLogger("MeshRoutes")
 
@@ -321,4 +329,83 @@ def sync_patch_bundle(bundle: FederatedPatchBundle, repo_path: Optional[str] = N
         "files_affected": bundle.files_affected,
         "merkle_root": bundle.merkle_root,
         "author_node_id": bundle.author_node_id,
+    }
+
+
+# ============================================================================
+# Distributed Committee Raft Consensus Endpoints (Phase 89)
+# ============================================================================
+
+
+class RaftProposeRequest(BaseModel):
+    """Payload to propose a new entry to the Raft committee log."""
+
+    entry_type: CommitteeEntryType
+    payload: Dict[str, Any]
+    author_node_id: Optional[str] = None
+
+
+@router.get("/raft/status")
+def get_raft_status() -> Dict[str, Any]:
+    """Returns local node Raft state, current term, role, leader, and log stats."""
+    coordinator = get_federated_coordinator()
+    return coordinator.get_raft_status()
+
+
+@router.get("/raft/log")
+def get_raft_log(limit: int = 50) -> Dict[str, Any]:
+    """Returns the replicated Raft log entries and state machine snapshot."""
+    coordinator = get_federated_coordinator()
+    log = coordinator.get_raft_log()
+    return {
+        "node_id": coordinator.node_id,
+        "log_length": len(log),
+        "commit_index": coordinator.raft_node.commit_index,
+        "last_applied": coordinator.raft_node.last_applied,
+        "entries": [entry.model_dump() for entry in log[-limit:]],
+    }
+
+
+@router.post("/raft/elect")
+def trigger_raft_election() -> Dict[str, Any]:
+    """Manually triggers a Raft leader election on this node."""
+    coordinator = get_federated_coordinator()
+    became_leader = coordinator.start_raft_election()
+    return {
+        "node_id": coordinator.node_id,
+        "became_leader": became_leader,
+        "role": coordinator.raft_node.role.value,
+        "term": coordinator.raft_node.current_term,
+    }
+
+
+@router.post("/raft/vote", response_model=RequestVoteReply)
+def handle_raft_vote(args: RequestVoteArgs) -> RequestVoteReply:
+    """Processes a Raft RequestVote RPC from a candidate peer."""
+    coordinator = get_federated_coordinator()
+    return coordinator.handle_raft_vote(args)
+
+
+@router.post("/raft/append_entries", response_model=AppendEntriesReply)
+def handle_raft_append_entries(args: AppendEntriesArgs) -> AppendEntriesReply:
+    """Processes a Raft AppendEntries RPC from the leader."""
+    coordinator = get_federated_coordinator()
+    return coordinator.handle_raft_append_entries(args)
+
+
+@router.post("/raft/propose")
+def propose_raft_entry(req: RaftProposeRequest) -> Dict[str, Any]:
+    """Proposes an entry to be appended and committed by the Raft quorum."""
+    coordinator = get_federated_coordinator()
+    ok, entry, msg = coordinator.propose_committee_entry(
+        entry_type=req.entry_type,
+        payload=req.payload,
+        author_node_id=req.author_node_id,
+    )
+    if not ok:
+        raise HTTPException(status_code=400, detail=msg)
+    return {
+        "status": "committed",
+        "message": msg,
+        "entry": entry.model_dump() if entry else None,
     }

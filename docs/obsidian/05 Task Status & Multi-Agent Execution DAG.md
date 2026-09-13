@@ -46,6 +46,7 @@ graph TD
     T18["T-018: Reasoning Adapters & Dynamic Thinking Router (P86)"]:::done
     T19["T-019: Distributed P2P Mesh & Federated Worktree Clustering (P87)"]:::done
     T20["T-020: Zero-Trust mTLS Dynamic Node Attestation & PKI Mesh (P88)"]:::done
+    T21["T-021: Distributed Committee Raft Consensus & State Machine (P89)"]:::done
 
     T01 --> T02
     T01 --> T03
@@ -68,6 +69,7 @@ graph TD
     T17 --> T18
     T18 --> T19
     T19 --> T20
+    T20 --> T21
 ```
 
 ---
@@ -251,4 +253,12 @@ graph TD
 - **Scope**: Implemented dynamic Zero-Trust node attestation and mutual TLS PKI mesh. Authored `agent_workspace/core/cert_manager.py` with `SwarmCertManager` (ephemeral X.509 cert generation, RSA signature signing/verification, cert validity checks, and auto-rotation thresholds). Enhanced `FederatedMeshCoordinator` in `agent_workspace/core/federated_mesh.py` with automatic cert rotation (`rotate_cert`, `check_and_auto_rotate_cert`), mutual challenge-response attestation (`generate_attestation_challenge`, `create_attestation_proof`, `verify_attestation_proof`) with single-use nonce replay protection, and cryptographically signed stage delegations (`sign_delegation_request`, `verify_delegation_request`) with strict Zero-Trust enforcement. Exposed REST API endpoints (`/v1/mesh/pki/cert`, `/v1/mesh/pki/rotate`, `/v1/mesh/attest/challenge`, `/v1/mesh/attest/verify`) in `agent_workspace/routes/mesh.py`. Added CLI subcommands (`las mesh pki`, `las mesh rotate --validity <sec>`, `las mesh attest <seed>`) in `agent_workspace/cli.py`. Upgraded frontend cockpit in `viewer/src/components/FederatedMeshView.tsx` with Zero-Trust PKI Bento status card, mTLS live rotation countdown banner, and peer attestation shield badges with on-demand challenge solving.
 - **Target Files**: `agent_workspace/core/cert_manager.py`, `agent_workspace/core/federated_mesh.py`, `agent_workspace/routes/mesh.py`, `agent_workspace/cli.py`, `viewer/src/components/FederatedMeshView.tsx`, `agent_workspace/tests/test_mesh_pki_p88.py`, `docs/obsidian/modules/core/core-mesh-pki.md`.
 - **Verification**: `test_mesh_pki_p88.py` (9 tests, 100% PASS in 3.77s); Full combined 11-suite regression matrix across P1~P88 (72/72 tests, 100% PASS in 19.31s); `npm run build` in `viewer/` (Pass, 0 errors, 657ms); `git diff --check` (0 trailing whitespace).
+- **Status**: `PASS` (Completed).
+
+### [DONE] T-021: Distributed Committee Raft Consensus & Replicated State Machine (Phase 89)
+- **Assigned Role**: `ARCHITECT_PLANNER_AGENT` (Luke) / `SECURITY_AUDIT_AGENT` (Victor) / `BACKEND_INFRA_AGENT` (Ethan) / `QA_TEST_AGENT` (Jimmy) / `UI_UX_AGENT` (Joe)
+- **Reference ADR**: [[60 Architectural Decision Records (ADR) Graph#ADR-005|ADR-005: Stop-and-Wait Gate]], [[60 Architectural Decision Records (ADR) Graph#ADR-006|ADR-006: Agent Strategy Integration]]
+- **Scope**: Implemented distributed committee Raft consensus engine and deterministic replicated state machine. Authored `agent_workspace/core/raft_consensus.py` with `CommitteeRaftNode` (FOLLOWER/CANDIDATE/LEADER roles, randomized election timeouts, log matching, conflict truncation, quorum commits), `CommitteeStateMachine` (sequential debate log application, status tracking, patch Merkle root commitments), and cryptographic `CommitteeLogEntry` signing. Integrated Raft node into `FederatedMeshCoordinator` in `agent_workspace/core/federated_mesh.py` with Phase 88 Zero-Trust attestation checks on candidate votes and entry append requests. Integrated Raft replicated logging into `PipelineDebateProtocol` in `agent_workspace/core/pipeline/debate_protocol.py` when `use_raft_consensus=True`. Exposed REST API endpoints (`/v1/mesh/raft/status`, `/v1/mesh/raft/log`, `/v1/mesh/raft/elect`, `/v1/mesh/raft/vote`, `/v1/mesh/raft/append_entries`, `/v1/mesh/raft/propose`) in `agent_workspace/routes/mesh.py`. Added CLI subcommands (`las mesh raft status`, `las mesh raft elect`, `las mesh raft log [--limit N]`) in `agent_workspace/cli.py`. Upgraded frontend cockpit in `viewer/src/components/FederatedMeshView.tsx` with Raft consensus Bento status card, quorum metrics, manual election trigger, and real-time replicated debate ledger table.
+- **Target Files**: `agent_workspace/core/raft_consensus.py`, `agent_workspace/core/pipeline/models.py`, `agent_workspace/core/federated_mesh.py`, `agent_workspace/core/pipeline/debate_protocol.py`, `agent_workspace/routes/mesh.py`, `agent_workspace/cli.py`, `viewer/src/components/FederatedMeshView.tsx`, `agent_workspace/tests/test_committee_raft_p89.py`, `docs/obsidian/modules/core/core-raft-consensus.md`.
+- **Verification**: `test_committee_raft_p89.py` (9 tests, 100% PASS in 0.17s); Full combined 12-suite regression matrix across P1~P89 (81/81 tests, 100% PASS in 20.30s); `npm run build` in `viewer/` (Pass, 0 errors, 3.27s); `git diff --check` (0 trailing whitespace).
 - **Status**: `PASS` (Completed).

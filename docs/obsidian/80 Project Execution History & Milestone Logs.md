@@ -480,3 +480,45 @@ timeline
     - Frontend production build: `npm run build` in `viewer/` (Pass, 0 errors, 657ms)
     - Formatting check: `git diff --check` (0 errors)
 
+---
+
+### Milestone T-021: Distributed Committee Raft Consensus & Replicated State Machine Phase 89
+- **Goal**:
+  - Implement a Byzantine-hardened, fault-tolerant Raft consensus engine and deterministic replicated state machine for the multi-agent committee (`agent_workspace/core/raft_consensus.py`, `agent_workspace/core/federated_mesh.py`, `agent_workspace/core/pipeline/debate_protocol.py`), establishing leader election, term leases, Phase 88 Zero-Trust attestation gating on voting and entry replication, quorum commits ($\lfloor N/2 \rfloor + 1$) on committee debate turns and scorecards, and developer cockpit telemetry with real-time replicated ledger visualization.
+- **Process**:
+  - Implemented Raft consensus subsystem in `agent_workspace/core/raft_consensus.py`:
+    - `RaftRole` enum (`FOLLOWER`, `CANDIDATE`, `LEADER`), `CommitteeEntryType` semantic discriminator, and cryptographically signed `CommitteeLogEntry`.
+    - `CommitteeStateMachine`: Replicated state machine sequentially applying committed entries to track task debates, scorecards, and patch Merkle roots.
+    - `CommitteeRaftNode`: Full Raft algorithm handling `RequestVote` RPC with candidate log staleness checks, `AppendEntries` RPC with log matching and conflict truncation, randomized election timers, leader heartbeats, and quorum commit tracking.
+  - Enhanced `agent_workspace/core/federated_mesh.py`:
+    - Embedded `CommitteeRaftNode` within `FederatedMeshCoordinator`.
+    - Enforced Phase 88 Zero-Trust attestation verification (`attestation_status == AttestationStatus.VERIFIED`) for candidate voting and log entry replication.
+    - Provided helper methods for election triggers, proposal dispatch, and status telemetry.
+  - Upgraded `agent_workspace/core/pipeline/debate_protocol.py`:
+    - Added `use_raft_consensus` handling to replicate specialist speech turns and the final consensus scorecard directly to the Raft cluster before gate approval.
+    - Attached `raft_log_index` and `raft_term` to `CommitteeDebateRecord`.
+  - Mounted Raft REST endpoints in `agent_workspace/routes/mesh.py`:
+    - `GET /v1/mesh/raft/status`: Active node Raft role, term, leader ID, and commit index.
+    - `GET /v1/mesh/raft/log`: Replicated log entries and state machine snapshot.
+    - `POST /v1/mesh/raft/elect`: Triggers immediate leader election.
+    - `POST /v1/mesh/raft/vote`: Handles `RequestVote` RPC.
+    - `POST /v1/mesh/raft/append_entries`: Handles `AppendEntries` RPC.
+    - `POST /v1/mesh/raft/propose`: Proposes an entry for quorum commit.
+  - Upgraded developer CLI in `agent_workspace/cli.py`:
+    - Added `las mesh raft status`: Inspects local node Raft state, term, and commit index.
+    - Added `las mesh raft elect`: Triggers leader election.
+    - Added `las mesh raft log [--limit N]`: Prints formatted replicated log ledger table.
+  - Upgraded Frontend Cockpit in `viewer/src/components/FederatedMeshView.tsx`:
+    - Added Raft Role Bento status card with term and commit index badges.
+    - Added Raft Committee Consensus & Replicated Ledger panel with live leader status and `Trigger Raft Election` action.
+    - Added interactive Replicated Ledger table with `COMMITTED` / `UNCOMMITTED` status badges and payload previews.
+  - Authored unit & integration test suite in `agent_workspace/tests/test_committee_raft_p89.py` (9 tests).
+  - Authored Tier 3 Obsidian leaf note `docs/obsidian/modules/core/core-raft-consensus.md`.
+- **Result**:
+  - Phase 89 (Distributed Committee Raft Consensus & Replicated State Machine) 100% complete and verified.
+  - Receipts:
+    - `test_committee_raft_p89.py`: 9/9 PASS (0.17s)
+    - Full combined pipeline regression matrix: 81/81 PASS across 12 test suites (20.30s)
+    - Python bytecode compilation: `python -m py_compile` (0 errors)
+    - Frontend production build: `npm run build` in `viewer/` (Pass, 0 errors, 3.27s)
+    - Formatting check: `git diff --check` (0 errors)
