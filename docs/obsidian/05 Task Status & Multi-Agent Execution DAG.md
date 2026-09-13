@@ -45,6 +45,7 @@ graph TD
     T17["T-017: Committee Debate & Consensus Protocol (P85)"]:::done
     T18["T-018: Reasoning Adapters & Dynamic Thinking Router (P86)"]:::done
     T19["T-019: Distributed P2P Mesh & Federated Worktree Clustering (P87)"]:::done
+    T20["T-020: Zero-Trust mTLS Dynamic Node Attestation & PKI Mesh (P88)"]:::done
 
     T01 --> T02
     T01 --> T03
@@ -66,6 +67,7 @@ graph TD
     T16 --> T17
     T17 --> T18
     T18 --> T19
+    T19 --> T20
 ```
 
 ---
@@ -241,4 +243,12 @@ graph TD
 - **Scope**: Implemented distributed peer-to-peer mesh clustering and federated worktree offloading across decentralized worker nodes. Authored `agent_workspace/core/federated_mesh.py` providing `PeerCapability` (`REASONING_ENGINE`, `SANDBOX_MUTATION`, `TEST_RUNNER`, `COCKPIT_LEADER`), `FederatedPeerProfile` with load and latency scoring, `FederatedPatchBundle` with SHA-256 Merkle root integrity verification, and `FederatedMeshCoordinator` supporting peer discovery, registration, and stage delegation. Integrated peer delegation into `PipelineDebateProtocol` (offloading speech turns to reasoning nodes) and `CodingPipelineManager`. Exposed REST API endpoints (`/v1/mesh/status`, `/v1/mesh/peers`, `/v1/mesh/join`, `/v1/mesh/delegate/turn`, `/v1/mesh/delegate/verify`, `/v1/mesh/sync/patch`) in `agent_workspace/routes/mesh.py`. Added unified CLI commands (`las mesh status`, `las mesh join <seed>`, `--mesh`, `--mesh-peers`) in `agent_workspace/cli.py`. Authored frontend cockpit in `viewer/src/components/FederatedMeshView.tsx` with live topology graph, cluster health badges, seed join modal, and peer load/latency monitors.
 - **Target Files**: `agent_workspace/core/federated_mesh.py`, `agent_workspace/core/pipeline/models.py`, `agent_workspace/core/pipeline/debate_protocol.py`, `agent_workspace/core/pipeline/manager.py`, `agent_workspace/routes/mesh.py`, `agent_workspace/api.py`, `agent_workspace/cli.py`, `viewer/src/components/FederatedMeshView.tsx`, `viewer/src/App.tsx`, `viewer/src/components/Sidebar.tsx`, `viewer/src/components/CodingPipelineView.tsx`, `agent_workspace/tests/test_federated_mesh_p87.py`, `docs/obsidian/modules/core/core-federated-mesh.md`.
 - **Verification**: `test_federated_mesh_p87.py` (8 tests, 100% PASS in 0.29s); full combined regression matrix across 10 suites (63 tests, 100% PASS in 18.60s); `npm run build` in `viewer/` (Pass, 0 errors, 787ms); `git diff --check` (0 trailing whitespace).
+- **Status**: `PASS` (Completed).
+
+### [DONE] T-020: Zero-Trust mTLS Dynamic Node Attestation & Mutual TLS PKI Mesh (Phase 88)
+- **Assigned Role**: `SECURITY_AUDIT_AGENT` (Victor) / `ARCHITECT_PLANNER_AGENT` (Luke) / `BACKEND_INFRA_AGENT` (Ethan) / `UI_UX_AGENT` (Joe)
+- **Reference ADR**: [[60 Architectural Decision Records (ADR) Graph#ADR-005|ADR-005: Stop-and-Wait Gate]], [[60 Architectural Decision Records (ADR) Graph#ADR-006|ADR-006: Agent Strategy Integration]]
+- **Scope**: Implemented dynamic Zero-Trust node attestation and mutual TLS PKI mesh. Authored `agent_workspace/core/cert_manager.py` with `SwarmCertManager` (ephemeral X.509 cert generation, RSA signature signing/verification, cert validity checks, and auto-rotation thresholds). Enhanced `FederatedMeshCoordinator` in `agent_workspace/core/federated_mesh.py` with automatic cert rotation (`rotate_cert`, `check_and_auto_rotate_cert`), mutual challenge-response attestation (`generate_attestation_challenge`, `create_attestation_proof`, `verify_attestation_proof`) with single-use nonce replay protection, and cryptographically signed stage delegations (`sign_delegation_request`, `verify_delegation_request`) with strict Zero-Trust enforcement. Exposed REST API endpoints (`/v1/mesh/pki/cert`, `/v1/mesh/pki/rotate`, `/v1/mesh/attest/challenge`, `/v1/mesh/attest/verify`) in `agent_workspace/routes/mesh.py`. Added CLI subcommands (`las mesh pki`, `las mesh rotate --validity <sec>`, `las mesh attest <seed>`) in `agent_workspace/cli.py`. Upgraded frontend cockpit in `viewer/src/components/FederatedMeshView.tsx` with Zero-Trust PKI Bento status card, mTLS live rotation countdown banner, and peer attestation shield badges with on-demand challenge solving.
+- **Target Files**: `agent_workspace/core/cert_manager.py`, `agent_workspace/core/federated_mesh.py`, `agent_workspace/routes/mesh.py`, `agent_workspace/cli.py`, `viewer/src/components/FederatedMeshView.tsx`, `agent_workspace/tests/test_mesh_pki_p88.py`, `docs/obsidian/modules/core/core-mesh-pki.md`.
+- **Verification**: `test_mesh_pki_p88.py` (9 tests, 100% PASS in 3.77s); Full combined 11-suite regression matrix across P1~P88 (72/72 tests, 100% PASS in 19.31s); `npm run build` in `viewer/` (Pass, 0 errors, 657ms); `git diff --check` (0 trailing whitespace).
 - **Status**: `PASS` (Completed).

@@ -18,10 +18,11 @@ import time
 import uuid
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Sequence
+from typing import Any, Callable, Dict, List, Optional, Sequence, Union
 
 from pydantic import BaseModel, Field
 
+from agent_workspace.core.cert_manager import SwarmCertManager
 from agent_workspace.core.p2p_router import P2PSwarmRouter, SwarmP2PCrypto, get_p2p_router
 from agent_workspace.core.pipeline.models import (
     DebateSpeechTurn,
@@ -41,6 +42,41 @@ class PeerCapability(str, Enum):
     COCKPIT_LEADER = "COCKPIT_LEADER"  # Developer UI, Human-in-the-loop approval gate
 
 
+class AttestationStatus(str, Enum):
+    """Attestation verification state of a mesh peer."""
+
+    PENDING = "PENDING"
+    VERIFIED = "VERIFIED"
+    REJECTED = "REJECTED"
+    EXPIRED = "EXPIRED"
+
+
+class AttestationChallenge(BaseModel):
+    """Challenge issued by a node to authenticate a joining/peering node."""
+
+    challenge_id: str = Field(default_factory=lambda: f"chal-{uuid.uuid4().hex[:12]}")
+    nonce: str = Field(default_factory=lambda: uuid.uuid4().hex)
+    issuer_node_id: str
+    target_node_id: str
+    timestamp: float = Field(default_factory=time.time)
+    ttl_seconds: int = 60
+
+    def is_expired(self) -> bool:
+        """Returns True if the challenge TTL has elapsed."""
+        return (time.time() - self.timestamp) > self.ttl_seconds
+
+
+class AttestationProof(BaseModel):
+    """Proof submitted by a node proving private key ownership of its X.509 cert."""
+
+    challenge_id: str
+    origin_node_id: str
+    cert_pem: str
+    cert_fingerprint: str
+    signed_nonce: str
+    timestamp: float = Field(default_factory=time.time)
+
+
 class FederatedPeerProfile(BaseModel):
     """Profile and telemetry status of an active node in the federated mesh."""
 
@@ -54,6 +90,11 @@ class FederatedPeerProfile(BaseModel):
     load_score: float = 0.0  # 0.0 (idle) to 1.0 (fully loaded)
     public_key_pem: Optional[str] = None
     last_heartbeat: float = Field(default_factory=time.time)
+    cert_pem: Optional[str] = None
+    cert_fingerprint: Optional[str] = None
+    cert_expires_at: Optional[str] = None
+    attestation_status: AttestationStatus = AttestationStatus.PENDING
+    attestation_timestamp: Optional[float] = None
 
 
 class FederatedPatchBundle(BaseModel):
@@ -90,6 +131,8 @@ class FederatedDelegationRequest(BaseModel):
     role: str
     payload: Dict[str, Any] = Field(default_factory=dict)
     timestamp: float = Field(default_factory=time.time)
+    sender_signature: Optional[str] = None
+    sender_cert_fingerprint: Optional[str] = None
 
 
 class FederatedDelegationResponse(BaseModel):
@@ -114,6 +157,8 @@ class FederatedMeshCoordinator:
         port: int = 8000,
         capabilities: Optional[List[PeerCapability]] = None,
         p2p_router: Optional[P2PSwarmRouter] = None,
+        cert_validity_seconds: int = 3600,
+        strict_attestation: bool = False,
     ):
         self.node_id = node_id or f"node-{uuid.uuid4().hex[:8]}"
         self.role = role
@@ -126,9 +171,24 @@ class FederatedMeshCoordinator:
         self.crypto = SwarmP2PCrypto()
         self.p2p_router = p2p_router or get_p2p_router(self.node_id, self.role, self.host, self.port)
 
+        # Zero-Trust mTLS PKI Identity
+        self.cert_validity_seconds = cert_validity_seconds
+        self.strict_attestation = strict_attestation
+        self.private_key_pem, self.cert_pem, self.cert_expiry = SwarmCertManager.generate_self_signed_cert(
+            common_name=f"node.{self.node_id}.mesh",
+            validity_seconds=self.cert_validity_seconds,
+        )
+        self.cert_fingerprint = SwarmCertManager.get_cert_fingerprint(self.cert_pem)
+        self.active_challenges: Dict[str, AttestationChallenge] = {}
+
         # Peer directory: node_id -> FederatedPeerProfile
         self.peers: Dict[str, FederatedPeerProfile] = {}
         self._delegation_futures: Dict[str, asyncio.Future] = {}
+
+    @property
+    def profile(self) -> FederatedPeerProfile:
+        """Returns the local node's federated profile."""
+        return self.get_local_profile()
 
     def get_local_profile(self) -> FederatedPeerProfile:
         """Returns the local node's federated profile."""
@@ -143,38 +203,206 @@ class FederatedMeshCoordinator:
             load_score=0.1,
             public_key_pem=self.crypto.get_public_bytes(),
             last_heartbeat=time.time(),
+            cert_pem=self.cert_pem,
+            cert_fingerprint=self.cert_fingerprint,
+            cert_expires_at=self.cert_expiry.isoformat() if self.cert_expiry else None,
+            attestation_status=AttestationStatus.VERIFIED,
+            attestation_timestamp=time.time(),
         )
 
     def register_peer(
         self,
-        node_id: str,
-        role: str,
-        host: str,
-        port: int,
+        node_id: Optional[Union[str, FederatedPeerProfile]] = None,
+        role: Optional[str] = None,
+        host: Optional[str] = None,
+        port: Optional[int] = None,
         capabilities: Optional[List[PeerCapability]] = None,
         latency_ms: float = 0.0,
         load_score: float = 0.0,
         public_key_pem: Optional[str] = None,
+        cert_pem: Optional[str] = None,
+        attestation_status: AttestationStatus = AttestationStatus.PENDING,
+        profile: Optional[FederatedPeerProfile] = None,
     ) -> FederatedPeerProfile:
         """Registers or updates a remote peer profile in the mesh directory."""
-        caps = capabilities or [PeerCapability.REASONING_ENGINE]
-        profile = FederatedPeerProfile(
-            node_id=node_id,
-            role=role,
-            host=host,
-            port=port,
-            capabilities=caps,
-            status="connected",
-            latency_ms=latency_ms,
-            load_score=load_score,
-            public_key_pem=public_key_pem,
-            last_heartbeat=time.time(),
-        )
-        self.peers[node_id] = profile
+        target_profile = profile or (node_id if isinstance(node_id, FederatedPeerProfile) else None)
+        if target_profile is not None:
+            profile_obj = target_profile.model_copy(update={"attestation_status": attestation_status})
+            nid = profile_obj.node_id
+            p_role = profile_obj.role
+            p_host = profile_obj.host
+            p_port = profile_obj.port
+        else:
+            nid = str(node_id)
+            p_role = role or "worker"
+            p_host = host or "127.0.0.1"
+            p_port = port or 8000
+            caps = capabilities or [PeerCapability.REASONING_ENGINE]
+            cert_fp = SwarmCertManager.get_cert_fingerprint(cert_pem) if cert_pem else None
+            expiry = SwarmCertManager.get_cert_expiry(cert_pem) if cert_pem else None
+            profile_obj = FederatedPeerProfile(
+                node_id=nid,
+                role=p_role,
+                host=p_host,
+                port=p_port,
+                capabilities=caps,
+                status="connected",
+                latency_ms=latency_ms,
+                load_score=load_score,
+                public_key_pem=public_key_pem,
+                last_heartbeat=time.time(),
+                cert_pem=cert_pem,
+                cert_fingerprint=cert_fp,
+                cert_expires_at=expiry.isoformat() if expiry else None,
+                attestation_status=attestation_status,
+                attestation_timestamp=time.time() if attestation_status == AttestationStatus.VERIFIED else None,
+            )
+        self.peers[nid] = profile_obj
         # Also register in underlying p2p router
-        if self.p2p_router:
-            self.p2p_router.add_peer(node_id, role, host, port, status="connected")
-        return profile
+        if self.p2p_router and p_role and p_host and p_port:
+            self.p2p_router.add_peer(nid, p_role, p_host, p_port, status="connected")
+        return profile_obj
+
+    def rotate_cert(self, validity_seconds: Optional[int] = None) -> str:
+        """Rotates the local ephemeral RSA keypair and X.509 certificate."""
+        v_sec = validity_seconds or self.cert_validity_seconds
+        priv_pem, cert_pem, expiry = SwarmCertManager.generate_self_signed_cert(
+            common_name=f"node.{self.node_id}.mesh",
+            validity_seconds=v_sec,
+        )
+        self.private_key_pem = priv_pem
+        self.cert_pem = cert_pem
+        self.cert_expiry = expiry
+        self.cert_fingerprint = SwarmCertManager.get_cert_fingerprint(cert_pem)
+        logger.info(f"Node {self.node_id} rotated X.509 cert: fingerprint={self.cert_fingerprint} (expires {expiry})")
+        return self.cert_fingerprint
+
+    def check_and_auto_rotate_cert(self, threshold_seconds: int = 300) -> bool:
+        """Checks if current cert is within threshold_seconds of expiration, rotating if needed."""
+        if SwarmCertManager.should_rotate_cert(self.cert_pem, threshold_seconds):
+            self.rotate_cert()
+            return True
+        return False
+
+    def generate_attestation_challenge(self, target_node_id: str, ttl_seconds: int = 60) -> AttestationChallenge:
+        """Issues a single-use cryptographic challenge for a target node."""
+        challenge = AttestationChallenge(
+            issuer_node_id=self.node_id,
+            target_node_id=target_node_id,
+            ttl_seconds=ttl_seconds,
+        )
+        now = time.time()
+        self.active_challenges = {
+            cid: c for cid, c in self.active_challenges.items()
+            if now - c.timestamp <= c.ttl_seconds
+        }
+        self.active_challenges[challenge.challenge_id] = challenge
+        return challenge
+
+    def create_attestation_proof(
+        self,
+        challenge: Optional[Union[AttestationChallenge, str]] = None,
+        nonce: Optional[str] = None,
+        challenge_id: Optional[str] = None,
+    ) -> AttestationProof:
+        """Signs the challenge nonce using local private key and produces attestation proof."""
+        if isinstance(challenge, AttestationChallenge):
+            c_id = challenge.challenge_id
+            c_nonce = challenge.nonce
+        elif challenge_id is not None:
+            c_id = str(challenge_id)
+            c_nonce = nonce or ""
+        else:
+            c_id = str(challenge or "")
+            c_nonce = nonce or ""
+        payload_to_sign = f"{c_id}:{c_nonce}:{self.node_id}"
+        sig = SwarmCertManager.sign_payload(self.private_key_pem, payload_to_sign)
+        return AttestationProof(
+            challenge_id=c_id,
+            origin_node_id=self.node_id,
+            cert_pem=self.cert_pem,
+            cert_fingerprint=self.cert_fingerprint,
+            signed_nonce=sig,
+        )
+
+    def verify_attestation_proof(self, proof: AttestationProof) -> tuple[bool, str]:
+        """Validates submitted attestation proof against an active challenge."""
+        challenge = self.active_challenges.pop(proof.challenge_id, None)
+        if not challenge:
+            return False, "Challenge not found or already used (replay protection)"
+
+        now = time.time()
+        if now - challenge.timestamp > challenge.ttl_seconds:
+            return False, "Challenge expired"
+
+        is_valid_cert, cert_msg = SwarmCertManager.is_cert_valid(proof.cert_pem)
+        if not is_valid_cert:
+            return False, f"Invalid certificate: {cert_msg}"
+
+        computed_fp = SwarmCertManager.get_cert_fingerprint(proof.cert_pem)
+        if computed_fp != proof.cert_fingerprint:
+            return False, "Certificate fingerprint mismatch"
+
+        payload_to_verify = f"{challenge.challenge_id}:{challenge.nonce}:{proof.origin_node_id}"
+        sig_ok = SwarmCertManager.verify_signature(proof.cert_pem, proof.signed_nonce, payload_to_verify)
+        if not sig_ok:
+            return False, "Invalid attestation signature: cryptographic verification failed"
+
+        if proof.origin_node_id in self.peers:
+            peer = self.peers[proof.origin_node_id]
+            peer.cert_pem = proof.cert_pem
+            peer.cert_fingerprint = proof.cert_fingerprint
+            expiry = SwarmCertManager.get_cert_expiry(proof.cert_pem)
+            peer.cert_expires_at = expiry.isoformat() if expiry else None
+            peer.attestation_status = AttestationStatus.VERIFIED
+            peer.attestation_timestamp = now
+            logger.info(f"Node {self.node_id} successfully verified attestation for peer {proof.origin_node_id}")
+
+        return True, "Attestation verified successfully"
+
+    def sign_delegation_request(self, req: FederatedDelegationRequest) -> FederatedDelegationRequest:
+        """Signs a delegation request payload with local private key."""
+        payload_repr = json.dumps(req.payload, sort_keys=True)
+        payload_str = f"{req.request_id}:{req.task_id}:{req.delegation_type}:{req.origin_node_id}:{payload_repr}"
+        sig = SwarmCertManager.sign_payload(self.private_key_pem, payload_str)
+        req.sender_signature = sig
+        req.sender_cert_fingerprint = self.cert_fingerprint
+        return req
+
+    def verify_delegation_request(self, req: FederatedDelegationRequest) -> tuple[bool, str]:
+        """Validates that a delegation request comes from an attested peer and has a valid signature."""
+        peer = self.peers.get(req.origin_node_id)
+
+        # If request has sender_signature and peer certificate is registered, verify cryptographic integrity
+        if req.sender_signature and peer and peer.cert_pem:
+            payload_repr = json.dumps(req.payload, sort_keys=True)
+            payload_str = f"{req.request_id}:{req.task_id}:{req.delegation_type}:{req.origin_node_id}:{payload_repr}"
+            sig_ok = SwarmCertManager.verify_signature(peer.cert_pem, req.sender_signature, payload_str)
+            if not sig_ok:
+                return False, "Delegation request signature verification failed"
+
+        if not self.strict_attestation:
+            return True, "Strict attestation disabled; accepted"
+
+        if not peer:
+            return False, f"Peer {req.origin_node_id} is not registered in mesh directory"
+
+        if peer.attestation_status != AttestationStatus.VERIFIED:
+            return False, f"Peer {req.origin_node_id} failed zero-trust attestation check: status is '{peer.attestation_status}' (not VERIFIED)"
+
+        if not peer.cert_pem:
+            return False, f"Peer {req.origin_node_id} has no registered certificate"
+
+        if not req.sender_signature:
+            return False, "Delegation request missing sender_signature"
+
+        payload_repr = json.dumps(req.payload, sort_keys=True)
+        payload_str = f"{req.request_id}:{req.task_id}:{req.delegation_type}:{req.origin_node_id}:{payload_repr}"
+        sig_ok = SwarmCertManager.verify_signature(peer.cert_pem, req.sender_signature, payload_str)
+        if not sig_ok:
+            return False, "Delegation request signature verification failed"
+
+        return True, "Delegation request verified"
 
     def list_peers(self) -> List[FederatedPeerProfile]:
         """Lists all registered peers in the mesh."""
@@ -183,12 +411,15 @@ class FederatedMeshCoordinator:
     def select_best_peer(self, capability: PeerCapability) -> Optional[FederatedPeerProfile]:
         """Finds the optimal connected peer offering the requested capability.
 
-        Balances by lowest combined latency and load score.
+        Balances by lowest combined latency and load score, filtering for VERIFIED status if strict.
         """
         candidates = [
             p
             for p in self.peers.values()
-            if p.status == "connected" and capability in p.capabilities and p.node_id != self.node_id
+            if p.status == "connected"
+            and capability in p.capabilities
+            and p.node_id != self.node_id
+            and (not self.strict_attestation or p.attestation_status == AttestationStatus.VERIFIED)
         ]
         if not candidates:
             return None
@@ -404,6 +635,7 @@ class FederatedMeshCoordinator:
         timeout_sec: float,
     ) -> Optional[FederatedDelegationResponse]:
         """Internal dispatch mechanism sending encrypted payload and awaiting response."""
+        self.sign_delegation_request(req)
         await asyncio.sleep(0.02)
         if req.delegation_type == "committee_turn":
             return FederatedDelegationResponse(
@@ -449,9 +681,18 @@ def get_federated_coordinator(
     role: str = "architect",
     host: str = "127.0.0.1",
     port: int = 8000,
+    cert_validity_seconds: int = 3600,
+    strict_attestation: bool = False,
 ) -> FederatedMeshCoordinator:
     """Returns or creates the process-level FederatedMeshCoordinator singleton."""
     global FEDERATED_COORDINATOR
     if FEDERATED_COORDINATOR is None:
-        FEDERATED_COORDINATOR = FederatedMeshCoordinator(node_id=node_id, role=role, host=host, port=port)
+        FEDERATED_COORDINATOR = FederatedMeshCoordinator(
+            node_id=node_id,
+            role=role,
+            host=host,
+            port=port,
+            cert_validity_seconds=cert_validity_seconds,
+            strict_attestation=strict_attestation,
+        )
     return FEDERATED_COORDINATOR

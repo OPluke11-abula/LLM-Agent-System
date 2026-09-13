@@ -10,6 +10,13 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import serialization
 
+class CertValidationResult(tuple):
+    """Tuple subclass whose boolean truthiness matches its first item (is_valid)."""
+
+    def __bool__(self) -> bool:
+        return bool(self[0]) if len(self) > 0 else False
+
+
 class SwarmCertManager:
     @staticmethod
     def generate_self_signed_cert(common_name: str, validity_seconds: int = 3600) -> tuple[str, str, datetime.datetime]:
@@ -67,6 +74,14 @@ class SwarmCertManager:
         return private_key_pem, certificate_pem, expiry
 
     @staticmethod
+    def generate_agent_cert(common_name: str, validity_seconds: int = 3600) -> tuple[str, str]:
+        """
+        Convenience method returning (certificate_pem, private_key_pem).
+        """
+        priv_pem, cert_pem, _ = SwarmCertManager.generate_self_signed_cert(common_name, validity_seconds)
+        return cert_pem, priv_pem
+
+    @staticmethod
     def get_cert_fingerprint(cert_pem: str) -> str:
         """
         Computes the SHA-256 fingerprint (hash) of the PEM certificate.
@@ -112,4 +127,52 @@ class SwarmCertManager:
             return True
         except Exception:
             return False
+
+    @staticmethod
+    def is_cert_valid(cert_pem: str) -> tuple[bool, str]:
+        """
+        Validates structure and temporal validity of an X.509 certificate PEM.
+        Returns (is_valid, message).
+        """
+        try:
+            cert = x509.load_pem_x509_certificate(cert_pem.encode("utf-8"))
+            now = datetime.datetime.now(datetime.timezone.utc)
+            try:
+                not_after = cert.not_valid_after_utc
+                not_before = cert.not_valid_before_utc
+            except AttributeError:
+                not_after = cert.not_valid_after.replace(tzinfo=datetime.timezone.utc)
+                not_before = cert.not_valid_before.replace(tzinfo=datetime.timezone.utc)
+
+            if now < not_before:
+                return CertValidationResult((False, "Certificate is not yet valid"))
+            if now > not_after:
+                return CertValidationResult((False, f"Certificate expired at {not_after.isoformat()}"))
+            return CertValidationResult((True, "Certificate is valid"))
+        except Exception as e:
+            return CertValidationResult((False, f"Invalid certificate format: {e}"))
+
+    @staticmethod
+    def get_cert_expiry(cert_pem: str) -> datetime.datetime | None:
+        """Extracts the UTC expiration datetime from an X.509 certificate PEM."""
+        try:
+            cert = x509.load_pem_x509_certificate(cert_pem.encode("utf-8"))
+            try:
+                return cert.not_valid_after_utc
+            except AttributeError:
+                return cert.not_valid_after.replace(tzinfo=datetime.timezone.utc)
+        except Exception:
+            return None
+
+    @staticmethod
+    def should_rotate_cert(cert_pem: str, threshold_seconds: int = 300) -> bool:
+        """
+        Checks if the certificate has expired or is expiring within threshold_seconds.
+        """
+        expiry = SwarmCertManager.get_cert_expiry(cert_pem)
+        if expiry is None:
+            return True
+        now = datetime.datetime.now(datetime.timezone.utc)
+        remaining = (expiry - now).total_seconds()
+        return remaining <= threshold_seconds
 

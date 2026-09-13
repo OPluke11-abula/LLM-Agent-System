@@ -12,7 +12,11 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
+import datetime
 from agent_workspace.core.federated_mesh import (
+    AttestationChallenge,
+    AttestationProof,
+    AttestationStatus,
     FederatedDelegationRequest,
     FederatedDelegationResponse,
     FederatedPatchBundle,
@@ -36,6 +40,40 @@ class MeshJoinRequest(BaseModel):
         default_factory=lambda: [PeerCapability.REASONING_ENGINE, PeerCapability.TEST_RUNNER],
         description="Declared capabilities of remote node",
     )
+    cert_pem: Optional[str] = Field(default=None, description="Public X.509 certificate of joining node")
+
+
+class AttestationChallengeRequest(BaseModel):
+    """Request to generate an authentication challenge for a target node."""
+
+    target_node_id: str = Field(..., description="Node ID requesting or being challenged")
+    ttl_seconds: int = Field(default=60, description="Challenge lifetime in seconds")
+
+
+class AttestationVerifyResponse(BaseModel):
+    """Result of attestation proof verification."""
+
+    success: bool
+    origin_node_id: str
+    message: str
+    attestation_status: str
+
+
+class CertRotateRequest(BaseModel):
+    """Request to trigger certificate rotation."""
+
+    validity_seconds: Optional[int] = Field(default=3600, ge=60, description="Lifetime in seconds for new cert")
+
+
+class CertInfoResponse(BaseModel):
+    """Information regarding a node's active X.509 certificate."""
+
+    node_id: str
+    cert_fingerprint: str
+    cert_pem: str
+    expires_at: Optional[str]
+    expires_in_sec: Optional[float]
+    status: str  # ACTIVE, EXPIRING_SOON, EXPIRED
 
 
 class MeshStatusResponse(BaseModel):
@@ -46,11 +84,15 @@ class MeshStatusResponse(BaseModel):
     connected_peers: List[FederatedPeerProfile]
     avg_latency_ms: float
     cluster_health: str
+    pki_status: str = "ACTIVE"
+    cert_fingerprint: str = ""
+    cert_expires_in_sec: Optional[float] = None
+    verified_peers_count: int = 0
 
 
 @router.get("/status", response_model=MeshStatusResponse)
 def get_mesh_status() -> MeshStatusResponse:
-    """Returns the current peering status, local capabilities, and connected peer list."""
+    """Returns current peering status, zero-trust PKI state, and connected peer list."""
     coordinator = get_federated_coordinator()
     local_profile = coordinator.get_local_profile()
     peers = coordinator.list_peers()
@@ -61,12 +103,29 @@ def get_mesh_status() -> MeshStatusResponse:
     )
     health = "HEALTHY" if connected else "STANDALONE"
 
+    # Evaluate PKI status and TTL
+    now = datetime.datetime.now(datetime.timezone.utc)
+    remaining_sec = None
+    pki_status = "ACTIVE"
+    if coordinator.cert_expiry:
+        remaining_sec = max(0.0, (coordinator.cert_expiry - now).total_seconds())
+        if remaining_sec <= 0:
+            pki_status = "EXPIRED"
+        elif remaining_sec <= 300:
+            pki_status = "EXPIRING_SOON"
+
+    verified_count = sum(1 for p in connected if p.attestation_status == AttestationStatus.VERIFIED)
+
     return MeshStatusResponse(
         local_node=local_profile,
         peer_count=len(peers),
         connected_peers=connected,
         avg_latency_ms=round(avg_latency, 2),
         cluster_health=health,
+        pki_status=pki_status,
+        cert_fingerprint=coordinator.cert_fingerprint,
+        cert_expires_in_sec=round(remaining_sec, 1) if remaining_sec is not None else None,
+        verified_peers_count=verified_count,
     )
 
 
@@ -103,16 +162,80 @@ def join_mesh_peer(req: MeshJoinRequest) -> FederatedPeerProfile:
         capabilities=req.capabilities,
         latency_ms=12.5,
         load_score=0.2,
+        cert_pem=req.cert_pem,
     )
 
     logger.info(f"Joined mesh seed peer {node_id} ({host}:{port}) with {len(req.capabilities)} capabilities.")
     return profile
 
 
+@router.get("/pki/cert", response_model=CertInfoResponse)
+def get_pki_cert() -> CertInfoResponse:
+    """Returns local node's active public X.509 certificate and expiry status."""
+    coordinator = get_federated_coordinator()
+    now = datetime.datetime.now(datetime.timezone.utc)
+    remaining_sec = None
+    status = "ACTIVE"
+    if coordinator.cert_expiry:
+        remaining_sec = max(0.0, (coordinator.cert_expiry - now).total_seconds())
+        if remaining_sec <= 0:
+            status = "EXPIRED"
+        elif remaining_sec <= 300:
+            status = "EXPIRING_SOON"
+
+    return CertInfoResponse(
+        node_id=coordinator.node_id,
+        cert_fingerprint=coordinator.cert_fingerprint,
+        cert_pem=coordinator.cert_pem,
+        expires_at=coordinator.cert_expiry.isoformat() if coordinator.cert_expiry else None,
+        expires_in_sec=round(remaining_sec, 1) if remaining_sec is not None else None,
+        status=status,
+    )
+
+
+@router.post("/pki/rotate", response_model=CertInfoResponse)
+def rotate_pki_cert(req: CertRotateRequest) -> CertInfoResponse:
+    """Forces immediate rotation of the local node's ephemeral X.509 certificate."""
+    coordinator = get_federated_coordinator()
+    coordinator.rotate_cert(validity_seconds=req.validity_seconds)
+    return get_pki_cert()
+
+
+@router.post("/attest/challenge", response_model=AttestationChallenge)
+def request_attestation_challenge(req: AttestationChallengeRequest) -> AttestationChallenge:
+    """Generates a cryptographic single-use nonce challenge for a target node."""
+    coordinator = get_federated_coordinator()
+    return coordinator.generate_attestation_challenge(
+        target_node_id=req.target_node_id,
+        ttl_seconds=req.ttl_seconds,
+    )
+
+
+@router.post("/attest/verify", response_model=AttestationVerifyResponse)
+def verify_attestation_response(proof: AttestationProof) -> AttestationVerifyResponse:
+    """Verifies a signed attestation proof and promotes the node to VERIFIED."""
+    coordinator = get_federated_coordinator()
+    success, msg = coordinator.verify_attestation_proof(proof)
+    if not success:
+        raise HTTPException(status_code=401, detail=f"Attestation verification failed: {msg}")
+
+    return AttestationVerifyResponse(
+        success=True,
+        origin_node_id=proof.origin_node_id,
+        message=msg,
+        attestation_status=AttestationStatus.VERIFIED.value,
+    )
+
+
 @router.post("/delegate/turn", response_model=FederatedDelegationResponse)
 async def delegate_committee_turn(req: FederatedDelegationRequest) -> FederatedDelegationResponse:
     """Executes a delegated committee debate turn on this node (Reasoning Worker)."""
     coordinator = get_federated_coordinator()
+
+    # Zero-Trust verification of sender
+    ok, err_msg = coordinator.verify_delegation_request(req)
+    if not ok:
+        raise HTTPException(status_code=403, detail=f"Zero-Trust delegation rejected: {err_msg}")
     plan_summary = req.payload.get("plan_summary", "")
     thinking_budget = req.payload.get("thinking_budget", 4096)
 
@@ -149,6 +272,12 @@ async def delegate_committee_turn(req: FederatedDelegationRequest) -> FederatedD
 async def delegate_verification(req: FederatedDelegationRequest) -> FederatedDelegationResponse:
     """Executes a delegated verification ladder on this node (Test Worker)."""
     coordinator = get_federated_coordinator()
+
+    # Zero-Trust verification of sender
+    ok, err_msg = coordinator.verify_delegation_request(req)
+    if not ok:
+        raise HTTPException(status_code=403, detail=f"Zero-Trust delegation rejected: {err_msg}")
+
     test_commands = req.payload.get("test_commands", [])
 
     ladder_results = [
