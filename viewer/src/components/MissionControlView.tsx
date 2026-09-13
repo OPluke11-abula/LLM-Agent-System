@@ -1,7 +1,20 @@
 import { Link } from "react-router-dom";
 import { ActivityLog } from "./ActivityLog";
 import { NextActionRail } from "./NextActionRail";
-import { Button, MetricTile, ProgressBar, StatusBadge, Surface, toneForStatus } from "./ui/primitives";
+import {
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  MetricTile,
+  ProgressBar,
+  StatusBadge,
+  toneForStatus,
+  BentoCard,
+  ShimmerButton,
+} from "./ui/primitives";
+import { ArrowRight, GitFork, Network, Radio, Workflow } from "./ui/icons";
 import { TokenModePanel } from "./TokenModePanel";
 import type { ActivityLogEntry, AgentMemory, AgentTask, Lang, TopologyEvent, TopologyState, Workspace } from "../types";
 
@@ -169,74 +182,92 @@ function MissionTopology({ session, copy }: { session: TopologyState | null; cop
   const tone = signalTone(session);
 
   return (
-    <Surface elevated className="mission-focal relative min-h-[360px] overflow-hidden p-4 sm:p-5">
+    <BentoCard borderBeam={Boolean(session)} className="mission-focal relative min-h-[360px] overflow-hidden p-4 sm:p-5">
       <div className="relative z-10 flex items-start justify-between gap-4">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.14em] t3">{copy.topology}</p>
-          <h2 className="mt-1 text-2xl font-semibold t1">{session?.project_name ?? "LAS Runtime"}</h2>
-          <p className="mt-2 max-w-xl text-xs leading-relaxed t2">{session?.summary ?? copy.noTopology}</p>
+          <div className="flex items-center gap-1.5 text-xs font-medium text-[var(--accent)]">
+            <Radio className="h-3.5 w-3.5" />
+            <span>{copy.topology}</span>
+          </div>
+          <h2 className="mt-1 text-lg font-semibold t1">{session?.project_name ?? "LAS Runtime"}</h2>
+          <p className="mt-1 max-w-xl text-xs leading-relaxed t2">{session?.summary ?? copy.noTopology}</p>
         </div>
-        <StatusBadge tone={tone}>{session ? copy.live : copy.offline}</StatusBadge>
+        <div className="flex items-center gap-2">
+          <StatusBadge tone={tone}>{session ? copy.live : copy.offline}</StatusBadge>
+          <Link
+            to="/topology"
+            className="quiet-button inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium"
+          >
+            <span>Graph</span>
+            <ArrowRight className="h-3 w-3" />
+          </Link>
+        </div>
       </div>
 
-      <div className="mission-radar relative z-10 mt-5 h-64 rounded-xl border" style={{ borderColor: "var(--border-c)" }}>
-        <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" role="img" aria-label={copy.topology}>
-          <defs>
-            <radialGradient id="missionGlow" cx="50%" cy="50%" r="52%">
-              <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.28" />
-              <stop offset="62%" stopColor="var(--signal-violet)" stopOpacity="0.11" />
-              <stop offset="100%" stopColor="transparent" stopOpacity="0" />
-            </radialGradient>
-          </defs>
-          <rect width="100" height="100" rx="8" fill="url(#missionGlow)" />
-          {[18, 30, 42].map((radius) => (
-            <circle key={radius} cx="50" cy="50" r={radius} fill="none" stroke="var(--border-c)" strokeWidth="0.35" />
-          ))}
-          {nodes.slice(1).map((node, index) => {
-            const target = nodePosition(index + 1, nodes.length);
-            return (
-              <line
-                key={node.id}
-                x1="50"
-                y1="50"
-                x2={target.x}
-                y2={target.y}
-                stroke={node.status === "error" ? "var(--danger)" : "var(--accent)"}
-                strokeOpacity={node.status === "error" ? 0.58 : 0.34}
-                strokeWidth="0.55"
-              />
-            );
-          })}
-        </svg>
-
+      <div className="relative z-10 mt-4 h-64 rounded-lg border border-[var(--border-c)] bg-[var(--bg-base)] flex items-center justify-center overflow-hidden">
         {nodes.length === 0 ? (
-          <div className="absolute inset-0 flex items-center justify-center px-5 text-center text-xs font-medium t3">
-            {copy.noTopology}
+          <div className="flex flex-col items-center justify-center gap-2 px-6 text-center">
+            <div className="flex h-9 w-9 items-center justify-center rounded-md border border-[var(--border-c)] bg-[var(--bg-card)] text-[var(--t3)]">
+              <Network className="h-4 w-4" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-[var(--t1)]">{copy.noTopology}</p>
+              <p className="mt-0.5 text-[11px] text-[var(--t3)]">Active runtime nodes and execution DAG will appear here.</p>
+            </div>
+            <Link
+              to="/tasks"
+              className="quiet-button mt-1 inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium"
+            >
+              <GitFork className="h-3.5 w-3.5" />
+              <span>Inspect Task Flow</span>
+            </Link>
           </div>
         ) : (
-          nodes.map((node, index) => {
-            const position = nodePosition(index, nodes.length);
-            const toneName = toneForStatus(node.status);
-            return (
-              <div
-                key={node.id}
-                className="mission-node absolute max-w-[8.5rem] rounded-lg border px-2.5 py-2"
-                style={{
-                  left: `${position.x}%`,
-                  top: `${position.y}%`,
-                  transform: "translate(-50%, -50%)",
-                  borderColor: `color-mix(in srgb, var(--${toneName === "danger" ? "danger" : toneName === "warning" ? "warning" : "accent"}) 36%, transparent)`,
-                }}
-                title={node.description}
-              >
-                <p className="truncate text-[10px] font-bold t1">{node.title || node.node_type}</p>
-                <p className="mt-0.5 truncate text-[9px] font-mono t3">{node.assigned_agent || node.node_type}</p>
-              </div>
-            );
-          })
+          <div className="relative h-full w-full p-4">
+            <svg className="absolute inset-0 h-full w-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
+              {nodes.slice(1).map((node, index) => {
+                const target = nodePosition(index + 1, nodes.length);
+                return (
+                  <line
+                    key={node.id}
+                    x1="50"
+                    y1="50"
+                    x2={target.x}
+                    y2={target.y}
+                    stroke="var(--border-strong)"
+                    strokeDasharray="2 2"
+                    strokeWidth="0.4"
+                  />
+                );
+              })}
+            </svg>
+            {nodes.map((node, index) => {
+              const position = nodePosition(index, nodes.length);
+              const toneName = toneForStatus(node.status);
+              return (
+                <div
+                  key={node.id}
+                  className="mission-node absolute max-w-[9rem] rounded-md border px-2.5 py-1.5"
+                  style={{
+                    left: `${position.x}%`,
+                    top: `${position.y}%`,
+                    transform: "translate(-50%, -50%)",
+                    borderColor: "var(--border-c)",
+                  }}
+                  title={node.description}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: `var(--${toneName === "danger" ? "danger" : toneName === "warning" ? "warning" : "accent"})` }} />
+                    <p className="truncate text-xs font-medium t1">{node.title || node.node_type}</p>
+                  </div>
+                  <p className="mt-0.5 truncate text-[10px] font-mono t3">{node.assigned_agent || node.node_type}</p>
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
-    </Surface>
+    </BentoCard>
   );
 }
 
@@ -246,24 +277,31 @@ function ConductorPanel({ event, copy }: { event: TopologyEvent | null; copy: (t
   const total = trace?.subtasks.length ?? 0;
 
   return (
-    <Surface as="section" className="p-4">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.14em] t3">{copy.conductor}</p>
-          <h3 className="mt-1 text-sm font-semibold t1">{trace?.task_summary ?? event?.title ?? "No active trace"}</h3>
+    <Card className="conductor-panel">
+      <CardHeader className="p-4 pb-2">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-1.5 text-xs font-medium text-[var(--accent)]">
+              <Workflow className="h-3.5 w-3.5" />
+              <span>{copy.conductor}</span>
+            </div>
+            <CardTitle className="mt-1 text-sm font-semibold t1">{trace?.task_summary ?? event?.title ?? "No active trace"}</CardTitle>
+          </div>
+          <StatusBadge tone={trace?.risk_level === "high" ? "danger" : trace?.risk_level === "medium" ? "warning" : "accent"}>
+            {trace?.risk_level ?? "standby"}
+          </StatusBadge>
         </div>
-        <StatusBadge tone={trace?.risk_level === "high" ? "danger" : trace?.risk_level === "medium" ? "warning" : "accent"}>
-          {trace?.risk_level ?? "standby"}
-        </StatusBadge>
-      </div>
-      <div className="mt-4 grid grid-cols-3 gap-2">
-        <MetricTile label={copy.tasks} value={total ? `${completed}/${total}` : "0"} />
-        <MetricTile label={copy.evidence} value={trace?.evidence_refs?.length ?? 0} tone="accent" />
-        <MetricTile label="Tests" value={trace?.impact_summary?.linked_test_count ?? 0} tone="success" />
-      </div>
-      <ProgressBar ariaLabel={copy.verification} className="mt-4" value={total ? (completed / total) * 100 : 0} tone={trace?.risk_level === "high" ? "danger" : "accent"} />
-      <p className="mt-3 line-clamp-3 text-xs leading-relaxed t2">{trace?.decision_rationale ?? event?.description ?? "Runtime trace will appear after conductor planning."}</p>
-    </Surface>
+      </CardHeader>
+      <CardContent className="p-4 pt-2">
+        <div className="grid grid-cols-3 gap-2">
+          <MetricTile label={copy.tasks} value={total ? `${completed}/${total}` : "0"} />
+          <MetricTile label={copy.evidence} value={trace?.evidence_refs?.length ?? 0} tone="accent" />
+          <MetricTile label="Tests" value={trace?.impact_summary?.linked_test_count ?? 0} tone="success" />
+        </div>
+        <ProgressBar ariaLabel={copy.verification} className="mt-3" value={total ? (completed / total) * 100 : 0} tone={trace?.risk_level === "high" ? "danger" : "accent"} />
+        <p className="mt-2.5 line-clamp-2 text-xs leading-relaxed t2">{trace?.decision_rationale ?? event?.description ?? "Runtime trace will appear after conductor planning."}</p>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -286,45 +324,72 @@ export function MissionControlView({
   const verificationScore = taskStats.total ? Math.round((taskStats.completed / taskStats.total) * 100) : 0;
 
   return (
-    <main className="mission-control h-full min-h-0 overflow-y-auto">
-      <div className="mx-auto flex max-w-[1480px] flex-col gap-4 pb-6">
-        <section className="mission-hero control-surface overflow-hidden px-4 py-4 sm:px-5">
-          <div className="relative z-10 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] accent-text">{copy.eyebrow}</p>
-              <h1 className="mt-2 max-w-4xl text-4xl font-semibold leading-none t1 sm:text-5xl">{copy.title}</h1>
-              <p className="mt-3 max-w-2xl text-sm leading-relaxed t2">{copy.subtitle}</p>
-            </div>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:w-[33rem]">
-              <MetricTile label={copy.agents} value={session?.stats.total_nodes ?? 0} tone={session ? "accent" : "neutral"} />
-              <MetricTile label={copy.tasks} value={taskStats.total} />
-              <MetricTile label={copy.tokens} value={(session?.stats.total_tokens ?? 0).toLocaleString()} />
-              <MetricTile label={copy.risk} value={session?.stats.errors ?? 0} tone={riskTone} />
-            </div>
-          </div>
-        </section>
+    <main className="mission-control relative h-full min-h-0 overflow-y-auto overflow-x-hidden">
+      {/* MotionSites Ambient Radial Spotlight */}
+      <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[320px] bg-[radial-gradient(ellipse_at_top,rgba(99,102,241,0.14)_0%,rgba(6,182,212,0.04)_45%,transparent_70%)] blur-3xl" />
 
+      <div className="relative z-10 mx-auto flex max-w-[1480px] flex-col gap-4 pb-6">
+        {/* Modern Executive Header */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-white/10 pb-3">
+          <div>
+            <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium">
+              <span>FindAi Studio</span>
+              <span>/</span>
+              <span className="text-slate-300">{workspace?.name ?? "Default Workspace"}</span>
+            </div>
+            <h1 className="mt-0.5 text-xl font-bold tracking-tight t1">{copy.title}</h1>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge tone={session ? "success" : "neutral"} pulse={Boolean(session)}>
+              {session ? copy.live : copy.offline}
+            </StatusBadge>
+            <Button type="button" variant="quiet" size="sm" disabled className="text-xs font-medium">
+              {copy.verification}: {verificationScore}%
+            </Button>
+            <Link to="/topology" className="quiet-button inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium">
+              <Network className="h-3.5 w-3.5" />
+              <span>Topology</span>
+            </Link>
+            <Link to="/tasks">
+              <ShimmerButton>
+                <GitFork className="h-3.5 w-3.5" />
+                <span>Task Flow</span>
+                <ArrowRight className="h-3 w-3" />
+              </ShimmerButton>
+            </Link>
+          </div>
+        </div>
+
+        {/* 4 KPI Metric Tiles */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <MetricTile label={copy.agents} value={session?.stats.total_nodes ?? 0} tone={session ? "accent" : "neutral"} className="acrylic-surface acrylic-surface-hover transition-colors" />
+          <MetricTile label={copy.tasks} value={taskStats.total} className="acrylic-surface acrylic-surface-hover transition-colors" />
+          <MetricTile label={copy.tokens} value={(session?.stats.total_tokens ?? 0).toLocaleString()} className="acrylic-surface acrylic-surface-hover transition-colors" />
+          <MetricTile label={copy.risk} value={session?.stats.errors ?? 0} tone={riskTone} className="acrylic-surface acrylic-surface-hover transition-colors" />
+        </div>
+
+        {/* Main 60/40 Split */}
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.55fr)]">
           <MissionTopology session={session} copy={copy} />
           <div className="grid gap-4">
-            <Surface as="section" elevated className="p-4">
+            <BentoCard className="p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] t3">{copy.activeMission}</p>
-                  <h2 className="mt-1 line-clamp-2 break-words text-base font-semibold t1">{taskStats.nextTask?.description ?? copy.noTask}</h2>
+                  <p className="text-xs font-medium text-slate-400">{copy.activeMission}</p>
+                  <h2 className="mt-1 line-clamp-2 break-words text-sm font-semibold t1">{taskStats.nextTask?.description ?? copy.noTask}</h2>
                 </div>
                 <StatusBadge tone={taskStats.running > 0 ? "warning" : taskStats.pending > 0 ? "accent" : "success"}>
                   {taskStats.running > 0 ? "running" : taskStats.pending > 0 ? "queued" : "clear"}
                 </StatusBadge>
               </div>
-              <div className="mt-4 grid grid-cols-3 gap-2">
+              <div className="mt-3 grid grid-cols-3 gap-2">
                 <MetricTile label="Pending" value={taskStats.pending} tone="warning" />
                 <MetricTile label="Running" value={taskStats.running} tone="accent" />
                 <MetricTile label="Done" value={taskStats.completed} tone="success" />
               </div>
-              <ProgressBar ariaLabel={copy.verification} className="mt-4" value={verificationScore} tone={verificationScore === 100 ? "success" : "accent"} />
-              <p className="mt-3 break-all text-[10px] font-mono t3" title={workspace?.path}>{workspace?.name ?? activeWorkspaceId} · {workspace?.path || "default workspace"}</p>
-            </Surface>
+              <ProgressBar ariaLabel={copy.verification} className="mt-3" value={verificationScore} tone={verificationScore === 100 ? "success" : "accent"} />
+              <p className="mt-2.5 break-all text-[11px] font-mono t3" title={workspace?.path}>{workspace?.name ?? activeWorkspaceId} · {workspace?.path || "default workspace"}</p>
+            </BentoCard>
 
             <TokenModePanel session={session} nextTask={taskStats.nextTask} lang={lang} compact />
 
@@ -338,15 +403,10 @@ export function MissionControlView({
           </div>
         </div>
 
-        <div className="grid min-h-[320px] gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(360px,0.55fr)]">
+        {/* Bottom Split */}
+        <div className="grid min-h-[280px] gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(360px,0.55fr)]">
           <ConductorPanel event={activeEvent} copy={copy} />
           <ActivityLog entries={activityEntries.slice(0, 8)} lang={lang} onClear={onClearActivityLog} />
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="quiet" disabled>{copy.verification}: {verificationScore}%</Button>
-          <Link to="/topology" className="quiet-button rounded-lg px-3 py-1.5 text-xs font-semibold">{copy.live}</Link>
-          <Link to="/tasks" className="primary-button rounded-lg px-3 py-1.5 text-xs font-semibold">{copy.activeMission}</Link>
         </div>
       </div>
     </main>

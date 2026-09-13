@@ -20,7 +20,8 @@ import { ContextMenu } from "./ContextMenu";
 import { ActivityLog } from "./ActivityLog";
 import { TASK_NODE_TYPES } from "./TaskNode";
 import { TASK_CATEGORY_EDGE_TYPES } from "./edges";
-import { Button, MetricTile, StatusBadge, Surface } from "./ui/primitives";
+import { Button, Card, CardContent, CardHeader, CardTitle, Input, MetricTile, StatusBadge, Surface, cx } from "./ui/primitives";
+import { AlertCircle, Brain, FileCheck, FileCode, FileJson, FileText, GitFork, Key, Search, Terminal } from "./ui/icons";
 import type {
   ActivityLogEntry,
   AgentMemory,
@@ -460,6 +461,10 @@ function buildTaskIntelligence(task: FlatTask | null, flatTasks: FlatTask[], loc
   };
 }
 
+function copyText(text: string) {
+  void navigator.clipboard.writeText(text);
+}
+
 function useTaskFlowController({
   memory,
   workspaces,
@@ -489,12 +494,12 @@ function useTaskFlowController({
 
   const local = LOCAL_COPY[lang];
   const activeWorkspace = workspaces.find((workspace) => workspace.id === activeWorkspaceId);
-  const labels: TaskNodeLabels = {
+  const labels: TaskNodeLabels = useMemo(() => ({
     pending: t.pending,
     inProgress: t.inProgress,
     completed: t.completed,
     feedbackBadge: t.feedbackBadge,
-  };
+  }), [t.completed, t.feedbackBadge, t.inProgress, t.pending]);
 
   const flatTasks = flattenTasks(memory.tasks);
   const total = flatTasks.length;
@@ -560,10 +565,7 @@ function useTaskFlowController({
     setEdges(flow.edges);
   }, [
     filter,
-    labels.completed,
-    labels.feedbackBadge,
-    labels.inProgress,
-    labels.pending,
+    labels,
     memory,
     onStatusChange,
     search,
@@ -623,10 +625,6 @@ function useTaskFlowController({
   const contextTask = contextMenu
     ? flatTasks.find((task) => task.id === contextMenu.taskId) ?? null
     : null;
-
-  function copyText(text: string) {
-    void navigator.clipboard.writeText(text);
-  }
 
   async function submitDescriptionChange() {
     if (!editDraft?.description.trim()) {
@@ -839,24 +837,31 @@ function TaskFlowWorkspaceTabs({ controller }: { readonly controller: TaskFlowCo
 
   return (
     <div className="flex flex-shrink-0 flex-wrap gap-2">
-      {workspaces.map((workspace) => (
-        <Button
-          key={workspace.id}
-          type="button"
-          onClick={() => setActiveWorkspaceId(workspace.id)}
-          variant={workspace.id === activeWorkspaceId ? "primary" : "quiet"}
-          className="flex flex-col items-start px-3 py-2 text-xs"
-        >
-          <span>
-            {workspace.name} · {workspace.lang}
-          </span>
-          {workspace.path && (
-            <span className="mt-0.5 font-mono text-xs opacity-60">
-              {workspace.path}
+      {workspaces.map((workspace) => {
+        const active = workspace.id === activeWorkspaceId;
+        return (
+          <button
+            key={workspace.id}
+            type="button"
+            onClick={() => setActiveWorkspaceId(workspace.id)}
+            className={cx(
+              "flex flex-col items-start rounded-md px-3 py-1.5 text-xs transition-colors cursor-pointer border",
+              active
+                ? "bg-[var(--bg-elevated)] border-[var(--border-strong)] text-[var(--t1)] font-medium shadow-sm"
+                : "bg-[var(--bg-card)] border-[var(--border-c)] text-[var(--t3)] hover:text-[var(--t2)] hover:border-[var(--border-strong)]"
+            )}
+          >
+            <span className="font-semibold text-[var(--t1)]">
+              {workspace.name} <span className="font-normal text-[var(--t3)]">· {workspace.lang}</span>
             </span>
-          )}
-        </Button>
-      ))}
+            {workspace.path && (
+              <span className="mt-0.5 font-mono text-[10px] text-[var(--t3)]">
+                {workspace.path}
+              </span>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -865,16 +870,18 @@ function TaskFlowHero({ controller }: { readonly controller: TaskFlowController 
   const { focusTask, local } = controller;
 
   return (
-    <Surface elevated className="task-flow-hero flex min-h-[8rem] flex-col justify-center gap-3 p-4 sm:flex-row sm:items-end sm:justify-between">
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-[var(--border-c)] pb-3">
       <div>
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] accent-text">{local.graphWorkspace}</p>
-        <h1 className="mt-1 text-2xl font-semibold t1 sm:text-3xl">{local.cockpitTitle}</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed t2">{local.cockpitSubtitle}</p>
+        <div className="flex items-center gap-1.5 text-xs text-[var(--t3)] font-medium">
+          <span>{local.graphWorkspace}</span>
+        </div>
+        <h1 className="mt-0.5 text-xl font-semibold t1 tracking-tight">{local.cockpitTitle}</h1>
+        <p className="mt-0.5 text-xs text-[var(--t2)]">{local.cockpitSubtitle}</p>
       </div>
       <StatusBadge tone={focusTask ? toneForTaskStatus(focusTask.status) : "warning"}>
         {focusTask ? focusTask.status.replace("_", " ") : local.exportNoTasks}
       </StatusBadge>
-    </Surface>
+    </div>
   );
 }
 
@@ -889,57 +896,69 @@ function TaskFlowStats({ controller }: { readonly controller: TaskFlowController
           label={stat.label}
           value={stat.value}
           tone={stat.label === local.completionRate ? "accent" : "neutral"}
-          className="p-4"
         />
       ))}
     </div>
   );
 }
 
+const FILTER_OPTIONS = ["all", "pending", "in_progress", "completed"] as const satisfies readonly FilterStatus[];
+
 function TaskFlowControls({ controller }: { readonly controller: TaskFlowController }) {
   const { exportStatus, filter, handleExport, local, matchedTasks, search, setFilter, setSearch, total } = controller;
-  const filterOptions = ["all", "pending", "in_progress", "completed"] as const satisfies readonly FilterStatus[];
+  const filterOptions = FILTER_OPTIONS;
 
   return (
-    <Surface elevated className="flex flex-col gap-3 p-4">
+    <Surface elevated className="flex flex-col gap-3 p-3.5 sm:p-4 rounded-lg">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] t3">{local.searchLabel}</p>
+        <span className="text-xs font-medium text-[var(--t3)]">{local.searchLabel}</span>
         <div className="flex flex-wrap items-center justify-end gap-2">
           {exportStatus && <StatusBadge tone="success">{exportStatus}</StatusBadge>}
-          <p className="text-xs t2">
+          <p className="text-xs text-[var(--t3)]">
             {local.matchingCount} {matchedTasks.length} / {total}
           </p>
-          <div className="flex flex-wrap items-center gap-1.5 rounded-lg border p-1" style={{ borderColor: "var(--border-c)", background: "var(--bg-card)" }}>
-            <span className="hidden px-2 text-[10px] font-semibold uppercase tracking-[0.14em] t3 sm:inline">{local.exportLabel}</span>
-            <Button type="button" onClick={() => handleExport("json")} variant="primary" className="rounded-md px-2.5 py-1.5">
-              {local.exportJson}
+          <div className="flex items-center gap-1">
+            <Button type="button" onClick={() => handleExport("json")} variant="quiet" size="sm" className="flex items-center gap-1">
+              <FileJson className="h-3.5 w-3.5" />
+              <span>{local.exportJson}</span>
             </Button>
-            <Button type="button" onClick={() => handleExport("markdown")} variant="quiet" className="rounded-md px-2.5 py-1.5">
+            <Button type="button" onClick={() => handleExport("markdown")} variant="quiet" size="sm" className="flex items-center gap-1">
+              <FileText className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">{local.exportMarkdown}</span>
               <span className="sm:hidden">MD</span>
             </Button>
           </div>
         </div>
       </div>
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-        <input
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder={local.searchPlaceholder}
-          className="field-input w-full rounded-lg px-4 py-3 text-sm outline-none"
-        />
-        <div className="flex flex-wrap gap-2">
-          {filterOptions.map((status) => (
-            <Button
-              key={status}
-              type="button"
-              onClick={() => setFilter(status)}
-              variant={filter === status ? "primary" : "quiet"}
-              className="px-3 py-2"
-            >
-              {local.filters[status]}
-            </Button>
-          ))}
+      <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center">
+        <div className="relative w-full">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--t3)]" />
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder={local.searchPlaceholder}
+            className="h-9 pl-9 text-xs"
+          />
+        </div>
+        <div className="inline-flex items-center gap-1 rounded-lg border border-[var(--border-c)] bg-[var(--bg-base)] p-1 shrink-0">
+          {filterOptions.map((status) => {
+            const active = filter === status;
+            return (
+              <button
+                key={status}
+                type="button"
+                onClick={() => setFilter(status)}
+                className={cx(
+                  "rounded-md px-2.5 py-1 text-xs font-medium transition-all cursor-pointer",
+                  active
+                    ? "bg-[var(--bg-elevated)] text-[var(--t1)] shadow-sm font-semibold border border-[var(--border-strong)]"
+                    : "text-[var(--t3)] hover:text-[var(--t2)] border border-transparent"
+                )}
+              >
+                {local.filters[status]}
+              </button>
+            );
+          })}
         </div>
       </div>
     </Surface>
@@ -1067,71 +1086,96 @@ function TaskIntelligencePanel({ controller }: { readonly controller: TaskFlowCo
   const { focusIntelligence, focusTask, local, t } = controller;
 
   return (
-    <Surface as="aside" className="task-intelligence-panel p-4" data-testid="task-intelligence-panel">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.14em] t3">{local.intelligence}</p>
-          <h2 className="mt-1 line-clamp-2 text-sm font-semibold t1">{focusTask?.description ?? local.noSelection}</h2>
+    <Card className="task-intelligence-panel" data-testid="task-intelligence-panel">
+      <CardHeader className="p-4 pb-2">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--accent)]">
+              <Brain className="h-3.5 w-3.5" />
+              <span>{local.intelligence}</span>
+            </p>
+            <CardTitle className="mt-1.5 line-clamp-2 text-sm font-semibold t1">{focusTask?.description ?? local.noSelection}</CardTitle>
+          </div>
+          {focusTask && <StatusBadge tone={toneForTaskStatus(focusTask.status)}>{focusTask.status.replace("_", " ")}</StatusBadge>}
         </div>
-        {focusTask && <StatusBadge tone={toneForTaskStatus(focusTask.status)}>{focusTask.status.replace("_", " ")}</StatusBadge>}
-      </div>
+      </CardHeader>
 
-      {focusTask && focusIntelligence ? (
-        <div className="mt-4 space-y-4">
-          <div>
-            <p className="text-[9px] font-bold uppercase tracking-[0.12em] t3">{t.taskId}</p>
-            <Surface className="mt-1 px-3 py-2 font-mono text-xs" style={{ color: "var(--accent-strong)" }}>{focusTask.id}</Surface>
+      <CardContent className="p-4 pt-2">
+        {focusTask && focusIntelligence ? (
+          <div className="space-y-4">
+            <div>
+              <p className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.12em] t3">
+                <Key className="h-3 w-3" />
+                <span>{t.taskId}</span>
+              </p>
+              <Surface className="mt-1 rounded-md px-3 py-1.5 font-mono text-xs" style={{ color: "var(--accent-strong)", background: "var(--bg-muted)" }}>{focusTask.id}</Surface>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <MetricTile label={local.ownerAgent} value={focusIntelligence.owner} className="p-3" />
+              <MetricTile label={local.handoffStatus} value={focusIntelligence.handoffStatus} tone={focusTask.status === "completed" ? "success" : "warning"} className="p-3" />
+            </div>
+            <div>
+              <p className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.12em] t3">
+                <AlertCircle className="h-3 w-3 text-[var(--danger)]" />
+                <span>{local.blocker}</span>
+              </p>
+              <p className="mt-1 rounded-lg border px-3 py-2 text-xs leading-relaxed t2" style={{ borderColor: "var(--border-c)", background: "var(--bg-muted)" }}>
+                {focusIntelligence.blocker}
+              </p>
+            </div>
+            <div>
+              <p className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.12em] t3">
+                <FileCheck className="h-3 w-3 text-[var(--accent)]" />
+                <span>{local.evidence}</span>
+              </p>
+              <p className="mt-1 rounded-lg border px-3 py-2 text-xs leading-relaxed t2" style={{ borderColor: "var(--border-c)", background: "var(--bg-muted)" }}>
+                {focusIntelligence.evidence}
+              </p>
+            </div>
+            <div>
+              <p className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.12em] t3">
+                <FileCode className="h-3 w-3" />
+                <span>{local.linkedFiles}</span>
+              </p>
+              {focusIntelligence.linkedFiles.length > 0 ? (
+                <div className="mt-2 space-y-1">
+                  {focusIntelligence.linkedFiles.map((file) => (
+                    <p key={file} className="truncate rounded-md border px-2 py-1.5 font-mono text-[10px] t2" title={file} style={{ borderColor: "var(--border-c)", background: "var(--bg-muted)" }}>{file}</p>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-1 text-xs italic t3">{local.noLinkedFiles}</p>
+              )}
+            </div>
+            <div>
+              <p className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.12em] t3">
+                <Terminal className="h-3 w-3" />
+                <span>{local.verificationCommand}</span>
+              </p>
+              <pre className="mt-1 truncate rounded-lg border px-3 py-2 text-[11px] t2" title={focusIntelligence.verificationCommand} style={{ borderColor: "var(--border-c)", background: "var(--bg-base)" }}>{focusIntelligence.verificationCommand}</pre>
+            </div>
+            <div>
+              <p className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.12em] t3">
+                <GitFork className="h-3 w-3" />
+                <span>{t.deps}</span>
+              </p>
+              {focusTask.dependencies.length > 0 ? (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {focusTask.dependencies.map((dependency) => {
+                    const depId = dependencyId(dependency);
+                    return <StatusBadge key={depId} tone="neutral">{depId}</StatusBadge>;
+                  })}
+                </div>
+              ) : (
+                <p className="mt-1 text-xs italic t3">{t.noDeps}</p>
+              )}
+            </div>
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <MetricTile label={local.ownerAgent} value={focusIntelligence.owner} className="p-3" />
-            <MetricTile label={local.handoffStatus} value={focusIntelligence.handoffStatus} tone={focusTask.status === "completed" ? "success" : "warning"} className="p-3" />
-          </div>
-          <div>
-            <p className="text-[9px] font-bold uppercase tracking-[0.12em] t3">{local.blocker}</p>
-            <p className="mt-1 rounded-lg border px-3 py-2 text-xs leading-relaxed t2" style={{ borderColor: "var(--border-c)", background: "var(--bg-muted)" }}>
-              {focusIntelligence.blocker}
-            </p>
-          </div>
-          <div>
-            <p className="text-[9px] font-bold uppercase tracking-[0.12em] t3">{local.evidence}</p>
-            <p className="mt-1 rounded-lg border px-3 py-2 text-xs leading-relaxed t2" style={{ borderColor: "var(--border-c)", background: "var(--bg-muted)" }}>
-              {focusIntelligence.evidence}
-            </p>
-          </div>
-          <div>
-            <p className="text-[9px] font-bold uppercase tracking-[0.12em] t3">{local.linkedFiles}</p>
-            {focusIntelligence.linkedFiles.length > 0 ? (
-              <div className="mt-2 space-y-1">
-                {focusIntelligence.linkedFiles.map((file) => (
-                  <p key={file} className="truncate rounded-md border px-2 py-1.5 font-mono text-[10px] t2" title={file} style={{ borderColor: "var(--border-c)", background: "var(--bg-muted)" }}>{file}</p>
-                ))}
-              </div>
-            ) : (
-              <p className="mt-1 text-xs italic t3">{local.noLinkedFiles}</p>
-            )}
-          </div>
-          <div>
-            <p className="text-[9px] font-bold uppercase tracking-[0.12em] t3">{local.verificationCommand}</p>
-            <pre className="mt-1 truncate rounded-lg border px-3 py-2 text-[11px] t2" title={focusIntelligence.verificationCommand} style={{ borderColor: "var(--border-c)", background: "var(--bg-base)" }}>{focusIntelligence.verificationCommand}</pre>
-          </div>
-          <div>
-            <p className="text-[9px] font-bold uppercase tracking-[0.12em] t3">{t.deps}</p>
-            {focusTask.dependencies.length > 0 ? (
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {focusTask.dependencies.map((dependency) => {
-                  const depId = dependencyId(dependency);
-                  return <StatusBadge key={depId} tone="neutral">{depId}</StatusBadge>;
-                })}
-              </div>
-            ) : (
-              <p className="mt-1 text-xs italic t3">{t.noDeps}</p>
-            )}
-          </div>
-        </div>
-      ) : (
-        <p className="mt-4 text-sm leading-relaxed t2">{local.noSelection}</p>
-      )}
-    </Surface>
+        ) : (
+          <p className="mt-2 text-xs leading-relaxed t2">{local.noSelection}</p>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

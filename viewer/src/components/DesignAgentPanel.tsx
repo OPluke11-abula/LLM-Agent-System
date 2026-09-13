@@ -89,11 +89,15 @@ function collectDesignSignals(session: TopologyState | null) {
   const openNodes = designNodes.filter((node) => node.status !== "completed" && node.status !== "done");
   const findings = openNodes.filter((node) => /design[-_ ]|finding/.test(`${node.id} ${node.title}`.toLowerCase()));
   const tasteDebt = openNodes.filter((node) => /taste|vibe|polish|typography|spacing|motion|visual/.test(`${node.title} ${node.description}`.toLowerCase()));
-  const evidence = [...new Set(
-    (session?.nodes ?? [])
-      .flatMap((node) => node.payload.conductor_trace?.evidence_refs ?? [])
-      .filter((ref) => /viewer[\\/]output|\.(png|jpe?g|webp)$/i.test(ref)),
-  )];
+  const evidenceSet = new Set<string>();
+  for (const node of session?.nodes ?? []) {
+    for (const ref of node.payload.conductor_trace?.evidence_refs ?? []) {
+      if (/viewer[\\/]output|\.(png|jpe?g|webp)$/i.test(ref)) {
+        evidenceSet.add(ref);
+      }
+    }
+  }
+  const evidence = Array.from(evidenceSet);
 
   return {
     findings,

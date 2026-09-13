@@ -55,12 +55,13 @@ export function useTopology() {
   useEffect(() => {
     let cancelled = false;
     let ws: WebSocket | null = null;
-    
+    let timerId: ReturnType<typeof setTimeout> | null = null;
+
     function connect() {
       if (cancelled) return;
-      
+
       ws = new WebSocket("ws://127.0.0.1:8000/v1/stream");
-      
+
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
@@ -69,13 +70,15 @@ export function useTopology() {
             setSessions((current) => ({ ...current, [data.session_id]: data }));
             setLastUpdatedSessionId(data.session_id);
           }
-        } catch (e) {
+        } catch {
           // ignore
         }
       };
-      
+
       ws.onclose = () => {
-        setTimeout(connect, 5000);
+        if (!cancelled) {
+          timerId = setTimeout(connect, 5000);
+        }
       };
     }
 
@@ -85,6 +88,7 @@ export function useTopology() {
 
     return () => {
       cancelled = true;
+      if (timerId) clearTimeout(timerId);
       ws?.close();
     };
   }, [isTauriAvailable]);

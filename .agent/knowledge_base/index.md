@@ -121,6 +121,7 @@ This memory is orientation, not proof. Always verify current repo, code graph, c
 
 ## Exports
 
+- [[exports/notebooklm-source-manifest]]
 - [[exports/obsidian-vault-os-brief-for-las]]
 - [[exports/semantic-retrieval-pilot-plan]]
 - [[exports/session-journal-flow-report-2026-07-03]]
@@ -165,9 +166,9 @@ npm run doctor
 
 ## Current Caveats
 
-- This knowledge base was synced from Obsidian on 2026-07-03.
+- The inventory is refreshed by the agent-start preflight; the underlying notes may still have older source dates.
 - LAS worktree was dirty at sync time; run `git status --short` before edits.
-- The existing `.agent/knowledge_base/index.json` was not changed by this sync.
+- Generated `agent-start-preflight-latest-*.md` packs are intentionally task-local and are not added to this navigation index.
 - Raw command evidence should be stored under `evidence/` and cited from summaries.
 
 ## Source

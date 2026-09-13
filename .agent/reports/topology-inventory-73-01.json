@@ -1,0 +1,3634 @@
+{
+  "task": "73-01",
+  "title": "Repository Necessity and Topology Inventory",
+  "generated_at": "2026-09-08T10:46:17.662342+00:00",
+  "total_tracked_files": 597,
+  "category_summary": {
+    "runtime_core": 40,
+    "agent_workspace_other": 34,
+    "api_routes": 12,
+    "skills_manifests": 37,
+    "tests": 111,
+    "viewer_ui": 156,
+    "workflows_pap": 44,
+    "knowledge_base": 94,
+    "docs_spec": 27,
+    "scripts_automation": 14,
+    "root_config_other": 28
+  },
+  "categories": {
+    "runtime_core": [
+      {
+        "path": "agent_workspace/core/__init__.py",
+        "size_bytes": 58,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/core/account_manager.py",
+        "size_bytes": 13476,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/core/agent_crew.py",
+        "size_bytes": 24372,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/core/audit_ledger.py",
+        "size_bytes": 27394,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/core/billing.py",
+        "size_bytes": 9163,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/core/broker.py",
+        "size_bytes": 9131,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/core/builder.py",
+        "size_bytes": 3106,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/core/cert_manager.py",
+        "size_bytes": 4250,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/core/conductor.py",
+        "size_bytes": 13388,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/core/context_budget_preflight.py",
+        "size_bytes": 3983,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/core/cross_cloud_gateway.py",
+        "size_bytes": 9494,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/core/debate_budget.py",
+        "size_bytes": 9070,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/core/discussion_room.py",
+        "size_bytes": 77396,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/core/embeddings.py",
+        "size_bytes": 6477,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/core/engine.py",
+        "size_bytes": 39882,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/core/federated_sync.py",
+        "size_bytes": 17261,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/core/governance.py",
+        "size_bytes": 8077,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/core/knowledge.py",
+        "size_bytes": 9847,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/core/ledger.py",
+        "size_bytes": 12446,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/core/log_compactor.py",
+        "size_bytes": 14188,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/core/memory.py",
+        "size_bytes": 16126,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/core/merkle.py",
+        "size_bytes": 1279,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/core/p2p_router.py",
+        "size_bytes": 18679,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/core/p2p_storage.py",
+        "size_bytes": 4316,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/core/policy_gate.py",
+        "size_bytes": 5994,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/core/precheck.py",
+        "size_bytes": 3605,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/core/prompt_composer.py",
+        "size_bytes": 18984,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/core/providers.py",
+        "size_bytes": 35865,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/core/rate_limit.py",
+        "size_bytes": 2197,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/core/replay_logger.py",
+        "size_bytes": 5112,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/core/router.py",
+        "size_bytes": 79188,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/core/runtime_config.py",
+        "size_bytes": 1722,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/core/sandbox.py",
+        "size_bytes": 18537,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/core/security.py",
+        "size_bytes": 7698,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/core/skill_loader.py",
+        "size_bytes": 10043,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/core/swarm_coordinator.py",
+        "size_bytes": 9102,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/core/token_counter.py",
+        "size_bytes": 8901,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/core/token_efficient_profile.py",
+        "size_bytes": 914,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/core/workflow_engine.py",
+        "size_bytes": 35946,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/core/ws_manager.py",
+        "size_bytes": 2533,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      }
+    ],
+    "agent_workspace_other": [
+      {
+        "path": "agent_workspace/INSTRUCTIONS_FOR_AI.md",
+        "size_bytes": 5838,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/__init__.py",
+        "size_bytes": 66,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/agent.jinja2",
+        "size_bytes": 1226,
+        "extension": ".jinja2",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/agents/analyst.jinja2",
+        "size_bytes": 1102,
+        "extension": ".jinja2",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/agents/analyst.yaml",
+        "size_bytes": 158,
+        "extension": ".yaml",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/agents/ceo.jinja2",
+        "size_bytes": 1551,
+        "extension": ".jinja2",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/agents/ceo.yaml",
+        "size_bytes": 139,
+        "extension": ".yaml",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/agents/developer.jinja2",
+        "size_bytes": 1044,
+        "extension": ".jinja2",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/agents/developer.yaml",
+        "size_bytes": 139,
+        "extension": ".yaml",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/agents/math_expert.jinja2",
+        "size_bytes": 1036,
+        "extension": ".jinja2",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/agents/math_expert.yaml",
+        "size_bytes": 120,
+        "extension": ".yaml",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/api.py",
+        "size_bytes": 12834,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/codebase_index.py",
+        "size_bytes": 19031,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/config.yaml",
+        "size_bytes": 349,
+        "extension": ".yaml",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/evidence_memory_validate.py",
+        "size_bytes": 7710,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/knowledge_base/.gitkeep",
+        "size_bytes": 0,
+        "extension": "",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/knowledge_base/coding_standards.md",
+        "size_bytes": 822,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/knowledge_base/core_architecture.md",
+        "size_bytes": 931,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/knowledge_base/developer_specifications.md",
+        "size_bytes": 5780,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/long_term_memory.py",
+        "size_bytes": 47757,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/memory/.gitkeep",
+        "size_bytes": 0,
+        "extension": "",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/memory_backends.py",
+        "size_bytes": 39100,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/memory_pack.py",
+        "size_bytes": 8648,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/observability.py",
+        "size_bytes": 27232,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/pap_conformance.py",
+        "size_bytes": 9633,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/pap_registry.py",
+        "size_bytes": 7551,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/pap_validate.py",
+        "size_bytes": 9283,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/react_doctor_report.py",
+        "size_bytes": 10256,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/review_findings_validate.py",
+        "size_bytes": 12225,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/server.py",
+        "size_bytes": 1167,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tool_manifest.py",
+        "size_bytes": 38919,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/topology_bridge.py",
+        "size_bytes": 12280,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/topology_stream.py",
+        "size_bytes": 17203,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/workflow_lint.py",
+        "size_bytes": 7283,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      }
+    ],
+    "api_routes": [
+      {
+        "path": "agent_workspace/cli.py",
+        "size_bytes": 27692,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/routes/__init__.py",
+        "size_bytes": 61,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/routes/admin.py",
+        "size_bytes": 21006,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/routes/audit.py",
+        "size_bytes": 3344,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/routes/chat.py",
+        "size_bytes": 34839,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/routes/collaboration.py",
+        "size_bytes": 37572,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/routes/cross_cloud.py",
+        "size_bytes": 6395,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/routes/dependencies.py",
+        "size_bytes": 17674,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/routes/schemas.py",
+        "size_bytes": 4593,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/routes/swarm.py",
+        "size_bytes": 15799,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/run.py",
+        "size_bytes": 7053,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/service.py",
+        "size_bytes": 18281,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      }
+    ],
+    "skills_manifests": [
+      {
+        "path": ".agent/skills/calculate.md",
+        "size_bytes": 1846,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/skills/code_detect_change_impact.md",
+        "size_bytes": 1909,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/skills/code_get_architecture.md",
+        "size_bytes": 1713,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/skills/code_get_snippet.md",
+        "size_bytes": 2129,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/skills/code_index_repo.md",
+        "size_bytes": 1951,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/skills/code_search_symbol.md",
+        "size_bytes": 1893,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/skills/code_trace_call_path.md",
+        "size_bytes": 2062,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/skills/delegate_task.md",
+        "size_bytes": 3098,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/skills/governed_memory.md",
+        "size_bytes": 1434,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/skills/log_append.md",
+        "size_bytes": 1909,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/skills/log_archive_month.md",
+        "size_bytes": 2143,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/skills/log_compress_done.md",
+        "size_bytes": 1887,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/skills/memory_query.md",
+        "size_bytes": 1857,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/skills/memory_store_knowledge.md",
+        "size_bytes": 1800,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/skills/memory_store_preference.md",
+        "size_bytes": 1429,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/skills/run_tests.md",
+        "size_bytes": 1470,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/skills/structured_log.md",
+        "size_bytes": 2002,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/skills/topological_workspace.md",
+        "size_bytes": 2057,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/skills/transfer_agent.md",
+        "size_bytes": 2012,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/skills/verify_workspace.md",
+        "size_bytes": 1503,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/skills/workspace_add_task.md",
+        "size_bytes": 2041,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/skills/workspace_cancel_task.md",
+        "size_bytes": 1535,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/skills/workspace_link_tasks.md",
+        "size_bytes": 1986,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/skills/workspace_render_topology.md",
+        "size_bytes": 1322,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/skills/workspace_update_status.md",
+        "size_bytes": 1775,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/skills/__init__.py",
+        "size_bytes": 54,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/skills/delegate_task.py",
+        "size_bytes": 8158,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/skills/example_skill_template.py",
+        "size_bytes": 1376,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/skills/governed_memory/SKILL.md",
+        "size_bytes": 2067,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/skills/structured_log/SKILL.md",
+        "size_bytes": 1061,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/skills/system_verification.py",
+        "size_bytes": 2593,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/skills/tool_codebase_memory.py",
+        "size_bytes": 13169,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/skills/tool_log.py",
+        "size_bytes": 5604,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/skills/tool_memory.py",
+        "size_bytes": 3749,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/skills/tool_workspace.py",
+        "size_bytes": 18051,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/skills/topological_workspace/SKILL.md",
+        "size_bytes": 1204,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/skills/transfer_agent.py",
+        "size_bytes": 665,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      }
+    ],
+    "tests": [
+      {
+        "path": "agent_workspace/tests/conftest.py",
+        "size_bytes": 2544,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/fixtures/pap_conformance/layout-validation.yaml",
+        "size_bytes": 568,
+        "extension": ".yaml",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/fixtures/pap_conformance/schema-validation.yaml",
+        "size_bytes": 1430,
+        "extension": ".yaml",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_account_failover.py",
+        "size_bytes": 3871,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_account_manager.py",
+        "size_bytes": 5418,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_admin_console.py",
+        "size_bytes": 7213,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_agent_crew.py",
+        "size_bytes": 8953,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_agent_engine.py",
+        "size_bytes": 13852,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_agent_eval.py",
+        "size_bytes": 838,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_api.py",
+        "size_bytes": 15069,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_bottleneck_profiler.py",
+        "size_bytes": 3734,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_cli.py",
+        "size_bytes": 5338,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_cli_init.py",
+        "size_bytes": 2699,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_cli_lint.py",
+        "size_bytes": 4503,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_code_generation.py",
+        "size_bytes": 5583,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_codebase_index.py",
+        "size_bytes": 3595,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_codebase_memory_tools.py",
+        "size_bytes": 5303,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_concurrency_auditor.py",
+        "size_bytes": 4357,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_conductor_plan.py",
+        "size_bytes": 13221,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_consensus.py",
+        "size_bytes": 4816,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_context_budget_preflight.py",
+        "size_bytes": 2503,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_context_minimizer.py",
+        "size_bytes": 4408,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_cost_ledger.py",
+        "size_bytes": 6195,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_cross_cloud.py",
+        "size_bytes": 10501,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_cryptographic_consensus.py",
+        "size_bytes": 12075,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_defragmentation.py",
+        "size_bytes": 6089,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_delegation_limits.py",
+        "size_bytes": 7746,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_discussion_compaction.py",
+        "size_bytes": 6220,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_discussion_roles.py",
+        "size_bytes": 3597,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_discussion_room.py",
+        "size_bytes": 10756,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_discussion_room_characterization.py",
+        "size_bytes": 25477,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_distributed_broker.py",
+        "size_bytes": 9536,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_elastic_billing.py",
+        "size_bytes": 6467,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_episodic_summarizer.py",
+        "size_bytes": 4493,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_evolution.py",
+        "size_bytes": 7678,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_federated_exchange.py",
+        "size_bytes": 6759,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_federated_sync.py",
+        "size_bytes": 2853,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_git_guard.py",
+        "size_bytes": 4412,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_handoff.py",
+        "size_bytes": 6275,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_handoff_turns.py",
+        "size_bytes": 5025,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_hitl.py",
+        "size_bytes": 7733,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_knowledge_base.py",
+        "size_bytes": 4936,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_license_audit.py",
+        "size_bytes": 4338,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_live_collaboration.py",
+        "size_bytes": 10443,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_memory_backend.py",
+        "size_bytes": 8912,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_memory_concurrency.py",
+        "size_bytes": 2280,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_memory_fts5.py",
+        "size_bytes": 9747,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_memory_pack.py",
+        "size_bytes": 5429,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_memory_reranking.py",
+        "size_bytes": 7151,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_memory_skill.py",
+        "size_bytes": 1709,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_milestone_reflection.py",
+        "size_bytes": 8046,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_mtls_rotation.py",
+        "size_bytes": 8436,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_multi_swarm.py",
+        "size_bytes": 5031,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_p2p_and_mirroring.py",
+        "size_bytes": 7305,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_p2p_encryption.py",
+        "size_bytes": 4053,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_p2p_swarm.py",
+        "size_bytes": 8089,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_pap_conformance.py",
+        "size_bytes": 2047,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_pap_registry.py",
+        "size_bytes": 3936,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_pap_review_findings_validate.py",
+        "size_bytes": 3763,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_pap_v020.py",
+        "size_bytes": 12558,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_policy_gate.py",
+        "size_bytes": 4092,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_precheck.py",
+        "size_bytes": 10008,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_prompt_composer.py",
+        "size_bytes": 3709,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_prompt_evolution.py",
+        "size_bytes": 3868,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_prompt_minimizer.py",
+        "size_bytes": 3348,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_provider_lifecycle.py",
+        "size_bytes": 6570,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_provider_security.py",
+        "size_bytes": 1421,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_rbac.py",
+        "size_bytes": 6459,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_react_doctor_report.py",
+        "size_bytes": 7055,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_review_findings_validate.py",
+        "size_bytes": 9639,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_route_inventory.py",
+        "size_bytes": 3969,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_router_allowlist.py",
+        "size_bytes": 4510,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_router_conductor.py",
+        "size_bytes": 9363,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_router_optimization.py",
+        "size_bytes": 11354,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_router_validation.py",
+        "size_bytes": 3790,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_runtime_features.py",
+        "size_bytes": 6779,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_saas_builder.py",
+        "size_bytes": 7343,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_saas_integration.py",
+        "size_bytes": 18214,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_sandbox.py",
+        "size_bytes": 3275,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_sandbox_audit.py",
+        "size_bytes": 8041,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_sandbox_defense.py",
+        "size_bytes": 12343,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_secret_hardening.py",
+        "size_bytes": 1428,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_self_healing.py",
+        "size_bytes": 3673,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_service_smoke.py",
+        "size_bytes": 356,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_session_security.py",
+        "size_bytes": 6384,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_skill_contracts.py",
+        "size_bytes": 5582,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_skill_discovery.py",
+        "size_bytes": 6731,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_skill_loader.py",
+        "size_bytes": 6694,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_skill_synthesis.py",
+        "size_bytes": 5185,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_startup_security.py",
+        "size_bytes": 3752,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_subscription_lifecycle.py",
+        "size_bytes": 11424,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_swarm_adaptive_billing.py",
+        "size_bytes": 7544,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_swarm_coordinator.py",
+        "size_bytes": 6748,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_swarm_governance.py",
+        "size_bytes": 10604,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_swarm_replays.py",
+        "size_bytes": 5178,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_swarm_replication.py",
+        "size_bytes": 13411,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_system_verification.py",
+        "size_bytes": 2461,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_task_compaction.py",
+        "size_bytes": 4478,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_task_execution_limits.py",
+        "size_bytes": 3654,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_telemetry.py",
+        "size_bytes": 4070,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_telemetry_router.py",
+        "size_bytes": 3278,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_tenant_channels.py",
+        "size_bytes": 16748,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_thread_balancer.py",
+        "size_bytes": 2573,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_token_counter.py",
+        "size_bytes": 10731,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_token_efficient_governance.py",
+        "size_bytes": 2032,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_vector_memory.py",
+        "size_bytes": 13938,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_version_compat.py",
+        "size_bytes": 3974,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_workflow_engine.py",
+        "size_bytes": 12992,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_workflow_lint.py",
+        "size_bytes": 4482,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_ws_quota_security.py",
+        "size_bytes": 2898,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "agent_workspace/tests/test_zk_ledger.py",
+        "size_bytes": 4980,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      }
+    ],
+    "viewer_ui": [
+      {
+        "path": "viewer/.agent/skills/api-contract-sync/SKILL.md",
+        "size_bytes": 899,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/.agent/skills/api-design-principles/SKILL.md",
+        "size_bytes": 907,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/.agent/skills/backend-architect/SKILL.md",
+        "size_bytes": 901,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/.agent/skills/code-refactoring-refactor-clean/SKILL.md",
+        "size_bytes": 943,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/.agent/skills/code-review-ai-ai-review/SKILL.md",
+        "size_bytes": 950,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/.agent/skills/data-pipeline-architect/SKILL.md",
+        "size_bytes": 911,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/.agent/skills/design-to-code-bridge/SKILL.md",
+        "size_bytes": 925,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/.agent/skills/doc-gen-pro/SKILL.md",
+        "size_bytes": 913,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/.agent/skills/fastapi-swagger-sync/SKILL.md",
+        "size_bytes": 908,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/.agent/skills/fintech-security-auditor/SKILL.md",
+        "size_bytes": 946,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/.agent/skills/gamification-ui-kit/SKILL.md",
+        "size_bytes": 909,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/.agent/skills/git-commit-standardizer/SKILL.md",
+        "size_bytes": 947,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/.agent/skills/graphql-resolver-gen/SKILL.md",
+        "size_bytes": 896,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/.agent/skills/health-kit-integrator/SKILL.md",
+        "size_bytes": 919,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/.agent/skills/mobile-sensor-integrator/SKILL.md",
+        "size_bytes": 916,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/.agent/skills/python-algo-optimizer/SKILL.md",
+        "size_bytes": 923,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/.agent/skills/python-ast-visualizer/SKILL.md",
+        "size_bytes": 919,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/.agent/skills/qa-auto-tester-pro/SKILL.md",
+        "size_bytes": 884,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/.agent/skills/react-native-expert/SKILL.md",
+        "size_bytes": 897,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/.agent/skills/react-native-perf-boost/SKILL.md",
+        "size_bytes": 941,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/.agent/skills/tdd-workflows-tdd-cycle/SKILL.md",
+        "size_bytes": 923,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/.agent/skills/ui-ux-pro-max-skill/SKILL.md",
+        "size_bytes": 901,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/.gitattributes",
+        "size_bytes": 459,
+        "extension": "",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/.gitignore",
+        "size_bytes": 2225,
+        "extension": "",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/CONTRIBUTING.md",
+        "size_bytes": 1826,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/DESIGN.md",
+        "size_bytes": 14568,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/LICENSE",
+        "size_bytes": 1071,
+        "extension": "",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/README.md",
+        "size_bytes": 1979,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/doctor.config.json",
+        "size_bytes": 295,
+        "extension": ".json",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/index.html",
+        "size_bytes": 376,
+        "extension": ".html",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/package-lock.json",
+        "size_bytes": 80784,
+        "extension": ".json",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/package.json",
+        "size_bytes": 1360,
+        "extension": ".json",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/postcss.config.js",
+        "size_bytes": 69,
+        "extension": ".js",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/public/tauri.svg",
+        "size_bytes": 2599,
+        "extension": ".svg",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/public/vite.svg",
+        "size_bytes": 1497,
+        "extension": ".svg",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/scripts/verify-swarm-governance-ui.mjs",
+        "size_bytes": 3746,
+        "extension": ".mjs",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/scripts/verify-ui.mjs",
+        "size_bytes": 22858,
+        "extension": ".mjs",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/.gitignore",
+        "size_bytes": 166,
+        "extension": "",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/Cargo.lock",
+        "size_bytes": 135761,
+        "extension": ".lock",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/Cargo.toml",
+        "size_bytes": 486,
+        "extension": ".toml",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/build.rs",
+        "size_bytes": 39,
+        "extension": ".rs",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/capabilities/capabilities.json",
+        "size_bytes": 602,
+        "extension": ".json",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/128x128.png",
+        "size_bytes": 27757,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/128x128@2x.png",
+        "size_bytes": 89959,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/32x32.png",
+        "size_bytes": 2419,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/64x64.png",
+        "size_bytes": 8102,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/Square107x107Logo.png",
+        "size_bytes": 20203,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/Square142x142Logo.png",
+        "size_bytes": 33197,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/Square150x150Logo.png",
+        "size_bytes": 36630,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/Square284x284Logo.png",
+        "size_bytes": 107281,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/Square30x30Logo.png",
+        "size_bytes": 2165,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/Square310x310Logo.png",
+        "size_bytes": 123726,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/Square44x44Logo.png",
+        "size_bytes": 4211,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/Square71x71Logo.png",
+        "size_bytes": 9741,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/Square89x89Logo.png",
+        "size_bytes": 14592,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/StoreLogo.png",
+        "size_bytes": 5300,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/android/mipmap-anydpi-v26/ic_launcher.xml",
+        "size_bytes": 261,
+        "extension": ".xml",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/android/mipmap-hdpi/ic_launcher.png",
+        "size_bytes": 3960,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/android/mipmap-hdpi/ic_launcher_foreground.png",
+        "size_bytes": 41699,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/android/mipmap-hdpi/ic_launcher_round.png",
+        "size_bytes": 3881,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/android/mipmap-mdpi/ic_launcher.png",
+        "size_bytes": 3795,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/android/mipmap-mdpi/ic_launcher_foreground.png",
+        "size_bytes": 20593,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/android/mipmap-mdpi/ic_launcher_round.png",
+        "size_bytes": 3676,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/android/mipmap-xhdpi/ic_launcher.png",
+        "size_bytes": 12638,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/android/mipmap-xhdpi/ic_launcher_foreground.png",
+        "size_bytes": 67791,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/android/mipmap-xhdpi/ic_launcher_round.png",
+        "size_bytes": 12258,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/android/mipmap-xxhdpi/ic_launcher.png",
+        "size_bytes": 26010,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/android/mipmap-xxhdpi/ic_launcher_foreground.png",
+        "size_bytes": 133680,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/android/mipmap-xxhdpi/ic_launcher_round.png",
+        "size_bytes": 25337,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/android/mipmap-xxxhdpi/ic_launcher.png",
+        "size_bytes": 43186,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/android/mipmap-xxxhdpi/ic_launcher_foreground.png",
+        "size_bytes": 214779,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/android/mipmap-xxxhdpi/ic_launcher_round.png",
+        "size_bytes": 41769,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/android/values/ic_launcher_background.xml",
+        "size_bytes": 115,
+        "extension": ".xml",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/icon.icns",
+        "size_bytes": 1585501,
+        "extension": ".icns",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/icon.ico",
+        "size_bytes": 107268,
+        "extension": ".ico",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/icon.png",
+        "size_bytes": 284149,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/ios/AppIcon-20x20@1x.png",
+        "size_bytes": 1100,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/ios/AppIcon-20x20@2x-1.png",
+        "size_bytes": 3580,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/ios/AppIcon-20x20@2x.png",
+        "size_bytes": 3580,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/ios/AppIcon-20x20@3x.png",
+        "size_bytes": 7271,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/ios/AppIcon-29x29@1x.png",
+        "size_bytes": 2081,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/ios/AppIcon-29x29@2x-1.png",
+        "size_bytes": 6840,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/ios/AppIcon-29x29@2x.png",
+        "size_bytes": 6840,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/ios/AppIcon-29x29@3x.png",
+        "size_bytes": 14002,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/ios/AppIcon-40x40@1x.png",
+        "size_bytes": 3580,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/ios/AppIcon-40x40@2x-1.png",
+        "size_bytes": 12055,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/ios/AppIcon-40x40@2x.png",
+        "size_bytes": 12055,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/ios/AppIcon-40x40@3x.png",
+        "size_bytes": 24711,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/ios/AppIcon-512@2x.png",
+        "size_bytes": 787656,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/ios/AppIcon-60x60@2x.png",
+        "size_bytes": 24711,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/ios/AppIcon-60x60@3x.png",
+        "size_bytes": 49912,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/ios/AppIcon-76x76@1x.png",
+        "size_bytes": 10972,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/ios/AppIcon-76x76@2x.png",
+        "size_bytes": 37418,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/icons/ios/AppIcon-83.5x83.5@2x.png",
+        "size_bytes": 44004,
+        "extension": ".png",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/src/lib.rs",
+        "size_bytes": 7618,
+        "extension": ".rs",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/src/main.rs",
+        "size_bytes": 184,
+        "extension": ".rs",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src-tauri/tauri.conf.json",
+        "size_bytes": 1275,
+        "extension": ".json",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/App.tsx",
+        "size_bytes": 10312,
+        "extension": ".tsx",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/components/ActivityLog.tsx",
+        "size_bytes": 8199,
+        "extension": ".tsx",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/components/AdminDashboardView.tsx",
+        "size_bytes": 39722,
+        "extension": ".tsx",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/components/CommandPalette.tsx",
+        "size_bytes": 16358,
+        "extension": ".tsx",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/components/ContextMenu.tsx",
+        "size_bytes": 1530,
+        "extension": ".tsx",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/components/DesignAgentPanel.tsx",
+        "size_bytes": 7772,
+        "extension": ".tsx",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/components/IntelligenceMapView.tsx",
+        "size_bytes": 11378,
+        "extension": ".tsx",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/components/LongTermMemoryView.tsx",
+        "size_bytes": 35899,
+        "extension": ".tsx",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/components/MissionControlView.tsx",
+        "size_bytes": 15382,
+        "extension": ".tsx",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/components/Modal.tsx",
+        "size_bytes": 1350,
+        "extension": ".tsx",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/components/ModsView.tsx",
+        "size_bytes": 5489,
+        "extension": ".tsx",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/components/NextActionRail.tsx",
+        "size_bytes": 16346,
+        "extension": ".tsx",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/components/OnboardingWizard.tsx",
+        "size_bytes": 25397,
+        "extension": ".tsx",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/components/PromptCalibrationDashboard.tsx",
+        "size_bytes": 31660,
+        "extension": ".tsx",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/components/ReactHealthPanel.tsx",
+        "size_bytes": 8828,
+        "extension": ".tsx",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/components/RulesView.tsx",
+        "size_bytes": 5252,
+        "extension": ".tsx",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/components/SettingsView.tsx",
+        "size_bytes": 3110,
+        "extension": ".tsx",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/components/Sidebar.tsx",
+        "size_bytes": 4159,
+        "extension": ".tsx",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/components/SwarmGovernanceConsole.tsx",
+        "size_bytes": 82823,
+        "extension": ".tsx",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/components/TaskFlowView.tsx",
+        "size_bytes": 42769,
+        "extension": ".tsx",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/components/TaskNode.tsx",
+        "size_bytes": 3127,
+        "extension": ".tsx",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/components/TokenModePanel.tsx",
+        "size_bytes": 7478,
+        "extension": ".tsx",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/components/TopologyView.tsx",
+        "size_bytes": 68291,
+        "extension": ".tsx",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/components/edges/ErrorEdge.tsx",
+        "size_bytes": 274,
+        "extension": ".tsx",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/components/edges/HandoffEdge.tsx",
+        "size_bytes": 278,
+        "extension": ".tsx",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/components/edges/RbacEdge.tsx",
+        "size_bytes": 338,
+        "extension": ".tsx",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/components/edges/ToolEdge.tsx",
+        "size_bytes": 272,
+        "extension": ".tsx",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/components/edges/TopologyEdgeBase.tsx",
+        "size_bytes": 1848,
+        "extension": ".tsx",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/components/edges/index.ts",
+        "size_bytes": 301,
+        "extension": ".ts",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/components/nodes/AgentNode.tsx",
+        "size_bytes": 368,
+        "extension": ".tsx",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/components/nodes/HitlNode.tsx",
+        "size_bytes": 290,
+        "extension": ".tsx",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/components/nodes/RootNode.tsx",
+        "size_bytes": 296,
+        "extension": ".tsx",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/components/nodes/ToolNode.tsx",
+        "size_bytes": 290,
+        "extension": ".tsx",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/components/nodes/TopologyNodeBase.tsx",
+        "size_bytes": 4381,
+        "extension": ".tsx",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/components/nodes/index.ts",
+        "size_bytes": 289,
+        "extension": ".ts",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/components/settings/SettingsAiGuidePanel.tsx",
+        "size_bytes": 3073,
+        "extension": ".tsx",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/components/settings/SettingsDocsPanel.tsx",
+        "size_bytes": 1988,
+        "extension": ".tsx",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/components/settings/SettingsGeneralPanel.tsx",
+        "size_bytes": 11052,
+        "extension": ".tsx",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/components/ui/primitives.tsx",
+        "size_bytes": 4060,
+        "extension": ".tsx",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/constants.ts",
+        "size_bytes": 47992,
+        "extension": ".ts",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/data/react-doctor-summary.json",
+        "size_bytes": 8847,
+        "extension": ".json",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/hooks/useActivityLog.ts",
+        "size_bytes": 1026,
+        "extension": ".ts",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/hooks/usePersistedState.ts",
+        "size_bytes": 548,
+        "extension": ".ts",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/hooks/useTopology.ts",
+        "size_bytes": 2975,
+        "extension": ".ts",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/hooks/useWorkspace.ts",
+        "size_bytes": 11325,
+        "extension": ".ts",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/index.css",
+        "size_bytes": 25106,
+        "extension": ".css",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/main.tsx",
+        "size_bytes": 370,
+        "extension": ".tsx",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/services/adminRuntimeAuth.ts",
+        "size_bytes": 947,
+        "extension": ".ts",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/types.ts",
+        "size_bytes": 8772,
+        "extension": ".ts",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/utils/exportUtils.ts",
+        "size_bytes": 4593,
+        "extension": ".ts",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/utils/graphUtils.ts",
+        "size_bytes": 3859,
+        "extension": ".ts",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/utils/logger.ts",
+        "size_bytes": 191,
+        "extension": ".ts",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/utils/schemaValidator.ts",
+        "size_bytes": 1632,
+        "extension": ".ts",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/utils/topologyUtils.ts",
+        "size_bytes": 4151,
+        "extension": ".ts",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/src/vite-env.d.ts",
+        "size_bytes": 38,
+        "extension": ".ts",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/tailwind.config.js",
+        "size_bytes": 163,
+        "extension": ".js",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/tsconfig.json",
+        "size_bytes": 605,
+        "extension": ".json",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/tsconfig.node.json",
+        "size_bytes": 213,
+        "extension": ".json",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "viewer/vite.config.ts",
+        "size_bytes": 818,
+        "extension": ".ts",
+        "preliminary_classification": "Keep"
+      }
+    ],
+    "workflows_pap": [
+      {
+        "path": ".agent/README.md",
+        "size_bytes": 1858,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/agent.md",
+        "size_bytes": 4237,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/agent_tasks.md",
+        "size_bytes": 35442,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/analyst/analyst_learning_guide.md",
+        "size_bytes": 1607,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/analyst/community_decoupling_spec.md",
+        "size_bytes": 3460,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/analyst/lessons_learned.md",
+        "size_bytes": 2244,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/core/las-runtime.md",
+        "size_bytes": 1003,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/handoff_guide.md",
+        "size_bytes": 1315,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/lessons.md",
+        "size_bytes": 8730,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/memory.md",
+        "size_bytes": 1889,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/memory/.gitkeep",
+        "size_bytes": 2,
+        "extension": "",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/memory/consensus_registry.json",
+        "size_bytes": 1775,
+        "extension": ".json",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/memory/episodic/README.md",
+        "size_bytes": 843,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/memory/handoff/README.md",
+        "size_bytes": 928,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/memory/schema.json",
+        "size_bytes": 2870,
+        "extension": ".json",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/memory/semantic/README.md",
+        "size_bytes": 1019,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/memory/semantic/frontend_ui_designer.json",
+        "size_bytes": 4295,
+        "extension": ".json",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/preferences.md",
+        "size_bytes": 685,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/programmer/agent_tasks.md",
+        "size_bytes": 2552,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/programmer/programmer_learning_guide.md",
+        "size_bytes": 5968,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/prompts.md",
+        "size_bytes": 831,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/prompts/.gitkeep",
+        "size_bytes": 2,
+        "extension": "",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/prompts/phase_10_programmer_prompt.md",
+        "size_bytes": 4947,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/prompts/phase_12_evolution_prompt.md",
+        "size_bytes": 5779,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/prompts/roles/ceo.md",
+        "size_bytes": 215,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/prompts/roles/cfo.md",
+        "size_bytes": 229,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/prompts/roles/community_analyst.md",
+        "size_bytes": 2122,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/prompts/roles/cto.md",
+        "size_bytes": 206,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/prompts/roles/dev.md",
+        "size_bytes": 200,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/prompts/roles/moderator.md",
+        "size_bytes": 308,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/prompts/roles/professional_design_agent.md",
+        "size_bytes": 7495,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/prompts/roles/qa.md",
+        "size_bytes": 211,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/qa/qa_learning_guide.md",
+        "size_bytes": 1285,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/reports/react-doctor/react-doctor-changed.json",
+        "size_bytes": 31067,
+        "extension": ".json",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/reports/react-doctor/react-doctor-latest.json",
+        "size_bytes": 52863,
+        "extension": ".json",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/reports/react-doctor/react-doctor-summary.json",
+        "size_bytes": 9099,
+        "extension": ".json",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/routing.md",
+        "size_bytes": 1509,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/skills.md",
+        "size_bytes": 4579,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/workflows.md",
+        "size_bytes": 5415,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/workflows/.gitkeep",
+        "size_bytes": 2,
+        "extension": "",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/workflows/codex-development.yaml",
+        "size_bytes": 2997,
+        "extension": ".yaml",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/workflows/knowledge-base-report.yaml",
+        "size_bytes": 1273,
+        "extension": ".yaml",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/workflows/run_tests.md",
+        "size_bytes": 586,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/workflows/verify_workspace.md",
+        "size_bytes": 560,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      }
+    ],
+    "knowledge_base": [
+      {
+        "path": ".agent/knowledge_base/.gitkeep",
+        "size_bytes": 2,
+        "extension": "",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/decisions/local-markdown-agent-os.md",
+        "size_bytes": 1446,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/evidence/2026-07-03-git-status-knowledge-base-sync.md",
+        "size_bytes": 1729,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/exports/agent-start-preflight-flow-report-2026-07-03.md",
+        "size_bytes": 2589,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/exports/context-pack-builder-flow-report-2026-07-03.md",
+        "size_bytes": 2578,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/exports/context-pack-validation-flow-report-2026-07-03.md",
+        "size_bytes": 2585,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/exports/explicit-kb-commit-package-dry-run-report-2026-07-04.md",
+        "size_bytes": 623,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/exports/inventory-backed-query-flow-report-2026-07-03.md",
+        "size_bytes": 2647,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/exports/inventory-ranking-tuning-flow-report-2026-07-03.md",
+        "size_bytes": 4037,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/exports/knowledge-base-git-hygiene-flow-report-2026-07-04.md",
+        "size_bytes": 1624,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/exports/knowledge-base-health-audit-flow-report-2026-07-03.md",
+        "size_bytes": 4177,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/exports/knowledge-index-repair-flow-report-2026-07-03.md",
+        "size_bytes": 3917,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/exports/notebooklm-source-manifest.md",
+        "size_bytes": 1782,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/exports/obsidian-log-link-repair-flow-report-2026-07-03.md",
+        "size_bytes": 4646,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/exports/obsidian-mirror-index-repair-flow-report-2026-07-03.md",
+        "size_bytes": 4083,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/exports/obsidian-root-scratch-triage-flow-report-2026-07-04.md",
+        "size_bytes": 2603,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/exports/obsidian-vault-health-audit-flow-report-2026-07-03.md",
+        "size_bytes": 5411,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/exports/obsidian-vault-os-brief-for-las.md",
+        "size_bytes": 1780,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/exports/phase-67-design-critique-flow-report-2026-07-07.md",
+        "size_bytes": 7278,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/exports/phase-71-las-viewer-art-direction-packet-2026-07-07.md",
+        "size_bytes": 13676,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/exports/phase-71-screen-composition-studies-2026-07-07.md",
+        "size_bytes": 14637,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/exports/preflight-adoption-guide-flow-report-2026-07-03.md",
+        "size_bytes": 1722,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/exports/release-0.1.1-five-core-rules-review-2026-07-12.md",
+        "size_bytes": 3068,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/exports/semantic-retrieval-pilot-plan.md",
+        "size_bytes": 2568,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/exports/session-journal-flow-report-2026-07-03.md",
+        "size_bytes": 1834,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/handoffs/agent-start-preflight-latest-context-pack-validation.md",
+        "size_bytes": 3180,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/handoffs/agent-start-preflight-latest-explicit-kb-commit-package-dry-run.md",
+        "size_bytes": 2887,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/handoffs/agent-start-preflight-latest-index-repair.md",
+        "size_bytes": 2582,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/handoffs/agent-start-preflight-latest-knowledge-base-git-hygiene.md",
+        "size_bytes": 3286,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/handoffs/agent-start-preflight-latest-obsidian-log-link-repair.md",
+        "size_bytes": 3218,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/handoffs/agent-start-preflight-latest-obsidian-mirror-index-repair.md",
+        "size_bytes": 3142,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/handoffs/agent-start-preflight-latest-obsidian-root-scratch-triage.md",
+        "size_bytes": 2966,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/handoffs/agent-start-preflight-latest-obsidian-vault-health-audit.md",
+        "size_bytes": 3158,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/handoffs/agent-start-preflight-latest-preflight-adoption-guide.md",
+        "size_bytes": 1469,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/handoffs/context-pack-latest-inventory-refresh.md",
+        "size_bytes": 2279,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/handoffs/session-journal-2026-07-03-obsidian-las-workflows.md",
+        "size_bytes": 2306,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/index.json",
+        "size_bytes": 1317,
+        "extension": ".json",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/index.md",
+        "size_bytes": 6622,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/indexes/knowledge-inventory-2026-07-03.json",
+        "size_bytes": 2574,
+        "extension": ".json",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/indexes/knowledge-inventory-2026-07-03.md",
+        "size_bytes": 9375,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/indexes/knowledge-inventory-latest.json",
+        "size_bytes": 112810,
+        "extension": ".json",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/indexes/knowledge-inventory-latest.md",
+        "size_bytes": 34172,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/known-issues/memory-must-not-replace-verification.md",
+        "size_bytes": 851,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/lessons_learned.md",
+        "size_bytes": 6092,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/log.md",
+        "size_bytes": 22659,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/projects/LLM-Agent-System.md",
+        "size_bytes": 6919,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/templates/agent-report.md",
+        "size_bytes": 431,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/templates/design-review-report.md",
+        "size_bytes": 1574,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/templates/evidence-memory-summary.md",
+        "size_bytes": 687,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/templates/handoff-report.md",
+        "size_bytes": 700,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/templates/query-memory-report.md",
+        "size_bytes": 583,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/tools/build_context_pack.ps1",
+        "size_bytes": 4593,
+        "extension": ".ps1",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/tools/lint_knowledge_base.ps1",
+        "size_bytes": 11079,
+        "extension": ".ps1",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/tools/lint_obsidian_vault.ps1",
+        "size_bytes": 8697,
+        "extension": ".ps1",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/tools/query_knowledge_inventory.ps1",
+        "size_bytes": 5122,
+        "extension": ".ps1",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/tools/refresh_knowledge_inventory.ps1",
+        "size_bytes": 6464,
+        "extension": ".ps1",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/tools/start_agent_preflight.ps1",
+        "size_bytes": 2150,
+        "extension": ".ps1",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/tools/validate_context_pack.ps1",
+        "size_bytes": 4179,
+        "extension": ".ps1",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/wiki/.gitkeep",
+        "size_bytes": 2,
+        "extension": "",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/workflows/agent-report-contract.md",
+        "size_bytes": 1698,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/workflows/agent-start-preflight.md",
+        "size_bytes": 1704,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/workflows/code-graph-bridge.md",
+        "size_bytes": 2032,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/workflows/context-budget-preflight.md",
+        "size_bytes": 1589,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/workflows/context-pack-builder.md",
+        "size_bytes": 1685,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/workflows/context-pack-validation.md",
+        "size_bytes": 1924,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/workflows/evidence-capture.md",
+        "size_bytes": 2028,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/workflows/evidence-memory-bridge.md",
+        "size_bytes": 2886,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/workflows/explicit-kb-commit-package-dry-run.md",
+        "size_bytes": 1436,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/workflows/handoff-first-long-session.md",
+        "size_bytes": 1824,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/workflows/handoff.md",
+        "size_bytes": 2981,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/workflows/independent-design-review-gate.md",
+        "size_bytes": 7955,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/workflows/inventory-backed-query.md",
+        "size_bytes": 2169,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/workflows/inventory-ranking-tuning.md",
+        "size_bytes": 2402,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/workflows/knowledge-base-git-hygiene.md",
+        "size_bytes": 2557,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/workflows/knowledge-base-health-audit.md",
+        "size_bytes": 2066,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/workflows/knowledge-index-repair.md",
+        "size_bytes": 1595,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/workflows/knowledge-inventory-refresh.md",
+        "size_bytes": 1766,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/workflows/local-knowledge-inventory.md",
+        "size_bytes": 2673,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/workflows/maintenance.md",
+        "size_bytes": 1556,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/workflows/obsidian-log-link-repair.md",
+        "size_bytes": 1357,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/workflows/obsidian-mirror-index-repair.md",
+        "size_bytes": 1520,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/workflows/obsidian-root-scratch-triage.md",
+        "size_bytes": 2409,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/workflows/obsidian-vault-health-audit.md",
+        "size_bytes": 1900,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/workflows/preflight-adoption-guide.md",
+        "size_bytes": 2188,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/workflows/project-intake.md",
+        "size_bytes": 1125,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/workflows/query-memory.md",
+        "size_bytes": 2044,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/workflows/semantic-retrieval-pilot.md",
+        "size_bytes": 3862,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/workflows/session-journal.md",
+        "size_bytes": 2143,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/workflows/structural-lookup-first.md",
+        "size_bytes": 2081,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/workflows/token-efficient-rollout.md",
+        "size_bytes": 2073,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/workflows/token-efficient-work-mode.md",
+        "size_bytes": 3412,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/workflows/verification-profiles.md",
+        "size_bytes": 2130,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/workflows/visual-asset-illustration-pipeline.md",
+        "size_bytes": 8817,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".agent/knowledge_base/workflows/visual-reference-moodboard.md",
+        "size_bytes": 9945,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      }
+    ],
+    "docs_spec": [
+      {
+        "path": "docs/HUB_SPEC.md",
+        "size_bytes": 779,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "docs/architecture/conductor-plan.md",
+        "size_bytes": 3967,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "docs/architecture/las-pap-collaboration-memory-security-plan.md",
+        "size_bytes": 16016,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "docs/architecture/pap-conformance-deviations.md",
+        "size_bytes": 1931,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "docs/architecture/pap-mainline-sync-matrix.md",
+        "size_bytes": 12420,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "docs/architecture/pap-runtime-ts-parity-checklist.md",
+        "size_bytes": 8794,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "docs/architecture/react-doctor-las-adoption-plan.md",
+        "size_bytes": 8039,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "docs/research/fugu-ai-study.md",
+        "size_bytes": 8435,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "docs/reviews/sample-security-findings.json",
+        "size_bytes": 1634,
+        "extension": ".json",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "docs/workflow/HANDOFF_SCHEMA.md",
+        "size_bytes": 1913,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "docs/workflow/REVIEW_PROTOCOL.md",
+        "size_bytes": 1641,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "docs/workflow/RISK_POLICY.md",
+        "size_bytes": 2097,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "docs/workflow/SECURITY_REVIEW_GATE.md",
+        "size_bytes": 1927,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "docs/workflow/SOURCE_OF_TRUTH.md",
+        "size_bytes": 1718,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "spec/agent-schema.json",
+        "size_bytes": 5632,
+        "extension": ".json",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "spec/checkpoint.schema.json",
+        "size_bytes": 1550,
+        "extension": ".json",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "spec/evidence-memory.schema.json",
+        "size_bytes": 4715,
+        "extension": ".json",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "spec/knowledge.schema.json",
+        "size_bytes": 1209,
+        "extension": ".json",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "spec/memory.schema.json",
+        "size_bytes": 3717,
+        "extension": ".json",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "spec/pap-review-findings.schema.json",
+        "size_bytes": 3745,
+        "extension": ".json",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "spec/registry-schema.json",
+        "size_bytes": 1450,
+        "extension": ".json",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "spec/review-findings.schema.json",
+        "size_bytes": 7130,
+        "extension": ".json",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "spec/runtime-interface.md",
+        "size_bytes": 2459,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "spec/security.md",
+        "size_bytes": 1969,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "spec/skill-contract.schema.json",
+        "size_bytes": 2298,
+        "extension": ".json",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "spec/workflow-stage.schema.json",
+        "size_bytes": 2392,
+        "extension": ".json",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "spec/workflow.schema.json",
+        "size_bytes": 2177,
+        "extension": ".json",
+        "preliminary_classification": "Keep"
+      }
+    ],
+    "scripts_automation": [
+      {
+        "path": ".github/ISSUE_TEMPLATE/bug_report.md",
+        "size_bytes": 413,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".github/ISSUE_TEMPLATE/feature_request.md",
+        "size_bytes": 223,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".github/PULL_REQUEST_TEMPLATE.md",
+        "size_bytes": 404,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".github/workflows/ci.yml",
+        "size_bytes": 1819,
+        "extension": ".yml",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".github/workflows/react-doctor.yml",
+        "size_bytes": 649,
+        "extension": ".yml",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "scripts/agent_eval_fixtures.json",
+        "size_bytes": 15238,
+        "extension": ".json",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "scripts/benchmark_llmlingua.py",
+        "size_bytes": 5853,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "scripts/bootstrap_verify.cmd",
+        "size_bytes": 99,
+        "extension": ".cmd",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "scripts/bootstrap_verify.ps1",
+        "size_bytes": 2466,
+        "extension": ".ps1",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "scripts/eval_agents.py",
+        "size_bytes": 3309,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "scripts/git_guard.py",
+        "size_bytes": 2835,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "scripts/prepare_community_demo.py",
+        "size_bytes": 9201,
+        "extension": ".py",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "scripts/verify.cmd",
+        "size_bytes": 89,
+        "extension": ".cmd",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "scripts/verify.ps1",
+        "size_bytes": 7037,
+        "extension": ".ps1",
+        "preliminary_classification": "Keep"
+      }
+    ],
+    "root_config_other": [
+      {
+        "path": ".agents/rules/knowledge-base.md",
+        "size_bytes": 822,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": ".gitignore",
+        "size_bytes": 7151,
+        "extension": "",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "AGENT.md",
+        "size_bytes": 3814,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "AGENTS.md",
+        "size_bytes": 1785,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "CHANGELOG.md",
+        "size_bytes": 1215,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "CODE_OF_CONDUCT.md",
+        "size_bytes": 358,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "CONTRIBUTING.md",
+        "size_bytes": 2156,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "DESIGN.md",
+        "size_bytes": 15080,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "Dockerfile",
+        "size_bytes": 1158,
+        "extension": "",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "LICENSE",
+        "size_bytes": 1045,
+        "extension": "",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "README.md",
+        "size_bytes": 8276,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "SECURITY.md",
+        "size_bytes": 1083,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "SUPPORT.md",
+        "size_bytes": 406,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "ai_agent_self_audit_framework.md",
+        "size_bytes": 4427,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "docker-compose.microservices.yml",
+        "size_bytes": 3954,
+        "extension": ".yml",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "docker-compose.yml",
+        "size_bytes": 1479,
+        "extension": ".yml",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "examples/memory_episodic_sample.jsonl",
+        "size_bytes": 1569,
+        "extension": ".jsonl",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "examples/memory_handoff_sample.json",
+        "size_bytes": 1263,
+        "extension": ".json",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "examples/memory_semantic_sample.json",
+        "size_bytes": 1611,
+        "extension": ".json",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "mock_workspace/memory/session-tool-test",
+        "size_bytes": 0,
+        "extension": "",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "nginx.conf",
+        "size_bytes": 675,
+        "extension": ".conf",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "pyproject.toml",
+        "size_bytes": 530,
+        "extension": ".toml",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "registry/index.json",
+        "size_bytes": 54,
+        "extension": ".json",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "releases/README.md",
+        "size_bytes": 852,
+        "extension": ".md",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "releases/ai-agent-topology-viewer_0.1.1_x64-setup.exe",
+        "size_bytes": 2459111,
+        "extension": ".exe",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "requirements-experimental.txt",
+        "size_bytes": 18,
+        "extension": ".txt",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "requirements-providers.txt",
+        "size_bytes": 141,
+        "extension": ".txt",
+        "preliminary_classification": "Keep"
+      },
+      {
+        "path": "requirements.txt",
+        "size_bytes": 361,
+        "extension": ".txt",
+        "preliminary_classification": "Keep"
+      }
+    ]
+  },
+  "exclusion_rules": [
+    "node_modules/**",
+    "target/**",
+    ".venv/**",
+    "__pycache__/**",
+    "dist/**",
+    "*.log",
+    "*.pyc"
+  ]
+}

@@ -1,0 +1,383 @@
+{
+  "task": "73-04",
+  "title": "Viewer Architecture, Complexity, and Bundle Audit",
+  "generated_at": "2026-09-08T11:23:36.241683+00:00",
+  "total_source_files": 55,
+  "total_lines_of_code": 15854,
+  "summary": {
+    "total_components": 38,
+    "total_hooks": 4,
+    "total_utils": 5,
+    "total_services": 1,
+    "optimized_components_in_phase_73": 6,
+    "by_classification": {
+      "Keep (Active & Production-Critical)": 48,
+      "Keep (Optimized in Phase 73)": 6,
+      "Keep (Advisory React Doctor Report Fixture)": 1
+    }
+  },
+  "optimizations_applied": [
+    {
+      "component": "viewer/src/components/AdminDashboardView.tsx",
+      "rule": "exhaustive-deps",
+      "changes": "Replaced stale closure state setters (setLedgerNodes, setLedgerEdges) with stable functional updaters and proper hook dependency array alignment."
+    },
+    {
+      "component": "viewer/src/components/LongTermMemoryView.tsx",
+      "rule": "no-fetch-in-effect & async-await-in-loop & no-autofocus",
+      "changes": "Added AbortController signal handling with cleanup to prevent memory leaks and race conditions; replaced sequential await loop in batch-delete with Promise.all; removed autofocus to improve accessibility compliance."
+    },
+    {
+      "component": "viewer/src/components/ModsView.tsx",
+      "rule": "js-combine-iterations",
+      "changes": "Consolidated redundant multi-pass filter().map() pipelines into high-performance single-pass array iterations."
+    },
+    {
+      "component": "viewer/src/components/PromptCalibrationDashboard.tsx",
+      "rule": "no-array-index-as-key",
+      "changes": "Replaced volatile array-index React keys with deterministic, stable token identity strings to prevent DOM reordering desynchronization."
+    },
+    {
+      "component": "viewer/src/components/SwarmGovernanceConsole.tsx",
+      "rule": "js-flatmap-filter & js-set-map-lookups & single-pass loop",
+      "changes": "Replaced chained map().filter(Boolean) with flatMap(); converted linear array scans inside hot loops to O(1) Set lookups; collapsed multi-step certificate mapping into a single for...of traversal."
+    },
+    {
+      "component": "viewer/src/components/CommandPalette.tsx",
+      "rule": "event-listener-churn & redundant-render",
+      "changes": "Decoupled keyboard event listener bindings to prevent tear-down/re-subscription cycles on every keystroke; batched input updates into a single render pass."
+    }
+  ],
+  "files": [
+    {
+      "file": "viewer/src/App.tsx",
+      "lines": 278,
+      "role": "Application Entrypoint / Types",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/constants.ts",
+      "lines": 894,
+      "role": "Application Entrypoint / Types",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/index.css",
+      "lines": 993,
+      "role": "Application Entrypoint / Types",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/main.tsx",
+      "lines": 14,
+      "role": "Application Entrypoint / Types",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/types.ts",
+      "lines": 380,
+      "role": "Application Entrypoint / Types",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/vite-env.d.ts",
+      "lines": 1,
+      "role": "Application Entrypoint / Types",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/components/ActivityLog.tsx",
+      "lines": 222,
+      "role": "Interactive UI Component / Modal",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/components/AdminDashboardView.tsx",
+      "lines": 1150,
+      "role": "Primary View / Dashboard Console",
+      "classification": "Keep (Optimized in Phase 73)"
+    },
+    {
+      "file": "viewer/src/components/CommandPalette.tsx",
+      "lines": 299,
+      "role": "Interactive UI Component / Modal",
+      "classification": "Keep (Optimized in Phase 73)"
+    },
+    {
+      "file": "viewer/src/components/ContextMenu.tsx",
+      "lines": 53,
+      "role": "Interactive UI Component / Modal",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/components/DesignAgentPanel.tsx",
+      "lines": 161,
+      "role": "Interactive UI Component / Modal",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/components/IntelligenceMapView.tsx",
+      "lines": 232,
+      "role": "Primary View / Dashboard Console",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/components/LongTermMemoryView.tsx",
+      "lines": 1068,
+      "role": "Primary View / Dashboard Console",
+      "classification": "Keep (Optimized in Phase 73)"
+    },
+    {
+      "file": "viewer/src/components/MissionControlView.tsx",
+      "lines": 354,
+      "role": "Primary View / Dashboard Console",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/components/Modal.tsx",
+      "lines": 53,
+      "role": "Interactive UI Component / Modal",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/components/ModsView.tsx",
+      "lines": 134,
+      "role": "Primary View / Dashboard Console",
+      "classification": "Keep (Optimized in Phase 73)"
+    },
+    {
+      "file": "viewer/src/components/NextActionRail.tsx",
+      "lines": 371,
+      "role": "Interactive UI Component / Modal",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/components/OnboardingWizard.tsx",
+      "lines": 554,
+      "role": "Interactive UI Component / Modal",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/components/PromptCalibrationDashboard.tsx",
+      "lines": 836,
+      "role": "Primary View / Dashboard Console",
+      "classification": "Keep (Optimized in Phase 73)"
+    },
+    {
+      "file": "viewer/src/components/ReactHealthPanel.tsx",
+      "lines": 193,
+      "role": "Interactive UI Component / Modal",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/components/RulesView.tsx",
+      "lines": 140,
+      "role": "Primary View / Dashboard Console",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/components/SettingsView.tsx",
+      "lines": 91,
+      "role": "Primary View / Dashboard Console",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/components/Sidebar.tsx",
+      "lines": 103,
+      "role": "Interactive UI Component / Modal",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/components/SwarmGovernanceConsole.tsx",
+      "lines": 2112,
+      "role": "Primary View / Dashboard Console",
+      "classification": "Keep (Optimized in Phase 73)"
+    },
+    {
+      "file": "viewer/src/components/TaskFlowView.tsx",
+      "lines": 1208,
+      "role": "Primary View / Dashboard Console",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/components/TaskNode.tsx",
+      "lines": 94,
+      "role": "Interactive UI Component / Modal",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/components/TokenModePanel.tsx",
+      "lines": 169,
+      "role": "Interactive UI Component / Modal",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/components/TopologyView.tsx",
+      "lines": 1578,
+      "role": "Primary View / Dashboard Console",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/components/edges/ErrorEdge.tsx",
+      "lines": 7,
+      "role": "Topology Edge Component (ReactFlow)",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/components/edges/HandoffEdge.tsx",
+      "lines": 7,
+      "role": "Topology Edge Component (ReactFlow)",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/components/edges/RbacEdge.tsx",
+      "lines": 8,
+      "role": "Topology Edge Component (ReactFlow)",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/components/edges/ToolEdge.tsx",
+      "lines": 7,
+      "role": "Topology Edge Component (ReactFlow)",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/components/edges/TopologyEdgeBase.tsx",
+      "lines": 74,
+      "role": "Topology Edge Component (ReactFlow)",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/components/edges/index.ts",
+      "lines": 11,
+      "role": "Topology Edge Component (ReactFlow)",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/components/nodes/AgentNode.tsx",
+      "lines": 8,
+      "role": "Topology Node Component (ReactFlow)",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/components/nodes/HitlNode.tsx",
+      "lines": 7,
+      "role": "Topology Node Component (ReactFlow)",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/components/nodes/RootNode.tsx",
+      "lines": 7,
+      "role": "Topology Node Component (ReactFlow)",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/components/nodes/ToolNode.tsx",
+      "lines": 7,
+      "role": "Topology Node Component (ReactFlow)",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/components/nodes/TopologyNodeBase.tsx",
+      "lines": 111,
+      "role": "Topology Node Component (ReactFlow)",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/components/nodes/index.ts",
+      "lines": 11,
+      "role": "Topology Node Component (ReactFlow)",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/components/settings/SettingsAiGuidePanel.tsx",
+      "lines": 84,
+      "role": "Settings Subpanel",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/components/settings/SettingsDocsPanel.tsx",
+      "lines": 52,
+      "role": "Settings Subpanel",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/components/settings/SettingsGeneralPanel.tsx",
+      "lines": 288,
+      "role": "Settings Subpanel",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/components/ui/primitives.tsx",
+      "lines": 141,
+      "role": "Shared UI Primitive",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/data/react-doctor-summary.json",
+      "lines": 252,
+      "role": "Advisory Data Fixture",
+      "classification": "Keep (Advisory React Doctor Report Fixture)"
+    },
+    {
+      "file": "viewer/src/hooks/useActivityLog.ts",
+      "lines": 42,
+      "role": "Custom React Hook",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/hooks/usePersistedState.ts",
+      "lines": 22,
+      "role": "Custom React Hook",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/hooks/useTopology.ts",
+      "lines": 103,
+      "role": "Custom React Hook",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/hooks/useWorkspace.ts",
+      "lines": 391,
+      "role": "Custom React Hook",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/services/adminRuntimeAuth.ts",
+      "lines": 35,
+      "role": "Client Service",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/utils/exportUtils.ts",
+      "lines": 146,
+      "role": "Utility Helper",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/utils/graphUtils.ts",
+      "lines": 116,
+      "role": "Utility Helper",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/utils/logger.ts",
+      "lines": 5,
+      "role": "Utility Helper",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/utils/schemaValidator.ts",
+      "lines": 43,
+      "role": "Utility Helper",
+      "classification": "Keep (Active & Production-Critical)"
+    },
+    {
+      "file": "viewer/src/utils/topologyUtils.ts",
+      "lines": 134,
+      "role": "Utility Helper",
+      "classification": "Keep (Active & Production-Critical)"
+    }
+  ]
+}

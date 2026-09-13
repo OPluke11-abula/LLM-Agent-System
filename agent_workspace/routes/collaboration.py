@@ -715,14 +715,35 @@ async def swarm_p2p_tunnel_endpoint(websocket: WebSocket):
             pass
 
 
-# ----------------- Slack & LINE production webhook adapters -----------------
+def _is_test_mode() -> bool:
+    return os.environ.get("LAS_TEST_MODE", "").lower() in {"1", "true", "yes"}
 
-SLACK_SIGNING_SECRET = os.getenv("SLACK_SIGNING_SECRET", "mock_slack_secret_12345")
-SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN", "mock_slack_bot_token")
-LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET", "mock_line_secret_12345")
-LINE_CHANNEL_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN", "mock_line_access_token")
+def _get_slack_signing_secret() -> str:
+    secret = os.getenv("SLACK_SIGNING_SECRET")
+    if secret:
+        return secret
+    if _is_test_mode():
+        return "mock_slack_secret_12345"
+    return ""
+
+def _get_line_channel_secret() -> str:
+    secret = os.getenv("LINE_CHANNEL_SECRET")
+    if secret:
+        return secret
+    if _is_test_mode():
+        return "mock_line_secret_12345"
+    return ""
+
+SLACK_SIGNING_SECRET = _get_slack_signing_secret()
+SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN", "mock_slack_bot_token" if _is_test_mode() else "")
+LINE_CHANNEL_SECRET = _get_line_channel_secret()
+LINE_CHANNEL_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN", "mock_line_access_token" if _is_test_mode() else "")
 
 def verify_slack_signature(timestamp: str, body: bytes, signature: str) -> bool:
+    secret = os.getenv("SLACK_SIGNING_SECRET") or SLACK_SIGNING_SECRET
+    if not secret or (not _is_test_mode() and secret.startswith("mock_")):
+        logger.error("[Slack Auth] SLACK_SIGNING_SECRET is not configured or insecure in production (fail-closed).")
+        return False
     try:
         now = time.time()
         if abs(now - float(timestamp)) > 300:
@@ -730,7 +751,7 @@ def verify_slack_signature(timestamp: str, body: bytes, signature: str) -> bool:
             return False
         sig_basestring = f"v0:{timestamp}:".encode('utf-8') + body
         computed_sig = "v0=" + hmac.new(
-            SLACK_SIGNING_SECRET.encode('utf-8'),
+            secret.encode('utf-8'),
             sig_basestring,
             hashlib.sha256
         ).hexdigest()
@@ -740,9 +761,13 @@ def verify_slack_signature(timestamp: str, body: bytes, signature: str) -> bool:
         return False
 
 def verify_line_signature(body: bytes, signature: str) -> bool:
+    secret = os.getenv("LINE_CHANNEL_SECRET") or LINE_CHANNEL_SECRET
+    if not secret or (not _is_test_mode() and secret.startswith("mock_")):
+        logger.error("[LINE Auth] LINE_CHANNEL_SECRET is not configured or insecure in production (fail-closed).")
+        return False
     try:
         hash_val = hmac.new(
-            LINE_CHANNEL_SECRET.encode('utf-8'),
+            secret.encode('utf-8'),
             body,
             hashlib.sha256
         ).digest()

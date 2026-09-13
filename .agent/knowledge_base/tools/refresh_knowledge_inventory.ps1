@@ -82,7 +82,8 @@ $markdownFiles = Get-ChildItem -LiteralPath $rootPath -Recurse -File -Filter '*.
     Where-Object {
         $relative = Get-RelativePath -BasePath $rootPath -FullPath $_.FullName
         $normalized = '/' + $relative
-        -not ($excludedSegments | Where-Object { $normalized.Contains($_) })
+        $isGeneratedPreflightPack = $relative.Replace('\', '/') -match '^handoffs/agent-start-preflight-latest-.+\.md$'
+        -not ($excludedSegments | Where-Object { $normalized.Contains($_) }) -and -not $isGeneratedPreflightPack
     } |
     Sort-Object FullName
 

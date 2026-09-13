@@ -51,6 +51,9 @@ const TopologyView = lazy(() =>
 const MissionControlView = lazy(() =>
   import("./components/MissionControlView").then((module) => ({ default: module.MissionControlView })),
 );
+const CodingPipelineView = lazy(() =>
+  import("./components/CodingPipelineView").then((module) => ({ default: module.CodingPipelineView })),
+);
 
 function PageFallback() {
   return (
@@ -144,7 +147,7 @@ export default function App() {
   }
 
   return (
-    <div className="app-frame bg-grid relative h-screen w-full overflow-hidden font-sans">
+    <div className="app-frame relative h-screen w-full overflow-hidden font-sans">
       <div className="relative z-10 flex h-full flex-col md:flex-row">
         <Sidebar
           t={t}
@@ -264,6 +267,15 @@ export default function App() {
                     sessions={sessionList}
                     lastUpdatedSessionId={lastUpdatedSessionId}
                     lang={lang}
+                  />
+                }
+              />
+              <Route
+                path="/pipeline"
+                element={
+                  <CodingPipelineView
+                    lang={lang}
+                    activeWorkspacePath={workspaces.find((w) => w.id === activeWorkspaceId)?.path}
                   />
                 }
               />

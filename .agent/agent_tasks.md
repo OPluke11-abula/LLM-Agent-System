@@ -23,10 +23,20 @@
 | 70 | 8 | 8 | 100% Done | Token-efficient advisory rollout complete |
 | 71 | 8 | 8 | 100% Done | Professional design-agent pipeline complete |
 | 72 | 9 | 9 | 100% Done | Production readiness and release evidence complete |
+| 73 | 8 | 8 | 100% Done | Topology health & repository necessity audit complete |
+| 74 | 4 | 4 | 100% Done | Security Hardening & Owner Decision Queue (ODQ-01~04) complete |
+| 75 | 4 | 4 | 100% Done | Full System Optimization: UI Modernization 100%, Code-Splitting, ODQ-05 Specification Closure |
+| 76 | 4 | 4 | 100% Done | Full System Polish: React Doctor 0 Errors, Playwright Visual QA, Compose & Memory Sync |
+| 79 | 5 | 5 | 100% Done | Protocol v3.8.0 Governance, 11-Note Obsidian Topology, 10 Grounded Roles & Full-Stack Optimization complete |
+| 80 | 4 | 4 | 100% Done | Autonomous Coding Pipeline P1: Rules, Contracts, Scaffolding & State Machine complete |
+| 81 | 4 | 4 | 100% Done | Autonomous Coding Pipeline P2: Governed Agent Control Plane (P2-A~P2-D) complete |
+| 82 | 4 | 4 | 100% Done | Autonomous Coding Pipeline P3: REST & WebSocket Gateways and Frontend Cockpit complete |
+| 83 | 4 | 4 | 100% Done | Autonomous Coding Pipeline P4: Official Golden Flow Benchmark & E2E Verification Harness complete |
+| 84 | 4 | 4 | 100% Done | Autonomous Coding Pipeline P5: Developer Beta, CLI Toolbelt, Repo Onboarder & Packaging complete |
 
 Execution order:
 
-1. No implementation phase remains queued; await explicit user direction.
+1. Phase 84 complete (P5 Developer Beta & Packaging, CLI Toolbelt `las`, Onboarding Engine, 60 automated tests verified). Standalone distribution ready.
 
 ## Completed Phase Rollup
 
@@ -68,6 +78,10 @@ Execution order:
 - [x] Phase 71 completed items: `71-01` to `71-05` created the professional
   design-agent role, art direction packet, moodboard workflow, screen studies,
   and `viewer/DESIGN.md` implementation contract.
+- [x] Phase 73 completed items: `73-01` to `73-08` cataloged 597 tracked files, audited 79 runtime modules, 101 API endpoints, and produced the full topology health scorecard (90.6/100).
+- [x] Phase 74 completed items: `74-01` to `74-04` resolved Owner Decision Queue items: removed unused `httpx2` dependency (ODQ-01), bound Redis strictly to localhost (ODQ-02), hardened webhook authentication fail-closed checks (ODQ-03), and added Nginx security headers & server_tokens off (ODQ-04).
+- [x] Phase 75 completed items: `75-01` achieved 100% UI modernization across all views (`ModsView`, `RulesView`, `SettingsView`, `TaskFlowView`, `MissionControlView`) using Radix primitives and Lucide icons; `75-02` optimized Vite bundle splitting with manual chunks reducing main entry JS by 79%; `75-03` closed ODQ-05 by implementing declarative PAP workflow linting in `workflow_lint.py` backed by `spec/workflow.schema.json` and unit tests; `75-04` synchronized Obsidian cross-agent vault memory (`40 Viewer UI Design System.md`) maintaining 0 lint findings.
+- [x] Phase 76 completed items: `76-01` achieved React Doctor 0-Error & 0-a11y-warning milestone by fixing `CommandPalette` ref mutation, upgrading to native `<dialog>`, and refactoring `TopologyView` WebSocket lifecycle with guaranteed cleanup; `76-02` hardened fetch response status checks across `AdminDashboardView` and `SettingsGeneralPanel` and stabilized list keys; `76-03` passed full Playwright responsive screenshot verification (24 device captures across 375px/768px/1280px) and multi-lingual copy audits; `76-04` synchronized Docker Compose environment consistency and Obsidian design system memory with 0 lint findings.
 
 ## Phase 67 - Premium AI Mission Control UI/UX Upgrade
 
@@ -546,6 +560,445 @@ checksums, SBOMs, and unsigned-artifact documentation may proceed.
   plan/security/manual-QA/scope review, and a clean tracked worktree.
 - Signing remains unsigned/checksum-based until the owner selects a signing
   method and provides external signing authority.
+
+## Phase 73 - Topology Health and Repository Necessity Audit
+
+Status: `[x]` 8/8 complete. Source: `docs/topology-health-2026-09-02.html`.
+The objective is to establish whether every tracked code and documentation file
+is necessary, correctly owned, current, and non-redundant.
+
+### 73-01 Inventory and Topology Map
+- [x] **[Architecture/QA]** Cataloged 597 tracked files across 11 domains in `.agent/reports/topology-inventory-73-01.json`.
+
+### 73-02 Runtime and Provider Boundary Review
+- [x] **[Backend Architect]** Audited 79 production modules in `.agent/reports/runtime-boundary-review-73-02.json`.
+
+### 73-03 API, Security, and Configuration Review
+- [x] **[Security/Backend QA]** Audited 101 route endpoints, 3 deployment configs, 13 PAP schemas in `.agent/reports/api-security-review-73-03.json`.
+
+### 73-04 Viewer and Task-Topology Review
+- [x] **[Frontend QA]** Audited 55 viewer files (15,854 lines) and resolved key React Doctor issues in `.agent/reports/viewer-architecture-review-73-04.json`.
+
+### 73-05 Test and Verification Necessity Review
+- [x] **[QA]** Mapped 566 test functions across 108 suites in `.agent/reports/test-verification-review-73-05.json`.
+
+### 73-06 Documentation and Agent-Knowledge Review
+- [x] **[Documentation Architect]** Verified 85 KB notes with 0 lint findings in `.agent/reports/documentation-knowledge-review-73-06.json`.
+
+### 73-07 Dependency, Build, and Artifact Review
+- [x] **[DevOps]** Audited 17 Python requirements (1 unused `httpx2` identified) in `.agent/reports/dependency-build-review-73-07.json`.
+
+### 73-08 Evidence Synthesis and Owner Decision Queue
+- [x] **[Architecture/QA]** Scorecard improved from 82.0 to 90.6/100 (+8.6) in `.agent/reports/topology-health-synthesis-73-08.json`.
+
+## Phase 74 - Security Hardening & Owner Decision Queue Execution
+
+Status: `[x]` 4/4 complete.
+Direct resolution of the highest-priority Owner Decision Queue items from Phase 73.
+
+### 74-01 Dependency Supply Chain Hygiene (ODQ-01)
+- [x] **[DevOps/Backend]** Removed 0-reference `httpx2>=2.4.0` from `requirements.txt` to eliminate supply chain confusion and unneeded installation overhead. Verified with live imports.
+
+### 74-02 Microservices Redis Port Isolation (ODQ-02)
+- [x] **[Security/DevOps]** Bound Redis exposed port in `docker-compose.microservices.yml` strictly to `127.0.0.1:6379:6379` to eliminate public 0.0.0.0 unauthenticated exposure.
+
+### 74-03 Webhook Authentication Fail-Closed Hardening (ODQ-03)
+- [x] **[Security/Backend]** Enforced fail-closed policy in `agent_workspace/routes/collaboration.py`. In non-test environments, requests without valid `SLACK_SIGNING_SECRET` or `LINE_CHANNEL_SECRET` are blocked and log security warnings, rejecting static mock fallbacks.
+
+### 74-04 Nginx Production Security Headers (ODQ-04)
+- [x] **[Security/DevOps]** Added `server_tokens off;` and HTTP response security headers (`X-Content-Type-Options`, `X-Frame-Options`, `X-XSS-Protection`, `Referrer-Policy`) to `nginx.conf`.
+
+
+
+## Phase 77 - Architecture Reconnaissance & Obsidian Topological Wiki
+
+Status: `[x]` 4/4 complete.
+Deep reconnaissance of the 7-layer architecture, generating a navigable topological knowledge graph in the Obsidian Vault.
+
+### 77-01 7-Layer Topological Inventory & Metric Reconnaissance
+- [x] **[Architecture/QA]** Analyzed 516+ files, 96,000+ LOC, 101 REST endpoints, 9 WebSockets, 115+ test suites, and 4-tier memory architecture.
+
+### 77-02 Obsidian Vault Topological Note Generation
+- [x] **[Doc Architect]** Created `Index - Topology.md` with interactive ASCII/Mermaid DAGs and direct wikilinks to all 7 architectural layers.
+- [x] **[Doc Architect]** Generated 7 comprehensive domain notes in `Obsidian Vault/Architecture/`:
+  - `01-Presentation-Layer.md`
+  - `02-Protocol-Gateway-Layer.md`
+  - `03-Governance-Consensus-Layer.md`
+  - `04-Cognitive-Routing-Layer.md`
+  - `05-Memory-OS-Layer.md`
+  - `06-Tool-Execution-Layer.md`
+  - `07-Cross-Cloud-Layer.md`
+
+### 77-03 Cross-Agent Knowledge OS & Navigation Links
+- [x] **[Knowledge Base]** Linked `.agent/knowledge_base/` with Obsidian Vault notes via bidirectional references and contract manifests.
+
+### 77-04 Health & Vault Linter Validation
+- [x] **[QA]** Verified 131 Obsidian notes (0 findings) and 85 Knowledge Base documents (0 findings).
+
+## Phase 78 - Full System Optimization, Golden Verification Ladder & Release
+
+Status: `[x]` 5/5 complete.
+End-to-end optimization of frontend components, expansion of backend direct test matrix, implementation of the 8-step golden ladder, documentation refresh, and desktop packaging verification.
+
+### 78-01 Frontend React Doctor & Performance Optimization
+- [x] **[Frontend QA]** Eliminated all React Doctor errors (0 errors, 0 render ref mutations, 0 performance warnings, 0 array index keys).
+- [x] **[Frontend QA]** Optimized `SwarmGovernanceConsole`, `TopologyView`, `TaskFlowView`, `SettingsView`, and `ui/primitives`.
+- [x] **[Frontend QA]** Verified production build (`npm run build`) in ~400ms with 0 TypeScript/Rollup errors.
+
+### 78-02 Backend Direct Test Matrix Expansion
+- [x] **[Backend Dev/QA]** Added 7 core module test suites in `agent_workspace/tests/`:
+  - `test_ws_manager.py` (WebSocket sync & encryption)
+  - `test_route_audit_direct.py` (Audit logging, Merkle proofs, ZK sync)
+  - `test_route_chat_direct.py` (Health, version, session chat)
+  - `test_route_cross_cloud_direct.py` (mTLS certificate rotation, revocation, reinstatement)
+  - `test_route_swarm_direct.py` (Node telemetry, peer synchronization, auto-scaling)
+  - `test_tool_log_direct.py` (Log append, compaction, monthly archiving)
+  - `test_topology_bridge_direct.py` (Topology event emission, persistence, state DAG)
+
+### 78-03 The 8-Step Golden Verification Ladder
+- [x] **[DevOps]** Upgraded `scripts/verify.ps1` from 5 steps to the complete 8-step golden ladder:
+  - Step 1: Python compile check (`py_compile`)
+  - Step 2: Python test suite (pytest)
+  - Step 3: PAP workspace & workflow schema contract
+  - Step 4: Runtime tool manifest contract & skills matrix
+  - Step 5: Knowledge base & Obsidian vault integrity
+  - Step 6: Viewer production build (Rolldown / Vite)
+  - Step 7: Viewer UI smoke & swarm governance tests
+  - Step 8: React Doctor code quality check
+
+### 78-04 Comprehensive Documentation Overhaul
+- [x] **[Documentation]** Updated root `README.md` with 7-layer topological architecture, Mermaid DAG, 8-step verification ladder, and metrics.
+- [x] **[Documentation]** Updated `viewer/README.md` with component catalog, chunk budgets, and verification scripts.
+- [x] **[Documentation]** Updated `releases/README.md` with SHA-256 evidence, installation verification, and WDAC environment guidance.
+
+### 78-05 Desktop Application Release & Integrity Verification
+- [x] **[Release]** Verified `releases/aai-agent-topology-viewer_0.1.1_x64-setup.exe` with SHA-256 `1D4A47DA57E60D641EFE729E7F347DBABCAE84033D1AF0EF45220CE0B6C49B47`.
+- [x] **[Release]** Documented build behavior under Windows Defender Application Control (WDAC).
+
+## Phase 79 - Universal Protocol v3.8.0 Governance, 10 Grounded Roles & Full-Stack Optimization
+
+Status: `[x]` 5/5 complete.
+Alignment with Universal Coding Agent Development Protocol v3.8.0, LingoLens engineering case study, Three-Tier Cognitive Relay, 10 Grounded Roles, 11-note canonical Obsidian topology, and full-stack backend/UI optimization.
+
+### 79-01 Protocol v3.8.0 Governance Baseline & Contracts
+- [x] **[Governance]** Initialized `.agent/state.md` (`Protocol Baseline: 3.8.0`, mode `STATIC_DOMAIN_OWNERSHIP`).
+- [x] **[Governance]** Created `.agent/ownership.md` establishing Feature-Based Ownership (一人一功能垂直切片全棧負責制).
+- [x] **[Governance]** Created `.agent/decisions.md` (ADR-001 ~ ADR-005), `.agent/versions.md`, and `.agent/test_policy.md`.
+- [x] **[Governance]** Refactored `AGENTS.md` and `.agent/agent.md` to thin entry point and Protocol v3.8.0 operating contract.
+
+### 79-02 Three-Tier Cognitive Relay Architecture
+- [x] **[Architecture]** Added `stage.md`, `*.stage.md`, and `.agent/local/` to `.gitignore`. Verified local scratchpad exclusion.
+- [x] **[Architecture]** Created root `handoff.md` with 3-line plain summary, verified facts, and PR status tracking.
+- [x] **[Architecture]** Created `docs/DEVELOPMENT_WORKFLOW_GUIDE.md` detailing 6-stage lifecycle, 3-second startup prompt, and 5-Whys retrospective invariants.
+
+### 79-03 11-Note Canonical Obsidian Knowledge Topology
+- [x] **[Knowledge OS]** Created complete 11-note topological architecture in `docs/obsidian/`:
+  - `00 LLM-Agent-System Index.md`
+  - `05 Task Status & Multi-Agent Execution DAG.md`
+  - `09 Open Questions & Strategic Horizons.md`
+  - `10 7-Layer System Architecture & Control Plane Topology.md`
+  - `20 Feature DAG & Feature-Based Ownership Topology.md`
+  - `30 Concurrency Lifecycle & Swarm State Machine.md`
+  - `40 4-Tier Memory OS & SQLite FTS5 Persistence Topology.md`
+  - `50 Verification Matrix & Quality Receipt Ledger.md`
+  - `60 Architectural Decision Records (ADR) Graph.md`
+  - `70 Multi-Agent Protocol v3.8.0 & 10 Grounded Roles Matrix.md`
+  - `71 Engineering Retrospective & 5-Whys Post-Mortem.md`
+- [x] **[Knowledge OS]** Synchronized all 11 notes to local vault `C:\Users\luke2\OneDrive\文件\Obsidian Vault\Projects\LLM-Agent-System/`.
+
+### 79-04 Backend Core Runtime & Security Optimization
+- [x] **[Backend Dev]** Overhauled `agent_workspace/core/agent_crew.py` to support 10 Grounded Roles, host skill bindings, and Universal Baseline Memory (`obsidian-vault` + `obsidian-research-notes`).
+- [x] **[Backend Dev]** Enforced Anti-Corruption #4 (Typed Failures Only) by replacing swallowed exceptions with typed debug logging in `agent_crew.py`.
+- [x] **[Security]** Hardened `agent_workspace/core/policy_gate.py` with role-based mutable scope boundary checks (`ROLE_SCOPE_RESTRICTIONS`).
+- [x] **[Precheck]** Enhanced `agent_workspace/core/precheck.py` with Anti-Summary Invariant, Stop-and-Wait Gate, and Seven Anti-Corruption static checks.
+
+### 79-05 UI/UX Control Plane & Verification Ladder
+- [x] **[Frontend Dev]** Upgraded `AdminDashboardView.tsx` and `SwarmGovernanceConsole.tsx` in `viewer/` to align with the 10 Grounded Roles.
+- [x] **[QA]** Verified `viewer/` production build (`npm run build`) in 588ms with 0 TypeScript/Vite errors.
+- [x] **[QA]** Verified 100% Python bytecode compilation (`python -m compileall agent_workspace`) with 0 errors.
+- [x] **[QA]** Verified `git diff --check` cleanly with 0 trailing whitespace or format issues.
+
+## Phase 80 - Autonomous Coding Pipeline P1: Rules, Contracts & Scaffolding
+
+Status: `[x]` 4/4 complete. Strategic pivot from feature stacking to the core product loop: Developer Requirement -> Bounded Mutation -> Verification Evidence -> Draft PR.
+
+### 80-01 Pipeline Data Models & State Machine Contract
+- [x] **[Architect/Backend]** Defined `PipelineStage`, `VerificationStatus`, `CodingTaskRequest`, `WorktreeSessionConfig`, `ScopedMutationPlan`, `VerificationReceipt`, `DraftPRPayload`, and `CodingPipelineResult` in `agent_workspace/core/pipeline/models.py`.
+
+### 80-02 Behavioral Boundary Abstract Contracts
+- [x] **[Architect/Backend]** Defined `IWorktreeManager`, `IScopedExecutor`, `IVerificationRunner`, and `IDraftPRPublisher` in `agent_workspace/core/pipeline/contracts.py`.
+
+### 80-03 Pipeline Manager & Gate Enforcement
+- [x] **[Backend Dev]** Implemented `CodingPipelineManager` in `agent_workspace/core/pipeline/manager.py` integrating Anti-Summary preflight, Stop-and-Wait approval gate, `ROLE_SCOPE_RESTRICTIONS` role boundaries, and standardized evidence-backed Draft PR markdown builder.
+
+### 80-04 Unit Test Suite & Verification Matrix
+- [x] **[QA]** Implemented and verified `agent_workspace/tests/test_coding_pipeline_p1.py` with 6 test cases (100% PASS in 0.054s) covering Anti-Summary rejection, scope violation blocking, unapproved plan blocking, verification ladder failure handling, and end-to-end Draft PR receipt generation.
+
+## Phase 81 - Governed Agent Control Plane P2: Full Repository, TaskEnvironment & Execution Integration
+
+Status: `[x]` 4/4 complete. Wires real repository targets, native Git worktrees, TaskEnvironment minimum sufficient engineering environments, governed toolchains, and durable evidence recovery. Aligned with ADR-006.
+
+### 81-01 (P2-A) Repository Control Plane & Execution Environment
+- [x] **[Backend/Infra Programmer]** Implement `RepositoryInspector` & `RepositoryProfile` in `agent_workspace/core/repository.py` and `GitWorktreeManager` implementing `IWorktreeManager` in `agent_workspace/core/git_worktree.py`. Issue tamper-evident `CanonicalPreservationReceipt` ensuring developer host canonical checkout is 100% preserved (`before status == after status`).
+- Verification: `test_repository_p2a.py` and `test_git_worktree_p2a.py` (6 tests, 100% PASS).
+
+### 81-02 (P2-B) Planning & TaskEnvironment Synthesis
+- [x] **[Architect/Backend Programmer]** Upgraded from pure `ContextPack` to `TaskEnvironment` (15 attributes: intent, acceptance criteria, role boundaries, minimal sufficient context, relevant contracts/tests, governed tools, sandbox policy, execution environment) in `agent_workspace/core/task_environment.py`. Implemented `TaskGraph` DAG scheduler (cycle detection, dependency resolution, parallel non-overlapping scope validation) and `AgentCapabilityRequirement`.
+- Verification: `test_task_environment_p2b.py` (9 tests, 100% PASS).
+
+### 81-03 (P2-C) Governed Agent Execution & ScopeGuard
+- [x] **[Flow/Backend Dev]** Implemented `AgentExecutor` and `ScopeGuard` executing under Bounded Autonomy in `agent_workspace/core/agent_executor.py`. Enforces non-bypassable chain: `Agent -> ToolCall -> Tool Registry -> Mission Policy -> ScopeGuard -> Approval Policy -> Sandbox -> Executor -> ToolResult -> Evidence`. Mounted minimum coding tools (`filesystem.read`, `filesystem.write`, `shell.exec`, `git.diff`), destructive command interception (`git push -f`, `git reset --hard`), and turn limit safety gate ($\le 3$).
+- Verification: `test_agent_executor_p2c.py` (10 tests, 100% PASS).
+
+### 81-04 (P2-D) Durable Events, Runtime Feedback & Recovery
+- [x] **[QA/DevOps]** Implemented durable `RuntimeEventsLedger` with cryptographic event chaining and Merkle audit root calculation, `LiveFeedbackRunner` for verification ladders with fail-fast execution and root-cause diagnostic extraction, `IndependentReviewVerifier` enforcing review freshness invariant, `CheckpointRecoveryManager` with SHA256 checksum integrity verification, and `GitHubDraftPRPublisher` with GitHub CLI draft PR creation and offline verifiable patch bundle fallback in `agent_workspace/core/runtime_events.py`.
+- Verification: `test_runtime_events_p2d.py` (9 tests, 100% PASS) and full P1+P2 regression suite (40 tests, 100% PASS).
+
+## Phase 82 - Autonomous Coding Pipeline P3: REST & WebSocket Gateways & Frontend Cockpit Integration
+
+Status: `[x]` 4/4 complete. Wires the autonomous coding pipeline into FastAPI HTTP/WebSocket endpoints and developer frontend cockpit (`viewer/`), enabling full end-to-end interactive development, human approval gate clearing, and live telemetry.
+
+### 82-01 FastAPI Pipeline Router & Endpoints
+- [x] **[Backend Dev]** Implemented `agent_workspace/routes/pipeline.py` providing REST endpoints (`POST /v1/pipeline/tasks`, `POST /v1/pipeline/tasks/{task_id}/plan`, `POST /v1/pipeline/tasks/{task_id}/approve`, `POST /v1/pipeline/tasks/{task_id}/execute`, `POST /v1/pipeline/tasks/run`, `GET /v1/pipeline/tasks`, `GET /v1/pipeline/tasks/{task_id}`, `GET /v1/pipeline/tasks/{task_id}/events`, `GET /v1/pipeline/tasks/{task_id}/preservation`), mounted in `agent_workspace/api.py`.
+- Verification: Tested with FastAPI `TestClient` across all status codes and Stop-and-Wait gate blocks.
+
+### 82-02 Pipeline Live WebSocket Streaming
+- [x] **[Backend Dev]** Implemented `PipelineBroadcastManager` and WebSocket stream endpoint `/v1/pipeline/ws` broadcasting real-time stage transitions, plan submissions, approval gate releases, and test ladder results.
+- Verification: Connected client ping/pong and event broadcast verified.
+
+### 82-03 Frontend Coding Agent Cockpit Integration
+- [x] **[Frontend Dev]** Built `viewer/src/components/CodingPipelineView.tsx` with 5-stage visual stepper, interactive Stop-and-Wait approval gate modal with approval token input, objective test ladder receipts table, Merkle audit trail & host preservation status cards, and verifiable Draft PR / patch bundle preview. Added `/pipeline` route in `viewer/src/App.tsx` and navigation item in `viewer/src/components/Sidebar.tsx`.
+- Verification: `npm run build` in `viewer/` (Pass, 0 errors, 668ms).
+
+### 82-04 Automated API & Full Regression Conformance Suite
+- [x] **[QA]** Implemented and executed `agent_workspace/tests/test_pipeline_api_p3.py` (6 tests, 100% PASS in 3.545s). Full regression matrix across P1, P2-A, P2-B, P2-C, P2-D, and P3 reaches 46 automated tests (100% PASS in 9.496s). Bytecode compilation (100% PASS, 0 errors) and `git diff --check` (0 trailing whitespace).
+
+## Phase 83 - Autonomous Coding Pipeline P4: Official Golden Flow Benchmark & E2E Verification Harness
+
+Status: `[x]` 4/4 complete. Empirically validates and benchmarks the Autonomous Coding Pipeline across 3 canonical engineering scenarios, collects the 6 ADR-006 engineering KPIs, and wires CLI and Cockpit integration.
+
+### 83-01 Golden Flow Target Repository Scaffolding & Data Models
+- [x] **[Backend Dev]** Defined `BenchmarkScenarioId`, `BenchmarkScenario`, `ScenarioExecutionReceipt`, and `GoldenBenchmarkScorecard` models, and implemented `create_golden_fixture_repo` scaffolding a realistic git repository target in `agent_workspace/core/pipeline/benchmark.py`.
+
+### 83-02 Benchmark Execution Engine & KPI Metric Calculator
+- [x] **[DevOps]** Audited 17 Python requirements (1 unused `httpx2` identified) in `.agent/reports/dependency-build-review-73-07.json`.
+
+### 73-08 Evidence Synthesis and Owner Decision Queue
+- [x] **[Architecture/QA]** Scorecard improved from 82.0 to 90.6/100 (+8.6) in `.agent/reports/topology-health-synthesis-73-08.json`.
+
+## Phase 74 - Security Hardening & Owner Decision Queue Execution
+
+Status: `[x]` 4/4 complete.
+Direct resolution of the highest-priority Owner Decision Queue items from Phase 73.
+
+### 74-01 Dependency Supply Chain Hygiene (ODQ-01)
+- [x] **[DevOps/Backend]** Removed 0-reference `httpx2>=2.4.0` from `requirements.txt` to eliminate supply chain confusion and unneeded installation overhead. Verified with live imports.
+
+### 74-02 Microservices Redis Port Isolation (ODQ-02)
+- [x] **[Security/DevOps]** Bound Redis exposed port in `docker-compose.microservices.yml` strictly to `127.0.0.1:6379:6379` to eliminate public 0.0.0.0 unauthenticated exposure.
+
+### 74-03 Webhook Authentication Fail-Closed Hardening (ODQ-03)
+- [x] **[Security/Backend]** Enforced fail-closed policy in `agent_workspace/routes/collaboration.py`. In non-test environments, requests without valid `SLACK_SIGNING_SECRET` or `LINE_CHANNEL_SECRET` are blocked and log security warnings, rejecting static mock fallbacks.
+
+### 74-04 Nginx Production Security Headers (ODQ-04)
+- [x] **[Security/DevOps]** Added `server_tokens off;` and HTTP response security headers (`X-Content-Type-Options`, `X-Frame-Options`, `X-XSS-Protection`, `Referrer-Policy`) to `nginx.conf`.
+
+
+
+## Phase 77 - Architecture Reconnaissance & Obsidian Topological Wiki
+
+Status: `[x]` 4/4 complete.
+Deep reconnaissance of the 7-layer architecture, generating a navigable topological knowledge graph in the Obsidian Vault.
+
+### 77-01 7-Layer Topological Inventory & Metric Reconnaissance
+- [x] **[Architecture/QA]** Analyzed 516+ files, 96,000+ LOC, 101 REST endpoints, 9 WebSockets, 115+ test suites, and 4-tier memory architecture.
+
+### 77-02 Obsidian Vault Topological Note Generation
+- [x] **[Doc Architect]** Created `Index - Topology.md` with interactive ASCII/Mermaid DAGs and direct wikilinks to all 7 architectural layers.
+- [x] **[Doc Architect]** Generated 7 comprehensive domain notes in `Obsidian Vault/Architecture/`:
+  - `01-Presentation-Layer.md`
+  - `02-Protocol-Gateway-Layer.md`
+  - `03-Governance-Consensus-Layer.md`
+  - `04-Cognitive-Routing-Layer.md`
+  - `05-Memory-OS-Layer.md`
+  - `06-Tool-Execution-Layer.md`
+  - `07-Cross-Cloud-Layer.md`
+
+### 77-03 Cross-Agent Knowledge OS & Navigation Links
+- [x] **[Knowledge Base]** Linked `.agent/knowledge_base/` with Obsidian Vault notes via bidirectional references and contract manifests.
+
+### 77-04 Health & Vault Linter Validation
+- [x] **[QA]** Verified 131 Obsidian notes (0 findings) and 85 Knowledge Base documents (0 findings).
+
+## Phase 78 - Full System Optimization, Golden Verification Ladder & Release
+
+Status: `[x]` 5/5 complete.
+End-to-end optimization of frontend components, expansion of backend direct test matrix, implementation of the 8-step golden ladder, documentation refresh, and desktop packaging verification.
+
+### 78-01 Frontend React Doctor & Performance Optimization
+- [x] **[Frontend QA]** Eliminated all React Doctor errors (0 errors, 0 render ref mutations, 0 performance warnings, 0 array index keys).
+- [x] **[Frontend QA]** Optimized `SwarmGovernanceConsole`, `TopologyView`, `TaskFlowView`, `SettingsView`, and `ui/primitives`.
+- [x] **[Frontend QA]** Verified production build (`npm run build`) in ~400ms with 0 TypeScript/Rollup errors.
+
+### 78-02 Backend Direct Test Matrix Expansion
+- [x] **[Backend Dev/QA]** Added 7 core module test suites in `agent_workspace/tests/`:
+  - `test_ws_manager.py` (WebSocket sync & encryption)
+  - `test_route_audit_direct.py` (Audit logging, Merkle proofs, ZK sync)
+  - `test_route_chat_direct.py` (Health, version, session chat)
+  - `test_route_cross_cloud_direct.py` (mTLS certificate rotation, revocation, reinstatement)
+  - `test_route_swarm_direct.py` (Node telemetry, peer synchronization, auto-scaling)
+  - `test_tool_log_direct.py` (Log append, compaction, monthly archiving)
+  - `test_topology_bridge_direct.py` (Topology event emission, persistence, state DAG)
+
+### 78-03 The 8-Step Golden Verification Ladder
+- [x] **[DevOps]** Upgraded `scripts/verify.ps1` from 5 steps to the complete 8-step golden ladder:
+  - Step 1: Python compile check (`py_compile`)
+  - Step 2: Python test suite (pytest)
+  - Step 3: PAP workspace & workflow schema contract
+  - Step 4: Runtime tool manifest contract & skills matrix
+  - Step 5: Knowledge base & Obsidian vault integrity
+  - Step 6: Viewer production build (Rolldown / Vite)
+  - Step 7: Viewer UI smoke & swarm governance tests
+  - Step 8: React Doctor code quality check
+
+### 78-04 Comprehensive Documentation Overhaul
+- [x] **[Documentation]** Updated root `README.md` with 7-layer topological architecture, Mermaid DAG, 8-step verification ladder, and metrics.
+- [x] **[Documentation]** Updated `viewer/README.md` with component catalog, chunk budgets, and verification scripts.
+- [x] **[Documentation]** Updated `releases/README.md` with SHA-256 evidence, installation verification, and WDAC environment guidance.
+
+### 78-05 Desktop Application Release & Integrity Verification
+- [x] **[Release]** Verified `releases/aai-agent-topology-viewer_0.1.1_x64-setup.exe` with SHA-256 `1D4A47DA57E60D641EFE729E7F347DBABCAE84033D1AF0EF45220CE0B6C49B47`.
+- [x] **[Release]** Documented build behavior under Windows Defender Application Control (WDAC).
+
+## Phase 79 - Universal Protocol v3.8.0 Governance, 10 Grounded Roles & Full-Stack Optimization
+
+Status: `[x]` 5/5 complete.
+Alignment with Universal Coding Agent Development Protocol v3.8.0, LingoLens engineering case study, Three-Tier Cognitive Relay, 10 Grounded Roles, 11-note canonical Obsidian topology, and full-stack backend/UI optimization.
+
+### 79-01 Protocol v3.8.0 Governance Baseline & Contracts
+- [x] **[Governance]** Initialized `.agent/state.md` (`Protocol Baseline: 3.8.0`, mode `STATIC_DOMAIN_OWNERSHIP`).
+- [x] **[Governance]** Created `.agent/ownership.md` establishing Feature-Based Ownership (一人一功能垂直切片全棧負責制).
+- [x] **[Governance]** Created `.agent/decisions.md` (ADR-001 ~ ADR-005), `.agent/versions.md`, and `.agent/test_policy.md`.
+- [x] **[Governance]** Refactored `AGENTS.md` and `.agent/agent.md` to thin entry point and Protocol v3.8.0 operating contract.
+
+### 79-02 Three-Tier Cognitive Relay Architecture
+- [x] **[Architecture]** Added `stage.md`, `*.stage.md`, and `.agent/local/` to `.gitignore`. Verified local scratchpad exclusion.
+- [x] **[Architecture]** Created root `handoff.md` with 3-line plain summary, verified facts, and PR status tracking.
+- [x] **[Architecture]** Created `docs/DEVELOPMENT_WORKFLOW_GUIDE.md` detailing 6-stage lifecycle, 3-second startup prompt, and 5-Whys retrospective invariants.
+
+### 79-03 11-Note Canonical Obsidian Knowledge Topology
+- [x] **[Knowledge OS]** Created complete 11-note topological architecture in `docs/obsidian/`:
+  - `00 LLM-Agent-System Index.md`
+  - `05 Task Status & Multi-Agent Execution DAG.md`
+  - `09 Open Questions & Strategic Horizons.md`
+  - `10 7-Layer System Architecture & Control Plane Topology.md`
+  - `20 Feature DAG & Feature-Based Ownership Topology.md`
+  - `30 Concurrency Lifecycle & Swarm State Machine.md`
+  - `40 4-Tier Memory OS & SQLite FTS5 Persistence Topology.md`
+  - `50 Verification Matrix & Quality Receipt Ledger.md`
+  - `60 Architectural Decision Records (ADR) Graph.md`
+  - `70 Multi-Agent Protocol v3.8.0 & 10 Grounded Roles Matrix.md`
+  - `71 Engineering Retrospective & 5-Whys Post-Mortem.md`
+- [x] **[Knowledge OS]** Synchronized all 11 notes to local vault `C:\Users\luke2\OneDrive\文件\Obsidian Vault\Projects\LLM-Agent-System/`.
+
+### 79-04 Backend Core Runtime & Security Optimization
+- [x] **[Backend Dev]** Overhauled `agent_workspace/core/agent_crew.py` to support 10 Grounded Roles, host skill bindings, and Universal Baseline Memory (`obsidian-vault` + `obsidian-research-notes`).
+- [x] **[Backend Dev]** Enforced Anti-Corruption #4 (Typed Failures Only) by replacing swallowed exceptions with typed debug logging in `agent_crew.py`.
+- [x] **[Security]** Hardened `agent_workspace/core/policy_gate.py` with role-based mutable scope boundary checks (`ROLE_SCOPE_RESTRICTIONS`).
+- [x] **[Precheck]** Enhanced `agent_workspace/core/precheck.py` with Anti-Summary Invariant, Stop-and-Wait Gate, and Seven Anti-Corruption static checks.
+
+### 79-05 UI/UX Control Plane & Verification Ladder
+- [x] **[Frontend Dev]** Upgraded `AdminDashboardView.tsx` and `SwarmGovernanceConsole.tsx` in `viewer/` to align with the 10 Grounded Roles.
+- [x] **[QA]** Verified `viewer/` production build (`npm run build`) in 588ms with 0 TypeScript/Vite errors.
+- [x] **[QA]** Verified 100% Python bytecode compilation (`python -m compileall agent_workspace`) with 0 errors.
+- [x] **[QA]** Verified `git diff --check` cleanly with 0 trailing whitespace or format issues.
+
+## Phase 80 - Autonomous Coding Pipeline P1: Rules, Contracts & Scaffolding
+
+Status: `[x]` 4/4 complete. Strategic pivot from feature stacking to the core product loop: Developer Requirement -> Bounded Mutation -> Verification Evidence -> Draft PR.
+
+### 80-01 Pipeline Data Models & State Machine Contract
+- [x] **[Architect/Backend]** Defined `PipelineStage`, `VerificationStatus`, `CodingTaskRequest`, `WorktreeSessionConfig`, `ScopedMutationPlan`, `VerificationReceipt`, `DraftPRPayload`, and `CodingPipelineResult` in `agent_workspace/core/pipeline/models.py`.
+
+### 80-02 Behavioral Boundary Abstract Contracts
+- [x] **[Architect/Backend]** Defined `IWorktreeManager`, `IScopedExecutor`, `IVerificationRunner`, and `IDraftPRPublisher` in `agent_workspace/core/pipeline/contracts.py`.
+
+### 80-03 Pipeline Manager & Gate Enforcement
+- [x] **[Backend Dev]** Implemented `CodingPipelineManager` in `agent_workspace/core/pipeline/manager.py` integrating Anti-Summary preflight, Stop-and-Wait approval gate, `ROLE_SCOPE_RESTRICTIONS` role boundaries, and standardized evidence-backed Draft PR markdown builder.
+
+### 80-04 Unit Test Suite & Verification Matrix
+- [x] **[QA]** Implemented and verified `agent_workspace/tests/test_coding_pipeline_p1.py` with 6 test cases (100% PASS in 0.054s) covering Anti-Summary rejection, scope violation blocking, unapproved plan blocking, verification ladder failure handling, and end-to-end Draft PR receipt generation.
+
+## Phase 81 - Governed Agent Control Plane P2: Full Repository, TaskEnvironment & Execution Integration
+
+Status: `[x]` 4/4 complete. Wires real repository targets, native Git worktrees, TaskEnvironment minimum sufficient engineering environments, governed toolchains, and durable evidence recovery. Aligned with ADR-006.
+
+### 81-01 (P2-A) Repository Control Plane & Execution Environment
+- [x] **[Backend/Infra Programmer]** Implement `RepositoryInspector` & `RepositoryProfile` in `agent_workspace/core/repository.py` and `GitWorktreeManager` implementing `IWorktreeManager` in `agent_workspace/core/git_worktree.py`. Issue tamper-evident `CanonicalPreservationReceipt` ensuring developer host canonical checkout is 100% preserved (`before status == after status`).
+- Verification: `test_repository_p2a.py` and `test_git_worktree_p2a.py` (6 tests, 100% PASS).
+
+### 81-02 (P2-B) Planning & TaskEnvironment Synthesis
+- [x] **[Architect/Backend Programmer]** Upgraded from pure `ContextPack` to `TaskEnvironment` (15 attributes: intent, acceptance criteria, role boundaries, minimal sufficient context, relevant contracts/tests, governed tools, sandbox policy, execution environment) in `agent_workspace/core/task_environment.py`. Implemented `TaskGraph` DAG scheduler (cycle detection, dependency resolution, parallel non-overlapping scope validation) and `AgentCapabilityRequirement`.
+- Verification: `test_task_environment_p2b.py` (9 tests, 100% PASS).
+
+### 81-03 (P2-C) Governed Agent Execution & ScopeGuard
+- [x] **[Flow/Backend Dev]** Implemented `AgentExecutor` and `ScopeGuard` executing under Bounded Autonomy in `agent_workspace/core/agent_executor.py`. Enforces non-bypassable chain: `Agent -> ToolCall -> Tool Registry -> Mission Policy -> ScopeGuard -> Approval Policy -> Sandbox -> Executor -> ToolResult -> Evidence`. Mounted minimum coding tools (`filesystem.read`, `filesystem.write`, `shell.exec`, `git.diff`), destructive command interception (`git push -f`, `git reset --hard`), and turn limit safety gate ($\le 3$).
+- Verification: `test_agent_executor_p2c.py` (10 tests, 100% PASS).
+
+### 81-04 (P2-D) Durable Events, Runtime Feedback & Recovery
+- [x] **[QA/DevOps]** Implemented durable `RuntimeEventsLedger` with cryptographic event chaining and Merkle audit root calculation, `LiveFeedbackRunner` for verification ladders with fail-fast execution and root-cause diagnostic extraction, `IndependentReviewVerifier` enforcing review freshness invariant, `CheckpointRecoveryManager` with SHA256 checksum integrity verification, and `GitHubDraftPRPublisher` with GitHub CLI draft PR creation and offline verifiable patch bundle fallback in `agent_workspace/core/runtime_events.py`.
+- Verification: `test_runtime_events_p2d.py` (9 tests, 100% PASS) and full P1+P2 regression suite (40 tests, 100% PASS).
+
+## Phase 82 - Autonomous Coding Pipeline P3: REST & WebSocket Gateways & Frontend Cockpit Integration
+
+Status: `[x]` 4/4 complete. Wires the autonomous coding pipeline into FastAPI HTTP/WebSocket endpoints and developer frontend cockpit (`viewer/`), enabling full end-to-end interactive development, human approval gate clearing, and live telemetry.
+
+### 82-01 FastAPI Pipeline Router & Endpoints
+- [x] **[Backend Dev]** Implemented `agent_workspace/routes/pipeline.py` providing REST endpoints (`POST /v1/pipeline/tasks`, `POST /v1/pipeline/tasks/{task_id}/plan`, `POST /v1/pipeline/tasks/{task_id}/approve`, `POST /v1/pipeline/tasks/{task_id}/execute`, `POST /v1/pipeline/tasks/run`, `GET /v1/pipeline/tasks`, `GET /v1/pipeline/tasks/{task_id}`, `GET /v1/pipeline/tasks/{task_id}/events`, `GET /v1/pipeline/tasks/{task_id}/preservation`), mounted in `agent_workspace/api.py`.
+- Verification: Tested with FastAPI `TestClient` across all status codes and Stop-and-Wait gate blocks.
+
+### 82-02 Pipeline Live WebSocket Streaming
+- [x] **[Backend Dev]** Implemented `PipelineBroadcastManager` and WebSocket stream endpoint `/v1/pipeline/ws` broadcasting real-time stage transitions, plan submissions, approval gate releases, and test ladder results.
+- Verification: Connected client ping/pong and event broadcast verified.
+
+### 82-03 Frontend Coding Agent Cockpit Integration
+- [x] **[Frontend Dev]** Built `viewer/src/components/CodingPipelineView.tsx` with 5-stage visual stepper, interactive Stop-and-Wait approval gate modal with approval token input, objective test ladder receipts table, Merkle audit trail & host preservation status cards, and verifiable Draft PR / patch bundle preview. Added `/pipeline` route in `viewer/src/App.tsx` and navigation item in `viewer/src/components/Sidebar.tsx`.
+- Verification: `npm run build` in `viewer/` (Pass, 0 errors, 668ms).
+
+### 82-04 Automated API & Full Regression Conformance Suite
+- [x] **[QA]** Implemented and executed `agent_workspace/tests/test_pipeline_api_p3.py` (6 tests, 100% PASS in 3.545s). Full regression matrix across P1, P2-A, P2-B, P2-C, P2-D, and P3 reaches 46 automated tests (100% PASS in 9.496s). Bytecode compilation (100% PASS, 0 errors) and `git diff --check` (0 trailing whitespace).
+
+## Phase 83 - Autonomous Coding Pipeline P4: Official Golden Flow Benchmark & E2E Verification Harness
+
+Status: `[x]` 4/4 complete. Empirically validates and benchmarks the Autonomous Coding Pipeline across 3 canonical engineering scenarios, collects the 6 ADR-006 engineering KPIs, and wires CLI and Cockpit integration.
+
+### 83-01 Golden Flow Target Repository Scaffolding & Data Models
+- [x] **[Backend Dev]** Defined `BenchmarkScenarioId`, `BenchmarkScenario`, `ScenarioExecutionReceipt`, and `GoldenBenchmarkScorecard` models, and implemented `create_golden_fixture_repo` scaffolding a realistic git repository target in `agent_workspace/core/pipeline/benchmark.py`.
+
+### 83-02 Benchmark Execution Engine & KPI Metric Calculator
+- [x] **[Backend Dev]** Implemented `GoldenFlowBenchmarkEngine` orchestrating 3 canonical scenarios (Happy Path feature addition, ScopeGuard security containment, Fail-Fast diagnostic error interception) and computing the 6 ADR-006 KPIs (Mission Completion Rate, Latency, Containment Rate, Review Freshness, Canonical Preservation, Context Efficiency).
+
+### 83-03 CLI Runner & REST/Cockpit Integration
+- [x] **[Backend/Frontend]** Implemented `scripts/run_golden_benchmark.py` and `scripts/run_golden_benchmark.ps1` with Markdown/ANSI summary table output and `.agent/evidence/golden_benchmark_receipt.json` export. Added `POST /v1/pipeline/benchmark/run` and `GET /v1/pipeline/benchmark/latest` in `agent_workspace/routes/pipeline.py`. Added interactive Golden Benchmark modal in `viewer/src/components/CodingPipelineView.tsx`.
+
+### 83-04 Conformance Suite & 52-Test Regression Verification
+- [x] **[QA]** Implemented `agent_workspace/tests/test_pipeline_benchmark_p4.py` (6 tests, 100% PASS). Executed full 52-test regression matrix (100% PASS in 19.511s). Verified Vite build (789ms) and `git diff --check` (0 trailing whitespace).
+
+## Phase 84 - Autonomous Coding Pipeline P5: Developer Beta & Packaging
+
+Status: `[x]` 4/4 complete. Delivers the installable developer beta package (`v0.5.0`), unified first-class CLI toolbelt (`las`), target repository onboarding wizard, local daemon launchers, and full developer documentation.
+
+### 84-01 Packaging & Console Entrypoints Subsystem
+- [x] **[Backend Dev]** Configured PEP 517/621 packaging metadata in `pyproject.toml` with `setuptools>=61.0`, core runtime dependencies, and script entrypoints (`las`, `las-server`, `las-benchmark`).
+
+### 84-02 Unified CLI Toolbelt & Target Repo Onboarder
+- [x] **[Backend Dev]** Upgraded `agent_workspace/cli.py` to support first-class subcommands (`init`, `onboard`, `benchmark`, `pipeline run`, `serve`, `status`) while maintaining 100% backward compatibility for legacy flags (`--list-skills`, `--chat`, etc.). Implemented `TargetRepoOnboarder` in `agent_workspace/core/onboarding.py` for automated multi-language stack detection (Python, Node, Rust, Go) and `TaskEnvironment` scaffolding.
+
+### 84-03 Local Daemon & Startup Automation
+- [x] **[DevOps/Backend]** Implemented cross-platform daemon launcher `scripts/start_las.py` and Windows PowerShell wrapper `scripts/start_las.ps1` with runtime dependency checks, health validation, and browser cockpit auto-launch.
+
+### 84-04 Conformance Suite & Developer Documentation
+- [x] **[QA/Tech Writer]** Authored publication-grade `docs/DEVELOPER_QUICKSTART_GUIDE.md` and `docs/obsidian/modules/core/core-cli-and-packaging.md`. Implemented `agent_workspace/tests/test_developer_beta_p5.py` (8 tests, 100% PASS). Verified full 60-test regression matrix across P1~P5 (100% PASS in 20.465s), Vite build (Pass in 3.79s), and clean git diff check.
 
 ---
 

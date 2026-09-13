@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Modal } from "./Modal";
 import { Button, MetricTile, StatusBadge, Surface } from "./ui/primitives";
+import { Folder, ChevronRight, ChevronDown, Sparkles, Search, Trash2, Pencil } from "./ui/icons";
 import type { TranslationMessages } from "../types";
 
 type LongTermMemoryViewProps = {
@@ -139,24 +140,28 @@ function useLongTermMemoryController({ t, lang }: LongTermMemoryViewProps) {
   const host = API_BASE_URL;
 
   // Fetch memory records
-  async function fetchRecords() {
+  const fetchRecords = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
     try {
-      const resp = await fetch(`${host}/v1/memory`);
+      const resp = await fetch(`${host}/v1/memory`, { signal });
       if (!resp.ok) throw new Error("Failed to fetch memory records");
       const data = await resp.json();
       setRecords(data.records || []);
       setError(null);
     } catch (err: any) {
-      setError(err.message || "Unknown error occurred");
+      if (err.name !== "AbortError") {
+        setError(err.message || "Unknown error occurred");
+      }
     } finally {
       setLoading(false);
     }
-  }
+  }, [host]);
 
   useEffect(() => {
-    fetchRecords();
-  }, []);
+    const controller = new AbortController();
+    fetchRecords(controller.signal);
+    return () => controller.abort();
+  }, [fetchRecords]);
 
   // Helpers to get all categories and count records inside
   const categoriesList = Array.from(new Set(records.map(r => r.category || "general")));
@@ -304,13 +309,15 @@ function useLongTermMemoryController({ t, lang }: LongTermMemoryViewProps) {
     }
 
     try {
-      for (const item of keysArray) {
-        await fetch(`${host}/v1/memory/${item.session_id}/${item.key}`, {
-          method: "DELETE",
-        });
-      }
+      await Promise.all(
+        keysArray.map(item =>
+          fetch(`${host}/v1/memory/${item.session_id}/${item.key}`, {
+            method: "DELETE",
+          })
+        )
+      );
       setSelectedKeys({});
-      fetchRecords();
+      await fetchRecords();
     } catch (err: any) {
       alert(`${ui.errorAlert}: ${err.message}`);
     }
@@ -432,14 +439,14 @@ function useLongTermMemoryController({ t, lang }: LongTermMemoryViewProps) {
                   setExpandedFolders(prev => ({ ...prev, [node.path]: !prev[node.path] }));
                 }}
               >
-                {hasChildren ? (isExpanded ? "▼" : "▶") : ""}
+                {hasChildren ? (isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />) : null}
               </button>
               <button
                 type="button"
                 className="flex min-w-0 items-center gap-1.5 border-0 bg-transparent p-0 text-left"
                 onClick={() => setSelectedCategoryPath(node.path)}
               >
-                <span className="text-[12px] opacity-75">📁</span>
+                <Folder className="h-3.5 w-3.5 opacity-75 shrink-0" />
                 <span className="truncate">{node.name}</span>
               </button>
             </div>
@@ -587,7 +594,7 @@ function LongTermMemoryHeader({
       </div>
       <div className="flex items-center gap-3">
         <Button type="button" variant="quiet" onClick={handlePrune} className="border border-neutral-700">
-          🧹 {ui.pruneBtn}
+          <span className="flex items-center gap-1.5"><Sparkles className="h-3.5 w-3.5 text-amber-400" /><span>{ui.pruneBtn}</span></span>
         </Button>
         <Button type="button" variant="primary" onClick={() => openAddModal("general")}>
           {ui.addMemoryBtn}
@@ -681,7 +688,7 @@ function MemoryRecordsPanel({
             placeholder={ui.searchPlaceholder}
             className="field-input w-full pl-8 pr-3 py-1.5 text-xs rounded-lg"
           />
-          <span className="absolute left-2.5 top-2 text-[10px] opacity-40">🔍</span>
+          <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 opacity-40" />
         </div>
 
         <select
@@ -704,10 +711,10 @@ function MemoryRecordsPanel({
           </span>
           <div className="flex items-center gap-2">
             <Button type="button" variant="quiet" onClick={() => setBatchMoveOpen(true)} className="border border-neutral-700">
-              📁 {ui.batchMove}
+              <span className="flex items-center gap-1.5"><Folder className="h-3.5 w-3.5" /><span>{ui.batchMove}</span></span>
             </Button>
             <Button type="button" variant="danger" onClick={handleBatchDelete}>
-              🗑️ {ui.batchDelete}
+              <span className="flex items-center gap-1.5"><Trash2 className="h-3.5 w-3.5" /><span>{ui.batchDelete}</span></span>
             </Button>
           </div>
         </div>
@@ -778,7 +785,7 @@ function MemoryRecordCard({
   if (record.domain === "preference") badgeTone = "warning";
 
   return (
-    <Surface className="flex gap-4 p-4 border border-neutral-800/80 hover:border-neutral-700/80 transition-all">
+    <Surface className="flex gap-4 p-4 border border-neutral-800/80 hover:border-neutral-700/80 transition-colors">
       <div className="pt-0.5 flex-shrink-0">
         <input
           aria-label={`Select memory record ${record.id}`}
@@ -828,11 +835,11 @@ function MemoryRecordCard({
       <div className="flex flex-col gap-2 justify-start flex-shrink-0">
         {record.domain !== "episodic" && (
           <Button type="button" variant="quiet" aria-label={`Edit memory record ${record.id}`} onClick={() => onEdit(record)} className="px-2 py-1 text-[10px] hover:text-white">
-            ✏️
+            <Pencil className="h-3 w-3" />
           </Button>
         )}
         <Button type="button" variant="quiet" aria-label={`Delete memory record ${record.id}`} onClick={() => onDelete(record)} className="px-2 py-1 text-[10px] hover:text-red-400">
-          🗑️
+          <Trash2 className="h-3 w-3 text-red-400" />
         </Button>
       </div>
     </Surface>
@@ -1055,7 +1062,6 @@ function MemoryBatchMoveModal({
           onChange={e => setNewBatchCategory(e.target.value)}
           placeholder="e.g. user/preferences/hobbies"
           className="field-input w-full rounded-lg p-2 text-xs"
-          autoFocus
         />
       </div>
     </Modal>

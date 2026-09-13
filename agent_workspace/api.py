@@ -247,7 +247,7 @@ async def metrics_middleware(request: Request, call_next):
     """Record request count, latency, and errors for every endpoint."""
     endpoint = request.url.path
     start = time.perf_counter()
-    
+
     tenant_id = "default_tenant"
     try:
         x_api_key = request.headers.get("x-api-key")
@@ -313,7 +313,7 @@ async def rate_limiting_middleware(request: Request, call_next):
                 status_code=429,
                 content={"detail": "Rate limit exceeded. Too many requests."}
             )
-            
+
         try:
             am = get_account_manager()
             active_acc = am.get_active_account()
@@ -331,7 +331,7 @@ async def rate_limiting_middleware(request: Request, call_next):
                         )
         except Exception:
             return JSONResponse(status_code=503, content={"detail": "Quota state unavailable."})
-            
+
     return await call_next(request)
 
 
@@ -350,6 +350,7 @@ from agent_workspace.routes.audit import router as audit_router
 from agent_workspace.routes.chat import router as chat_router, protected_router as chat_protected_router
 from agent_workspace.routes.collaboration import router as collab_router
 from agent_workspace.routes.admin import router as admin_router
+from agent_workspace.routes.pipeline import router as pipeline_router
 from agent_workspace.routes.missions import router as missions_router
 from agent_workspace.routes.system import router as system_router
 
@@ -360,6 +361,7 @@ app.include_router(chat_router)
 app.include_router(chat_protected_router)
 app.include_router(collab_router)
 app.include_router(admin_router)
+app.include_router(pipeline_router)
 app.include_router(missions_router)
 app.include_router(system_router)
 

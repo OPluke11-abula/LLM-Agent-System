@@ -12,7 +12,7 @@ export function SettingsDocsPanel({ t }: SettingsDocsPanelProps) {
         <p className="mb-4 text-[10px] font-bold uppercase tracking-widest t3">{t.howItWorks}</p>
         <div className="grid gap-3">
           {t.howSteps.map((step, index) => (
-            <Surface key={`${step.title}-${index}`} className="flex gap-4 p-4">
+            <Surface key={`how-step-${step.title}`} className="flex gap-4 p-4">
               <div
                 className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-xs font-black text-white"
                 style={{ background: "var(--accent)", boxShadow: "0 4px 12px var(--accent-bg)" }}
@@ -32,7 +32,7 @@ export function SettingsDocsPanel({ t }: SettingsDocsPanelProps) {
         <p className="mb-4 text-[10px] font-bold uppercase tracking-widest t3">{t.opManual}</p>
         <div className="grid gap-3">
           {t.opSteps.map((step, index) => (
-            <Surface key={`${step.title}-${index}`} className="flex gap-4 p-4">
+            <Surface key={`op-step-${step.title}`} className="flex gap-4 p-4">
               <div
                 className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-xs font-black text-white"
                 style={{ background: "var(--t3)" }}

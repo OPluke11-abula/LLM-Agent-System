@@ -1,6 +1,6 @@
 # LAS Knowledge Inventory - Latest
 
-Generated: 2026-07-04
+Generated: 2026-09-08
 
 This inventory is generated from compact metadata only. It does not store full note bodies.
 
@@ -103,6 +103,14 @@ This inventory is generated from compact metadata only. It does not store full n
 - Links: (none)
 - Search cues: exports, knowledge-index-repair-flow-report-2026-07-03, knowledge, index, repair, flow, report, 2026-07-03
 
+### exports/notebooklm-source-manifest.md
+
+- Type: export
+- Title: NotebookLM Source Manifest
+- Headings: NotebookLM Source Manifest; Purpose; Approved Starting Sources; Do Not Import; Notebook Blueprint; Import Verification
+- Links: (none)
+- Search cues: exports, notebooklm-source-manifest, notebooklm, source, manifest, purpose, approved, starting, sources
+
 ### exports/obsidian-log-link-repair-flow-report-2026-07-03.md
 
 - Type: export
@@ -143,6 +151,30 @@ This inventory is generated from compact metadata only. It does not store full n
 - Links: (none)
 - Search cues: exports, obsidian-vault-os-brief-for-las, obsidian, vault, brief, las, summary, transferable
 
+### exports/phase-67-design-critique-flow-report-2026-07-07.md
+
+- Type: export
+- Title: Phase 67 Design Critique
+- Headings: Phase 67 Design Critique; Scope; Art Direction; What Feels Vibe-Coded; Composition Fixes; Design Packet Needed; Implementation Risks; Next Design-First Tasks; Changed On Disk; Verification Notes
+- Links: (none)
+- Search cues: exports, phase-67-design-critique-flow-report-2026-07-07, phase, design, critique, scope, art, direction, what
+
+### exports/phase-71-las-viewer-art-direction-packet-2026-07-07.md
+
+- Type: export
+- Title: Phase 71 LAS Viewer Art Direction Packet
+- Headings: Phase 71 LAS Viewer Art Direction Packet; Purpose; Audience; Emotional Target; Product Metaphor; Visual Personality; Typography Posture; Color Story; Material Language; Density Model
+- Links: (none)
+- Search cues: exports, phase-71-las-viewer-art-direction-packet-2026-07-07, phase, las, viewer, art, direction, packet
+
+### exports/phase-71-screen-composition-studies-2026-07-07.md
+
+- Type: export
+- Title: Phase 71 Screen-by-Screen Composition Studies
+- Headings: Phase 71 Screen-by-Screen Composition Studies; Purpose; Evidence Reviewed; Global Composition System; Mission Control; Role; First-Viewport Hierarchy; Focal Object; Scan Path; Information Density
+- Links: (none)
+- Search cues: exports, phase-71-screen-composition-studies-2026-07-07, phase, screen-by-screen, composition, studies, purpose, evidence
+
 ### exports/preflight-adoption-guide-flow-report-2026-07-03.md
 
 - Type: export
@@ -150,6 +182,14 @@ This inventory is generated from compact metadata only. It does not store full n
 - Headings: Preflight Adoption Guide Flow Report - 2026-07-03; Summary; LAS Files Created; LAS Files Updated; Obsidian Mirror; Not Changed; Verification; Related Notes
 - Links: ../workflows/preflight-adoption-guide; ../workflows/agent-start-preflight; ../workflows/context-pack-validation; ../known-issues/memory-must-not-replace-verification
 - Search cues: exports, preflight-adoption-guide-flow-report-2026-07-03, preflight, adoption, guide, flow, report, 2026-07-03
+
+### exports/release-0.1.1-five-core-rules-review-2026-07-12.md
+
+- Type: export
+- Title: Release 0.1.1 Five Core Rules Review
+- Headings: Release 0.1.1 Five Core Rules Review; Result; Rule 1: Keep Runtime Core Separate; Rule 2: Keep Runtime Skills and PAP Contracts in Parity; Rule 3: Prefer Structural Lookup; Rule 4: Keep Context Compact; Rule 5: Verify Before Claiming Success; Deferred and Local-Only Items
+- Links: (none)
+- Search cues: exports, release-0, 1-five-core-rules-review-2026-07-12, release, five, core, rules, review
 
 ### exports/semantic-retrieval-pilot-plan.md
 
@@ -166,78 +206,6 @@ This inventory is generated from compact metadata only. It does not store full n
 - Headings: Session Journal Flow Report - 2026-07-03; Summary; LAS Files Created; LAS Files Updated; Obsidian Mirror; Not Changed; Verification; Related Notes
 - Links: ../workflows/session-journal; ../handoffs/session-journal-2026-07-03-obsidian-las-workflows; ../workflows/handoff; ../workflows/evidence-capture
 - Search cues: exports, session-journal-flow-report-2026-07-03, session, journal, flow, report, 2026-07-03
-
-### handoffs/agent-start-preflight-latest-context-pack-validation.md
-
-- Type: handoff
-- Title: Context Pack - context pack validation
-- Headings: Context Pack - context pack validation; Query; Inventory; Read Order; Candidate Details; workflows/context-pack-validation.md; handoffs/agent-start-preflight-latest-context-pack-validation.md; exports/context-pack-validation-flow-report-2026-07-03.md; workflows/context-pack-builder.md; handoffs/context-pack-latest-inventory-refresh.md
-- Links: (none)
-- Search cues: handoffs, agent-start-preflight-latest-context-pack-validation, context, pack, validation
-
-### handoffs/agent-start-preflight-latest-explicit-kb-commit-package-dry-run.md
-
-- Type: handoff
-- Title: Context Pack - explicit kb commit package dry run
-- Headings: Context Pack - explicit kb commit package dry run; Query; Inventory; Read Order; Candidate Details; workflows/explicit-kb-commit-package-dry-run.md; exports/explicit-kb-commit-package-dry-run-report-2026-07-04.md; workflows/knowledge-base-git-hygiene.md; workflows/agent-start-preflight.md; workflows/context-pack-builder.md
-- Links: (none)
-- Search cues: handoffs, agent-start-preflight-latest-explicit-kb-commit-package-dry-run, context, pack, explicit, commit, package, dry, run
-
-### handoffs/agent-start-preflight-latest-index-repair.md
-
-- Type: handoff
-- Title: Context Pack - index repair
-- Headings: Context Pack - index repair; Query; Inventory; Read Order; Candidate Details; workflows/knowledge-index-repair.md; handoffs/agent-start-preflight-latest-index-repair.md; exports/knowledge-index-repair-flow-report-2026-07-03.md; workflows/maintenance.md; workflows/agent-start-preflight.md
-- Links: (none)
-- Search cues: handoffs, agent-start-preflight-latest-index-repair, context, pack, index, repair, query, inventory
-
-### handoffs/agent-start-preflight-latest-knowledge-base-git-hygiene.md
-
-- Type: handoff
-- Title: Context Pack - knowledge base git hygiene
-- Headings: Context Pack - knowledge base git hygiene; Query; Inventory; Read Order; Candidate Details; workflows/knowledge-base-git-hygiene.md; exports/knowledge-base-git-hygiene-flow-report-2026-07-04.md; evidence/2026-07-03-git-status-knowledge-base-sync.md; workflows/knowledge-base-health-audit.md; exports/knowledge-base-health-audit-flow-report-2026-07-03.md
-- Links: (none)
-- Search cues: handoffs, agent-start-preflight-latest-knowledge-base-git-hygiene, context, pack, knowledge, base, git, hygiene
-
-### handoffs/agent-start-preflight-latest-obsidian-log-link-repair.md
-
-- Type: handoff
-- Title: Context Pack - obsidian log link repair
-- Headings: Context Pack - obsidian log link repair; Query; Inventory; Read Order; Candidate Details; workflows/obsidian-log-link-repair.md; exports/obsidian-log-link-repair-flow-report-2026-07-03.md; workflows/obsidian-mirror-index-repair.md; handoffs/agent-start-preflight-latest-obsidian-mirror-index-repair.md; exports/obsidian-mirror-index-repair-flow-report-2026-07-03.md
-- Links: (none)
-- Search cues: handoffs, agent-start-preflight-latest-obsidian-log-link-repair, context, pack, obsidian, log, link, repair
-
-### handoffs/agent-start-preflight-latest-obsidian-mirror-index-repair.md
-
-- Type: handoff
-- Title: Context Pack - obsidian mirror index repair
-- Headings: Context Pack - obsidian mirror index repair; Query; Inventory; Read Order; Candidate Details; workflows/obsidian-mirror-index-repair.md; exports/obsidian-mirror-index-repair-flow-report-2026-07-03.md; workflows/knowledge-index-repair.md; handoffs/agent-start-preflight-latest-index-repair.md; exports/knowledge-index-repair-flow-report-2026-07-03.md
-- Links: (none)
-- Search cues: handoffs, agent-start-preflight-latest-obsidian-mirror-index-repair, context, pack, obsidian, mirror, index, repair
-
-### handoffs/agent-start-preflight-latest-obsidian-root-scratch-triage.md
-
-- Type: handoff
-- Title: Context Pack - obsidian root scratch triage
-- Headings: Context Pack - obsidian root scratch triage; Query; Inventory; Read Order; Candidate Details; workflows/obsidian-root-scratch-triage.md; exports/obsidian-root-scratch-triage-flow-report-2026-07-04.md; workflows/obsidian-log-link-repair.md; workflows/obsidian-mirror-index-repair.md; workflows/obsidian-vault-health-audit.md
-- Links: (none)
-- Search cues: handoffs, agent-start-preflight-latest-obsidian-root-scratch-triage, context, pack, obsidian, root, scratch, triage
-
-### handoffs/agent-start-preflight-latest-obsidian-vault-health-audit.md
-
-- Type: handoff
-- Title: Context Pack - obsidian vault health audit
-- Headings: Context Pack - obsidian vault health audit; Query; Inventory; Read Order; Candidate Details; workflows/obsidian-vault-health-audit.md; exports/obsidian-vault-health-audit-flow-report-2026-07-03.md; workflows/knowledge-base-health-audit.md; exports/knowledge-base-health-audit-flow-report-2026-07-03.md; exports/obsidian-vault-os-brief-for-las.md
-- Links: (none)
-- Search cues: handoffs, agent-start-preflight-latest-obsidian-vault-health-audit, context, pack, obsidian, vault, health, audit
-
-### handoffs/agent-start-preflight-latest-preflight-adoption-guide.md
-
-- Type: handoff
-- Title: Context Pack - preflight adoption guide
-- Headings: Context Pack - preflight adoption guide; Query; Inventory; Read Order; Candidate Details; exports/agent-start-preflight-flow-report-2026-07-03.md; workflows/agent-start-preflight.md; Verification Needed; Not Included
-- Links: (none)
-- Search cues: handoffs, agent-start-preflight-latest-preflight-adoption-guide, context, pack, preflight, adoption, guide
 
 ### handoffs/context-pack-latest-inventory-refresh.md
 
@@ -259,7 +227,7 @@ This inventory is generated from compact metadata only. It does not store full n
 
 - Type: router
 - Title: LAS Agent Knowledge Index
-- Headings: LAS Agent Knowledge Index; Purpose; Start Here; Project Intakes; Workflows; Decisions; Known Issues; Handoffs; Evidence; Indexes
+- Headings: LAS Agent Knowledge Index; Purpose; Start Here; Project Intakes; Workflows; Wiki; Templates; Decisions; Known Issues; Handoffs
 - Links: projects/LLM-Agent-System; known-issues/memory-must-not-replace-verification; workflows/project-intake; workflows/query-memory; workflows/handoff; workflows/maintenance; workflows/semantic-retrieval-pilot; workflows/session-journal; workflows/local-knowledge-inventory; workflows/knowledge-inventory-refresh; workflows/inventory-backed-query; workflows/context-pack-builder
 - Search cues: index, las, agent, knowledge, purpose, start, here
 
@@ -283,17 +251,65 @@ This inventory is generated from compact metadata only. It does not store full n
 
 - Type: audit_log
 - Title: LAS Agent Knowledge Log
-- Headings: LAS Agent Knowledge Log; 2026-07-04; 2026-07-03
-- Links: workflows/explicit-kb-commit-package-dry-run; exports/explicit-kb-commit-package-dry-run-report-2026-07-04; workflows/knowledge-base-git-hygiene; exports/knowledge-base-git-hygiene-flow-report-2026-07-04; workflows/obsidian-root-scratch-triage; exports/obsidian-root-scratch-triage-flow-report-2026-07-04; handoffs/agent-start-preflight-latest-obsidian-root-scratch-triage; workflows/preflight-adoption-guide; workflows/evidence-capture; evidence/2026-07-03-git-status-knowledge-base-sync; workflows/semantic-retrieval-pilot; exports/semantic-retrieval-pilot-plan
-- Search cues: log, las, agent, knowledge, 2026-07-04, 2026-07-03, workflows
+- Headings: LAS Agent Knowledge Log; 2026-09-08; 2026-07-12; 2026-07-11; 2026-07-11; 2026-07-10; 2026-07-09; 2026-07-04; 2026-07-03
+- Links: exports/release-0.1.1-five-core-rules-review-2026-07-12; workflows/token-efficient-rollout; workflows/independent-design-review-gate; templates/design-review-report; workflows/visual-asset-illustration-pipeline; workflows/handoff-first-long-session; workflows/verification-profiles; workflows/structural-lookup-first; workflows/token-efficient-work-mode; workflows/agent-report-contract; templates/agent-report; workflows/code-graph-bridge
+- Search cues: log, las, agent, knowledge, 2026-09-08, 2026-07-12, 2026-07-11
 
 ### projects/LLM-Agent-System.md
 
 - Type: project
 - Title: LLM Agent System
-- Headings: LLM Agent System; Summary; Snapshot From Obsidian Intake; Start Here; Architecture Pointers; High-Value Symbols; Route Pointers; Common Commands; Verification Policy; Related Notes
-- Links: ../index; ../known-issues/memory-must-not-replace-verification; ../workflows/project-intake
-- Search cues: projects, llm-agent-system, llm, agent, system, summary, snapshot, obsidian, intake
+- Headings: LLM Agent System; Summary; Live Intake Snapshot; Start Here; Runtime Snapshot; Main Source Areas; Runtime Entrypoints; Architecture Pointers; High-Value Symbols; Code Graph Bridge
+- Links: ../workflows/code-graph-bridge; ../index; ../known-issues/memory-must-not-replace-verification; ../workflows/project-intake
+- Search cues: projects, llm-agent-system, llm, agent, system, summary, live, intake, snapshot
+
+### templates/agent-report.md
+
+- Type: template
+- Title: Agent Report Template
+- Headings: Agent Report Template; Changed On Disk; Verified; Not Verified; Memory Used; Decisions; Next
+- Links: (none)
+- Search cues: templates, agent-report, agent, report, template, changed, disk, verified, not
+
+### templates/design-review-report.md
+
+- Type: template
+- Title: Independent Design Review Report
+- Headings: Independent Design Review Report; Review Identity; Evidence Reviewed; Rubric; Gate Decision; Findings Converted to Tasks; Changed On Disk; Verified; Not Verified; Decisions
+- Links: (none)
+- Search cues: templates, design-review-report, independent, design, review, report, identity
+
+### templates/evidence-memory-summary.md
+
+- Type: template
+- Title: Evidence Memory Summary Template
+- Headings: Evidence Memory Summary Template; Claim; Canonical Evidence; Compact Summary; Citation Map; Verified Now; Caveats; Related Notes
+- Links: (none)
+- Search cues: templates, evidence-memory-summary, evidence, memory, summary, template, claim, canonical
+
+### templates/handoff-report.md
+
+- Type: template
+- Title: Handoff Report Template
+- Headings: Handoff Report Template; Goal and Scope; Current State; Changed On Disk; Verified; Not Verified; Memory Notes; Decisions; Unresolved Risks; Next Agent Should Read
+- Links: (none)
+- Search cues: templates, handoff-report, handoff, report, template, goal, scope, current, state
+
+### templates/query-memory-report.md
+
+- Type: template
+- Title: Query Memory Report Template
+- Headings: Query Memory Report Template; Query; Memory-Derived; Verified Now; Not Verified; Next Checks; Answer Draft
+- Links: (none)
+- Search cues: templates, query-memory-report, query, memory, report, template, memory-derived
+
+### workflows/agent-report-contract.md
+
+- Type: workflow
+- Title: Agent Report Contract
+- Headings: Agent Report Contract; Purpose; PAP Workflow Manifest; Required Sections; Section Rules; Related Notes
+- Links: ../templates/agent-report; query-memory; evidence-capture; handoff
+- Search cues: workflows, agent-report-contract, agent, report, contract, purpose, pap, manifest, required
 
 ### workflows/agent-start-preflight.md
 
@@ -302,6 +318,22 @@ This inventory is generated from compact metadata only. It does not store full n
 - Headings: Agent Start Preflight Workflow; Purpose; Script; Procedure; Output Contract; Safety; Related Notes
 - Links: ../index; context-pack-builder; context-pack-validation; inventory-backed-query; ../known-issues/memory-must-not-replace-verification
 - Search cues: workflows, agent-start-preflight, agent, start, preflight, purpose, script, procedure, output
+
+### workflows/code-graph-bridge.md
+
+- Type: workflow
+- Title: Code Graph Bridge Workflow
+- Headings: Code Graph Bridge Workflow; Purpose; Bounded Pointers; Before Editing; Refresh Rule; Related Notes
+- Links: ../projects/LLM-Agent-System; project-intake; query-memory; maintenance
+- Search cues: workflows, code-graph-bridge, code, graph, bridge, purpose, bounded, pointers, before
+
+### workflows/context-budget-preflight.md
+
+- Type: workflow
+- Title: Context Budget Preflight Workflow
+- Headings: Context Budget Preflight Workflow; Purpose; API; Interpretation; Verification; Related Notes
+- Links: ../templates/agent-report; token-efficient-work-mode; evidence-memory-bridge; code-graph-bridge; agent-report-contract
+- Search cues: workflows, context-budget-preflight, context, budget, preflight, purpose, api, interpretation, verification
 
 ### workflows/context-pack-builder.md
 
@@ -327,6 +359,14 @@ This inventory is generated from compact metadata only. It does not store full n
 - Links: ../index; query-memory; handoff; ../known-issues/memory-must-not-replace-verification
 - Search cues: workflows, evidence-capture, evidence, capture, purpose, core, rule, output, shape
 
+### workflows/evidence-memory-bridge.md
+
+- Type: workflow
+- Title: Evidence Memory Bridge Workflow
+- Headings: Evidence Memory Bridge Workflow; Purpose; Boundary; When To Use; Procedure; Citation Rules; Related Notes
+- Links: evidence-capture; ../templates/evidence-memory-summary; query-memory; maintenance
+- Search cues: workflows, evidence-memory-bridge, evidence, memory, bridge, purpose, boundary, when, use
+
 ### workflows/explicit-kb-commit-package-dry-run.md
 
 - Type: workflow
@@ -339,9 +379,25 @@ This inventory is generated from compact metadata only. It does not store full n
 
 - Type: workflow
 - Title: Handoff Workflow
-- Headings: Handoff Workflow; Purpose; Required Sections; Procedure; Quality Bar; Related Notes
-- Links: query-memory; maintenance
-- Search cues: workflows, handoff, purpose, required, sections, procedure, quality, bar, related, query-memory
+- Headings: Handoff Workflow; Purpose; Required Sections; Procedure; Report Template; Section Rules; Quality Bar; Related Notes
+- Links: query-memory; ../templates/handoff-report; maintenance
+- Search cues: workflows, handoff, purpose, required, sections, procedure, report, template, section, rules
+
+### workflows/handoff-first-long-session.md
+
+- Type: workflow
+- Title: Handoff-First Long Session Gate
+- Headings: Handoff-First Long Session Gate; Purpose; Signals; Procedure; Evidence Contract; Related Notes
+- Links: handoff; ../templates/handoff-report; context-budget-preflight; token-efficient-work-mode; verification-profiles
+- Search cues: workflows, handoff-first-long-session, handoff-first, long, session, gate, purpose, signals
+
+### workflows/independent-design-review-gate.md
+
+- Type: workflow
+- Title: Independent Design Review Gate
+- Headings: Independent Design Review Gate; Purpose; Independence Rule; Required Evidence; Scoring Scale; Weighted Rubric; Gate Decision; Finding-to-Task Contract; Procedure; Review Boundaries
+- Links: ../templates/design-review-report; visual-reference-moodboard; visual-asset-illustration-pipeline; ../exports/phase-71-las-viewer-art-direction-packet-2026-07-07; ../exports/phase-71-screen-composition-studies-2026-07-07
+- Search cues: workflows, independent-design-review-gate, independent, design, review, gate, purpose, independence
 
 ### workflows/inventory-backed-query.md
 
@@ -403,9 +459,9 @@ This inventory is generated from compact metadata only. It does not store full n
 
 - Type: workflow
 - Title: Maintenance Workflow
-- Headings: Maintenance Workflow; Purpose; Checks; Modification Policy; Related Notes
+- Headings: Maintenance Workflow; Purpose; Checks; Command; Modification Policy; Related Notes
 - Links: ../index; ../known-issues/memory-must-not-replace-verification
-- Search cues: workflows, maintenance, purpose, checks, modification, policy, related, index, known-issues, memory-must-not-replace-verification
+- Search cues: workflows, maintenance, purpose, checks, command, modification, policy, related, index, known-issues
 
 ### workflows/obsidian-log-link-repair.md
 
@@ -459,8 +515,8 @@ This inventory is generated from compact metadata only. It does not store full n
 
 - Type: workflow
 - Title: Query Memory Workflow
-- Headings: Query Memory Workflow; Purpose; Procedure; Answer Contract; Memory-Derived; Verified Now; Not Verified; Next; Live Verification Triggers; Related Notes
-- Links: ../known-issues/memory-must-not-replace-verification; project-intake
+- Headings: Query Memory Workflow; Purpose; Procedure; Answer Contract; Memory-Derived; Verified Now; Not Verified; Next Checks; Report Template; Live Verification Triggers
+- Links: ../templates/query-memory-report; ../known-issues/memory-must-not-replace-verification; project-intake
 - Search cues: workflows, query-memory, query, memory, purpose, procedure, answer, contract, memory-derived, verified
 
 ### workflows/semantic-retrieval-pilot.md
@@ -478,3 +534,51 @@ This inventory is generated from compact metadata only. It does not store full n
 - Headings: Session Journal Workflow; Purpose; Relationship To Handoffs; Output Shape; Required Sections; Procedure; Quality Bar; Related Notes
 - Links: ../index; handoff; evidence-capture; semantic-retrieval-pilot; ../known-issues/memory-must-not-replace-verification
 - Search cues: workflows, session-journal, session, journal, purpose, relationship, handoffs, output, shape, required
+
+### workflows/structural-lookup-first.md
+
+- Type: workflow
+- Title: Structural Lookup First Workflow
+- Headings: Structural Lookup First Workflow; Purpose; Lookup Order; Broad-Read Justification; Evidence Contract; Verification; Related Notes
+- Links: ../projects/LLM-Agent-System; maintenance; code-graph-bridge; query-memory
+- Search cues: workflows, structural-lookup-first, structural, lookup, first, purpose, order, broad-read
+
+### workflows/token-efficient-rollout.md
+
+- Type: workflow
+- Title: Token-Efficient Mode Advisory Rollout
+- Headings: Token-Efficient Mode Advisory Rollout; Purpose; Governance Matrix; Rollout Controls; Verification; Related Notes
+- Links: structural-lookup-first; verification-profiles; handoff-first-long-session; token-efficient-work-mode; context-budget-preflight
+- Search cues: workflows, token-efficient-rollout, token-efficient, mode, advisory, rollout, purpose, governance
+
+### workflows/token-efficient-work-mode.md
+
+- Type: workflow
+- Title: Token-Efficient Work Mode Policy
+- Headings: Token-Efficient Work Mode Policy; Purpose; Mode Selection; Retrieval Rules; Verification Ladder; Screenshot Policy; Escalation Rules; Related Notes
+- Links: agent-report-contract; query-memory; code-graph-bridge; ../known-issues/memory-must-not-replace-verification
+- Search cues: workflows, token-efficient-work-mode, token-efficient, work, mode, policy, purpose
+
+### workflows/verification-profiles.md
+
+- Type: workflow
+- Title: Layered Verification Profiles
+- Headings: Layered Verification Profiles; Purpose; Profiles; Selection Rules; Evidence Contract; Related Notes
+- Links: agent-report-contract; token-efficient-work-mode; maintenance
+- Search cues: workflows, verification-profiles, layered, verification, profiles, purpose, selection, rules
+
+### workflows/visual-asset-illustration-pipeline.md
+
+- Type: workflow
+- Title: Visual Asset and Illustration Pipeline
+- Headings: Visual Asset and Illustration Pipeline; Purpose; Asset Choice Gate; Production Record; Local Storage and Naming; Accessibility Contract; Responsive Framing and Cropping; Optimization Gate; Screenshot Verification Gate; Handoff Checklist
+- Links: visual-reference-moodboard; ../exports/phase-71-las-viewer-art-direction-packet-2026-07-07; ../exports/phase-71-screen-composition-studies-2026-07-07
+- Search cues: workflows, visual-asset-illustration-pipeline, visual, asset, illustration, pipeline, purpose
+
+### workflows/visual-reference-moodboard.md
+
+- Type: workflow
+- Title: Visual Reference and Moodboard Workflow
+- Headings: Visual Reference and Moodboard Workflow; Purpose; Inputs; Procedure; Required Direction Card; Source and License Rules; Candidate Directions for LAS Viewer; Direction A: Forensic Atlas; Direction B: Instrument Panel; Direction C: Editorial Intelligence
+- Links: ../exports/phase-67-design-critique-flow-report-2026-07-07; ../exports/phase-71-las-viewer-art-direction-packet-2026-07-07; ../../prompts/roles/professional_design_agent
+- Search cues: workflows, visual-reference-moodboard, visual, reference, moodboard, purpose, inputs, procedure, required

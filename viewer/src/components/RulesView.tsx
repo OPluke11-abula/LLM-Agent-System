@@ -1,6 +1,7 @@
 import { useState, type Dispatch, type SetStateAction } from "react";
 import { Modal } from "./Modal";
-import { Button, MetricTile, StatusBadge, Surface } from "./ui/primitives";
+import { Button, Card, CardContent, MetricTile, StatusBadge, Surface } from "./ui/primitives";
+import { Plus, ShieldCheck, Trash2 } from "./ui/icons";
 import type { TranslationMessages } from "../types";
 
 type RulesViewProps = {
@@ -28,7 +29,10 @@ export function RulesView({ t, rules, setRules }: RulesViewProps) {
     <Surface elevated className="flex h-full flex-col overflow-hidden p-6">
       <div className="mb-5 flex flex-shrink-0 flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.18em] t3">{t.rulesIntroLabel}</p>
+          <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--accent)]">
+            <ShieldCheck className="h-3.5 w-3.5" />
+            <span>{t.rulesIntroLabel}</span>
+          </p>
           <h2 className="mt-1 text-xl font-bold t1">{t.aiRules}</h2>
           <p className="mt-1 max-w-2xl text-xs leading-relaxed t3">{t.rulesIntroBody}</p>
         </div>
@@ -36,9 +40,10 @@ export function RulesView({ t, rules, setRules }: RulesViewProps) {
           type="button"
           onClick={() => setAddModalOpen(true)}
           variant="primary"
-          className="self-start md:self-auto"
+          className="flex items-center gap-1.5 self-start text-xs font-semibold md:self-auto"
         >
-          {t.addRule}
+          <Plus className="h-3.5 w-3.5" />
+          <span>{t.addRule}</span>
         </Button>
       </div>
 
@@ -51,40 +56,47 @@ export function RulesView({ t, rules, setRules }: RulesViewProps) {
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         {rules.length === 0 ? (
-          <Surface className="flex min-h-[280px] flex-col items-center justify-center p-8 text-center">
-            <StatusBadge tone="warning">{t.noRulesBadge}</StatusBadge>
+          <Card className="flex min-h-[280px] flex-col items-center justify-center p-8 text-center">
+            <ShieldCheck className="h-10 w-10 text-[var(--warning)]" />
+            <StatusBadge tone="warning" className="mt-3">{t.noRulesBadge}</StatusBadge>
             <p className="mt-4 text-sm font-semibold t1">{t.noRulesTitle}</p>
             <p className="mt-1 max-w-sm text-xs leading-relaxed t3">{t.noRulesBody}</p>
-            <Button type="button" variant="primary" onClick={() => setAddModalOpen(true)} className="mt-5">
-              {t.addRule}
+            <Button type="button" variant="primary" onClick={() => setAddModalOpen(true)} className="mt-5 flex items-center gap-1.5">
+              <Plus className="h-3.5 w-3.5" />
+              <span>{t.addRule}</span>
             </Button>
-          </Surface>
+          </Card>
         ) : (
           <div className="space-y-3">
             {rules.map((rule, index) => (
-              <Surface key={`${rule}-${index}`} className="flex items-start gap-3 p-4">
-                <div
-                  className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md text-[10px] font-black"
-                  style={{ background: "var(--accent-bg)", color: "var(--accent)" }}
-                >
-                  {String(index + 1).padStart(2, "0")}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="mb-1 flex items-center gap-2">
-                    <StatusBadge tone="accent">{t.activeBadge}</StatusBadge>
-                    <span className="text-[10px] font-mono t3">rule.{String(index + 1).padStart(2, "0")}</span>
+              <Card key={rule} className="transition-colors hover:border-[var(--accent)]">
+                <CardContent className="flex items-start gap-3 p-4">
+                  <div
+                    className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md text-[10px] font-black"
+                    style={{ background: "var(--accent-bg)", color: "var(--accent)" }}
+                  >
+                    {String(index + 1).padStart(2, "0")}
                   </div>
-                  <p className="text-sm leading-relaxed t1">{rule}</p>
-                </div>
-                <Button
-                  type="button"
-                  onClick={() => setDeleteTarget(index)}
-                  variant="danger"
-                  className="px-2 py-1 text-[10px]"
-                >
-                  {t.removeAction}
-                </Button>
-              </Surface>
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-1 flex items-center gap-2">
+                      <StatusBadge tone="accent">{t.activeBadge}</StatusBadge>
+                      <span className="font-mono text-[10px] t3">rule.{String(index + 1).padStart(2, "0")}</span>
+                    </div>
+                    <p className="text-xs leading-relaxed t1">{rule}</p>
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={() => setDeleteTarget(index)}
+                    variant="danger"
+                    size="sm"
+                    className="gap-1.5"
+                    title={t.removeAction}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    <span>{t.removeAction}</span>
+                  </Button>
+                </CardContent>
+              </Card>
             ))}
           </div>
         )}
@@ -107,7 +119,7 @@ export function RulesView({ t, rules, setRules }: RulesViewProps) {
             onChange={(event) => setNewRule(event.target.value)}
             placeholder={t.addRulePlaceholder}
             rows={4}
-            className="field-input w-full resize-none rounded-xl p-3 font-mono text-sm"
+            className="field-input w-full resize-none rounded-xl p-3 font-mono text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
             onKeyDown={(event) => {
               if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
                 handleAddRule();
@@ -130,7 +142,7 @@ export function RulesView({ t, rules, setRules }: RulesViewProps) {
           danger
         >
           <p className="text-sm t2">{t.deleteRuleConfirm}</p>
-          <Surface className="mt-3 p-3 text-sm t2">
+          <Surface className="mt-3 rounded-lg border p-3 font-mono text-xs t2" style={{ borderColor: "var(--border-c)", background: "var(--bg-muted)" }}>
             {rules[deleteTarget]}
           </Surface>
         </Modal>
