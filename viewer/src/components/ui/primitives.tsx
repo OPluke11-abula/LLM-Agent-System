@@ -5,6 +5,7 @@ import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import * as TabsPrimitive from "@radix-ui/react-tabs";
 import * as SwitchPrimitive from "@radix-ui/react-switch";
 import type { ButtonHTMLAttributes, HTMLAttributes, InputHTMLAttributes, ReactNode } from "react";
+import { Link } from "react-router-dom";
 
 export type Tone = "neutral" | "accent" | "success" | "warning" | "danger";
 
@@ -88,6 +89,10 @@ export function Button({ variant = "quiet", size = "md", className, ...props }: 
       {...props}
     />
   );
+}
+
+export function LinkButton({ to, variant = "quiet", children, className }: { to: string; variant?: ButtonProps["variant"]; children: ReactNode; className?: string }) {
+  return <Link to={to} className={cx("rounded-lg px-3 py-1.5 text-xs font-semibold transition-all", variant === "primary" && "primary-button", variant === "quiet" && "quiet-button", variant === "danger" && "danger-button", variant === "warning" && "warning-button", className)}>{children}</Link>;
 }
 
 /* =========================================================================

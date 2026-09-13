@@ -780,8 +780,6 @@ class WorkflowEngine:
             LogCompactor.compact_task_queue(self.workspace_path)
         except Exception as e:
             logger.error("Failed to run task queue compaction: %s", e)
-        except Exception as e:
-            logger.error("Failed to run task queue compaction: %s", e)
         
         # Return summary of final step outputs
         return {

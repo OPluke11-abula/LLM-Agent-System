@@ -263,21 +263,21 @@ const server = createServer((request, response) => {
 await new Promise((resolveListen) => server.listen(port, "127.0.0.1", resolveListen));
 
 const scenarios = [
-  { name: "dashboard-desktop", route: "/", onboarded: true, width: 1280, height: 900, nextActionRail: true, designAgentPanel: true, interactionProbe: true },
-  { name: "dashboard-tablet", route: "/", onboarded: true, width: 768, height: 1024, nextActionRail: true, designAgentPanel: true },
-  { name: "dashboard-mobile", route: "/", onboarded: true, width: 375, height: 812, nextActionRail: true, designAgentPanel: true },
-  { name: "design-agent-desktop", route: "/", onboarded: true, width: 1280, height: 900, designAgentPanel: true, scrollToDesignAgentPanel: true },
-  { name: "design-agent-tablet", route: "/", onboarded: true, width: 768, height: 1024, designAgentPanel: true, scrollToDesignAgentPanel: true },
-  { name: "design-agent-mobile", route: "/", onboarded: true, width: 375, height: 1200, designAgentPanel: true, scrollToDesignAgentPanel: true },
-  { name: "design-agent-zh-mobile", route: "/", onboarded: true, lang: "zh", width: 375, height: 1200, designAgentPanel: true, scrollToDesignAgentPanel: true },
-  { name: "design-agent-ja-mobile", route: "/", onboarded: true, lang: "ja", width: 375, height: 1200, designAgentPanel: true, scrollToDesignAgentPanel: true },
-  { name: "next-action-rail-mobile", route: "/", onboarded: true, width: 375, height: 812, nextActionRail: true, scrollToRail: true },
+  { name: "dashboard-desktop", route: "/#/workspace", onboarded: true, width: 1280, height: 900, nextActionRail: true, designAgentPanel: true, interactionProbe: true },
+  { name: "dashboard-tablet", route: "/#/workspace", onboarded: true, width: 768, height: 1024, nextActionRail: true, designAgentPanel: true },
+  { name: "dashboard-mobile", route: "/#/workspace", onboarded: true, width: 375, height: 812, nextActionRail: true, designAgentPanel: true },
+  { name: "design-agent-desktop", route: "/#/workspace", onboarded: true, width: 1280, height: 900, designAgentPanel: true, scrollToDesignAgentPanel: true },
+  { name: "design-agent-tablet", route: "/#/workspace", onboarded: true, width: 768, height: 1024, designAgentPanel: true, scrollToDesignAgentPanel: true },
+  { name: "design-agent-mobile", route: "/#/workspace", onboarded: true, width: 375, height: 1200, designAgentPanel: true, scrollToDesignAgentPanel: true },
+  { name: "design-agent-zh-mobile", route: "/#/workspace", onboarded: true, lang: "zh", width: 375, height: 1200, designAgentPanel: true, scrollToDesignAgentPanel: true },
+  { name: "design-agent-ja-mobile", route: "/#/workspace", onboarded: true, lang: "ja", width: 375, height: 1200, designAgentPanel: true, scrollToDesignAgentPanel: true },
+  { name: "next-action-rail-mobile", route: "/#/workspace", onboarded: true, width: 375, height: 812, nextActionRail: true, scrollToRail: true },
   { name: "task-flow-desktop", route: "/#/tasks", onboarded: true, width: 1280, height: 900, taskFlow: true },
   { name: "task-flow-tablet", route: "/#/tasks", onboarded: true, width: 768, height: 1024, taskFlow: true },
   { name: "task-flow-mobile", route: "/#/tasks", onboarded: true, width: 375, height: 812, taskFlow: true },
   { name: "intelligence-map-desktop", route: "/#/intelligence", onboarded: true, width: 1280, height: 900, intelligenceMap: true },
   { name: "intelligence-map-mobile", route: "/#/intelligence", onboarded: true, width: 375, height: 812, intelligenceMap: true },
-  { name: "command-palette-desktop", route: "/", onboarded: true, width: 1280, height: 900, commandPalette: true },
+  { name: "command-palette-desktop", route: "/#/workspace", onboarded: true, width: 1280, height: 900, commandPalette: true },
   { name: "rules-desktop", route: "/#/rules", onboarded: true, width: 1280, height: 900 },
   { name: "mods-desktop", route: "/#/mods", onboarded: true, width: 1280, height: 900 },
   { name: "settings-desktop", route: "/#/settings", onboarded: true, width: 1280, height: 900 },
@@ -285,8 +285,8 @@ const scenarios = [
   { name: "admin-desktop", route: "/#/admin", onboarded: true, width: 1280, height: 900 },
   { name: "governance-cockpit-desktop", route: "/#/admin", onboarded: true, width: 1280, height: 900, governanceCockpit: true },
   { name: "governance-cockpit-mobile", route: "/#/admin", onboarded: true, width: 375, height: 812, governanceCockpit: true },
-  { name: "onboarding-desktop", route: "/", onboarded: false, width: 1280, height: 900 },
-  { name: "dashboard-reduced-motion", route: "/", onboarded: true, width: 1280, height: 900, nextActionRail: true, reducedMotion: true },
+  { name: "onboarding-desktop", route: "/#/workspace/onboarding", onboarded: false, width: 1280, height: 900 },
+  { name: "dashboard-reduced-motion", route: "/#/workspace", onboarded: true, width: 1280, height: 900, nextActionRail: true, reducedMotion: true },
 ];
 
 const copyAuditScenarios = [

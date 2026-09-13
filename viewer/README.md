@@ -53,6 +53,12 @@ $env:AGENT_WORKSPACE_DIR="$PWD\workspace"
 npm.cmd --prefix viewer run tauri -- dev
 ```
 
+`AGENT_WORKSPACE_DIR` can point to another workspace directory. The web build
+works without Tauri. The P1 Mission journey is browser-only; native Tauri
+Mission authentication is unavailable and cannot enter that authenticated
+journey. Other native-only viewer surfaces retain their existing browser-safe
+fallbacks.
+
 ## Production Build & Verification
 
 ```powershell
@@ -80,7 +86,45 @@ npm.cmd --prefix viewer run tauri -- build --bundles nsis
 The compiled setup executable is generated at:
 `viewer/src-tauri/target/release/bundle/nsis/aai-agent-topology-viewer_0.1.1_x64-setup.exe`
 
-Verified release artifacts and SHA-256 integrity proofs are cataloged in [`../releases/README.md`](../releases/README.md).
+Optional screenshot verification:
+
+```powershell
+npm.cmd --prefix viewer run verify:ui:screenshots
+```
+
+Set `UI_VERIFY_STRICT_SCREENSHOTS=1` to make unavailable or failed screenshot
+capture fail the command.
+
+## Developer Beta Mission & Coding Pipeline Control Plane
+
+The authenticated P1 Mission surface starts at `System Check`. In browser
+development, enter a session credential for the current tab; it is held in
+memory only. The Viewer then consumes the protected `/v1/missions` API and the
+generated contract at `src/generated/missionContracts.ts`. The Autonomous Coding Pipeline
+is accessible via the `Coding Pipeline` view (`CodingPipelineView.tsx`).
+
+The complete local Golden Path can be verified with a real FastAPI process,
+SQLite Mission store, built Viewer, and Playwright:
+
+```powershell
+npm.cmd --prefix viewer run build
+npm.cmd --prefix viewer run test:e2e:missions
+```
+
+The P1 Viewer exposes no Agent execution, repository mutation, Git push, Draft
+PR creation, or merge control. Those unavailable features are labeled in the
+Mission and Review surfaces. Running Mission evidence is entered explicitly in
+the production form and linked to one required verification gate at a time;
+the deterministic `test_fixture` route is disabled by default and reserved for
+focused E2E setup.
+
+## Runtime integration
+
+- `useTopology` reads `topology_state.json` through the Tauri bridge and
+  consumes `topology_updated` events.
+- The Admin surface calls LAS operator APIs when available.
+- Offline fixtures exist for deterministic UI verification; they are not a
+  production data source.
 
 ## License
 
