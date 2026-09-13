@@ -12,11 +12,11 @@
 - Realtime Working Coordination: External surface optional; `.agent/` is durable canonical execution authority.
 
 ## Project Frontier
-- Current Phase: Multi-Agent Governance & Role Grounding Upgrade
-- Active Milestone: Protocol v3.8.0 & LingoLens Experience Alignment
-- Current Frontier Ref: LAS-GOV-v3.8.0
-- Coordination Checkpoint: Active
-- Working Tree Policy: Strict Clean Tree on PR Merge
+- Current Phase: Phase 91 - Chaos Fault Injection, Autonomous Self-Healing & Cluster Demo
+- Active Milestone: Milestones T-001 ~ T-023 100% Completed & Merged into Main
+- Current Frontier Ref: LAS-PHASE-91-COMPLETE
+- Coordination Checkpoint: Closed (結案)
+- Working Tree Policy: Strict Clean Tree on PR Merge (Verified)
 
 ## Shared Workspace Registry
 - Entry Point: `AGENTS.md`

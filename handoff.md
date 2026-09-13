@@ -3,15 +3,16 @@
 > **Protocol Version**: 3.8.0
 > **Source of Truth**: Team Cognitive Relay (Tier 2)
 > **Prerequisite**: Automated tests 100% Green (`PASS`) before updating this document.
-> **Last Synchronized**: 2026-09-13
+> **Last Synchronized**: 2026-09-14
 > **Domain Owner / PO**: Luke
+> **Project State**: Phase 91 Completed & Officially Closed (全案結案)
 
 ---
 
 ## 1. 3-Line Executive Summary (三行白話摘要)
-1. 委員會 Raft 共識引擎與複製狀態機落地：實作 `CommitteeRaftNode` 與 `CommitteeStateMachine`，建立動態領導者選舉（`FOLLOWER` $\leftrightarrow$ `CANDIDATE` $\leftrightarrow$ `LEADER`）、隨機化選期租約、日誌匹配（Log Matching）與衝突截斷機制，杜絕單點故障（SPOF）。
-2. Zero-Trust 認證綁定與多數派 Quorum 提交：嚴格整合 Phase 88 零信任動態證明，僅認證合格（`VERIFIED`）節點能參與投票或進入 Quorum 計算；專家的辯論發言、安全評分、最終裁決與補丁 Merkle Root 均需經由法定多數派（$\lfloor N/2 \rfloor + 1$）確認方可 Commit 並寫入狀態機。
-3. 全端整合、REST/CLI 工具鏈與即時座艙：新增 `/v1/mesh/raft/*` 端點、`las mesh raft status|elect|log` 命令，並於前端座艙擴充 Raft 角色環、即時 Quorum 健全度與不可篡改的辯論日誌時間軸；12 套迴歸測試 81 項測試 100% 綠燈 PASS，Vite 生產打包 3.27s 通過。
+1. 聯邦混沌工程故障注入與容錯恢復完備：實作 `MeshChaosManager`，模擬網路分區、延遲突波、封包丟棄、節點隔離與拜占庭偽造，即時攔截 Raft RPC、P2P 向量記憶體與 Mesh 通訊，驗證高可用裂腦容錯與自動選期恢復。
+2. 自主自我修復迴圈與安全原子回滾落地：建立管線一級 `SELF_HEALING` 階段，由失敗驗證收據自動提取診斷、查詢向量先例並於隔離 Worktree 進行有界修正 ($N \le 3$)；修復超限觸發原子回滾，並以 `PRIMARY_REPO_PROTECTED` 強制確保主倉庫零污染。
+3. 生產級 3 節點叢集 E2E 演示與全專案圓滿結案：實測 7 階段叢集 E2E 演示（Node 1 駕駛艙、Node 2 推理節點、Node 3 測試節點）於 648ms 內 100% 通過；16 套迴歸測試 117 項全數綠燈 PASS，Vite 前端打包 695ms 通過，PR #8 ~ PR #14 全部整併入 `main` 正式結案。
 
 ---
 
@@ -19,14 +20,16 @@
 
 | Check / Metric | Status | Evidence / Receipt |
 |---|---|---|
-| **Active Feature Branch** | `PASS` | `feat/pipeline-p89-raft-consensus` cleanly branched from `main` |
-| **Phase 89 Raft Consensus Tests** | `PASS` | `test_committee_raft_p89.py` (9 tests in 0.17s, 100% PASS) |
-| **Pipeline Full Regression Matrix** | `PASS` | 81 tests in 20.30s (100% PASS across 12 test suites: P1, P2-A, P2-C, P3, P4, P5, P85, P86, P87, P88, P89) |
-| **Frontend Production Build** | `PASS` | `npm run build` in `viewer/` passed in 3.27s (0 errors, 0 warnings) |
-| **Python Bytecode Compilation** | `PASS` | `python -m py_compile` across all modified and newly created files passed (0 errors) |
-| **Obsidian Note & Vault Sync** | `PASS` | `docs/obsidian/modules/core/core-raft-consensus.md` authored (27 core leaf notes, 65 total notes) |
-| **Zero Dead Code & Types Invariant** | `PASS` | Strict Pydantic v2 `extra="forbid"` models and TypeScript strict contracts verified |
-| **Stop-and-Wait Gate Protocol** | `PASS` | Replicated Raft consensus log verification before Stop-and-Wait Architecture Gate |
+| **Active Branch & Sync State** | `PASS` | `main` branch synchronized with remote `origin/main` (`ee8a55d`) |
+| **Merged Pull Requests** | `PASS` | PR #8, PR #9, PR #10, PR #11, PR #12, PR #13, PR #14 all merged |
+| **Phase 91 Dedicated Test Suite** | `PASS` | `test_chaos_selfhealing_p91.py` (10 tests in 1.92s, 100% PASS) |
+| **Full Combined Regression Matrix** | `PASS` | 117 tests in 25.30s (100% PASS across 16 test suites: P1~P5, P85~P91) |
+| **Multi-Worker Cluster Demo** | `PASS` | 7/7 stages in 648.2 ms (`.agent/evidence/cluster_demo_receipt.json`) |
+| **Frontend Production Build** | `PASS` | `npm run build` in `viewer/` passed in 695ms (0 errors, 0 warnings) |
+| **Python Bytecode Compilation** | `PASS` | `python -m py_compile` across all modified/new files passed (0 errors) |
+| **Formatting & Git Check** | `PASS` | `git diff --check` passed with 0 trailing whitespace or format errors |
+| **Obsidian Note & Vault Sync** | `PASS` | 29 core leaf notes, 60 total notes synced to local Vault |
+| **Zero Host Pollution Invariant** | `PASS` | `PRIMARY_REPO_PROTECTED` verified; host repository working directory pristine |
 
 ---
 
@@ -56,7 +59,7 @@
    - `layers/L6-Verification-Matrix-and-Receipts.md`
    - `layers/L7-Distributed-Mesh-and-P2P.md`
 
-3. **Level 2: Backend Concrete Core Leaf Notes (27 篇)**:
+3. **Level 2: Backend Concrete Core Leaf Notes (29 篇)**:
    - `modules/core/core-engine.md`
    - `modules/core/core-workflow-engine.md`
    - `modules/core/core-router.md`
@@ -75,6 +78,8 @@
    - `modules/core/core-federated-mesh.md`
    - `modules/core/core-mesh-pki.md`
    - `modules/core/core-raft-consensus.md`
+   - `modules/core/core-vector-memory.md`
+   - `modules/core/core-chaos-and-self-healing.md`
    - `modules/core/core-billing.md`
    - `modules/core/core-cert-manager.md`
    - `modules/core/core-pipeline.md`
@@ -102,23 +107,20 @@
 
 ---
 
-## 4. Active Pull Requests & Git Integration State (PR 與 Git 狀態)
-- **Current Branch**: `feat/pipeline-p89-raft-consensus` (targeting PR #12)
-- **Merged PRs**:
-  - **PR #8**: `feat(pipeline): implement multi-agent committee debate and consensus protocol (p85)` -> Merged into `main`
-  - **PR #9**: `feat(router): implement heterogeneous reasoning model adapters and dynamic thinking router (p86)` -> Merged into `main`
-  - **PR #10**: `feat(mesh): implement distributed p2p mesh and federated worktree clustering (p87)` -> Merged into `main`
-  - **PR #11**: `feat(pki): implement zero-trust mtls dynamic node attestation and mutual tls pki mesh (p88)` -> Merged into `main`
-- **Active Milestones**:
-  - `Phase 80`: Autonomous Coding Pipeline P1 - Rules, Scaffolding & State Machine Contracts (100% Complete)
-  - `Phase 81`: Autonomous Coding Pipeline P2 - Git Worktree, Repository Connector & Full Execution Integration (100% Complete)
-  - `Phase 82`: Autonomous Coding Pipeline P3 - REST & WebSocket Gateways & Frontend Cockpit Integration (100% Complete)
-  - `Phase 83`: Autonomous Coding Pipeline P4 - Official Golden Flow Benchmark & E2E Verification Harness (100% Complete)
-  - `Phase 84`: Autonomous Coding Pipeline P5 - Developer Beta, CLI Toolbelt, Repo Onboarder & Packaging (100% Complete)
-  - `Phase 85`: Multi-Agent Consensus Debate & Committee Coding Protocol (100% Complete & Merged)
-  - `Phase 86`: Heterogeneous Reasoning Model Adapters & Dynamic Thinking Router (100% Complete & Merged)
-  - `Phase 87`: Distributed P2P Mesh & Federated Worktree Clustering (100% Complete & Merged)
-  - `Phase 88`: Zero-Trust mTLS Dynamic Node Attestation & Mutual TLS PKI Mesh (100% Complete & Merged)
-  - `Phase 89`: Distributed Committee Raft Consensus & Replicated State Machine (100% Complete, 81/81 tests PASS)
-- **Working Tree**: Clean, 81 regression tests 100% PASS, ready for PR #12 submission.
-- **Local Vault Target**: `C:\Users\luke2\OneDrive\文件\Obsidian Vault\Projects\LLM-Agent-System` (65 total notes).
+## 4. Completed Milestone Registry & Milestone Closure (全里程碑結案清單)
+
+- **Phase 80 (T-001 ~ T-006)**: Governance Baseline, Grounded Roles, Runtime Hardening (100% Merged)
+- **Phase 81 (T-010 ~ T-013)**: Governed Agent Control Plane P2-A ~ P2-D (100% Merged)
+- **Phase 82 (T-014)**: REST / WebSocket Pipeline Gateways & Frontend Cockpit (100% Merged)
+- **Phase 83 (T-015)**: Official Golden Flow Benchmark & E2E Verification Harness (100% Merged)
+- **Phase 84 (T-016)**: Developer Beta, CLI Toolbelt, Repo Onboarder & Packaging (100% Merged)
+- **Phase 85 (T-017 / PR #8)**: Committee Multi-Agent Consensus Debate Protocol (100% Merged)
+- **Phase 86 (T-018 / PR #9)**: Heterogeneous Reasoning Router & Thinking Budgets (100% Merged)
+- **Phase 87 (T-019 / PR #10)**: Distributed P2P Mesh & Federated Worktree Clustering (100% Merged)
+- **Phase 88 (T-020 / PR #11)**: Zero-Trust mTLS Dynamic Node Attestation & PKI Mesh (100% Merged)
+- **Phase 89 (T-021 / PR #12)**: Distributed Committee Raft Consensus & Replicated State Machine (100% Merged)
+- **Phase 90 (T-022 / PR #13)**: Federated Vector Memory & RAG Knowledge Topology Sync (100% Merged)
+- **Phase 91 (T-023 / PR #14)**: Chaos Fault Injection, Autonomous Self-Healing & Cluster Demo (100% Merged)
+
+**Project Milestone Conclusion**:
+All planned phases, architectural decision records (ADR-001 ~ ADR-007), verification gates, and cognitive relay documentation have been fully delivered, tested, and archived into the `main` branch.
