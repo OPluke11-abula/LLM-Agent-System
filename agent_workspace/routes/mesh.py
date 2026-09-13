@@ -409,3 +409,92 @@ def propose_raft_entry(req: RaftProposeRequest) -> Dict[str, Any]:
         "message": msg,
         "entry": entry.model_dump() if entry else None,
     }
+
+
+# ============================================================================
+# Federated Vector Memory & Knowledge Topology Endpoints (Phase 90)
+# ============================================================================
+
+
+class VectorMemoryQueryRequest(BaseModel):
+    """Payload to perform semantic similarity search over federated memory."""
+
+    query: str = Field(..., description="Query prompt for similarity retrieval")
+    top_k: int = Field(default=5, ge=1, le=50, description="Max results to return")
+    category: Optional[str] = Field(default=None, description="Optional filter category (DECISION, LESSON, PATTERN, ERROR)")
+    min_similarity: float = Field(default=0.0, ge=-1.0, le=1.0, description="Minimum cosine similarity cutoff")
+
+
+class VectorMemoryStoreRequest(BaseModel):
+    """Payload to store an experience entry in federated memory."""
+
+    task_id: str = Field(..., description="Associated task ID")
+    category: str = Field(default="DECISION", description="Category of entry")
+    content: str = Field(..., description="Text content of knowledge entry")
+    metadata: Optional[Dict[str, Any]] = Field(default=None, description="Structured attributes")
+
+
+class VectorMemorySyncRequest(BaseModel):
+    """Payload to synchronize vector memory entries with a peer node."""
+
+    peer_id: str = Field(..., description="Target peer node ID")
+    entries: Optional[List[Dict[str, Any]]] = Field(default=None, description="List of raw vector memory entries to merge")
+
+
+@router.get("/memory/stats")
+def get_vector_memory_stats() -> Dict[str, Any]:
+    """Returns telemetry statistics and Merkle root of local vector memory."""
+    coordinator = get_federated_coordinator()
+    return coordinator.get_vector_memory_stats()
+
+
+@router.get("/memory/entries")
+def get_vector_memory_entries(limit: int = 50, category: Optional[str] = None) -> Dict[str, Any]:
+    """Returns recent vector memory entries."""
+    coordinator = get_federated_coordinator()
+    return {
+        "node_id": coordinator.node_id,
+        "entries": coordinator.get_vector_memory_entries(limit=limit, category=category),
+    }
+
+
+@router.post("/memory/query")
+def query_vector_memory(req: VectorMemoryQueryRequest) -> Dict[str, Any]:
+    """Performs cosine similarity query across local federated vector memory."""
+    coordinator = get_federated_coordinator()
+    results = coordinator.query_vector_memory(
+        query=req.query,
+        top_k=req.top_k,
+        category=req.category,
+        min_similarity=req.min_similarity,
+    )
+    return {
+        "query": req.query,
+        "results_count": len(results),
+        "results": results,
+    }
+
+
+@router.post("/memory/store")
+def store_vector_memory(req: VectorMemoryStoreRequest) -> Dict[str, Any]:
+    """Stores a new vector memory experience entry and marks Merkle root dirty."""
+    coordinator = get_federated_coordinator()
+    return coordinator.store_vector_memory(
+        task_id=req.task_id,
+        category=req.category,
+        content=req.content,
+        metadata=req.metadata,
+    )
+
+
+@router.post("/memory/sync")
+def sync_vector_memory(req: VectorMemorySyncRequest) -> Dict[str, Any]:
+    """Synchronizes vector memory with an attested peer node."""
+    coordinator = get_federated_coordinator()
+    result = coordinator.sync_vector_memory(
+        peer_id=req.peer_id,
+        entries_payload=req.entries,
+    )
+    if result.get("status") == "rejected":
+        raise HTTPException(status_code=403, detail=result.get("error", "Sync rejected"))
+    return result

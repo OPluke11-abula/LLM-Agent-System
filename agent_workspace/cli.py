@@ -655,6 +655,48 @@ def handle_mesh(args):
             print(f" Quorum Size     : {st['quorum_size']} (Active Peers: {st['cluster_peers_count']})")
             print("=" * 75)
 
+    elif sub == "memory":
+        mem_cmd = getattr(args, "memory_command", "stats")
+        from agent_workspace.core.federated_mesh import get_federated_coordinator
+        coordinator = get_federated_coordinator()
+        if mem_cmd == "query":
+            q = getattr(args, "query", "") or "architecture"
+            top_k = getattr(args, "top_k", 5)
+            cat = getattr(args, "category", None)
+            res = coordinator.query_vector_memory(q, top_k=top_k, category=cat)
+            print("=" * 75)
+            print(f" 🔍 Federated Vector Memory Search (Query: '{q}')")
+            print("=" * 75)
+            print(f" Results Found   : {len(res)}")
+            print("-" * 75)
+            print(f" {'Rank':<5} | {'Score':<7} | {'Category':<12} | {'Task':<10} | {'Content'}")
+            print("-" * 75)
+            for r in res:
+                content_snip = r['content'][:35] + ("..." if len(r['content']) > 35 else "")
+                print(f" {r['rank']:<5} | {r['similarity']:<7.4f} | {r['category']:<12} | {r['task_id']:<10} | {content_snip}")
+            print("=" * 75)
+        elif mem_cmd == "sync":
+            peer = getattr(args, "peer", None) or "peer-remote"
+            res = coordinator.sync_vector_memory(peer)
+            print("=" * 75)
+            print(f" 🔄 Federated Vector Memory Synchronized with {peer}")
+            print("=" * 75)
+            print(f" Status          : {res.get('status', 'unknown')}")
+            print(f" Merkle Root     : {res.get('merkle_root', '')}")
+            print(f" Total Entries   : {res.get('total_entries', 0)}")
+            print("=" * 75)
+        else:
+            stats = coordinator.get_vector_memory_stats()
+            print("=" * 75)
+            print(" 🧠 Federated Vector Memory & Knowledge Topology Status")
+            print("=" * 75)
+            print(f" Node ID         : {stats['node_id']}")
+            print(f" Total Vectors   : {stats['total_entries']}")
+            print(f" Merkle Root     : {stats['merkle_root']}")
+            print(f" Embedding Dim   : {stats['embedding_dimension']}")
+            print(f" Categories      : {json.dumps(stats.get('category_breakdown', {}))}")
+            print("=" * 75)
+
 def handle_lint(args):
     """Statically lint the PAP workspace contracts."""
     project_root = Path(args.path).resolve()
@@ -1079,6 +1121,14 @@ def main() -> None:
                 mesh_sub.add_argument("--limit", type=int, default=20, help="Limit number of log entries")
                 args = mesh_sub.parse_args(mesh_args[1:])
                 args.mesh_action = "raft"
+            elif action == "memory":
+                mesh_sub.add_argument("memory_command", nargs="?", default="stats", choices=["stats", "query", "sync", "list"], help="Vector memory operation")
+                mesh_sub.add_argument("--query", type=str, help="Search query string")
+                mesh_sub.add_argument("--top-k", type=int, default=5, help="Max results to return")
+                mesh_sub.add_argument("--category", type=str, help="Filter category (DECISION, LESSON, PATTERN, ERROR)")
+                mesh_sub.add_argument("--peer", type=str, help="Peer node ID or address for sync")
+                args = mesh_sub.parse_args(mesh_args[1:])
+                args.mesh_action = "memory"
             else:
                 args = mesh_sub.parse_args(mesh_args[1:] if mesh_args and mesh_args[0] == "status" else mesh_args)
                 args.mesh_action = "status"
@@ -1099,7 +1149,7 @@ Core Subcommands:
   benchmark          Run the official Golden Flow Benchmark suite and calculate 6 KPIs
   serve              Launch FastAPI REST API server and WebSocket telemetry hub
   status [path]      Inspect repository branch, worktree status, and latest verification receipt
-  mesh [status|join|pki|rotate|attest|raft] Manage Distributed P2P Mesh peering, Zero-Trust PKI & Raft Consensus
+  mesh [status|join|pki|rotate|attest|raft|memory] Manage Distributed P2P Mesh, PKI, Raft & Vector Memory
 
 Developer Tools & Legacy Flags:
   --list-skills      List all registered tools

@@ -39,6 +39,11 @@ from agent_workspace.core.raft_consensus import (
     RequestVoteArgs,
     RequestVoteReply,
 )
+from agent_workspace.core.vector_memory import (
+    FederatedVectorMemory,
+    VectorCategory,
+    VectorMemoryEntry,
+)
 
 logger = logging.getLogger("FederatedMesh")
 
@@ -201,6 +206,153 @@ class FederatedMeshCoordinator:
             peers_provider=lambda: [p.node_id for p in self.peers.values()],
             attestation_checker=self.is_peer_attested_for_raft,
         )
+
+        # Federated Vector Memory & RAG Knowledge Topology (Phase 90)
+        self.vector_memory = FederatedVectorMemory(node_id=self.node_id)
+
+    # ------------------------------------------------------------------------
+    # Federated Vector Memory & Knowledge Topology Synchronization (Phase 90)
+    # ------------------------------------------------------------------------
+
+    def query_vector_memory(
+        self,
+        query: str,
+        top_k: int = 5,
+        category: Optional[str] = None,
+        min_similarity: float = 0.0,
+    ) -> List[Dict[str, Any]]:
+        """Queries federated vector memory and returns ranked matches."""
+        results = self.vector_memory.search(
+            query=query,
+            top_k=top_k,
+            category=category,
+            min_similarity=min_similarity,
+        )
+        return [
+            {
+                "entry_id": r.entry.entry_id,
+                "task_id": r.entry.task_id,
+                "category": r.entry.category.value,
+                "content": r.entry.content,
+                "metadata": r.entry.metadata,
+                "author_node_id": r.entry.author_node_id,
+                "similarity": r.similarity,
+                "rank": r.rank,
+                "content_hash": r.entry.content_hash,
+                "timestamp": r.entry.timestamp,
+            }
+            for r in results
+        ]
+
+    def store_vector_memory(
+        self,
+        task_id: str,
+        category: str,
+        content: str,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Stores a new knowledge experience entry and optionally proposes Raft replication."""
+        entry = self.vector_memory.store(
+            task_id=task_id,
+            category=category,
+            content=content,
+            metadata=metadata,
+            author_node_id=self.node_id,
+        )
+
+        # Propose VECTOR_CHECKPOINT entry if Raft consensus leader
+        if self.raft_node.role == RaftRole.LEADER:
+            self.propose_committee_entry(
+                entry_type=CommitteeEntryType.VECTOR_CHECKPOINT,
+                payload={
+                    "task_id": task_id,
+                    "entry_id": entry.entry_id,
+                    "category": entry.category.value,
+                    "content": entry.content,
+                    "merkle_root": self.vector_memory.compute_merkle_root(),
+                    "total_entries": len(self.vector_memory._entries),
+                },
+            )
+
+        return {
+            "entry_id": entry.entry_id,
+            "task_id": entry.task_id,
+            "category": entry.category.value,
+            "content": entry.content,
+            "content_hash": entry.content_hash,
+            "author_node_id": entry.author_node_id,
+            "merkle_root": self.vector_memory.compute_merkle_root(),
+            "timestamp": entry.timestamp,
+        }
+
+    def sync_vector_memory(
+        self,
+        peer_id: str,
+        entries_payload: Optional[List[Dict[str, Any]]] = None,
+    ) -> Dict[str, Any]:
+        """Synchronizes vector memory with an attested peer node.
+
+        Requires AttestationStatus.VERIFIED under Zero-Trust PKI.
+        """
+        if self.strict_attestation and not self.is_peer_attested_for_raft(peer_id):
+            return {
+                "status": "rejected",
+                "error": f"Peer {peer_id} failed Zero-Trust attestation check: not VERIFIED",
+                "merkle_root": self.vector_memory.compute_merkle_root(),
+                "total_entries": len(self.vector_memory._entries),
+            }
+
+        added_count = 0
+        if entries_payload:
+            added_count, _ = self.vector_memory.merge_entries(entries_payload)
+
+        new_root = self.vector_memory.compute_merkle_root()
+
+        # Propose VECTOR_CHECKPOINT to Raft cluster if local node is Leader
+        if self.raft_node.role == RaftRole.LEADER and added_count > 0:
+            self.propose_committee_entry(
+                entry_type=CommitteeEntryType.VECTOR_CHECKPOINT,
+                payload={
+                    "task_id": "federated-sync",
+                    "synced_peer_id": peer_id,
+                    "added_count": added_count,
+                    "merkle_root": new_root,
+                    "total_entries": len(self.vector_memory._entries),
+                },
+            )
+
+        return {
+            "status": "synced",
+            "peer_id": peer_id,
+            "added_count": added_count,
+            "merkle_root": new_root,
+            "total_entries": len(self.vector_memory._entries),
+        }
+
+    def get_vector_memory_stats(self) -> Dict[str, Any]:
+        """Returns statistics of federated vector memory and Merkle topology."""
+        return self.vector_memory.get_stats()
+
+    def get_vector_memory_entries(
+        self,
+        limit: int = 50,
+        category: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Returns recent vector memory entries."""
+        entries = self.vector_memory.get_entries(limit=limit, category=category)
+        return [
+            {
+                "entry_id": e.entry_id,
+                "task_id": e.task_id,
+                "category": e.category.value,
+                "content": e.content,
+                "metadata": e.metadata,
+                "content_hash": e.content_hash,
+                "author_node_id": e.author_node_id,
+                "timestamp": e.timestamp,
+            }
+            for e in entries
+        ]
 
     def is_peer_attested_for_raft(self, peer_id: str) -> bool:
         """Verifies if the peer is attested under Phase 88 Zero-Trust for Raft voting/replication."""

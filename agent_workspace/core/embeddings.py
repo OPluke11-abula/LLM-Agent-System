@@ -11,32 +11,42 @@ logger = logging.getLogger(__name__)
 
 
 def generate_mock_embedding(text: str, dimension: int = 1536) -> list[float]:
-    """Generates a deterministic, L2-normalized float vector using SHA256 digest of the text.
+    """Generates a deterministic, L2-normalized float vector with word-token semantic affinity.
     
     The sum of squares of the returned vector is exactly 1.0 (to act as a true cosine space).
     """
     if not text:
         text = "empty"
-    
-    # Generate a deterministic seed from the text
-    seed_bytes = hashlib.sha256(text.encode("utf-8")).digest()
-    # Convert first 4 bytes to an integer
-    seed = int.from_bytes(seed_bytes[:4], byteorder="big")
-    
-    rng = random.Random(seed)
-    vector = [rng.gauss(0.0, 1.0) for _ in range(dimension)]
-    
+
+    import re
+    words = re.findall(r"\w+", text.lower())
+    if not words:
+        words = [text.lower()]
+
+    accum = [0.0] * dimension
+
+    for word in words:
+        seed_bytes = hashlib.sha256(word.encode("utf-8")).digest()
+        seed = int.from_bytes(seed_bytes[:4], byteorder="big")
+        rng = random.Random(seed)
+        for i in range(dimension):
+            accum[i] += rng.gauss(0.0, 1.0)
+
+    # Add whole text seed for nuance
+    whole_seed = int.from_bytes(hashlib.sha256(text.encode("utf-8")).digest()[:4], byteorder="big")
+    rng_whole = random.Random(whole_seed)
+    for i in range(dimension):
+        accum[i] += 0.3 * rng_whole.gauss(0.0, 1.0)
+
     # L2 normalize
-    sq_sum = sum(x * x for x in vector)
+    sq_sum = sum(x * x for x in accum)
     norm = math.sqrt(sq_sum)
     if norm > 0.0:
-        vector = [x / norm for x in vector]
+        return [x / norm for x in accum]
     else:
-        # Fallback in the astronomical case norm is 0
         vector = [0.0] * dimension
         vector[0] = 1.0
-        
-    return vector
+        return vector
 
 
 class EmbeddingGenerator:
