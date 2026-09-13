@@ -97,6 +97,27 @@ type CommitteeDebateItem = {
   timestamp: string;
 };
 
+type SelfHealingAttemptItem = {
+  attempt_number: number;
+  strategy: string;
+  error_symptom?: string;
+  fix_description: string;
+  healed: boolean;
+  precedents_used?: string[];
+  timestamp: string;
+};
+
+type RollbackReceiptItem = {
+  task_id: string;
+  worktree_path: string;
+  branch_name: string;
+  restored_base_commit: string;
+  untracked_files_purged: string[];
+  restoration_status: string;
+  canonical_clean: boolean;
+  timestamp: string;
+};
+
 type TaskDetailResponse = {
   status: string;
   task_id: string;
@@ -130,6 +151,8 @@ type TaskDetailResponse = {
     stage_history: Array<{ stage: string; timestamp: string; detail: string }>;
     committee_debate?: CommitteeDebateItem | null;
     receipts: VerificationReceiptItem[];
+    self_healing_attempts?: SelfHealingAttemptItem[];
+    rollback_receipt?: RollbackReceiptItem | null;
     pr_payload?: {
       title: string;
       body: string;
@@ -157,6 +180,7 @@ const STAGES = [
   { id: "PLAN_AND_GATE", label: "Architecture Gate", desc: "Stop-and-Wait Human Approval" },
   { id: "ISOLATED_MUTATION", label: "Worktree Mutation", desc: "Native Git Isolation & ScopeGuard" },
   { id: "VERIFY_AND_EVIDENCE", label: "Verification Ladder", desc: "Multi-Tier Objective Tests" },
+  { id: "SELF_HEALING", label: "Self-Healing", desc: "Autonomous Diagnostic Loop & Auto-Rollback" },
   { id: "DRAFT_PR_EXPORT", label: "Draft PR Export", desc: "Merkle Root & Signed Patch" },
 ];
 
@@ -966,6 +990,81 @@ export function CodingPipelineView({ lang = "zh", activeWorkspacePath }: CodingP
                   )}
                 </CardContent>
               </Card>
+
+              {/* Autonomous Self-Healing & Auto-Rollback Status (Phase 91) */}
+              {((taskDetail.result.self_healing_attempts && taskDetail.result.self_healing_attempts.length > 0) || taskDetail.result.rollback_receipt) && (
+                <BentoCard className="border-rose-500/30 bg-rose-500/5">
+                  <div className="p-5 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Activity className="h-5 w-5 text-rose-400" />
+                        <h4 className="text-sm font-bold text-slate-100">
+                          Autonomous Self-Healing & Rollback Engine (Phase 91)
+                        </h4>
+                      </div>
+                      {taskDetail.result.rollback_receipt ? (
+                        <span className="rounded bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2 py-0.5 text-[10px] font-mono font-bold">
+                          ROLLBACK EXECUTED ({taskDetail.result.rollback_receipt.restoration_status})
+                        </span>
+                      ) : (
+                        <span className="rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-mono font-bold">
+                          SELF-HEALED
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Self Healing Attempts */}
+                    {taskDetail.result.self_healing_attempts && taskDetail.result.self_healing_attempts.length > 0 && (
+                      <div className="space-y-2">
+                        <div className="text-xs font-semibold text-slate-300">
+                          Diagnostic Correction Attempts ({taskDetail.result.self_healing_attempts.length}):
+                        </div>
+                        <div className="space-y-2">
+                          {taskDetail.result.self_healing_attempts.map((att, i) => (
+                            <div key={i} className="rounded-lg border border-white/10 bg-black/40 p-3 text-xs font-mono space-y-1">
+                              <div className="flex items-center justify-between">
+                                <span className="font-bold text-slate-200">
+                                  Attempt #{att.attempt_number} ({att.strategy})
+                                </span>
+                                <span className={att.healed ? "text-emerald-400 font-bold" : "text-amber-400 font-bold"}>
+                                  {att.healed ? "HEALED" : "RETRY FAILED"}
+                                </span>
+                              </div>
+                              <div className="text-slate-300">{att.fix_description}</div>
+                              {att.error_symptom && (
+                                <div className="text-[11px] text-rose-300/80 truncate">
+                                  Failure: {att.error_symptom}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Rollback Details */}
+                    {taskDetail.result.rollback_receipt && (
+                      <div className="rounded-lg border border-rose-500/20 bg-black/40 p-3.5 space-y-1.5 text-xs font-mono">
+                        <div className="text-rose-300 font-bold">Atomic Worktree Rollback Receipt:</div>
+                        <div className="text-slate-400 text-[11px]">
+                          Target Path: <span className="text-slate-200">{taskDetail.result.rollback_receipt.worktree_path}</span>
+                        </div>
+                        <div className="text-slate-400 text-[11px]">
+                          Restored Commit: <span className="text-emerald-400">{taskDetail.result.rollback_receipt.restored_base_commit}</span>
+                        </div>
+                        <div className="text-slate-400 text-[11px]">
+                          Pristine Clean: <span className="text-emerald-400">{taskDetail.result.rollback_receipt.canonical_clean ? "TRUE" : "FALSE"}</span>
+                        </div>
+                        {taskDetail.result.rollback_receipt.untracked_files_purged.length > 0 && (
+                          <div className="text-slate-400 text-[11px]">
+                            Purged Artifacts: {taskDetail.result.rollback_receipt.untracked_files_purged.join(", ")}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </BentoCard>
+              )}
 
               {/* Preservation & Merkle Audit Receipt */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

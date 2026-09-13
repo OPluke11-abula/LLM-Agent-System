@@ -136,6 +136,7 @@ graph TD
 - [[core-mesh-pki]]: Zero-Trust dynamic node attestation, ephemeral X.509 PKI, single-use nonce challenges, and signed stage delegations.
 - [[core-raft-consensus]]: Distributed Committee Raft Consensus engine, term elections, replicated debate state machine, and quorum commits.
 - [[core-vector-memory]]: Federated vector memory, semantic cosine similarity search, deterministic Merkle delta sync, and committee debate RAG.
+- [[core-chaos-and-self-healing]]: Chaos fault injection engine, autonomous self-healing loop with vector memory RAG, atomic worktree rollback, and multi-worker cluster demo.
 - [[core-cli-and-packaging]]: Unified developer CLI toolbelt (las), onboarding engine, and PEP 517/621 packaging.
 - [[core-repository]]: Repository environment sensing, protected paths, native Git worktree isolation.
 - [[core-mission]]: Mission domain aggregate root, durable SQLite mission store, lifecycle state machine.

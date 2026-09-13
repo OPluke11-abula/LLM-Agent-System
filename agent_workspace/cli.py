@@ -25,8 +25,11 @@ if hasattr(sys.stderr, "reconfigure"):
     except Exception:
         pass
 
-# Add workspace directory to path
+# Add workspace directory and repository root to path
 workspace = os.path.dirname(os.path.abspath(__file__))
+repo_root = os.path.dirname(workspace)
+if repo_root not in sys.path:
+    sys.path.insert(0, repo_root)
 if workspace not in sys.path:
     sys.path.insert(0, workspace)
 
@@ -285,6 +288,8 @@ def handle_pipeline_run(args):
     reasoning_effort = getattr(args, "reasoning_effort", None)
     use_mesh = getattr(args, "mesh", False)
     mesh_peers = [p.strip() for p in args.mesh_peers.split(",")] if getattr(args, "mesh_peers", None) else []
+    enable_self_healing = getattr(args, "self_healing", False)
+    max_healing_attempts = getattr(args, "max_healing_attempts", 3)
 
     mesh_coordinator = None
     if use_mesh:
@@ -319,6 +324,8 @@ def handle_pipeline_run(args):
         reasoning_effort=reasoning_effort,
         use_mesh=use_mesh,
         mesh_peers=mesh_peers,
+        enable_self_healing=enable_self_healing,
+        max_healing_attempts=max_healing_attempts,
     )
 
     print(f"🚀 Initializing LAS Autonomous Coding Task: {requirement}")
@@ -334,6 +341,8 @@ def handle_pipeline_run(args):
         print(f"   Thinking Budget  : {thinking_budget} tokens (Effort: {reasoning_effort or 'auto'})")
     if use_mesh:
         print(f"   Federated Mesh   : ENABLED (Peers: {len(mesh_coordinator.peers) if mesh_coordinator else 0})")
+    if enable_self_healing:
+        print(f"   Self-Healing     : ENABLED (Max attempts: {max_healing_attempts})")
 
     auto_approve = getattr(args, "auto_approve", False)
     if auto_approve:
@@ -373,6 +382,18 @@ def handle_pipeline_run(args):
         print("\n Verification Ladder:")
         for v in result.verification_receipts:
             print(f"   [{v.status.value}] {v.command} (Exit: {v.exit_code}, {v.duration_ms:.0f}ms)")
+    if result.self_healing_attempts:
+        print(f"\n 🩺 Self-Healing Diagnostics ({len(result.self_healing_attempts)} attempt(s)):")
+        for attempt in result.self_healing_attempts:
+            status_icon = "✅" if attempt.healed else "❌"
+            print(f"   [{status_icon}] Attempt #{attempt.attempt_number} (Strategy: {attempt.strategy}): {attempt.fix_description}")
+            if attempt.error_symptom:
+                print(f"       Failure: {attempt.error_symptom[:80]}")
+    if result.rollback_receipt:
+        print(f"\n ⏪ Auto-Rollback Executed (Status: {result.rollback_receipt.status}):")
+        print(f"   Target Dir     : {result.rollback_receipt.target_dir}")
+        print(f"   Rolled Back Git: {result.rollback_receipt.rolled_back_commit[:8] if result.rollback_receipt.rolled_back_commit else 'N/A'}")
+        print(f"   Reason         : {result.rollback_receipt.reason}")
 
 
 def handle_serve(args):
@@ -696,6 +717,207 @@ def handle_mesh(args):
             print(f" Embedding Dim   : {stats['embedding_dimension']}")
             print(f" Categories      : {json.dumps(stats.get('category_breakdown', {}))}")
             print("=" * 75)
+
+
+def handle_chaos(args):
+    """Manage Federated Chaos Fault Injection (Phase 91)."""
+    sub = getattr(args, "chaos_action", "list")
+    import urllib.request
+    import urllib.error
+    server_url = os.environ.get("LAS_SERVER_URL", "http://127.0.0.1:8000")
+
+    if sub == "list":
+        faults = None
+        try:
+            req = urllib.request.Request(f"{server_url}/v1/mesh/chaos/faults")
+            with urllib.request.urlopen(req, timeout=0.8) as resp:
+                if resp.status == 200:
+                    data = json.loads(resp.read().decode("utf-8"))
+                    faults = data.get("faults", [])
+        except Exception:
+            pass
+
+        if faults is None:
+            from agent_workspace.core.chaos import MeshChaosManager
+            chaos_mgr = MeshChaosManager.get_instance()
+            faults = [f.model_dump() for f in chaos_mgr.list_active_faults()]
+
+        print("=" * 80)
+        print(" 🌪️ LAS Federated Mesh Chaos Fault Injection Status")
+        print("=" * 80)
+        print(f" Active Faults: {len(faults)}")
+        print("-" * 80)
+        if not faults:
+            print(" No active chaos faults. Mesh network conditions are nominal.")
+        else:
+            print(f" {'Rule ID':<10} | {'Fault Type':<18} | {'Src -> Dst':<24} | {'Latency':<9} | {'Drop'}")
+            print("-" * 80)
+            for f in faults:
+                srcs = ",".join(f.get("source_node_ids", [])) or "*"
+                dsts = ",".join(f.get("target_node_ids", [])) or "*"
+                src_dst = f"{srcs} -> {dsts}"
+                lat = f"{f.get('latency_ms', 0):.0f}ms"
+                drop = f"{f.get('probability', 0)*100:.0f}%"
+                print(f" {f['rule_id']:<10} | {f['fault_type']:<18} | {src_dst:<24} | {lat:<9} | {drop}")
+        print("=" * 80)
+
+    elif sub == "inject":
+        fault_type = getattr(args, "fault_type", "LATENCY_SPIKE")
+        source = getattr(args, "source_node_id", "*")
+        target = getattr(args, "target_node_id", "*")
+        source_nodes = [s.strip() for s in source.split(",") if s.strip() and s.strip() != "*"]
+        target_nodes = [t.strip() for t in target.split(",") if t.strip() and t.strip() != "*"]
+        latency = getattr(args, "latency_ms", 0.0)
+        drop = getattr(args, "drop_prob", 1.0)
+        ttl = getattr(args, "ttl_seconds", 60.0)
+
+        injected = None
+        try:
+            payload = {
+                "fault_type": fault_type,
+                "source_node_ids": source_nodes,
+                "target_node_ids": target_nodes,
+                "latency_ms": latency,
+                "probability": drop,
+                "duration_seconds": ttl,
+            }
+            req_data = json.dumps(payload).encode("utf-8")
+            req = urllib.request.Request(f"{server_url}/v1/mesh/chaos/inject", data=req_data, headers={"Content-Type": "application/json"})
+            with urllib.request.urlopen(req, timeout=1.0) as resp:
+                if resp.status == 200:
+                    data = json.loads(resp.read().decode("utf-8"))
+                    injected = data.get("rule", {})
+        except Exception:
+            pass
+
+        if not injected:
+            from agent_workspace.core.chaos import MeshChaosManager, ChaosFaultType
+            chaos_mgr = MeshChaosManager.get_instance()
+            rule = chaos_mgr.inject_fault(
+                fault_type=ChaosFaultType(fault_type),
+                source_node_ids=source_nodes,
+                target_node_ids=target_nodes,
+                latency_ms=latency,
+                probability=drop,
+                duration_seconds=ttl,
+            )
+            injected = rule.model_dump()
+
+        print("=" * 80)
+        print(" 💥 Chaos Fault Injected Successfully")
+        print("=" * 80)
+        print(f" Rule ID     : {injected.get('rule_id')}")
+        print(f" Fault Type  : {injected.get('fault_type')}")
+        src_str = ",".join(injected.get('source_node_ids', [])) or "*"
+        dst_str = ",".join(injected.get('target_node_ids', [])) or "*"
+        print(f" Scope       : {src_str} -> {dst_str}")
+        print(f" Latency     : {injected.get('latency_ms', 0):.0f}ms")
+        print(f" Drop Prob   : {injected.get('probability', 0)*100:.0f}%")
+        print(f" Duration    : {injected.get('duration_seconds', 0)}s")
+        print("=" * 80)
+
+    elif sub == "partition":
+        group_a = [n.strip() for n in args.group_a.split(",") if n.strip()]
+        group_b = [n.strip() for n in args.group_b.split(",") if n.strip()]
+        ttl = getattr(args, "ttl_seconds", 60.0)
+
+        from agent_workspace.core.chaos import MeshChaosManager
+        chaos_mgr = MeshChaosManager.get_instance()
+        rules = chaos_mgr.create_partition(group_a, group_b, duration_seconds=ttl)
+
+        print("=" * 80)
+        print(" ⚡ Network Partition Injected")
+        print("=" * 80)
+        print(f" Partition A : {group_a}")
+        print(f" Partition B : {group_b}")
+        print(f" Rules Count : {len(rules)} partition rules created")
+        print(f" Duration    : {ttl}s")
+        print("=" * 80)
+
+    elif sub == "isolate":
+        node_id = getattr(args, "node", None)
+        if not node_id:
+            print("Error: --node is required for chaos isolate", file=sys.stderr)
+            sys.exit(1)
+        ttl = getattr(args, "ttl_seconds", 60.0)
+
+        from agent_workspace.core.chaos import MeshChaosManager
+        chaos_mgr = MeshChaosManager.get_instance()
+        rules = chaos_mgr.isolate_node(node_id, duration_seconds=ttl)
+
+        print("=" * 80)
+        print(" 🔌 Node Isolation Injected")
+        print("=" * 80)
+        print(f" Isolated Node: {node_id}")
+        print(f" Rules Count  : {len(rules)} ingress/egress drop rules created")
+        print(f" Duration     : {ttl}s")
+        print("=" * 80)
+
+    elif sub == "clear":
+        rule_id = getattr(args, "rule_id", None)
+        clear_all = getattr(args, "all", False)
+        if not rule_id and not clear_all:
+            clear_all = True
+
+        cleared_count = 0
+        try:
+            payload = {"rule_id": rule_id}
+            req_data = json.dumps(payload).encode("utf-8")
+            req = urllib.request.Request(f"{server_url}/v1/mesh/chaos/clear", data=req_data, headers={"Content-Type": "application/json"})
+            with urllib.request.urlopen(req, timeout=1.0) as resp:
+                if resp.status == 200:
+                    data = json.loads(resp.read().decode("utf-8"))
+                    cleared_count = data.get("cleared_count", 1 if data.get("status") == "cleared" else 0)
+        except Exception:
+            pass
+
+        if cleared_count == 0:
+            from agent_workspace.core.chaos import MeshChaosManager
+            chaos_mgr = MeshChaosManager.get_instance()
+            if clear_all or not rule_id:
+                cleared_count = chaos_mgr.clear_all_faults()
+            elif rule_id:
+                cleared_count = 1 if chaos_mgr.clear_fault(rule_id) else 0
+
+        print(f"✅ Cleared {cleared_count} chaos fault rule(s). Mesh operating normally.")
+
+
+def handle_cluster(args):
+    """Manage Multi-Worker Cluster and E2E Demonstration (Phase 91)."""
+    sub = getattr(args, "cluster_action", "demo")
+    if sub == "demo":
+        from agent_workspace.core.cluster_demo import MultiWorkerCluster
+        print("=" * 80)
+        print(" 🚀 Launching Production E2E Multi-Worker Cluster Demonstration")
+        print("=" * 80)
+        cluster = MultiWorkerCluster()
+        receipt = cluster.run_full_demo()
+
+        print("\n" + "=" * 80)
+        print(" 📋 Cluster Demonstration Scorecard Receipt")
+        print("=" * 80)
+        print(f" Demo ID         : {receipt.demo_id}")
+        print(f" Nodes in Mesh   : {', '.join(receipt.nodes_participating)}")
+        print(f" Total Duration  : {receipt.duration_total_ms:.2f} ms")
+        print(f" Steps Passed    : {receipt.passed_steps} / {receipt.total_steps}")
+        print(f" Overall Status  : {'PASS' if receipt.success else 'FAIL'}")
+        print("-" * 80)
+        print(f" {'Step Name':<55} | {'Status':<8} | {'Duration':<10}")
+        print("-" * 80)
+        for s in receipt.step_receipts:
+            status_icon = "✅ PASS" if s.status == "PASS" else "❌ FAIL"
+            print(f" {s.step_name:<55} | {status_icon:<8} | {s.duration_ms:>6.2f} ms")
+        print("=" * 80)
+
+        save_receipt = getattr(args, "save_receipt", True)
+        out_path = getattr(args, "output", None)
+        if save_receipt or out_path:
+            target_path = Path(out_path) if out_path else Path(".agent/evidence/cluster_demo_receipt.json")
+            target_path.parent.mkdir(parents=True, exist_ok=True)
+            target_path.write_text(receipt.model_dump_json(indent=2), encoding="utf-8")
+            print(f" 💾 Demonstration receipt saved to: {target_path}")
+        print("=" * 80)
+
 
 def handle_lint(args):
     """Statically lint the PAP workspace contracts."""
@@ -1021,7 +1243,7 @@ def main() -> None:
     sys_args = sys.argv[1:]
 
     # Subcommands
-    subcommands = {"init", "onboard", "benchmark", "pipeline", "serve", "status", "mesh"}
+    subcommands = {"init", "onboard", "benchmark", "pipeline", "serve", "status", "mesh", "chaos", "cluster"}
 
     if sys_args and sys_args[0] in subcommands:
         cmd = sys_args[0]
@@ -1076,6 +1298,8 @@ def main() -> None:
             pipe_sub.add_argument("--reasoning-effort", choices=["low", "medium", "high"], default=None, help="Reasoning intensity level for o-series models")
             pipe_sub.add_argument("--mesh", action="store_true", help="Offload reasoning debate and test execution across federated P2P mesh peers")
             pipe_sub.add_argument("--mesh-peers", type=str, default=None, help="Comma-separated seed addresses of mesh peers (e.g. host:port)")
+            pipe_sub.add_argument("--self-healing", action="store_true", help="Enable autonomous self-healing retry loop on verification failures")
+            pipe_sub.add_argument("--max-healing-attempts", type=int, default=3, help="Maximum self-healing retry attempts (default: 3)")
             args = pipe_sub.parse_args(pipe_args[1:])
             handle_pipeline_run(args)
             return
@@ -1135,6 +1359,56 @@ def main() -> None:
             handle_mesh(args)
             return
 
+        elif cmd == "chaos":
+            chaos_args = sys_args[1:]
+            action = chaos_args[0] if chaos_args and not chaos_args[0].startswith("-") else "list"
+            chaos_sub = argparse.ArgumentParser(prog=f"las chaos {action}", description="Manage Federated Chaos Fault Injection (Phase 91).")
+            if action == "inject":
+                chaos_sub.add_argument("--type", dest="fault_type", default="LATENCY_SPIKE", choices=["NETWORK_PARTITION", "LATENCY_SPIKE", "PACKET_DROP", "NODE_ISOLATION", "BYZANTINE_TAMPER"], help="Fault type")
+                chaos_sub.add_argument("--source", dest="source_node_id", default="*", help="Source node ID pattern or *")
+                chaos_sub.add_argument("--target", dest="target_node_id", default="*", help="Target node ID pattern or *")
+                chaos_sub.add_argument("--latency-ms", type=float, default=0.0, help="Artificial latency in ms")
+                chaos_sub.add_argument("--drop-prob", type=float, default=1.0, help="Packet drop probability (0.0 to 1.0)")
+                chaos_sub.add_argument("--ttl", type=float, default=60.0, dest="ttl_seconds", help="Fault duration in seconds")
+                args = chaos_sub.parse_args(chaos_args[1:])
+                args.chaos_action = "inject"
+            elif action == "partition":
+                chaos_sub.add_argument("--group-a", required=True, help="Comma-separated node IDs in Group A")
+                chaos_sub.add_argument("--group-b", required=True, help="Comma-separated node IDs in Group B")
+                chaos_sub.add_argument("--ttl", type=float, default=60.0, dest="ttl_seconds", help="Partition duration in seconds")
+                args = chaos_sub.parse_args(chaos_args[1:])
+                args.chaos_action = "partition"
+            elif action == "isolate":
+                chaos_sub.add_argument("--node", required=True, help="Node ID to isolate from the mesh")
+                chaos_sub.add_argument("--ttl", type=float, default=60.0, dest="ttl_seconds", help="Isolation duration in seconds")
+                args = chaos_sub.parse_args(chaos_args[1:])
+                args.chaos_action = "isolate"
+            elif action == "clear":
+                chaos_sub.add_argument("--rule-id", type=str, default=None, help="Specific fault rule ID to remove")
+                chaos_sub.add_argument("--all", action="store_true", help="Clear all active chaos faults")
+                args = chaos_sub.parse_args(chaos_args[1:])
+                args.chaos_action = "clear"
+            else:
+                args = chaos_sub.parse_args(chaos_args[1:] if chaos_args and chaos_args[0] in ("list", "status") else chaos_args)
+                args.chaos_action = "list"
+            handle_chaos(args)
+            return
+
+        elif cmd == "cluster":
+            cluster_args = sys_args[1:]
+            action = cluster_args[0] if cluster_args and not cluster_args[0].startswith("-") else "demo"
+            cluster_sub = argparse.ArgumentParser(prog=f"las cluster {action}", description="Multi-Worker Cluster Orchestration and E2E Demo (Phase 91).")
+            if action == "demo":
+                cluster_sub.add_argument("--save-receipt", action="store_true", default=True, help="Save ClusterDemoReceipt to .agent/evidence/")
+                cluster_sub.add_argument("--output", type=str, default=None, help="Custom output JSON path for receipt")
+                args = cluster_sub.parse_args(cluster_args[1:])
+                args.cluster_action = "demo"
+            else:
+                args = cluster_sub.parse_args(cluster_args[1:])
+                args.cluster_action = action
+            handle_cluster(args)
+            return
+
     # If no args or standard help
     if not sys_args or sys_args in (["-h"], ["--help"]):
         print("""LAS: Governed Autonomous Multi-Agent Development Control Plane under Protocol v3.8.0
@@ -1150,6 +1424,8 @@ Core Subcommands:
   serve              Launch FastAPI REST API server and WebSocket telemetry hub
   status [path]      Inspect repository branch, worktree status, and latest verification receipt
   mesh [status|join|pki|rotate|attest|raft|memory] Manage Distributed P2P Mesh, PKI, Raft & Vector Memory
+  chaos [list|inject|partition|isolate|clear] Manage Federated Chaos Fault Injection
+  cluster [demo]     Production E2E Multi-Worker Cluster Demonstration
 
 Developer Tools & Legacy Flags:
   --list-skills      List all registered tools

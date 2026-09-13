@@ -199,10 +199,12 @@ class CommitteeRaftNode:
         attestation_checker: Optional[Callable[[str], bool]] = None,
         election_timeout_sec: float = 0.3,
         heartbeat_interval_sec: float = 0.1,
+        chaos_manager: Optional[Any] = None,
     ) -> None:
         self.node_id = node_id
         self.peers_provider = peers_provider
         self.attestation_checker = attestation_checker
+        self.chaos_manager = chaos_manager
 
         # Persistent state on all nodes (1-indexed log, slot 0 dummy)
         self.current_term: int = 0
@@ -283,6 +285,24 @@ class CommitteeRaftNode:
         3. If term > current_term, step down.
         4. Vote if voted_for is None or candidate_id, and candidate's log is up-to-date.
         """
+        # Phase 91 Chaos Fault Injection Check
+        if self.chaos_manager:
+            blocked, delay_ms, _ = self.chaos_manager.evaluate_traffic(
+                source_node_id=args.candidate_id,
+                target_node_id=self.node_id,
+                rpc_type="RequestVote",
+            )
+            if blocked:
+                logger.debug(f"[Raft {self.node_id}] RequestVote from {args.candidate_id} dropped by chaos rule")
+                return RequestVoteReply(
+                    term=self.current_term,
+                    vote_granted=False,
+                    voter_id=self.node_id,
+                    reason="Blocked by active chaos rule (Phase 91).",
+                )
+            if delay_ms > 0:
+                time.sleep(delay_ms / 1000.0)
+
         # Phase 88 Zero-Trust Attestation check
         if not self.is_peer_attested(args.candidate_id):
             return RequestVoteReply(
@@ -335,6 +355,26 @@ class CommitteeRaftNode:
         5. Truncate conflicting entries and append new entries.
         6. Update commit_index and apply to state machine.
         """
+        # Phase 91 Chaos Fault Injection Check
+        if self.chaos_manager:
+            blocked, delay_ms, _ = self.chaos_manager.evaluate_traffic(
+                source_node_id=args.leader_id,
+                target_node_id=self.node_id,
+                rpc_type="AppendEntries",
+            )
+            if blocked:
+                logger.debug(f"[Raft {self.node_id}] AppendEntries from {args.leader_id} dropped by chaos rule")
+                return AppendEntriesReply(
+                    term=self.current_term,
+                    success=False,
+                    match_index=0,
+                    node_id=self.node_id,
+                    error_message="Blocked by active chaos rule (Phase 91).",
+                )
+            if delay_ms > 0:
+                time.sleep(delay_ms / 1000.0)
+
+        # Phase 88 Zero-Trust Attestation check
         if not self.is_peer_attested(args.leader_id):
             return AppendEntriesReply(
                 term=self.current_term,
@@ -558,6 +598,14 @@ class CommitteeRaftNode:
 
     def _send_request_vote(self, peer_id: str, args: RequestVoteArgs) -> Optional[RequestVoteReply]:
         """Dispatches RequestVote RPC via custom dispatcher or mock network."""
+        if self.chaos_manager:
+            blocked, delay_ms, _ = self.chaos_manager.evaluate_traffic(self.node_id, peer_id, "RequestVote")
+            if blocked:
+                logger.debug(f"[Raft {self.node_id}] Outbound RequestVote to {peer_id} blocked by chaos rule")
+                return None
+            if delay_ms > 0:
+                time.sleep(delay_ms / 1000.0)
+
         if self.rpc_dispatcher:
             try:
                 res = self.rpc_dispatcher(peer_id, "request_vote", args.model_dump())
@@ -569,6 +617,14 @@ class CommitteeRaftNode:
 
     def _send_append_entries(self, peer_id: str, args: AppendEntriesArgs) -> Optional[AppendEntriesReply]:
         """Dispatches AppendEntries RPC via custom dispatcher or mock network."""
+        if self.chaos_manager:
+            blocked, delay_ms, _ = self.chaos_manager.evaluate_traffic(self.node_id, peer_id, "AppendEntries")
+            if blocked:
+                logger.debug(f"[Raft {self.node_id}] Outbound AppendEntries to {peer_id} blocked by chaos rule")
+                return None
+            if delay_ms > 0:
+                time.sleep(delay_ms / 1000.0)
+
         if self.rpc_dispatcher:
             try:
                 res = self.rpc_dispatcher(peer_id, "append_entries", args.model_dump())

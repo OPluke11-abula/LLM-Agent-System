@@ -570,3 +570,53 @@ timeline
     - Python bytecode compilation: `python -m py_compile` (0 errors)
     - Frontend production build: `npm run build` in `viewer/` (Pass, 0 errors, 651ms)
     - Formatting check: `git diff --check` (0 errors)
+
+---
+
+### Milestone T-023: Chaos Fault Injection, Autonomous Self-Healing Loop & Multi-Worker Cluster Demo Phase 91
+- **Goal**:
+  - Implement a federated chaos fault injection engine, an autonomous self-healing loop with vector memory RAG precedents, and an end-to-end multi-worker cluster demonstration (`agent_workspace/core/chaos.py`, `agent_workspace/core/pipeline/self_healing.py`, `agent_workspace/core/cluster_demo.py`, `agent_workspace/core/pipeline/models.py`, `agent_workspace/core/pipeline/manager.py`), providing network partition/latency/packet-drop injection across Raft and mesh RPCs, failure diagnostic extraction, precedent-informed bounded corrective retries, atomic worktree rollback with strict primary repo protection guard (`PRIMARY_REPO_PROTECTED`), a 7-stage 3-node in-process cluster demonstration, REST endpoints, CLI commands, and developer cockpit telemetry with chaos consoles and demo scorecards.
+- **Process**:
+  - Authored core chaos fault injection engine in `agent_workspace/core/chaos.py`:
+    - Defined `ChaosFaultType` enum (`NETWORK_PARTITION`, `LATENCY_SPIKE`, `PACKET_DROP`, `NODE_ISOLATION`, `BYZANTINE_TAMPER`).
+    - Implemented `ChaosFaultRule` model with probability, delay, monotonic TTL expiration, and source/target node filters.
+    - Implemented `MeshChaosManager` singleton supporting rule lifecycle, `evaluate_traffic(src, dst)` interception, `create_partition(group_a, group_b)`, and `isolate_node(node_id)`.
+  - Integrated chaos hooks into federated mesh, Raft consensus, and vector memory:
+    - Intercepted `RequestVote` and `AppendEntries` RPCs in `agent_workspace/core/raft_consensus.py`.
+    - Intercepted peer message delivery in `agent_workspace/core/federated_mesh.py`.
+    - Added `export_entries()` helper to `FederatedVectorMemory` in `agent_workspace/core/vector_memory.py`.
+  - Authored autonomous self-healing and auto-rollback engine in `agent_workspace/core/pipeline/self_healing.py`:
+    - Implemented `PipelineSelfHealingEngine` supporting diagnostic extraction via `LiveFeedbackRunner.extract_failure_evidence`, vector memory RAG precedent queries, bounded corrective retry dispatch, and verification ladder re-evaluations.
+    - Implemented `execute_auto_rollback` with atomic `git reset --hard` and `git clean -fd` inside isolated git worktrees, emitting verifiable `RollbackReceipt` instances.
+    - Added hardcoded safety guard preventing destructive operations on host repository roots, returning `PRIMARY_REPO_PROTECTED`.
+  - Authored multi-worker cluster demo engine in `agent_workspace/core/cluster_demo.py`:
+    - Implemented `MultiWorkerCluster` managing 3 in-process cluster nodes (Node 1 Leader/Cockpit, Node 2 Reasoning Worker, Node 3 Test Runner).
+    - Executed 7 sequential stages: PKI zero-trust handshake, Raft consensus election, vector memory sync, chaos partition injection, partition heal & re-election, pipeline task self-healing, and atomic rollback verification.
+    - Generated verifiable JSON execution receipt in `.agent/evidence/cluster_demo_receipt.json`.
+  - Extended coding pipeline models and manager:
+    - Added `PipelineStage.SELF_HEALING` to `PipelineStage` in `agent_workspace/core/pipeline/models.py`.
+    - Added `SelfHealingAttemptReceipt` and `RollbackReceipt` models.
+    - Updated `run_task_pipeline` in `agent_workspace/core/pipeline/manager.py` to seamlessly execute the self-healing loop upon verification ladder failures when enabled.
+  - Mounted REST API endpoints in `agent_workspace/routes/mesh.py`:
+    - `GET /v1/mesh/chaos/faults`: Lists active chaos fault rules.
+    - `POST /v1/mesh/chaos/inject`: Injects a custom chaos rule.
+    - `POST /v1/mesh/chaos/clear`: Clears all active chaos rules.
+    - `POST /v1/mesh/cluster/demo`: Triggers full multi-worker cluster demonstration.
+  - Upgraded developer CLI in `agent_workspace/cli.py`:
+    - Added `las chaos [list|inject|partition|isolate|clear]`.
+    - Added `las cluster demo`.
+    - Added `--self-healing` and `--max-healing-attempts` flags to `las pipeline run`.
+  - Upgraded Frontend Cockpit in `viewer/src/components/`:
+    - Added Chaos Fault Injection Console Bento card with quick-inject actions and active rules ledger in `FederatedMeshView.tsx`.
+    - Added Multi-Worker Cluster Demo Bento card with 7-stage scorecard and execution timings in `FederatedMeshView.tsx`.
+    - Added `SELF_HEALING` stage badge in pipeline stepper and Self-Healing & Auto-Rollback Status card in `CodingPipelineView.tsx`.
+  - Authored comprehensive test suite in `agent_workspace/tests/test_chaos_selfhealing_p91.py` (10 tests).
+  - Authored Tier 3 Obsidian leaf note `docs/obsidian/modules/core/core-chaos-and-self-healing.md`.
+- **Result**:
+  - Phase 91 (Chaos Fault Injection, Autonomous Self-Healing Loop & Multi-Worker Cluster Demo) 100% complete and verified.
+  - Receipts:
+    - `test_chaos_selfhealing_p91.py`: 10/10 PASS (1.92s)
+    - Full combined pipeline regression matrix: 117/117 PASS across 16 test suites (25.30s)
+    - Python bytecode compilation: `python -m py_compile` (0 errors)
+    - Frontend production build: `npm run build` in `viewer/` (Pass, 0 errors, 3.83s)
+    - Formatting check: `git diff --check` (0 errors)

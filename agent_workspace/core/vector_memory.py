@@ -266,6 +266,11 @@ class FederatedVectorMemory:
         with self._lock:
             return [self._entries[eid] for eid in entry_ids if eid in self._entries]
 
+    def export_entries(self) -> List[Dict[str, Any]]:
+        """Exports all memory entries as serializable dictionaries for peer synchronization."""
+        with self._lock:
+            return [entry.model_dump() for entry in self._entries.values()]
+
     def merge_entries(
         self,
         entries: Sequence[Union[VectorMemoryEntry, Dict[str, Any]]],
