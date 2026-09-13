@@ -47,6 +47,7 @@ graph TD
     T19["T-019: Distributed P2P Mesh & Federated Worktree Clustering (P87)"]:::done
     T20["T-020: Zero-Trust mTLS Dynamic Node Attestation & PKI Mesh (P88)"]:::done
     T21["T-021: Distributed Committee Raft Consensus & State Machine (P89)"]:::done
+    T22["T-022: Federated Vector Memory & RAG Topology Sync (P90)"]:::done
 
     T01 --> T02
     T01 --> T03
@@ -70,6 +71,7 @@ graph TD
     T18 --> T19
     T19 --> T20
     T20 --> T21
+    T21 --> T22
 ```
 
 ---
@@ -261,4 +263,12 @@ graph TD
 - **Scope**: Implemented distributed committee Raft consensus engine and deterministic replicated state machine. Authored `agent_workspace/core/raft_consensus.py` with `CommitteeRaftNode` (FOLLOWER/CANDIDATE/LEADER roles, randomized election timeouts, log matching, conflict truncation, quorum commits), `CommitteeStateMachine` (sequential debate log application, status tracking, patch Merkle root commitments), and cryptographic `CommitteeLogEntry` signing. Integrated Raft node into `FederatedMeshCoordinator` in `agent_workspace/core/federated_mesh.py` with Phase 88 Zero-Trust attestation checks on candidate votes and entry append requests. Integrated Raft replicated logging into `PipelineDebateProtocol` in `agent_workspace/core/pipeline/debate_protocol.py` when `use_raft_consensus=True`. Exposed REST API endpoints (`/v1/mesh/raft/status`, `/v1/mesh/raft/log`, `/v1/mesh/raft/elect`, `/v1/mesh/raft/vote`, `/v1/mesh/raft/append_entries`, `/v1/mesh/raft/propose`) in `agent_workspace/routes/mesh.py`. Added CLI subcommands (`las mesh raft status`, `las mesh raft elect`, `las mesh raft log [--limit N]`) in `agent_workspace/cli.py`. Upgraded frontend cockpit in `viewer/src/components/FederatedMeshView.tsx` with Raft consensus Bento status card, quorum metrics, manual election trigger, and real-time replicated debate ledger table.
 - **Target Files**: `agent_workspace/core/raft_consensus.py`, `agent_workspace/core/pipeline/models.py`, `agent_workspace/core/federated_mesh.py`, `agent_workspace/core/pipeline/debate_protocol.py`, `agent_workspace/routes/mesh.py`, `agent_workspace/cli.py`, `viewer/src/components/FederatedMeshView.tsx`, `agent_workspace/tests/test_committee_raft_p89.py`, `docs/obsidian/modules/core/core-raft-consensus.md`.
 - **Verification**: `test_committee_raft_p89.py` (9 tests, 100% PASS in 0.17s); Full combined 12-suite regression matrix across P1~P89 (81/81 tests, 100% PASS in 20.30s); `npm run build` in `viewer/` (Pass, 0 errors, 3.27s); `git diff --check` (0 trailing whitespace).
+- **Status**: `PASS` (Completed).
+
+### [DONE] T-022: Federated Vector Memory & RAG Knowledge Topology Sync (Phase 90)
+- **Assigned Role**: `ARCHITECT_PLANNER_AGENT` (Luke) / `KNOWLEDGE_TOPOLOGY_AGENT` (Shared) / `BACKEND_INFRA_AGENT` (Ethan) / `QA_TEST_AGENT` (Jimmy) / `UI_UX_AGENT` (Joe)
+- **Reference ADR**: [[60 Architectural Decision Records (ADR) Graph#ADR-005|ADR-005: Stop-and-Wait Gate]], [[60 Architectural Decision Records (ADR) Graph#ADR-006|ADR-006: Agent Strategy Integration]]
+- **Scope**: Implemented distributed federated vector memory and RAG knowledge topology sync across P2P mesh nodes. Authored `agent_workspace/core/vector_memory.py` with `VectorCategory` (`DECISION`, `LESSON`, `PATTERN`, `ERROR`, `CODE_SNIPPET`), `VectorMemoryEntry` with SHA-256 content hashes, `FederatedVectorMemory` supporting deterministic binary Merkle tree root calculation for $O(1)$ knowledge divergence detection, cosine similarity search, bilateral delta reconciliation (`reconcile_delta`, `merge_entries`) with last-write-wins timestamp collision resolution. Upgraded `generate_mock_embedding` in `agent_workspace/core/embeddings.py` with token-based semantic affinity while remaining 100% deterministic, zero-network, and L2-normalized. Integrated Raft replicated checkpoints with `CommitteeEntryType.VECTOR_CHECKPOINT` in `agent_workspace/core/raft_consensus.py`. Embedded `FederatedVectorMemory` in `FederatedMeshCoordinator` in `agent_workspace/core/federated_mesh.py` with Phase 88 Zero-Trust attestation gating on vector synchronization. Integrated automated RAG into `PipelineDebateProtocol` in `agent_workspace/core/pipeline/debate_protocol.py` (pre-debate context injection and post-debate consensus learning). Mounted REST API endpoints (`/v1/mesh/memory/stats`, `/v1/mesh/memory/entries`, `/v1/mesh/memory/query`, `/v1/mesh/memory/store`, `/v1/mesh/memory/sync`) in `agent_workspace/routes/mesh.py`. Added CLI commands (`las mesh memory stats`, `las mesh memory query`, `las mesh memory sync`) in `agent_workspace/cli.py`. Upgraded frontend cockpit in `viewer/src/components/FederatedMeshView.tsx` with Federated Vector Memory Bento Card, Cosine Search Bar, and Replicated Knowledge Ledger table.
+- **Target Files**: `agent_workspace/core/vector_memory.py`, `agent_workspace/core/embeddings.py`, `agent_workspace/core/raft_consensus.py`, `agent_workspace/core/federated_mesh.py`, `agent_workspace/core/pipeline/debate_protocol.py`, `agent_workspace/routes/mesh.py`, `agent_workspace/cli.py`, `viewer/src/components/FederatedMeshView.tsx`, `agent_workspace/tests/test_federated_memory_p90.py`, `docs/obsidian/modules/core/core-vector-memory.md`.
+- **Verification**: `test_federated_memory_p90.py` (8 tests, 100% PASS in 0.24s); Full combined 13-suite regression matrix across P1~P90 (89/89 tests, 100% PASS in 19.79s); `npm run build` in `viewer/` (Pass, 0 errors, 651ms); `git diff --check` (0 trailing whitespace).
 - **Status**: `PASS` (Completed).

@@ -38,10 +38,12 @@ class PipelineDebateProtocol:
         discussion_room: Optional[Any] = None,
         turn_callback: Optional[Callable[[DebateSpeechTurn], None]] = None,
         mesh_coordinator: Optional[Any] = None,
+        vector_memory: Optional[Any] = None,
     ) -> None:
         self.discussion_room = discussion_room
         self.turn_callback = turn_callback
         self.mesh_coordinator = mesh_coordinator
+        self.vector_memory = vector_memory or getattr(mesh_coordinator, "vector_memory", None)
 
     def run_debate(
         self,
@@ -56,6 +58,25 @@ class PipelineDebateProtocol:
         debate_id = f"DEBATE-{request.task_id}"
         member_roles = [m.role for m in formation.members]
         rounds_to_run = getattr(request, "debate_rounds", 1) or 1
+
+        # Phase 90: Pre-debate Federated Vector Memory Precedents Retrieval (RAG Injection)
+        relevant_precedents: list[dict] = []
+        if self.vector_memory:
+            try:
+                search_matches = self.vector_memory.search(
+                    query=request.requirement_prompt,
+                    top_k=3,
+                    min_similarity=0.0,
+                )
+                for sm in search_matches:
+                    relevant_precedents.append({
+                        "task_id": sm.entry.task_id,
+                        "category": sm.entry.category.value,
+                        "content": sm.entry.content,
+                        "similarity": sm.similarity,
+                    })
+            except Exception as e:
+                logger.debug("Pre-debate vector memory search: %s", e)
 
         round_records: list[DebateRoundRecord] = []
         dissenting_opinions: list[str] = []
@@ -78,6 +99,7 @@ class PipelineDebateProtocol:
                     request=request,
                     draft_plan=draft_plan,
                     formation=formation,
+                    precedents=relevant_precedents,
                 )
                 turns.append(speech_turn)
                 all_critique_points.extend(speech_turn.critique_points)
@@ -200,6 +222,43 @@ class PipelineDebateProtocol:
             except Exception as raft_err:
                 logger.debug("Raft verdict replication skipped: %s", raft_err)
 
+        # Phase 90: Post-debate Experience Auto-Indexing into Federated Vector Memory
+        if self.vector_memory:
+            try:
+                cat = "DECISION" if scorecard.decision == "CONSENSUS_APPROVED" else "LESSON"
+                recs = "; ".join(scorecard.recommended_actions[:2]) if scorecard.recommended_actions else "Proceed"
+                experience_content = (
+                    f"Task {request.task_id} consensus verdict: {scorecard.decision}. "
+                    f"Composite score: {scorecard.composite_score:.2f}. "
+                    f"Recommendations: {recs}"
+                )
+                self.vector_memory.store(
+                    task_id=request.task_id,
+                    category=cat,
+                    content=experience_content,
+                    metadata={
+                        "composite_score": scorecard.composite_score,
+                        "decision": scorecard.decision,
+                        "architectural_integrity": scorecard.architectural_integrity,
+                        "security_assurance": scorecard.security_assurance,
+                        "test_thoroughness": scorecard.test_thoroughness,
+                    },
+                    author_node_id=getattr(self.mesh_coordinator, "node_id", "node-local"),
+                )
+                if self.mesh_coordinator and getattr(request, "use_raft_consensus", False):
+                    from agent_workspace.core.raft_consensus import CommitteeEntryType
+                    self.mesh_coordinator.propose_committee_entry(
+                        entry_type=CommitteeEntryType.VECTOR_CHECKPOINT,
+                        payload={
+                            "task_id": request.task_id,
+                            "decision": scorecard.decision,
+                            "merkle_root": self.vector_memory.compute_merkle_root(),
+                            "total_entries": len(self.vector_memory._entries),
+                        },
+                    )
+            except Exception as mem_err:
+                logger.debug("Post-debate vector indexing skipped: %s", mem_err)
+
         record = CommitteeDebateRecord(
             debate_id=debate_id,
             task_id=request.task_id,
@@ -230,6 +289,7 @@ class PipelineDebateProtocol:
         request: CodingTaskRequest,
         draft_plan: Optional[ScopedMutationPlan],
         formation: CommitteeFormation,
+        precedents: Optional[list[dict]] = None,
     ) -> DebateSpeechTurn:
         """
         Synthesizes an authoritative critique turn for a given specialist persona.
@@ -329,20 +389,30 @@ class PipelineDebateProtocol:
                     reasoning_tokens=62,
                 )
             else:
+                critiques = [
+                    "Maintain zero dead code policy",
+                    "Align interfaces with Protocol v3.8.0 invariants",
+                ]
+                precedent_note = ""
+                if precedents:
+                    top_p = precedents[0]
+                    precedent_note = (
+                        f"\n[Federated Knowledge Topology Precedent ({top_p['category']}) from Task {top_p['task_id']}]: "
+                        f"{top_p['content'][:140]}"
+                    )
+                    critiques.append(f"Referenced historical precedent from task {top_p['task_id']}")
+
                 content = (
                     f"Architectural Assessment: Target scope ({', '.join(request.target_files) or 'bounded scope'}) "
                     "is cleanly decoupled. Anti-Summary Invariant satisfied. Domain contracts remain framework-agnostic. "
-                    "Approved for Stop-and-Wait Architecture Gate submission."
+                    f"Approved for Stop-and-Wait Architecture Gate submission.{precedent_note}"
                 )
                 return DebateSpeechTurn(
                     speaker_role=member_role,
                     round_index=round_index,
                     turn_index=turn_index,
                     content=content,
-                    critique_points=[
-                        "Maintain zero dead code policy",
-                        "Align interfaces with Protocol v3.8.0 invariants",
-                    ],
+                    critique_points=critiques,
                     score_impact=0.0,
                     reasoning_content="Evaluating component modularity, single responsibility, and domain abstraction purity.",
                     reasoning_tokens=52,

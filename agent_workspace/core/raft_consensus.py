@@ -37,6 +37,7 @@ class CommitteeEntryType(str, Enum):
     CONSENSUS_VERDICT = "CONSENSUS_VERDICT"
     PATCH_COMMIT = "PATCH_COMMIT"
     CONFIGURATION = "CONFIGURATION"
+    VECTOR_CHECKPOINT = "VECTOR_CHECKPOINT"
 
 
 class CommitteeLogEntry(BaseModel):
@@ -130,6 +131,9 @@ class CommitteeStateMachine:
         self.committed_patches: Dict[str, str] = {}
         # task_id -> overall status ("PENDING", "APPROVED", "REJECTED")
         self.task_statuses: Dict[str, str] = {}
+        # Replicated vector memory checkpoints
+        self.vector_checkpoints: List[Dict[str, Any]] = []
+        self.latest_vector_merkle_root: str = ""
 
     def apply_entry(self, entry: CommitteeLogEntry) -> None:
         """Applies a committed log entry sequentially to update state."""
@@ -156,6 +160,11 @@ class CommitteeStateMachine:
             self.committed_patches[task_id] = merkle_root
             self.task_statuses[task_id] = "PATCH_COMMITTED"
 
+        elif entry.entry_type == CommitteeEntryType.VECTOR_CHECKPOINT:
+            self.vector_checkpoints.append(entry.payload)
+            if "merkle_root" in entry.payload:
+                self.latest_vector_merkle_root = str(entry.payload["merkle_root"])
+
         logger.debug(
             "[StateMachine] Applied log index %d (type=%s, task=%s)",
             entry.index,
@@ -172,6 +181,8 @@ class CommitteeStateMachine:
             "verdict": self.verdicts.get(task_id),
             "patch_merkle_root": self.committed_patches.get(task_id),
             "last_applied_index": self.last_applied_index,
+            "latest_vector_merkle_root": self.latest_vector_merkle_root,
+            "vector_checkpoints_count": len(self.vector_checkpoints),
         }
 
 

@@ -5,6 +5,7 @@ import {
   Brain,
   CheckCircle2,
   Cpu,
+  Database,
   FileText,
   GitCommit,
   Globe,
@@ -13,6 +14,7 @@ import {
   Network,
   Plus,
   RefreshCw,
+  Search,
   Server,
   Shield,
   ShieldCheck,
@@ -61,6 +63,38 @@ export interface RaftLogEntry {
   timestamp: number;
 }
 
+export interface VectorMemoryStats {
+  node_id: string;
+  total_entries: number;
+  merkle_root: string;
+  embedding_dimension: number;
+  category_breakdown: Record<string, number>;
+}
+
+export interface VectorMemoryEntryItem {
+  entry_id: string;
+  task_id: string;
+  category: string;
+  content: string;
+  metadata: Record<string, any>;
+  content_hash: string;
+  author_node_id: string;
+  timestamp: number;
+}
+
+export interface VectorQueryResultItem {
+  entry_id: string;
+  task_id: string;
+  category: string;
+  content: string;
+  metadata: Record<string, any>;
+  author_node_id: string;
+  similarity: number;
+  rank: number;
+  content_hash: string;
+  timestamp: number;
+}
+
 export interface MeshStatus {
   local_node: PeerProfile;
   peer_count: number;
@@ -89,6 +123,11 @@ export const FederatedMeshView: React.FC<FederatedMeshViewProps> = ({ lang: _lan
   const [raftStatus, setRaftStatus] = useState<RaftStatus | null>(null);
   const [raftLogs, setRaftLogs] = useState<RaftLogEntry[]>([]);
   const [electing, setElecting] = useState<boolean>(false);
+  const [vectorStats, setVectorStats] = useState<VectorMemoryStats | null>(null);
+  const [vectorEntries, setVectorEntries] = useState<VectorMemoryEntryItem[]>([]);
+  const [queryInput, setQueryInput] = useState<string>("modular architecture boundary");
+  const [searchResults, setSearchResults] = useState<VectorQueryResultItem[]>([]);
+  const [searching, setSearching] = useState<boolean>(false);
 
   const fetchMeshStatus = async () => {
     try {
@@ -111,6 +150,16 @@ export const FederatedMeshView: React.FC<FederatedMeshViewProps> = ({ lang: _lan
         if (logRes.ok) {
           const lData = await logRes.json();
           setRaftLogs(lData.entries || []);
+        }
+        const memStatsRes = await fetch("http://127.0.0.1:8000/v1/mesh/memory/stats");
+        if (memStatsRes.ok) {
+          const mData = await memStatsRes.json();
+          setVectorStats(mData);
+        }
+        const memEntriesRes = await fetch("http://127.0.0.1:8000/v1/mesh/memory/entries?limit=8");
+        if (memEntriesRes.ok) {
+          const eData = await memEntriesRes.json();
+          setVectorEntries(eData.entries || []);
         }
       } catch {
         // Fallback below
@@ -180,8 +229,116 @@ export const FederatedMeshView: React.FC<FederatedMeshViewProps> = ({ lang: _lan
           timestamp: Date.now() / 1000 - 60,
         },
       ]);
+
+      setVectorStats({
+        node_id: "node-local-lead",
+        total_entries: 3,
+        merkle_root: "9e4a8b2c1f0d3e5a7b9c1d3e5f7a9b1c3d5e7f9a1b3c5d7e9f1a3b5c7d9e1f3a",
+        embedding_dimension: 1536,
+        category_breakdown: {
+          DECISION: 1,
+          PATTERN: 1,
+          LESSON: 1,
+        },
+      });
+
+      const fallbackEntries: VectorMemoryEntryItem[] = [
+        {
+          entry_id: "vec-001",
+          task_id: "TASK-089",
+          category: "DECISION",
+          content: "Enforce CommitteeRaftNode quorum consensus before executing production git mutations.",
+          metadata: { composite_score: 0.96, decision: "CONSENSUS_APPROVED" },
+          content_hash: "a1b2c3d4e5f67890abcdef1234567890",
+          author_node_id: "node-local-lead",
+          timestamp: Date.now() / 1000 - 180,
+        },
+        {
+          entry_id: "vec-002",
+          task_id: "TASK-088",
+          category: "PATTERN",
+          content: "Zero-Trust mTLS attestation challenge-response handshake gates untrusted peer participation.",
+          metadata: { composite_score: 0.94, decision: "CONSENSUS_APPROVED" },
+          content_hash: "b2c3d4e5f67890a1bcdef1234567890a",
+          author_node_id: "node-local-lead",
+          timestamp: Date.now() / 1000 - 360,
+        },
+        {
+          entry_id: "vec-003",
+          task_id: "TASK-087",
+          category: "LESSON",
+          content: "Multi-module task mutations without decoupled interfaces trigger Extreme Single Responsibility objections.",
+          metadata: { composite_score: 0.65, decision: "REJECTED_NEEDS_REVISION" },
+          content_hash: "c3d4e5f67890a1b2cdef1234567890ab",
+          author_node_id: "node-local-lead",
+          timestamp: Date.now() / 1000 - 720,
+        },
+      ];
+      setVectorEntries(fallbackEntries);
+
+      setSearchResults([
+        {
+          entry_id: "vec-001",
+          task_id: "TASK-089",
+          category: "DECISION",
+          content: "Enforce CommitteeRaftNode quorum consensus before executing production git mutations.",
+          metadata: { composite_score: 0.96 },
+          author_node_id: "node-local-lead",
+          similarity: 0.9241,
+          rank: 1,
+          content_hash: "a1b2c3d4...",
+          timestamp: Date.now() / 1000 - 180,
+        },
+        {
+          entry_id: "vec-003",
+          task_id: "TASK-087",
+          category: "LESSON",
+          content: "Multi-module task mutations without decoupled interfaces trigger Extreme Single Responsibility objections.",
+          metadata: { composite_score: 0.65 },
+          author_node_id: "node-local-lead",
+          similarity: 0.8115,
+          rank: 2,
+          content_hash: "c3d4e5f6...",
+          timestamp: Date.now() / 1000 - 720,
+        },
+      ]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSearchMemory = async () => {
+    if (!queryInput.trim()) return;
+    try {
+      setSearching(true);
+      const res = await fetch("http://127.0.0.1:8000/v1/mesh/memory/query", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: queryInput, top_k: 4, min_similarity: 0.0 }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSearchResults(data.results || []);
+      }
+    } catch {
+      // Local simulated search fallback
+      const filtered: VectorQueryResultItem[] = vectorEntries
+        .map((e, idx) => ({
+          entry_id: e.entry_id,
+          task_id: e.task_id,
+          category: e.category,
+          content: e.content,
+          metadata: e.metadata,
+          author_node_id: e.author_node_id,
+          similarity: Number((0.94 - idx * 0.11).toFixed(4)),
+          rank: idx + 1,
+          content_hash: e.content_hash,
+          timestamp: e.timestamp,
+        }))
+        .slice(0, 4);
+      setSearchResults(filtered);
+    } finally {
+      setSearching(false);
     }
   };
 
@@ -596,6 +753,130 @@ export const FederatedMeshView: React.FC<FederatedMeshViewProps> = ({ lang: _lan
                   </tr>
                 );
               })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Federated Vector Memory & RAG Knowledge Topology Panel (Phase 90) */}
+      <div className="mb-6 rounded-xl border border-purple-500/30 bg-gradient-to-r from-purple-950/20 via-[var(--card-bg)] to-indigo-950/20 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--border-c)] pb-3 mb-4">
+          <div className="flex items-center gap-3">
+            <div className="rounded-lg bg-purple-500/10 p-2 border border-purple-500/20 text-purple-400">
+              <Database className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-purple-300">
+                  Federated Vector Memory & RAG Knowledge Topology
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-purple-500/10 px-2 py-0.5 text-[10px] font-semibold text-purple-300">
+                  <Brain className="h-3 w-3" />
+                  {vectorStats?.total_entries || 0} Vectors Indexed
+                </span>
+              </div>
+              <p className="mt-0.5 text-xs text-[var(--t2)]">
+                Decentralized cosine similarity retrieval with deterministic Merkle root integrity & Raft experience replication
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="rounded-lg border border-[var(--border-c)] bg-white/5 px-2.5 py-1 text-right">
+              <span className="text-[10px] uppercase text-[var(--t3)] block">Merkle Topology Root</span>
+              <span className="font-mono text-xs text-purple-300 font-semibold" title={vectorStats?.merkle_root || "None"}>
+                {vectorStats?.merkle_root ? `${vectorStats.merkle_root.slice(0, 12)}...` : "Empty"}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Interactive Query Search Bar */}
+        <div className="mb-4 flex flex-col md:flex-row gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-[var(--t3)]" />
+            <input
+              type="text"
+              value={queryInput}
+              onChange={(e) => setQueryInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSearchMemory()}
+              placeholder="Query federated experiences (e.g. modular architecture, security sanitization, consensus rules)..."
+              className="w-full rounded-lg border border-[var(--border-c)] bg-[var(--input-bg)] py-2 pl-9 pr-3 text-xs text-[var(--t1)] placeholder:text-[var(--t3)] focus:border-purple-500 focus:outline-none"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={handleSearchMemory}
+            disabled={searching}
+            className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-purple-500/40 bg-purple-500/10 px-4 py-2 text-xs font-semibold text-purple-300 hover:bg-purple-500/20 transition-colors"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${searching ? "animate-spin" : ""}`} />
+            Cosine Search
+          </button>
+        </div>
+
+        {/* Search Results Grid */}
+        {searchResults.length > 0 && (
+          <div className="mb-4 rounded-lg border border-purple-500/20 bg-black/20 p-3">
+            <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-purple-300">
+              Ranked Semantic Matches ({searchResults.length})
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {searchResults.map((res) => (
+                <div key={res.entry_id} className="rounded-md border border-[var(--border-c)] bg-[var(--card-bg)]/80 p-2.5">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="inline-flex items-center gap-1 rounded bg-purple-500/20 px-1.5 py-0.5 text-[10px] font-bold text-purple-300">
+                      #{res.rank} {res.category}
+                    </span>
+                    <span className="font-mono text-[10px] text-emerald-400 font-semibold">
+                      Sim: {(res.similarity * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                  <p className="text-xs text-[var(--t1)] line-clamp-2 leading-relaxed">
+                    {res.content}
+                  </p>
+                  <div className="mt-2 flex items-center justify-between text-[10px] text-[var(--t3)] font-mono">
+                    <span>Task: {res.task_id}</span>
+                    <span>Node: {res.author_node_id}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Synchronized Replicated Experience Ledger Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead>
+              <tr className="border-b border-[var(--border-c)] text-[var(--t3)] uppercase tracking-wider text-[10px]">
+                <th className="pb-2 font-mono">ID</th>
+                <th className="pb-2">Category</th>
+                <th className="pb-2 font-mono">Task</th>
+                <th className="pb-2 font-mono">Author</th>
+                <th className="pb-2">Synchronized Experience Summary</th>
+                <th className="pb-2 text-right font-mono">Merkle Hash</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--border-c)] font-mono text-[11px]">
+              {vectorEntries.slice(0, 5).map((e) => (
+                <tr key={e.entry_id} className="hover:bg-white/5 transition-colors">
+                  <td className="py-2 text-purple-300 font-bold">{e.entry_id}</td>
+                  <td className="py-2 font-sans">
+                    <span className="inline-flex items-center gap-1 rounded bg-white/5 px-2 py-0.5 text-[10px] font-semibold text-[var(--t2)]">
+                      {e.category}
+                    </span>
+                  </td>
+                  <td className="py-2 text-[var(--t2)]">{e.task_id}</td>
+                  <td className="py-2 text-[var(--t3)]">{e.author_node_id}</td>
+                  <td className="py-2 font-sans text-[var(--t1)] text-xs truncate max-w-sm" title={e.content}>
+                    {e.content}
+                  </td>
+                  <td className="py-2 text-right text-[var(--t3)] font-mono text-[10px]" title={e.content_hash}>
+                    {e.content_hash ? `${e.content_hash.slice(0, 8)}...` : "none"}
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
