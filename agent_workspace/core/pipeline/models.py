@@ -20,6 +20,7 @@ class PipelineStage(str, Enum):
     PLAN_AND_GATE = "PLAN_AND_GATE"
     ISOLATED_MUTATION = "ISOLATED_MUTATION"
     VERIFY_AND_EVIDENCE = "VERIFY_AND_EVIDENCE"
+    SELF_HEALING = "SELF_HEALING"
     DRAFT_PR_EXPORT = "DRAFT_PR_EXPORT"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
@@ -101,6 +102,16 @@ class CodingTaskRequest(BaseModel):
     use_raft_consensus: bool = Field(
         default=False,
         description="Enforce distributed Raft quorum consensus and replicated debate log across mesh"
+    )
+    enable_self_healing: bool = Field(
+        default=True,
+        description="Enable autonomous diagnostic extraction and corrective self-healing loop on verification failure"
+    )
+    max_healing_attempts: int = Field(
+        default=2,
+        ge=0,
+        le=5,
+        description="Maximum number of self-healing retry iterations before executing auto-rollback"
     )
     metadata: dict[str, Any] = Field(default_factory=dict, description="Arbitrary extension metadata")
 
@@ -229,6 +240,34 @@ class CommitteeDebateRecord(BaseModel):
     timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
+class SelfHealingAttemptReceipt(BaseModel):
+    """Telemetry and outcome receipt for an autonomous self-healing iteration."""
+    model_config = ConfigDict(extra="forbid")
+
+    attempt_index: int = Field(..., description="1-based attempt sequence number")
+    failed_steps: list[str] = Field(default_factory=list, description="Names of verification ladder steps that failed")
+    diagnostic_evidence: list[str] = Field(default_factory=list, description="Extracted high-signal failure messages")
+    memory_precedents_used: list[str] = Field(default_factory=list, description="Historical vector memory lessons/error patterns retrieved")
+    corrective_action: str = Field(default="", description="Description of corrective changes applied")
+    modified_files: list[str] = Field(default_factory=list, description="Files updated during this healing attempt")
+    ladder_passed: bool = Field(default=False, description="Whether re-verification succeeded")
+    duration_ms: float = Field(default=0.0, description="Duration of self-healing attempt in milliseconds")
+
+
+class RollbackReceipt(BaseModel):
+    """Cryptographically verifiable receipt proving atomic worktree restoration upon failure."""
+    model_config = ConfigDict(extra="forbid")
+
+    task_id: str
+    worktree_path: str
+    branch_name: str
+    restored_base_commit: str
+    untracked_files_purged: list[str] = Field(default_factory=list)
+    restoration_status: str = Field(default="PRISTINE_ROLLBACK", description="'PRISTINE_ROLLBACK' or 'BRANCH_TEARDOWN'")
+    canonical_clean: bool = Field(default=True, description="True if no host repository pollution occurred")
+    timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+
 class CodingPipelineResult(BaseModel):
     """Comprehensive result emitted upon completion or termination of the coding pipeline."""
     model_config = ConfigDict(extra="forbid")
@@ -241,6 +280,8 @@ class CodingPipelineResult(BaseModel):
     committee_debate: Optional[CommitteeDebateRecord] = Field(default=None, description="Multi-agent deliberation and consensus output")
     mutation_plan: Optional[ScopedMutationPlan] = None
     receipts: list[VerificationReceipt] = Field(default_factory=list)
+    self_healing_attempts: list[SelfHealingAttemptReceipt] = Field(default_factory=list, description="Historical self-healing repair attempts")
+    rollback_receipt: Optional[RollbackReceipt] = Field(default=None, description="Receipt proving clean rollback if execution failed")
     pr_payload: Optional[DraftPRPayload] = None
     error_message: Optional[str] = None
     audit_events: list[dict[str, Any]] = Field(default_factory=list)

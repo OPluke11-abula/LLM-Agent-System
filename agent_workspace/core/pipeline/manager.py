@@ -27,6 +27,7 @@ from .models import (
 )
 from .committee import CommitteeCoordinator
 from .debate_protocol import PipelineDebateProtocol
+from .self_healing import PipelineSelfHealingEngine
 from .contracts import (
     IWorktreeManager,
     IScopedExecutor,
@@ -304,11 +305,63 @@ class CodingPipelineManager:
             # Check if all receipts passed
             failed_receipts = [r for r in receipts if r.status != VerificationStatus.PASS]
             if failed_receipts:
-                failed_names = ", ".join(r.step_name for r in failed_receipts)
-                result.status = VerificationStatus.FAIL
-                result.error_message = f"Verification ladder failed on steps: {failed_names}"
-                self._record_stage(result, PipelineStage.FAILED, result.error_message)
-                return result
+                # Autonomous Self-Healing Loop (Phase 91)
+                if request.enable_self_healing and request.max_healing_attempts > 0:
+                    self._record_stage(result, PipelineStage.SELF_HEALING, "Verification ladder failed; entering autonomous self-healing loop.")
+                    healing_engine = PipelineSelfHealingEngine(
+                        worktree_manager=self.worktree_manager,
+                        scoped_executor=self.scoped_executor,
+                        verification_runner=self.verification_runner,
+                        vector_memory=getattr(self.mesh_coordinator, "vector_memory", None),
+                    )
+                    healed = False
+                    for attempt_idx in range(1, request.max_healing_attempts + 1):
+                        attempt_receipt = healing_engine.attempt_self_healing(
+                            task_id=task_id,
+                            worktree_session=worktree_session,
+                            plan=plan,
+                            failed_receipts=failed_receipts,
+                            attempt_index=attempt_idx,
+                        )
+                        result.self_healing_attempts.append(attempt_receipt)
+                        self._record_stage(
+                            result,
+                            PipelineStage.SELF_HEALING,
+                            f"Self-healing attempt {attempt_idx}/{request.max_healing_attempts}: {'PASSED' if attempt_receipt.ladder_passed else 'FAILED'}",
+                        )
+                        if attempt_receipt.ladder_passed:
+                            healed = True
+                            # Re-collect passed receipts
+                            receipts = self.verification_runner.run_verification_ladder(
+                                worktree_path=worktree_session.worktree_path,
+                                test_strategy=plan.test_strategy,
+                            )
+                            result.receipts = receipts
+                            break
+
+                    if not healed:
+                        failed_names = ", ".join(r.step_name for r in failed_receipts)
+                        result.status = VerificationStatus.FAIL
+                        result.error_message = (
+                            f"Verification ladder failed on steps: {failed_names} "
+                            f"(Self-healing exhausted after {request.max_healing_attempts} attempts)."
+                        )
+                        self._record_stage(result, PipelineStage.FAILED, result.error_message)
+
+                        # Execute atomic auto-rollback to guarantee pristine worktree
+                        rollback_receipt = healing_engine.execute_auto_rollback(
+                            task_id=task_id,
+                            worktree_session=worktree_session,
+                        )
+                        result.rollback_receipt = rollback_receipt
+                        self._record_stage(result, PipelineStage.FAILED, f"Auto-rollback executed: {rollback_receipt.restoration_status}")
+                        return result
+                else:
+                    failed_names = ", ".join(r.step_name for r in failed_receipts)
+                    result.status = VerificationStatus.FAIL
+                    result.error_message = f"Verification ladder failed on steps: {failed_names}"
+                    self._record_stage(result, PipelineStage.FAILED, result.error_message)
+                    return result
 
             result.status = VerificationStatus.PASS
             self._record_stage(result, PipelineStage.VERIFY_AND_EVIDENCE, f"All {len(receipts)} verification steps passed with Exit Code 0.")

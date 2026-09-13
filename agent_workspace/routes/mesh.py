@@ -32,6 +32,15 @@ from agent_workspace.core.raft_consensus import (
     RequestVoteArgs,
     RequestVoteReply,
 )
+from agent_workspace.core.chaos import (
+    ChaosFaultRule,
+    ChaosFaultType,
+    MeshChaosManager,
+)
+from agent_workspace.core.cluster_demo import (
+    ClusterDemoReceipt,
+    MultiWorkerCluster,
+)
 
 logger = logging.getLogger("MeshRoutes")
 
@@ -96,6 +105,9 @@ class MeshStatusResponse(BaseModel):
     cert_fingerprint: str = ""
     cert_expires_in_sec: Optional[float] = None
     verified_peers_count: int = 0
+    chaos_status: str = "NORMAL"
+    active_chaos_faults_count: int = 0
+    active_chaos_faults: List[Dict[str, Any]] = []
 
 
 @router.get("/status", response_model=MeshStatusResponse)
@@ -124,6 +136,11 @@ def get_mesh_status() -> MeshStatusResponse:
 
     verified_count = sum(1 for p in connected if p.attestation_status == AttestationStatus.VERIFIED)
 
+    # Evaluate active chaos fault rules
+    chaos_mgr = MeshChaosManager.get_instance()
+    active_faults = chaos_mgr.list_active_faults()
+    chaos_status = "CHAOS_ACTIVE" if active_faults else "NORMAL"
+
     return MeshStatusResponse(
         local_node=local_profile,
         peer_count=len(peers),
@@ -134,6 +151,9 @@ def get_mesh_status() -> MeshStatusResponse:
         cert_fingerprint=coordinator.cert_fingerprint,
         cert_expires_in_sec=round(remaining_sec, 1) if remaining_sec is not None else None,
         verified_peers_count=verified_count,
+        chaos_status=chaos_status,
+        active_chaos_faults_count=len(active_faults),
+        active_chaos_faults=[f.model_dump() for f in active_faults],
     )
 
 
@@ -498,3 +518,71 @@ def sync_vector_memory(req: VectorMemorySyncRequest) -> Dict[str, Any]:
     if result.get("status") == "rejected":
         raise HTTPException(status_code=403, detail=result.get("error", "Sync rejected"))
     return result
+
+
+# ------------------------------------------------------------------------
+# Chaos Fault Injection & Resilience Testing (Phase 91)
+# ------------------------------------------------------------------------
+
+
+class ChaosInjectRequest(BaseModel):
+    fault_type: ChaosFaultType
+    source_node_ids: List[str] = Field(default_factory=list)
+    target_node_ids: List[str] = Field(default_factory=list)
+    probability: float = Field(default=1.0, ge=0.0, le=1.0)
+    latency_ms: float = Field(default=0.0, ge=0.0)
+    duration_seconds: Optional[float] = Field(default=None)
+    description: str = Field(default="")
+
+
+class ChaosClearRequest(BaseModel):
+    rule_id: Optional[str] = Field(default=None, description="Specific rule ID to clear, or None to clear all")
+
+
+@router.get("/chaos/faults")
+def list_chaos_faults() -> Dict[str, Any]:
+    """Lists all currently active chaos fault rules."""
+    chaos_mgr = MeshChaosManager.get_instance()
+    active_rules = chaos_mgr.list_active_faults()
+    return {
+        "status": "CHAOS_ACTIVE" if active_rules else "NORMAL",
+        "active_faults_count": len(active_rules),
+        "faults": [r.model_dump() for r in active_rules],
+    }
+
+
+@router.post("/chaos/inject")
+def inject_chaos_fault(req: ChaosInjectRequest) -> Dict[str, Any]:
+    """Injects a new chaos fault rule into the distributed mesh."""
+    chaos_mgr = MeshChaosManager.get_instance()
+    rule = chaos_mgr.inject_fault(
+        fault_type=req.fault_type,
+        source_node_ids=req.source_node_ids,
+        target_node_ids=req.target_node_ids,
+        probability=req.probability,
+        latency_ms=req.latency_ms,
+        duration_seconds=req.duration_seconds,
+        description=req.description,
+    )
+    return {
+        "status": "injected",
+        "rule": rule.model_dump(),
+    }
+
+
+@router.post("/chaos/clear")
+def clear_chaos_faults(req: Optional[ChaosClearRequest] = None) -> Dict[str, Any]:
+    """Clears a specific chaos fault rule or all active rules."""
+    chaos_mgr = MeshChaosManager.get_instance()
+    if req and req.rule_id:
+        cleared = chaos_mgr.clear_fault(req.rule_id)
+        return {"status": "cleared" if cleared else "not_found", "rule_id": req.rule_id}
+    cleared_count = chaos_mgr.clear_all_faults()
+    return {"status": "cleared_all", "cleared_count": cleared_count}
+
+
+@router.post("/cluster/demo", response_model=ClusterDemoReceipt)
+def run_cluster_demo_endpoint() -> ClusterDemoReceipt:
+    """Executes the automated 3-node multi-worker cluster demonstration."""
+    cluster = MultiWorkerCluster()
+    return cluster.run_full_demo()

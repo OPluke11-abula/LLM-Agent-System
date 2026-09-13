@@ -44,6 +44,7 @@ from agent_workspace.core.vector_memory import (
     VectorCategory,
     VectorMemoryEntry,
 )
+from agent_workspace.core.chaos import MeshChaosManager, ChaosFaultType
 
 logger = logging.getLogger("FederatedMesh")
 
@@ -200,11 +201,15 @@ class FederatedMeshCoordinator:
         self.peers: Dict[str, FederatedPeerProfile] = {}
         self._delegation_futures: Dict[str, asyncio.Future] = {}
 
+        # Chaos Fault Injection & Resilience Engine (Phase 91)
+        self.chaos_manager = MeshChaosManager.get_instance()
+
         # Raft Committee Consensus Engine (Phase 89)
         self.raft_node = CommitteeRaftNode(
             node_id=self.node_id,
             peers_provider=lambda: [p.node_id for p in self.peers.values()],
             attestation_checker=self.is_peer_attested_for_raft,
+            chaos_manager=self.chaos_manager,
         )
 
         # Federated Vector Memory & RAG Knowledge Topology (Phase 90)
@@ -294,6 +299,23 @@ class FederatedMeshCoordinator:
 
         Requires AttestationStatus.VERIFIED under Zero-Trust PKI.
         """
+        # Phase 91 Chaos Fault Injection Check
+        if self.chaos_manager:
+            blocked, delay_ms, _ = self.chaos_manager.evaluate_traffic(
+                source_node_id=self.node_id,
+                target_node_id=peer_id,
+                rpc_type="sync_vector_memory",
+            )
+            if blocked:
+                return {
+                    "status": "rejected",
+                    "error": f"Vector sync to peer {peer_id} blocked by active chaos fault",
+                    "merkle_root": self.vector_memory.compute_merkle_root(),
+                    "total_entries": len(self.vector_memory._entries),
+                }
+            if delay_ms > 0:
+                time.sleep(delay_ms / 1000.0)
+
         if self.strict_attestation and not self.is_peer_attested_for_raft(peer_id):
             return {
                 "status": "rejected",
