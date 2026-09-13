@@ -610,6 +610,51 @@ def handle_mesh(args):
         print(f" Details         : {msg}")
         print("=" * 75)
 
+    elif sub == "raft":
+        raft_cmd = getattr(args, "raft_command", "status")
+        from agent_workspace.core.federated_mesh import get_federated_coordinator
+        coordinator = get_federated_coordinator()
+        if raft_cmd == "elect":
+            became_leader = coordinator.start_raft_election()
+            print("=" * 75)
+            print(" 🗳️ Raft Leader Election Triggered")
+            print("=" * 75)
+            print(f" Node ID         : {coordinator.node_id}")
+            print(f" Current Role    : {coordinator.raft_node.role.value}")
+            print(f" Current Term    : {coordinator.raft_node.current_term}")
+            print(f" Leader Elected  : {became_leader}")
+            print("=" * 75)
+        elif raft_cmd == "log":
+            limit = getattr(args, "limit", 20)
+            log_entries = coordinator.get_raft_log()
+            print("=" * 75)
+            print(" 📜 Raft Replicated Committee Debate Ledger")
+            print("=" * 75)
+            print(f" Commit Index    : {coordinator.raft_node.commit_index}")
+            print(f" Last Applied    : {coordinator.raft_node.last_applied}")
+            print(f" Total Entries   : {len(log_entries)}")
+            print("-" * 75)
+            print(f" {'Idx':<5} | {'Term':<5} | {'Type':<18} | {'Author':<16} | {'Status'}")
+            print("-" * 75)
+            for entry in log_entries[-limit:]:
+                status_str = "COMMITTED" if entry.index <= coordinator.raft_node.commit_index else "UNCOMMITTED"
+                print(f" {entry.index:<5} | {entry.term:<5} | {entry.entry_type.value:<18} | {entry.author_node_id:<16} | {status_str}")
+            print("=" * 75)
+        else:
+            st = coordinator.get_raft_status()
+            print("=" * 75)
+            print(" 🏛️ Distributed Committee Raft Consensus Status")
+            print("=" * 75)
+            print(f" Node ID         : {st['node_id']}")
+            print(f" Current Role    : {st['role']}")
+            print(f" Current Term    : {st['term']}")
+            print(f" Leader ID       : {st['leader_id'] or 'None'}")
+            print(f" Commit Index    : {st['commit_index']}")
+            print(f" Last Applied    : {st['last_applied']}")
+            print(f" Log Length      : {st['log_length']}")
+            print(f" Quorum Size     : {st['quorum_size']} (Active Peers: {st['cluster_peers_count']})")
+            print("=" * 75)
+
 def handle_lint(args):
     """Statically lint the PAP workspace contracts."""
     project_root = Path(args.path).resolve()
@@ -1029,6 +1074,11 @@ def main() -> None:
             elif action == "pki":
                 args = mesh_sub.parse_args(mesh_args[1:])
                 args.mesh_action = "pki"
+            elif action == "raft":
+                mesh_sub.add_argument("raft_command", nargs="?", default="status", choices=["status", "elect", "log"], help="Raft operation")
+                mesh_sub.add_argument("--limit", type=int, default=20, help="Limit number of log entries")
+                args = mesh_sub.parse_args(mesh_args[1:])
+                args.mesh_action = "raft"
             else:
                 args = mesh_sub.parse_args(mesh_args[1:] if mesh_args and mesh_args[0] == "status" else mesh_args)
                 args.mesh_action = "status"
@@ -1049,7 +1099,7 @@ Core Subcommands:
   benchmark          Run the official Golden Flow Benchmark suite and calculate 6 KPIs
   serve              Launch FastAPI REST API server and WebSocket telemetry hub
   status [path]      Inspect repository branch, worktree status, and latest verification receipt
-  mesh [status|join|pki|rotate|attest] Manage Distributed P2P Mesh peering, Zero-Trust PKI & Attestation
+  mesh [status|join|pki|rotate|attest|raft] Manage Distributed P2P Mesh peering, Zero-Trust PKI & Raft Consensus
 
 Developer Tools & Legacy Flags:
   --list-skills      List all registered tools

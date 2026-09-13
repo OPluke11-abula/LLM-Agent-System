@@ -29,6 +29,16 @@ from agent_workspace.core.pipeline.models import (
     PipelineStage,
     VerificationStatus,
 )
+from agent_workspace.core.raft_consensus import (
+    AppendEntriesArgs,
+    AppendEntriesReply,
+    CommitteeEntryType,
+    CommitteeLogEntry,
+    CommitteeRaftNode,
+    RaftRole,
+    RequestVoteArgs,
+    RequestVoteReply,
+)
 
 logger = logging.getLogger("FederatedMesh")
 
@@ -184,6 +194,55 @@ class FederatedMeshCoordinator:
         # Peer directory: node_id -> FederatedPeerProfile
         self.peers: Dict[str, FederatedPeerProfile] = {}
         self._delegation_futures: Dict[str, asyncio.Future] = {}
+
+        # Raft Committee Consensus Engine (Phase 89)
+        self.raft_node = CommitteeRaftNode(
+            node_id=self.node_id,
+            peers_provider=lambda: [p.node_id for p in self.peers.values()],
+            attestation_checker=self.is_peer_attested_for_raft,
+        )
+
+    def is_peer_attested_for_raft(self, peer_id: str) -> bool:
+        """Verifies if the peer is attested under Phase 88 Zero-Trust for Raft voting/replication."""
+        if peer_id == self.node_id:
+            return True
+        peer = self.peers.get(peer_id)
+        if not peer:
+            return False
+        return peer.attestation_status == AttestationStatus.VERIFIED
+
+    def start_raft_election(self) -> bool:
+        """Initiates a Raft leader election for the multi-agent committee."""
+        return self.raft_node.start_election()
+
+    def propose_committee_entry(
+        self,
+        entry_type: CommitteeEntryType,
+        payload: Dict[str, Any],
+        author_node_id: Optional[str] = None,
+    ) -> Tuple[bool, Optional[CommitteeLogEntry], str]:
+        """Proposes a new entry to the Raft committee replicated log."""
+        return self.raft_node.propose_entry(entry_type, payload, author_node_id)
+
+    def handle_raft_vote(self, args: RequestVoteArgs) -> RequestVoteReply:
+        """Processes a Raft RequestVote RPC from a candidate peer."""
+        return self.raft_node.handle_request_vote(args)
+
+    def handle_raft_append_entries(self, args: AppendEntriesArgs) -> AppendEntriesReply:
+        """Processes a Raft AppendEntries RPC from the leader."""
+        return self.raft_node.handle_append_entries(args)
+
+    def get_raft_status(self) -> Dict[str, Any]:
+        """Returns Raft status and telemetry metrics."""
+        return self.raft_node.get_status()
+
+    def get_raft_log(self) -> List[CommitteeLogEntry]:
+        """Returns the replicated log entries."""
+        return self.raft_node.log
+
+    def get_raft_state_summary(self, task_id: str) -> Dict[str, Any]:
+        """Returns the replicated state machine summary for a task."""
+        return self.raft_node.state_machine.get_task_summary(task_id)
 
     @property
     def profile(self) -> FederatedPeerProfile:

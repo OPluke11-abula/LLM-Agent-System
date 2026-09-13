@@ -101,6 +101,24 @@ class PipelineDebateProtocol:
                     except Exception as exc:
                         logger.warning("Turn callback failed for %s: %s", member.role, exc)
 
+                if self.mesh_coordinator and getattr(request, "use_raft_consensus", False):
+                    try:
+                        from agent_workspace.core.raft_consensus import CommitteeEntryType, RaftRole
+                        if self.mesh_coordinator.raft_node.role != RaftRole.LEADER:
+                            self.mesh_coordinator.start_raft_election()
+                        self.mesh_coordinator.propose_committee_entry(
+                            entry_type=CommitteeEntryType.SPEECH_TURN,
+                            payload={
+                                "task_id": request.task_id,
+                                "round_index": r_idx,
+                                "speaker_role": member.role,
+                                "content": speech_turn.content[:160],
+                                "score_impact": speech_turn.score_impact,
+                            },
+                        )
+                    except Exception as raft_err:
+                        logger.debug("Raft turn replication skipped: %s", raft_err)
+
                 turn_idx += 1
 
             # Round summary
@@ -158,6 +176,30 @@ class PipelineDebateProtocol:
 
         duration_ms = int((time.monotonic() - start_time) * 1000)
 
+        raft_log_idx = None
+        raft_term = None
+        if self.mesh_coordinator and getattr(request, "use_raft_consensus", False):
+            try:
+                from agent_workspace.core.raft_consensus import CommitteeEntryType, RaftRole
+                if self.mesh_coordinator.raft_node.role != RaftRole.LEADER:
+                    self.mesh_coordinator.start_raft_election()
+                ok, entry, msg = self.mesh_coordinator.propose_committee_entry(
+                    entry_type=CommitteeEntryType.CONSENSUS_VERDICT,
+                    payload={
+                        "task_id": request.task_id,
+                        "composite_score": scorecard.composite_score,
+                        "decision": scorecard.decision,
+                        "security_assurance": scorecard.security_assurance,
+                        "architectural_integrity": scorecard.architectural_integrity,
+                        "test_thoroughness": scorecard.test_thoroughness,
+                    },
+                )
+                if entry:
+                    raft_log_idx = entry.index
+                    raft_term = entry.term
+            except Exception as raft_err:
+                logger.debug("Raft verdict replication skipped: %s", raft_err)
+
         record = CommitteeDebateRecord(
             debate_id=debate_id,
             task_id=request.task_id,
@@ -166,6 +208,8 @@ class PipelineDebateProtocol:
             consensus_scorecard=scorecard,
             synthesized_mutation_plan=synthesized_plan,
             duration_ms=duration_ms,
+            raft_log_index=raft_log_idx,
+            raft_term=raft_term,
         )
 
         logger.info(

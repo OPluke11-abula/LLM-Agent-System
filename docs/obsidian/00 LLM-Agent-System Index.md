@@ -134,6 +134,7 @@ graph TD
 - [[core-reasoning-router]]: Heterogeneous reasoning model adapters, thinking budgets, and air-gapped offline routing.
 - [[core-federated-mesh]]: Distributed P2P mesh coordinator, peer capabilities, Merkle patch bundles, and remote debate/test ladder delegation.
 - [[core-mesh-pki]]: Zero-Trust dynamic node attestation, ephemeral X.509 PKI, single-use nonce challenges, and signed stage delegations.
+- [[core-raft-consensus]]: Distributed Committee Raft Consensus engine, term elections, replicated debate state machine, and quorum commits.
 - [[core-cli-and-packaging]]: Unified developer CLI toolbelt (las), onboarding engine, and PEP 517/621 packaging.
 - [[core-repository]]: Repository environment sensing, protected paths, native Git worktree isolation.
 - [[core-mission]]: Mission domain aggregate root, durable SQLite mission store, lifecycle state machine.
