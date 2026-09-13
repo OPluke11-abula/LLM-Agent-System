@@ -9,9 +9,9 @@
 ---
 
 ## 1. 3-Line Executive Summary (三行白話摘要)
-1. Phase 80 (P1) 凍結合流：GitHub PR #6 (`feat(p1): establish developer agent control plane foundation`) 已 Squash & Merge 入 `origin/main`。
-2. Phase 81~83 (P2~P4) 控制平面、前端座艙與黃金標竿完備：實作 Repository 空間感知、原生 Worktree 隔離、`CanonicalPreservationReceipt` 主幹保護、15 屬性 `TaskEnvironment`、`ScopeGuard` 攔截、`RuntimeEventsLedger` 密碼鏈與 Merkle Root、階梯測試診斷恢復、FastAPI REST/WebSocket 網關、`CodingPipelineView.tsx` 前端座艙與 3 大經典工程場景標竿。
-3. Phase 84 (P5) 開發者 Beta 與獨立封裝完備：完成 `pyproject.toml` (PEP 517/621) 與三大 CLI Entrypoint (`las`, `las-server`, `las-benchmark`)、實作 `TargetRepoOnboarder` 支援多語言生態系感知與 Protocol 3.8.0 自動腳手架、完善一級子命令 CLI (`init`, `onboard`, `benchmark`, `pipeline run`, `serve`, `status`)、跨平台本地 Daemon (`scripts/start_las.py`, `scripts/start_las.ps1`) 與發行級《開發者快速入門指南》，60 項全套回歸測試 100% 綠燈 PASS。
+1. PR #7 合流主幹：GitHub PR #7 (`feat(pipeline): complete autonomous coding pipeline p2-p5 developer beta`) 已成功 Squash & Merge 入 `main`（Commit: `3781890`）。
+2. Phase 85 多 Agent 委員會辯論與共識協議完備：實作 `CommitteeCoordinator` 風險評估與專家自動組委（架構師、零信任資安審計師、嚴格 QA 工程師）、`PipelineDebateProtocol` 結構化辯論迴圈、加權綜合共識記分卡（35% 架構、40% 資安、25% QA）、資安一票否決機制、突變計劃智能豐富化，並於 Draft PR 中導出共識收據。
+3. 全端座艙、REST/WS 網關與 CLI 協同就緒：FastAPI 提供 `/tasks/{task_id}/debate` 與 WebSocket 即時發言串流，CLI 支援 `--committee` 與 `--debate-rounds`，前端 7 階 Stepper 與專家發言氣泡、共識三維柱狀圖完整交付，48 項全套流水線回歸測試 100% 綠燈 PASS，Vite 生產建置 658ms 通過。
 
 ---
 
@@ -19,31 +19,15 @@
 
 | Check / Metric | Status | Evidence / Receipt |
 |---|---|---|
-| **GitHub PR #7 State** | `OPEN` | PR #7 created (`https://github.com/OPluke11-abula/LLM-Agent-System/pull/7`), commit `db6d310` |
-| **GitHub PR #6 Merge State** | `PASS` | Merged into `origin/main` (`e17a1b715b107ec2194f6ae9503981c2bf2ec7dd`), PR #6 closed |
-| **ADR-006 Architectural Baseline** | `PASS` | Recorded in `.agent/decisions.md` & Obsidian [[60 Architectural Decision Records (ADR) Graph.md]] |
-| **Phase 84 (P5 Developer Beta Tests)**| `PASS` | `test_developer_beta_p5.py` (8 tests in 0.982s, 100% PASS) |
-| **Phase 84 First-Class CLI & Onboarder**| `PASS` | `las init`, `las onboard`, `las benchmark`, `las pipeline run`, `las status` verified |
-| **Phase 83 (P4 Golden Benchmark Tests)**| `PASS` | `test_pipeline_benchmark_p4.py` (6 tests in 8.298s, 100% PASS) |
-| **Golden Benchmark CLI & Scorecard** | `PASS` | `run_golden_benchmark.py` (`GOLDEN_FLOW_VERIFIED`, 100% completion rate) |
-| **Phase 82 (P3 Pipeline API & Gate Tests)**| `PASS` | `test_pipeline_api_p3.py` (6 tests in 3.545s, 100% PASS) |
-| **Phase 81-04 (P2-D RuntimeEvents Tests)**| `PASS` | `test_runtime_events_p2d.py` (9 tests in 1.296s, 100% PASS) |
-| **Phase 81-03 (P2-C AgentExecutor Tests)**| `PASS` | `test_agent_executor_p2c.py` (10 tests in 0.466s, 100% PASS) |
-| **Phase 81-02 (P2-B TaskEnvironment Tests)**| `PASS` | `test_task_environment_p2b.py` (9 tests in 0.002s, 100% PASS) |
-| **Phase 81-01 (P2-A Repository Tests)** | `PASS` | `test_repository_p2a.py` (3 tests in 1.005s, 100% PASS) |
-| **Phase 81-01 (P2-A Git Worktree Tests)**| `PASS` | `test_git_worktree_p2a.py` (3 tests in 2.254s, 100% PASS) |
-| **Canonical Checkout Preservation** | `PASS` | Verified `CanonicalPreservationReceipt` (`before status == after status`) |
-| **Phase 80 (P1 Pipeline Regression)** | `PASS` | `test_coding_pipeline_p1.py` (6 tests in 0.051s, 100% PASS) |
-| **Full Combined Regression Matrix** | `PASS` | 60 tests in 17.979s (100% PASS across P1, P2-A, P2-B, P2-C, P2-D, P3, P4, P5 suites) |
-| **Python Bytecode Compilation** | `PASS` | `python -m compileall agent_workspace scripts` 100% passed (0 errors) |
-| **Protocol Baseline** | `PASS` | `.agent/state.md` locked to v3.8.0, mode `STATIC_DOMAIN_OWNERSHIP` |
-| **Git Exclusion Boundary** | `PASS` | `stage.md`, `*.stage.md`, `.agent/local/`, `.agent/patches/`, `agent_worktrees/` in `.gitignore` |
-| **Governance Files** | `PASS` | `state.md`, `ownership.md`, `decisions.md`, `versions.md`, `test_policy.md` created |
-| **Operating Contracts** | `PASS` | `AGENTS.md` and `.agent/agent.md` upgraded to v3.8.0 thin entrypoint |
-| **10 Grounded Roles** | `PASS` | Defined in `ownership.md`, grounded in `agent_crew.py` with Antigravity & Codex skills |
-| **Obsidian Topological Notes** | `PASS` | 53 topological notes in `docs/obsidian/`, 100% synced to local Vault (59 total) |
-| **Viewer TypeScript & Vite Build** | `PASS` | `npm run build` in `viewer/` passed in 3.79s (0 errors, 0 warnings) |
-| **Git Formatting & Whitespace** | `PASS` | `git diff --check` passed cleanly (0 trailing whitespace) |
+| **GitHub PR #7 Merge State** | `PASS` | Merged into `origin/main` (Commit: `3781890`), PR #7 closed |
+| **Active Feature Branch** | `PASS` | `feat/pipeline-p85-committee-debate` cleanly branched from updated `main` |
+| **Phase 85 Committee Tests** | `PASS` | `test_pipeline_committee_p85.py` (6 tests in 0.30s, 100% PASS) |
+| **Pipeline Full Regression Matrix** | `PASS` | 48 tests in 17.20s (100% PASS across P1, P2-A, P2-C, P3, P4, P5, P85) |
+| **Frontend Production Build** | `PASS` | `npm run build` in `viewer/` passed in 658ms (0 errors) |
+| **Python Bytecode Compilation** | `PASS` | `python -m py_compile` across all modified files passed (0 errors) |
+| **Obsidian Note & Vault Sync** | `PASS` | `docs/obsidian/modules/core/core-pipeline-committee.md` authored & linked |
+| **Zero Dead Code & Types Invariant** | `PASS` | Unused icons pruned, all Pydantic v2 and TypeScript strict models verified |
+| **Stop-and-Wait Gate Protocol** | `PASS` | Plan enrichment preserves human approval token requirement |
 
 ---
 
@@ -73,7 +57,7 @@
    - `layers/L6-Verification-Matrix-and-Receipts.md`
    - `layers/L7-Distributed-Mesh-and-P2P.md`
 
-3. **Level 2: Backend Concrete Core Leaf Notes (22 篇)**:
+3. **Level 2: Backend Concrete Core Leaf Notes (23 篇)**:
    - `modules/core/core-engine.md`
    - `modules/core/core-workflow-engine.md`
    - `modules/core/core-router.md`
@@ -91,6 +75,7 @@
    - `modules/core/core-billing.md`
    - `modules/core/core-cert-manager.md`
    - `modules/core/core-pipeline.md`
+   - `modules/core/core-pipeline-committee.md`
    - `modules/core/core-repository.md`
    - `modules/core/core-mission.md`
    - `modules/core/core-merkle.md`
@@ -115,13 +100,15 @@
 ---
 
 ## 4. Active Pull Requests & Git Integration State (PR 與 Git 狀態)
-- **Current Branch**: `codex/agent-knowledge-wiki`
-- **Active PR**: [#7 feat(pipeline): complete autonomous coding pipeline p2-p5 developer beta](https://github.com/OPluke11-abula/LLM-Agent-System/pull/7) (Commit `db6d310`, open)
+- **Current Branch**: `feat/pipeline-p85-committee-debate` (branched from `main` @ `3781890`)
+- **Active PR**: Pending creation targeting `main`
 - **Active Milestones**:
   - `Phase 80`: Autonomous Coding Pipeline P1 - Rules, Scaffolding & State Machine Contracts (100% Complete)
   - `Phase 81`: Autonomous Coding Pipeline P2 - Git Worktree, Repository Connector & Full Execution Integration (100% Complete)
   - `Phase 82`: Autonomous Coding Pipeline P3 - REST & WebSocket Gateways & Frontend Cockpit Integration (100% Complete)
   - `Phase 83`: Autonomous Coding Pipeline P4 - Official Golden Flow Benchmark & E2E Verification Harness (100% Complete)
   - `Phase 84`: Autonomous Coding Pipeline P5 - Developer Beta, CLI Toolbelt, Repo Onboarder & Packaging (100% Complete)
-- **Working Tree**: Clean, verified with `git diff --check`.
-- **Local Vault Target**: `C:\Users\luke2\OneDrive\文件\Obsidian Vault\Projects\LLM-Agent-System` (53 primary notes synced, 59 total).
+  - `Phase 85`: Multi-Agent Consensus Debate & Committee Coding Protocol (100% Complete & Verified)
+  - `Phase 86` (Next): Heterogeneous Reasoning Model Adapters & Dynamic Thinking Router
+- **Working Tree**: Stage clean, awaiting human confirmation to commit and push.
+- **Local Vault Target**: `C:\Users\luke2\OneDrive\文件\Obsidian Vault\Projects\LLM-Agent-System` (61 total notes).

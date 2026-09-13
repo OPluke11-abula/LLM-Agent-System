@@ -23,7 +23,10 @@ from .models import (
     VerificationReceipt,
     DraftPRPayload,
     CodingPipelineResult,
+    CommitteeDebateRecord,
 )
+from .committee import CommitteeCoordinator
+from .debate_protocol import PipelineDebateProtocol
 from .contracts import (
     IWorktreeManager,
     IScopedExecutor,
@@ -75,6 +78,8 @@ class CodingPipelineManager:
         self.draft_pr_publisher = draft_pr_publisher
         self.audit_ledger = audit_ledger
         self.prechecker = SkillsPrechecker(workspace_path=str(self.workspace_path))
+        self.committee_coordinator = CommitteeCoordinator()
+        self.debate_protocol = PipelineDebateProtocol()
         self._active_sessions: dict[str, CodingPipelineResult] = {}
 
     def _record_stage(
@@ -153,6 +158,49 @@ class CodingPipelineManager:
         self._record_stage(result, PipelineStage.PRECHECK, "Preflight checks passed: Anti-Summary and scope verified.")
         return result
 
+    def run_committee_debate(
+        self,
+        task_id: str,
+        request: CodingTaskRequest,
+        draft_plan: Optional[ScopedMutationPlan] = None,
+    ) -> CommitteeDebateRecord:
+        """
+        Stage: COMMITTEE_DEBATE (Milestone P85).
+        Multi-agent committee deliberates on the task and synthesizes an objective
+        consensus scorecard and enriched mutation plan before the architecture gate.
+        """
+        result = self._active_sessions.get(task_id)
+        if not result:
+            result = CodingPipelineResult(
+                task_id=task_id,
+                status=VerificationStatus.NOT_RUN,
+                current_stage=PipelineStage.INTAKE,
+            )
+            self._active_sessions[task_id] = result
+
+        rounds = getattr(request, "debate_rounds", 1) or 1
+        self._record_stage(
+            result,
+            PipelineStage.COMMITTEE_DEBATE,
+            f"Forming specialist committee for deliberation ({rounds} round(s)).",
+        )
+
+        formation = self.committee_coordinator.evaluate_committee(request)
+        debate_record = self.debate_protocol.run_debate(request, formation, draft_plan)
+        result.committee_debate = debate_record
+
+        if debate_record.synthesized_mutation_plan:
+            result.mutation_plan = debate_record.synthesized_mutation_plan
+
+        scorecard = debate_record.consensus_scorecard
+        self._record_stage(
+            result,
+            PipelineStage.COMMITTEE_DEBATE,
+            f"Debate concluded. Composite: {scorecard.composite_score:.2f} ({scorecard.decision}). Members: {', '.join(debate_record.committee_members)}",
+        )
+
+        return debate_record
+
     def submit_plan(self, task_id: str, plan: ScopedMutationPlan) -> CodingPipelineResult:
         """
         Stage 2: PLAN_AND_GATE (Stop-and-Wait Architecture Gate)
@@ -194,6 +242,26 @@ class CodingPipelineManager:
         result = self.start_pipeline(request)
         if result.status == VerificationStatus.BLOCKED or result.current_stage == PipelineStage.FAILED:
             return result
+
+        # Step 1.5: Optional Multi-Agent Committee Debate
+        if getattr(request, "enable_committee", False):
+            debate_record = self.run_committee_debate(task_id, request, plan)
+            scorecard = debate_record.consensus_scorecard
+            if scorecard.security_assurance < 0.70:
+                result.status = VerificationStatus.BLOCKED
+                result.error_message = (
+                    f"Committee debate rejected task due to critical security objection: "
+                    f"{'; '.join(scorecard.dissenting_opinions)}"
+                )
+                self._record_stage(result, PipelineStage.FAILED, result.error_message)
+                return result
+
+            if debate_record.synthesized_mutation_plan:
+                enriched = debate_record.synthesized_mutation_plan
+                enriched.human_approved = plan.human_approved
+                enriched.approval_token = plan.approval_token
+                enriched.approval_timestamp = plan.approval_timestamp
+                plan = enriched
 
         # Step 2: Stop-and-Wait Gate
         result = self.submit_plan(task_id, plan)
@@ -249,7 +317,7 @@ class CodingPipelineManager:
             commit_hash = self.worktree_manager.commit_changes(worktree_session, commit_msg)
             diff_stat = self.worktree_manager.get_diff(worktree_session)
 
-            pr_body = self._build_pr_body(request, plan, receipts, diff_stat)
+            pr_body = self._build_pr_body(request, plan, receipts, diff_stat, result.committee_debate)
             pr_payload = DraftPRPayload(
                 title=f"[LAS Draft PR] {request.requirement_prompt[:60]}",
                 body=pr_body,
@@ -287,6 +355,7 @@ class CodingPipelineManager:
         plan: ScopedMutationPlan,
         receipts: list[VerificationReceipt],
         diff_stat: str,
+        committee_debate: Optional[CommitteeDebateRecord] = None,
     ) -> str:
         """Construct a standardized, evidence-backed GitHub Draft PR markdown description."""
         receipt_rows = []
@@ -298,6 +367,19 @@ class CodingPipelineManager:
             "|---|---|---|---|---|\n" + "\n".join(receipt_rows)
         )
 
+        committee_section = ""
+        if committee_debate:
+            sc = committee_debate.consensus_scorecard
+            committee_section = f"""---
+
+### 🏛️ Multi-Agent Committee Consensus Scorecard (P85)
+- **Deliberation Decision**: **`{sc.decision}`**
+- **Composite Score**: `{sc.composite_score:.2f}` (Arch: `{sc.architectural_integrity:.2f}`, Sec: `{sc.security_assurance:.2f}`, QA: `{sc.test_thoroughness:.2f}`)
+- **Committee Members**: {', '.join(f'`{m}`' for m in committee_debate.committee_members)}
+- **Recommended Actions**: {'; '.join(sc.recommended_actions) or 'Proceed to gate'}
+
+"""
+
         body = f"""## 🤖 LAS Autonomous Coding Agent - Draft PR
 
 ### 📋 Requirement Summary
@@ -305,6 +387,7 @@ class CodingPipelineManager:
 > **Requirement**: {request.requirement_prompt}
 > **Assigned Specialist Role**: `{plan.assigned_role}`
 > **Target Files**: {', '.join(f'`{f}`' for f in plan.target_files)}
+{committee_section}
 
 ---
 

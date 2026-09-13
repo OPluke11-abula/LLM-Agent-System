@@ -324,3 +324,32 @@ timeline
     - Python bytecode compilation: `python -m compileall agent_workspace scripts` (0 errors)
     - Frontend production build: `npm run build` in `viewer/` (Pass, 0 errors, 3.79s)
     - Formatting check: `git diff --check` (0 errors)
+
+---
+
+### Milestone T-017: Multi-Agent Consensus Debate & Committee Coding Protocol Phase 85
+- **Goal**:
+  - Transform the autonomous coding pipeline plan stage from single-agent generation into a structured multi-agent committee debate (Architect + Security Auditor + QA Engineer + UI Specialist) before the Stop-and-Wait approval gate, computing a composite consensus scorecard and enforcing security veto guarantees.
+- **Process**:
+  - Implemented data models in `agent_workspace/core/pipeline/models.py`:
+    - `PipelineStage.COMMITTEE_DEBATE` (7-stage state machine)
+    - `DebateSpeechTurn`: individual agent argument with pillar scores and recommendations
+    - `DebateRoundRecord`: complete multi-agent turn execution record
+    - `CommitteeConsensusScorecard`: composite scoring ($0.35 \times \text{Arch} + 0.40 \times \text{Sec} + 0.25 \times \text{QA}$), security veto threshold (`< 0.70`), and confidence level
+    - `CommitteeDebateRecord`: aggregate debate transcript and enriched plan
+  - Implemented `CommitteeCoordinator` in `agent_workspace/core/pipeline/committee.py` with dynamic heuristic selection based on keyword and path risk factors.
+  - Implemented `PipelineDebateProtocol` in `agent_workspace/core/pipeline/debate_protocol.py` supporting sequential critique rounds, composite scoring, security veto, plan enrichment, and streaming callbacks.
+  - Integrated committee execution into `CodingPipelineManager` (`manager.py`) and rendered the consensus scorecard into generated Draft PR descriptions.
+  - Added REST endpoint `POST /v1/pipeline/tasks/{task_id}/debate` and WebSocket turn streaming in `agent_workspace/routes/pipeline.py`.
+  - Added CLI flags `--committee`, `--debate-rounds`, `--committee-roles` in `agent_workspace/cli.py`.
+  - Upgraded frontend cockpit in `viewer/src/components/CodingPipelineView.tsx` with 7-stage stepper, Committee Consensus BentoCard, speeches stream, and task modal toggle.
+  - Authored unit & integration tests in `agent_workspace/tests/test_pipeline_committee_p85.py` (6 tests).
+  - Authored Obsidian leaf note `docs/obsidian/modules/core/core-pipeline-committee.md`.
+- **Result**:
+  - Phase 85 (Multi-Agent Consensus Debate & Committee Coding Protocol) 100% complete and verified.
+  - Receipts:
+    - `test_pipeline_committee_p85.py`: 6/6 PASS (0.30s)
+    - Full combined pipeline regression matrix: 48/48 PASS (17.20s)
+    - Python bytecode compilation: `python -m py_compile` (0 errors)
+    - Frontend production build: `npm run build` in `viewer/` (Pass, 0 errors, 658ms)
+    - Formatting check: `git diff --check` (0 errors)

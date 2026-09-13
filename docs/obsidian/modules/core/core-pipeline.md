@@ -17,6 +17,8 @@ sync_status: verified
 > **Primary Source Files**:
 > - [`models.py`](file:///d:/GitHub/LLM-Agent-System/agent_workspace/core/pipeline/models.py) (Data models & schemas)
 > - [`contracts.py`](file:///d:/GitHub/LLM-Agent-System/agent_workspace/core/pipeline/contracts.py) (Interface abstractions)
+> - [`committee.py`](file:///d:/GitHub/LLM-Agent-System/agent_workspace/core/pipeline/committee.py) ([[core-pipeline-committee|Committee coordinator & dynamic selection]])
+> - [`debate_protocol.py`](file:///d:/GitHub/LLM-Agent-System/agent_workspace/core/pipeline/debate_protocol.py) ([[core-pipeline-committee|Multi-agent consensus debate protocol]])
 > - [`manager.py`](file:///d:/GitHub/LLM-Agent-System/agent_workspace/core/pipeline/manager.py) (State machine controller)
 > - [`repository.py`](file:///d:/GitHub/LLM-Agent-System/agent_workspace/core/repository.py) (Repository inspector & profile)
 > - [`git_worktree.py`](file:///d:/GitHub/LLM-Agent-System/agent_workspace/core/git_worktree.py) (Git worktree isolation & preservation)

@@ -55,5 +55,6 @@ export {
   ArrowRight,
   Radio,
   Bot,
-  FileCheck
+  FileCheck,
+  Users
 } from "lucide-react";
