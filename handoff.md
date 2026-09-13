@@ -9,9 +9,9 @@
 ---
 
 ## 1. 3-Line Executive Summary (三行白話摘要)
-1. 分散式 P2P Mesh 與聯邦工作樹協同引擎落地：實作 `FederatedMeshCoordinator`、`PeerCapability`（`REASONING_ENGINE`, `SANDBOX_MUTATION`, `TEST_RUNNER`, `COCKPIT_LEADER`）與負載/延遲綜合評分路由，支援將龐大思維辯論與驗證階梯跨節點委派執行。
-2. 密碼學 Patch Bundle 與 Merkle 根雜湊驗證：`FederatedPatchBundle` 整合 SHA-256 差異與檔案清單 Merkle Root 完整性校驗，並於網路異常或節點離線時無縫降級本地執行，嚴格確保零主機污染（Zero Host Pollution）。
-3. REST/CLI 工具鏈與全端聯邦座艙閉環：提供 `/v1/mesh/*` 完整生命週期端點與 `las mesh status` / `las mesh join` / `--mesh` CLI 指令；前端座艙新增聯邦群集拓樸畫布、節點負載雷達與連線彈窗，10 套測試矩陣 63 項測試 100% 綠燈 PASS，Vite 生產建置 787ms 通過。
+1. 零信任動態節點證明與雙向 TLS 網格全面落地：實作 `SwarmCertManager` 動態生成短週期 X.509 憑證與 RSA-2048 密鑰對，支援後台自動輪替（Auto-Rotation）與過期檢測，全面消除靜態長效憑證遭竊取的安全死角。
+2. 單次挑戰 Nonce 與防重放節點握手協定：節點間透過發行高熵單次 Nonce（Single-Use Nonce Challenge）並由對端私鑰簽署證明，挑戰一旦消費即行銷毀，徹底杜絕重放攻擊（Replay Attack），並於驗證通過後自動晉升為 `VERIFIED` 節點。
+3. 密碼學簽名委派與全端安全盾牌座艙：委派階段（`committee_turn`、`test_verification`）均需經由私鑰簽署負載與憑證指紋驗證，嚴格阻絕竄改；前端座艙新增 Zero-Trust PKI Bento 儀表板、憑證輪替即時倒數與節點盾牌標章，11 套測試矩陣 72 項測試 100% 綠燈 PASS，Vite 生產建置 657ms 通過。
 
 ---
 
@@ -19,12 +19,12 @@
 
 | Check / Metric | Status | Evidence / Receipt |
 |---|---|---|
-| **Active Feature Branch** | `PASS` | `feat/pipeline-p87-federated-mesh` cleanly branched from `feat/pipeline-p86-reasoning-router` |
-| **Phase 87 Mesh Tests** | `PASS` | `test_federated_mesh_p87.py` (8 tests in 0.29s, 100% PASS) |
-| **Pipeline Full Regression Matrix** | `PASS` | 63 tests in 18.60s (100% PASS across 10 test suites: P1, P2-A, P2-C, P3, P4, P5, P85, P86, P87) |
-| **Frontend Production Build** | `PASS` | `npm run build` in `viewer/` passed in 787ms (0 errors, 0 warnings) |
+| **Active Feature Branch** | `PASS` | `feat/pipeline-p88-mesh-pki` cleanly branched from `main` |
+| **Phase 88 PKI Mesh Tests** | `PASS` | `test_mesh_pki_p88.py` (9 tests in 3.77s, 100% PASS) |
+| **Pipeline Full Regression Matrix** | `PASS` | 72 tests in 19.31s (100% PASS across 11 test suites: P1, P2-A, P2-C, P3, P4, P5, P85, P86, P87, P88) |
+| **Frontend Production Build** | `PASS` | `npm run build` in `viewer/` passed in 657ms (0 errors, 0 warnings) |
 | **Python Bytecode Compilation** | `PASS` | `python -m py_compile` across all modified and newly created files passed (0 errors) |
-| **Obsidian Note & Vault Sync** | `PASS` | `docs/obsidian/modules/core/core-federated-mesh.md` authored (25 core leaf notes, 63 total notes) |
+| **Obsidian Note & Vault Sync** | `PASS` | `docs/obsidian/modules/core/core-mesh-pki.md` authored (26 core leaf notes, 64 total notes) |
 | **Zero Dead Code & Types Invariant** | `PASS` | Strict Pydantic v2 `extra="forbid"` models and TypeScript strict contracts verified |
 | **Stop-and-Wait Gate Protocol** | `PASS` | Plan enrichment and thinking budget preservation under human approval token |
 
@@ -56,7 +56,7 @@
    - `layers/L6-Verification-Matrix-and-Receipts.md`
    - `layers/L7-Distributed-Mesh-and-P2P.md`
 
-3. **Level 2: Backend Concrete Core Leaf Notes (25 篇)**:
+3. **Level 2: Backend Concrete Core Leaf Notes (26 篇)**:
    - `modules/core/core-engine.md`
    - `modules/core/core-workflow-engine.md`
    - `modules/core/core-router.md`
@@ -73,6 +73,7 @@
    - `modules/core/core-providers.md`
    - `modules/core/core-reasoning-router.md`
    - `modules/core/core-federated-mesh.md`
+   - `modules/core/core-mesh-pki.md`
    - `modules/core/core-billing.md`
    - `modules/core/core-cert-manager.md`
    - `modules/core/core-pipeline.md`
@@ -101,7 +102,7 @@
 ---
 
 ## 4. Active Pull Requests & Git Integration State (PR 與 Git 狀態)
-- **Current Branch**: `main` (clean, synchronized with `origin/main`)
+- **Current Branch**: `feat/pipeline-p88-mesh-pki` (targeting PR #11)
 - **Merged PRs**:
   - **PR #8**: `feat(pipeline): implement multi-agent committee debate and consensus protocol (p85)` -> Merged into `main`
   - **PR #9**: `feat(router): implement heterogeneous reasoning model adapters and dynamic thinking router (p86)` -> Merged into `main`
@@ -115,5 +116,6 @@
   - `Phase 85`: Multi-Agent Consensus Debate & Committee Coding Protocol (100% Complete & Merged)
   - `Phase 86`: Heterogeneous Reasoning Model Adapters & Dynamic Thinking Router (100% Complete & Merged)
   - `Phase 87`: Distributed P2P Mesh & Federated Worktree Clustering (100% Complete & Merged)
-- **Working Tree**: Clean, 63 regression tests 100% PASS, ready for Phase 88.
-- **Local Vault Target**: `C:\Users\luke2\OneDrive\文件\Obsidian Vault\Projects\LLM-Agent-System` (63 total notes).
+  - `Phase 88`: Zero-Trust mTLS Dynamic Node Attestation & Mutual TLS PKI Mesh (100% Complete, 72/72 tests PASS)
+- **Working Tree**: Clean, 72 regression tests 100% PASS, ready for PR #11 submission.
+- **Local Vault Target**: `C:\Users\luke2\OneDrive\文件\Obsidian Vault\Projects\LLM-Agent-System` (64 total notes).

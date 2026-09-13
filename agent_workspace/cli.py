@@ -524,6 +524,92 @@ def handle_mesh(args):
         )
         print(f"Successfully joined mesh seed node '{prof.node_id}' ({host}:{port}).")
 
+    elif sub == "pki":
+        live_cert = None
+        try:
+            req = urllib.request.Request(f"{server_url}/v1/mesh/pki/cert")
+            with urllib.request.urlopen(req, timeout=0.8) as resp:
+                if resp.status == 200:
+                    live_cert = json.loads(resp.read().decode("utf-8"))
+        except Exception:
+            pass
+
+        if not live_cert:
+            from agent_workspace.core.federated_mesh import get_federated_coordinator
+            import datetime
+            coordinator = get_federated_coordinator()
+            now = datetime.datetime.now(datetime.timezone.utc)
+            rem = (coordinator.cert_expiry - now).total_seconds() if coordinator.cert_expiry else None
+            live_cert = {
+                "node_id": coordinator.node_id,
+                "cert_fingerprint": coordinator.cert_fingerprint,
+                "expires_at": coordinator.cert_expiry.isoformat() if coordinator.cert_expiry else None,
+                "expires_in_sec": round(rem, 1) if rem is not None else None,
+                "status": "ACTIVE" if (rem and rem > 300) else ("EXPIRING_SOON" if rem and rem > 0 else "EXPIRED"),
+            }
+
+        print("=" * 75)
+        print(" 🔒 Zero-Trust mTLS PKI Identity & Node Attestation Status")
+        print("=" * 75)
+        print(f" Node ID         : {live_cert['node_id']}")
+        print(f" Fingerprint     : {live_cert['cert_fingerprint']}")
+        print(f" Certificate TTL : {live_cert.get('expires_in_sec', 'N/A')}s remaining ({live_cert.get('status', 'ACTIVE')})")
+        print(f" Expires At      : {live_cert.get('expires_at')}")
+        print("=" * 75)
+
+    elif sub == "rotate":
+        validity = getattr(args, "validity", 3600)
+        live_cert = None
+        try:
+            req_data = json.dumps({"validity_seconds": validity}).encode("utf-8")
+            req = urllib.request.Request(f"{server_url}/v1/mesh/pki/rotate", data=req_data, headers={"Content-Type": "application/json"})
+            with urllib.request.urlopen(req, timeout=1.5) as resp:
+                if resp.status == 200:
+                    live_cert = json.loads(resp.read().decode("utf-8"))
+        except Exception:
+            pass
+
+        if not live_cert:
+            from agent_workspace.core.federated_mesh import get_federated_coordinator
+            coordinator = get_federated_coordinator()
+            coordinator.rotate_cert(validity_seconds=validity)
+            live_cert = {
+                "node_id": coordinator.node_id,
+                "cert_fingerprint": coordinator.cert_fingerprint,
+                "expires_at": coordinator.cert_expiry.isoformat() if coordinator.cert_expiry else None,
+            }
+
+        print("=" * 75)
+        print(" 🔄 Zero-Trust PKI Certificate Rotated Successfully")
+        print("=" * 75)
+        print(f" Node ID         : {live_cert['node_id']}")
+        print(f" New Fingerprint : {live_cert['cert_fingerprint']}")
+        print(f" Validity        : {validity}s")
+        print(f" New Expiry      : {live_cert.get('expires_at')}")
+        print("=" * 75)
+
+    elif sub == "attest":
+        seed = getattr(args, "seed", None)
+        if not seed:
+            print("Error: Target peer address required. Usage: las mesh attest <host:port>", file=sys.stderr)
+            sys.exit(1)
+
+        from agent_workspace.core.federated_mesh import get_federated_coordinator
+        coordinator = get_federated_coordinator()
+        target_node_id = f"peer-{seed.replace(':', '-')}"
+        chal = coordinator.generate_attestation_challenge(target_node_id=target_node_id)
+        proof = coordinator.create_attestation_proof(chal)
+        ok, msg = coordinator.verify_attestation_proof(proof)
+
+        print("=" * 75)
+        print(" 🛡️ Zero-Trust Mutual Attestation Handshake")
+        print("=" * 75)
+        print(f" Target Peer     : {seed}")
+        print(f" Challenge Nonce : {chal.nonce[:16]}...")
+        print(f" Status          : {'VERIFIED' if ok else 'REJECTED'}")
+        print(f" Details         : {msg}")
+        print("=" * 75)
+
 def handle_lint(args):
     """Statically lint the PAP workspace contracts."""
     project_root = Path(args.path).resolve()
@@ -932,6 +1018,17 @@ def main() -> None:
                 mesh_sub.add_argument("seed", help="Seed node address in host:port format")
                 args = mesh_sub.parse_args(mesh_args[1:])
                 args.mesh_action = "join"
+            elif action == "attest":
+                mesh_sub.add_argument("seed", help="Target peer address in host:port format")
+                args = mesh_sub.parse_args(mesh_args[1:])
+                args.mesh_action = "attest"
+            elif action == "rotate":
+                mesh_sub.add_argument("--validity", type=int, default=3600, help="Certificate validity in seconds (default 3600)")
+                args = mesh_sub.parse_args(mesh_args[1:])
+                args.mesh_action = "rotate"
+            elif action == "pki":
+                args = mesh_sub.parse_args(mesh_args[1:])
+                args.mesh_action = "pki"
             else:
                 args = mesh_sub.parse_args(mesh_args[1:] if mesh_args and mesh_args[0] == "status" else mesh_args)
                 args.mesh_action = "status"
@@ -952,7 +1049,7 @@ Core Subcommands:
   benchmark          Run the official Golden Flow Benchmark suite and calculate 6 KPIs
   serve              Launch FastAPI REST API server and WebSocket telemetry hub
   status [path]      Inspect repository branch, worktree status, and latest verification receipt
-  mesh [status|join] Manage Distributed P2P Mesh peering and worktree federation
+  mesh [status|join|pki|rotate|attest] Manage Distributed P2P Mesh peering, Zero-Trust PKI & Attestation
 
 Developer Tools & Legacy Flags:
   --list-skills      List all registered tools

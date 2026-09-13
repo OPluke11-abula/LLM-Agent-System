@@ -437,3 +437,46 @@ timeline
     - Python bytecode compilation: `python -m py_compile` (0 errors)
     - Frontend production build: `npm run build` in `viewer/` (Pass, 0 errors, 787ms)
     - Formatting check: `git diff --check` (0 errors)
+
+---
+
+### Milestone T-020: Zero-Trust mTLS Dynamic Node Attestation & Mutual TLS PKI Mesh Phase 88
+- **Goal**:
+  - Implement a Zero-Trust PKI Mesh subsystem with dynamic node attestation and mutual TLS certificate lifecycle management (`agent_workspace/core/cert_manager.py`, `agent_workspace/core/federated_mesh.py`), establishing ephemeral self-signed X.509 certificate generation, background auto-rotation, single-use nonce challenge-response attestation with strict replay attack protection, cryptographically signed stage delegation payloads, and interactive developer cockpit security indicators.
+- **Process**:
+  - Implemented core PKI lifecycle in `agent_workspace/core/cert_manager.py`:
+    - `SwarmCertManager`: Ephemeral RSA-2048 keypair generation, self-signed X.509 certificate builder with configurable validity TTL, SHA-256 fingerprint extraction, PKCS#1 v1.5 RSA signing and verification, and `CertValidationResult` with temporal and structure validation.
+    - Added `should_rotate_cert(cert_pem, threshold_seconds)` for automated proactive cert rotation before expiration.
+  - Enhanced `agent_workspace/core/federated_mesh.py`:
+    - Added `AttestationStatus` enum (`PENDING`, `VERIFIED`, `REJECTED`, `EXPIRED`), `AttestationChallenge` with `is_expired()` check, and `AttestationProof`.
+    - Integrated cert management into `FederatedMeshCoordinator` (`rotate_cert`, `check_and_auto_rotate_cert`).
+    - Implemented mutual challenge-response attestation (`generate_attestation_challenge`, `create_attestation_proof`, `verify_attestation_proof`) with single-use nonce consumption (`self.active_challenges.pop(challenge_id)`) preventing replay attacks.
+    - Implemented Zero-Trust delegation request signing (`sign_delegation_request`) and verification (`verify_delegation_request`) with canonical JSON payload serialization preventing payload tampering.
+    - Integrated attestation filtering into `select_best_peer` under `strict_attestation=True`.
+  - Mounted PKI & Attestation REST endpoints in `agent_workspace/routes/mesh.py`:
+    - `GET /v1/mesh/pki/cert`: Active node cert, SHA256 fingerprint, and live status.
+    - `POST /v1/mesh/pki/rotate`: On-demand ephemeral cert rotation with custom validity.
+    - `POST /v1/mesh/attest/challenge`: Issues single-use cryptographic challenge for target peer.
+    - `POST /v1/mesh/attest/verify`: Verifies signed proof and promotes node to `VERIFIED`.
+    - Updated `GET /v1/mesh/status` with `pki_status`, `cert_fingerprint`, `cert_expires_in_sec`, and `verified_peers_count`.
+    - Added Zero-Trust sender verification to `delegate_committee_turn` and `delegate_verification`.
+  - Upgraded developer CLI in `agent_workspace/cli.py`:
+    - Added `las mesh pki`: Inspects local node mTLS PKI identity and remaining TTL.
+    - Added `las mesh rotate --validity <seconds>`: Rotates ephemeral certificate on demand.
+    - Added `las mesh attest <seed>`: Triggers mutual attestation challenge-response handshake.
+  - Upgraded Frontend Cockpit in `viewer/src/components/FederatedMeshView.tsx`:
+    - Added Zero-Trust PKI Bento status card (Cluster Health, Active Status, Attested Peers, Average Latency).
+    - Added mTLS Identity & Attestation Bar with live TTL countdown and `Rotate Cert Now` action with spinner.
+    - Added peer attestation status badges (Green `ShieldCheck` for `ATTESTED`, Amber `AlertTriangle` for `PENDING`).
+    - Added one-click `Attest Peer Now` action for non-verified peers.
+  - Authored unit & integration test suite in `agent_workspace/tests/test_mesh_pki_p88.py` (9 tests).
+  - Authored Tier 3 Obsidian leaf note `docs/obsidian/modules/core/core-mesh-pki.md`.
+- **Result**:
+  - Phase 88 (Zero-Trust mTLS Dynamic Node Attestation & Mutual TLS PKI Mesh) 100% complete and verified.
+  - Receipts:
+    - `test_mesh_pki_p88.py`: 9/9 PASS (3.77s)
+    - Full combined pipeline regression matrix: 72/72 PASS across 11 test suites (19.31s)
+    - Python bytecode compilation: `python -m py_compile` (0 errors)
+    - Frontend production build: `npm run build` in `viewer/` (Pass, 0 errors, 657ms)
+    - Formatting check: `git diff --check` (0 errors)
+
