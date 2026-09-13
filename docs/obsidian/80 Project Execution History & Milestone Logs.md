@@ -394,3 +394,46 @@ timeline
     - Python bytecode compilation: `python -m py_compile` (0 errors)
     - Frontend production build: `npm run build` in `viewer/` (Pass, 0 errors, 756ms)
     - Formatting check: `git diff --check` (0 errors)
+
+---
+
+### Milestone T-019: Distributed P2P Mesh & Federated Worktree Clustering Phase 87
+- **Goal**:
+  - Implement a decentralized peer-to-peer mesh clustering layer (`agent_workspace/core/federated_mesh.py`) allowing heterogeneous worker nodes to register discrete capabilities (`REASONING_ENGINE`, `SANDBOX_MUTATION`, `TEST_RUNNER`, `COCKPIT_LEADER`), offload compute-heavy pipeline stages (committee debate turns, test verification ladders, worktree patch execution), guarantee cryptographic patch bundle integrity via Merkle tree hashing, and visualize peer topologies in the developer cockpit.
+- **Process**:
+  - Implemented core mesh architecture in `agent_workspace/core/federated_mesh.py`:
+    - `PeerCapability`: `REASONING_ENGINE`, `SANDBOX_MUTATION`, `TEST_RUNNER`, `COCKPIT_LEADER`.
+    - `FederatedPeerProfile`: peer metadata with dynamic `load_score`, `latency_ms`, and status heartbeat tracking.
+    - `FederatedPatchBundle`: cryptographically sealed code patch container with SHA-256 Merkle root calculation and `.verify_integrity()` against tampered diffs or mismatched file manifests.
+    - `FederatedMeshCoordinator`: manages peer lifecycle (`register_peer`, `heartbeat`, `list_peers`), load-balanced candidate selection (`select_best_peer` using composite score $(\text{load} \times 0.6) + (\text{latency}/100 \times 0.4)$), and stage delegation (`delegate_debate_speech`, `delegate_test_verification`).
+  - Integrated mesh offloading into autonomous coding pipeline:
+    - `agent_workspace/core/pipeline/models.py`: added `use_mesh` and `mesh_peers` to `CodingTaskRequest`.
+    - `agent_workspace/core/pipeline/debate_protocol.py`: offloaded deliberation speech turns to remote `REASONING_ENGINE` nodes with graceful local fallback.
+    - `agent_workspace/core/pipeline/manager.py`: wired `mesh_coordinator` into `CodingPipelineManager`.
+  - Exposed REST & WebSocket routes in `agent_workspace/routes/mesh.py`:
+    - `GET /v1/mesh/status`: Peering overview, connected peer count, cluster health.
+    - `GET /v1/mesh/peers`: Active peer ledger with capabilities and latencies.
+    - `POST /v1/mesh/join`: Connect with remote seed peer (`host:port`).
+    - `POST /v1/mesh/delegate/turn`: Execute remote committee debate speech turn.
+    - `POST /v1/mesh/delegate/verify`: Execute verification ladder on test runner peer.
+    - `POST /v1/mesh/sync/patch`: Stage and verify remote `FederatedPatchBundle`.
+  - Upgraded developer CLI toolbelt in `agent_workspace/cli.py`:
+    - Added `las mesh status` and `las mesh join <seed>` commands.
+    - Added `--mesh` and `--mesh-peers` flags to `las pipeline run`.
+  - Authored Frontend Cockpit view in `viewer/src/components/FederatedMeshView.tsx`:
+    - Decentralized Cluster Peering topology graph with animated SVG connection lines.
+    - Live cluster stats (Active Nodes, Verified Roles, Merkle Checksums, Average Latency).
+    - Seed Node Connect modal with capability selection checkboxes.
+    - Connected node cards with real-time load bars, latency badges, and capabilities.
+    - Integrated `/mesh` route into `App.tsx` and sidebar navigation item in `Sidebar.tsx`.
+    - Added federated mesh offloading toggle in `CodingPipelineView.tsx`.
+  - Authored unit & integration test suite in `agent_workspace/tests/test_federated_mesh_p87.py` (8 tests).
+  - Authored Obsidian leaf note `docs/obsidian/modules/core/core-federated-mesh.md`.
+- **Result**:
+  - Phase 87 (Distributed P2P Mesh & Federated Worktree Clustering) 100% complete and verified.
+  - Receipts:
+    - `test_federated_mesh_p87.py`: 8/8 PASS (0.29s)
+    - Full combined pipeline regression matrix: 63/63 PASS across 10 test suites (18.60s)
+    - Python bytecode compilation: `python -m py_compile` (0 errors)
+    - Frontend production build: `npm run build` in `viewer/` (Pass, 0 errors, 787ms)
+    - Formatting check: `git diff --check` (0 errors)

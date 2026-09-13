@@ -188,6 +188,7 @@ export function CodingPipelineView({ lang = "zh", activeWorkspacePath }: CodingP
   const [triggeringDebate, setTriggeringDebate] = useState(false);
   const [offlineMode, setOfflineMode] = useState(false);
   const [thinkingBudget, setThinkingBudget] = useState(4096);
+  const [useMesh, setUseMesh] = useState(false);
 
   const wsRef = useRef<WebSocket | null>(null);
   const apiBase = "http://localhost:8000/v1/pipeline";
@@ -299,17 +300,23 @@ export function CodingPipelineView({ lang = "zh", activeWorkspacePath }: CodingP
       ws.send("ping");
     };
 
-    ws.onmessage = () => {
-      // Refresh task on any pipeline broadcast
-      fetchTasks();
-      if (selectedTaskId) {
-        fetchTaskDetail(selectedTaskId);
+    ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg.event === "pipeline_stage_changed") {
+          setActionMessage(`Task ${msg.task_id} transitioned to stage ${msg.stage}`);
+          fetchTasks();
+          if (msg.task_id === selectedTaskId) {
+            fetchTaskDetail(msg.task_id);
+          }
+        }
+      } catch {
+        // Non-JSON or ping/pong
       }
     };
 
-    ws.onclose = () => {
-      setWsConnected(false);
-    };
+    ws.onerror = () => setWsConnected(false);
+    ws.onclose = () => setWsConnected(false);
 
     return () => {
       ws.close();
@@ -334,6 +341,7 @@ export function CodingPipelineView({ lang = "zh", activeWorkspacePath }: CodingP
         debate_rounds: debateRounds,
         offline_mode: offlineMode,
         thinking_budget: thinkingBudget,
+        use_mesh: useMesh,
       };
 
       const res = await fetch(`${apiBase}/tasks`, {
@@ -1208,6 +1216,27 @@ export function CodingPipelineView({ lang = "zh", activeWorkspacePath }: CodingP
                     <span className="text-slate-400 font-mono text-[10px]">tokens</span>
                   </div>
                 </div>
+              </div>
+
+              {/* Federated P2P Mesh Controls (Phase 87) */}
+              <div className="rounded-lg border border-cyan-500/30 bg-cyan-500/10 p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={useMesh}
+                      onChange={(e) => setUseMesh(e.target.checked)}
+                      className="rounded border-white/20 bg-black/40 text-cyan-600 focus:ring-cyan-500"
+                    />
+                    <span className="text-white font-semibold flex items-center gap-1.5">
+                      🌐 Federated P2P Mesh (Phase 87)
+                    </span>
+                  </label>
+                  <span className="text-[10px] text-cyan-300 font-mono">Worktree Cluster</span>
+                </div>
+                <p className="text-[10px] text-slate-400">
+                  Offload reasoning debate turns & test ladders across decentralized peer nodes
+                </p>
               </div>
             </div>
 

@@ -70,6 +70,7 @@ class CodingPipelineManager:
         verification_runner: Optional[IVerificationRunner] = None,
         draft_pr_publisher: Optional[IDraftPRPublisher] = None,
         audit_ledger: Optional[AuditLedger] = None,
+        mesh_coordinator: Optional[Any] = None,
     ):
         self.workspace_path = Path(workspace_path).resolve()
         self.worktree_manager = worktree_manager
@@ -77,9 +78,10 @@ class CodingPipelineManager:
         self.verification_runner = verification_runner
         self.draft_pr_publisher = draft_pr_publisher
         self.audit_ledger = audit_ledger
+        self.mesh_coordinator = mesh_coordinator
         self.prechecker = SkillsPrechecker(workspace_path=str(self.workspace_path))
         self.committee_coordinator = CommitteeCoordinator()
-        self.debate_protocol = PipelineDebateProtocol()
+        self.debate_protocol = PipelineDebateProtocol(mesh_coordinator=self.mesh_coordinator)
         self._active_sessions: dict[str, CodingPipelineResult] = {}
 
     def _record_stage(

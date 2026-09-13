@@ -54,6 +54,9 @@ const MissionControlView = lazy(() =>
 const CodingPipelineView = lazy(() =>
   import("./components/CodingPipelineView").then((module) => ({ default: module.CodingPipelineView })),
 );
+const FederatedMeshView = lazy(() =>
+  import("./components/FederatedMeshView").then((module) => ({ default: module.FederatedMeshView })),
+);
 
 function PageFallback() {
   return (
@@ -276,6 +279,14 @@ export default function App() {
                   <CodingPipelineView
                     lang={lang}
                     activeWorkspacePath={workspaces.find((w) => w.id === activeWorkspaceId)?.path}
+                  />
+                }
+              />
+              <Route
+                path="/mesh"
+                element={
+                  <FederatedMeshView
+                    lang={lang}
                   />
                 }
               />

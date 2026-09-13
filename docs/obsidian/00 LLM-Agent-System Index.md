@@ -132,6 +132,7 @@ graph TD
 - [[core-pipeline-benchmark]]: Official golden flow benchmark engine, 3 canonical scenarios, ADR-006 6 KPIs scorecard.
 - [[core-pipeline-committee]]: Multi-agent committee consensus debate, dynamic role assembly, weighted scorecards, and veto protocol.
 - [[core-reasoning-router]]: Heterogeneous reasoning model adapters, thinking budgets, and air-gapped offline routing.
+- [[core-federated-mesh]]: Distributed P2P mesh coordinator, peer capabilities, Merkle patch bundles, and remote debate/test ladder delegation.
 - [[core-cli-and-packaging]]: Unified developer CLI toolbelt (las), onboarding engine, and PEP 517/621 packaging.
 - [[core-repository]]: Repository environment sensing, protected paths, native Git worktree isolation.
 - [[core-mission]]: Mission domain aggregate root, durable SQLite mission store, lifecycle state machine.
