@@ -101,18 +101,19 @@
 ---
 
 ## 4. Active Pull Requests & Git Integration State (PR 與 Git 狀態)
-- **Current Branch**: `feat/pipeline-p87-federated-mesh` (branched from `feat/pipeline-p86-reasoning-router`)
-- **Previous PRs**:
-  - PR #8 (`feat/pipeline-p85-committee-debate` targeting `main`)
-  - PR #9 (`feat/pipeline-p86-reasoning-router` targeting `feat/pipeline-p85-committee-debate`)
+- **Current Branch**: `main` (clean, synchronized with `origin/main`)
+- **Merged PRs**:
+  - **PR #8**: `feat(pipeline): implement multi-agent committee debate and consensus protocol (p85)` -> Merged into `main`
+  - **PR #9**: `feat(router): implement heterogeneous reasoning model adapters and dynamic thinking router (p86)` -> Merged into `main`
+  - **PR #10**: `feat(mesh): implement distributed p2p mesh and federated worktree clustering (p87)` -> Merged into `main`
 - **Active Milestones**:
   - `Phase 80`: Autonomous Coding Pipeline P1 - Rules, Scaffolding & State Machine Contracts (100% Complete)
   - `Phase 81`: Autonomous Coding Pipeline P2 - Git Worktree, Repository Connector & Full Execution Integration (100% Complete)
   - `Phase 82`: Autonomous Coding Pipeline P3 - REST & WebSocket Gateways & Frontend Cockpit Integration (100% Complete)
   - `Phase 83`: Autonomous Coding Pipeline P4 - Official Golden Flow Benchmark & E2E Verification Harness (100% Complete)
   - `Phase 84`: Autonomous Coding Pipeline P5 - Developer Beta, CLI Toolbelt, Repo Onboarder & Packaging (100% Complete)
-  - `Phase 85`: Multi-Agent Consensus Debate & Committee Coding Protocol (100% Complete & Verified, PR #8)
-  - `Phase 86`: Heterogeneous Reasoning Model Adapters & Dynamic Thinking Router (100% Complete & Verified, PR #9)
-  - `Phase 87`: Distributed P2P Mesh & Federated Worktree Clustering (100% Complete & Verified)
-- **Working Tree**: Verified, 63 tests PASS, awaiting commit and push.
+  - `Phase 85`: Multi-Agent Consensus Debate & Committee Coding Protocol (100% Complete & Merged)
+  - `Phase 86`: Heterogeneous Reasoning Model Adapters & Dynamic Thinking Router (100% Complete & Merged)
+  - `Phase 87`: Distributed P2P Mesh & Federated Worktree Clustering (100% Complete & Merged)
+- **Working Tree**: Clean, 63 regression tests 100% PASS, ready for Phase 88.
 - **Local Vault Target**: `C:\Users\luke2\OneDrive\文件\Obsidian Vault\Projects\LLM-Agent-System` (63 total notes).
