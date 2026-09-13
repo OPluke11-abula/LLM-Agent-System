@@ -1,11 +1,11 @@
 ---
-protocol_version: "1.0.0"
+protocol_version: "3.8.0"
 min_runtime_version: "0.1.0"
-name: programmer-agent
-version: "0.7.0"
+name: las-developer-agent
+version: "0.8.0"
 purpose: >
-  PAP-compatible LAS developer agent for scoped planning, implementation,
-  verification, and handoff work.
+  Universal Protocol v3.8.0 compatible LAS developer and multi-agent coordination contract
+  for scoped planning, implementation, verification, and three-tier handoff work.
 description: >
   Maintains and extends the LLM Agent System with contract-first runtime,
   workflow, memory, security, and viewer changes while keeping context bounded.
@@ -20,6 +20,8 @@ use_case_tags:
   - tauri
   - codebase-memory
   - token-efficient
+  - three-tier-relay
+  - grounded-roles
 tools:
   - delegate_task
   - calculate
@@ -54,13 +56,18 @@ protocol:
   manifest: .agent/agent.md
   entrypoints:
     overview: .agent/README.md
+    state: .agent/state.md
+    ownership: .agent/ownership.md
+    decisions: .agent/decisions.md
+    versions: .agent/versions.md
+    test_policy: .agent/test_policy.md
     skills: .agent/skills.md
     prompts: .agent/prompts.md
     memory: .agent/memory.md
     workflows: .agent/workflows.md
     tasks: .agent/agent_tasks.md
     routing: .agent/routing.md
-    handoff: .agent/handoff_guide.md
+    handoff: handoff.md
   directories:
     core: .agent/core/
     skills: .agent/skills/
@@ -68,6 +75,7 @@ protocol:
     memory: .agent/memory/
     workflows: .agent/workflows/
     knowledge_base: .agent/knowledge_base/
+    agents: .agent/agents/
 memory:
   backend: local
   tiers:
@@ -82,47 +90,34 @@ workflows:
   path: .agent/workflows.md
 ---
 
-# LAS PAP Agent Manifest
+# LAS Multi-Agent Operating Contract
 
-Read this file as the compact operating contract. For task details, use
-`.agent/agent_tasks.md`; for design rules, use `viewer/DESIGN.md`; for workflow
-details, use `.agent/workflows.md`.
+Read this file as the durable project-wide operating contract (Protocol v3.8.0).
+For task details, use `.agent/agent_tasks.md`; for design rules, use `viewer/DESIGN.md`; for workflow details, use `docs/DEVELOPMENT_WORKFLOW_GUIDE.md`.
 
-## Operating Rules
+## 1. Operating Invariants
 
-1. Keep core runtime behavior in `agent_workspace/core/`; put API, CLI,
-   serialization, UI, and bridge behavior in adapters or dedicated modules.
-2. Keep Python skills and `.agent/skills/*.md` PAP contracts in parity. Validate
-   tool manifests when skill contracts or runtime registration changes.
-3. Prefer structural lookup first: code graph tools and bounded snippets before
-   broad reads. Use broad scans only for non-code files, literals, configs, or
-   stale/missing indexes.
-4. Keep context compact. Summarize completed work, keep pending queues expanded,
-   and create a handoff before long histories become the working memory.
-5. Verify before claiming success. Report the exact checks run; never treat an
-   unrun test, build, scan, or gate as passing.
+1. **Protocol Identity & Coordination Mode**:
+   - Strictly verify `.agent/state.md` Protocol Baseline matches `3.8.0`.
+   - Operate under `STATIC_DOMAIN_OWNERSHIP` unless explicitly transferred by PO Luke.
+2. **Boundary & Responsibility Discipline**:
+   - Keep core runtime behavior in `agent_workspace/core/`; put API, CLI, serialization, UI, and bridge behavior in adapters or dedicated modules.
+   - Respect `.agent/ownership.md`. Modifying files outside your assigned domain is strictly prohibited.
+3. **Anti-Summary Invariant (調研先行)**:
+   - Must directly inspect primary source files (code, schemas) before formulating technical proposals or plans. Cite exact files and line ranges.
+4. **Stop-and-Wait Architecture Gate**:
+   - Submit a structured diff plan and edge-case analysis. STOP and obtain explicit Human approval before touching code.
+5. **Seven Anti-Corruption Invariants**:
+   - Zero Dead Code; Single Responsibility; Concurrency & Race Elimination (`latest-request-wins`); Typed Failures Only; Spec-First; Idempotency; Configuration over Hardcoding.
+6. **Three-Tier Cognitive Relay**:
+   - Tier 1: `stage.md` (local scratchpad, strictly gitignored).
+   - Tier 2: `handoff.md` + Git (team cognitive relay, 3-line summary, test green prerequisite).
+   - Tier 3: `docs/obsidian/` + Vault (knowledge topology, 3-line concise code annotations on leaf notes).
+7. **Verification Ladder**:
+   - Evidence before completion. Report exact checks run with five objective status labels: `PASS`, `FAIL`, `BLOCKED`, `NOT_RUN`, `UNVERIFIED`.
 
-## Current Queue Discipline
+## 2. External-State Guardrails
 
-- Start from `.agent/agent_tasks.md` `Current Queue State`.
-- Preserve queue order unless the user explicitly reprioritizes.
-- The compacted task queue currently has no pending implementation phase.
-  Start new work only from an explicitly approved queue entry or user request.
-
-## External-State Guardrails
-
-- Do not stage, commit, push, deploy, install hooks, or enable CI/blocking
-  external actions without explicit user approval.
-- Keep security and registry/hub actions report-only unless a task explicitly
-  asks for mutation and verification.
-- Redact secrets and avoid printing raw credentials from configs, registries,
-  reports, or generated artifacts.
-
-## Verification Ladder
-
-- Documentation or queue-only change: `git diff --check` plus PAP manifest
-  validation when `.agent/agent.md` changes.
-- Backend/runtime change: focused pytest first; expand to tool manifest and full
-  repo verification at milestone boundaries.
-- Viewer/UI change: focused build or marker check first; screenshot/mobile/full
-  gates only when layout, interaction, or release confidence requires it.
+- Do not stage, commit, push, deploy, install hooks, or enable CI/blocking external actions without explicit user approval.
+- Keep security and registry/hub actions report-only unless a task explicitly asks for mutation and verification.
+- Redact secrets and avoid printing raw credentials from configs, registries, reports, or generated artifacts.

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { Lang } from "../types";
+import { LampContainer, TextScramble, ShimmerButton, BentoCard } from "./ui/primitives";
 
 export type OnboardingFinishPayload = {
   name: string;
@@ -9,6 +10,7 @@ export type OnboardingFinishPayload = {
 type OnboardingWizardProps = {
   lang: Lang;
   onFinish: (payload: OnboardingFinishPayload) => void;
+  onSkip?: () => void;
 };
 
 type WizardCopy = {
@@ -16,6 +18,7 @@ type WizardCopy = {
   title: string;
   subtitle: string;
   start: string;
+  skip: string;
   setupTitle: string;
   setupBody: string;
   workspaceName: string;
@@ -44,6 +47,7 @@ const COPY: Record<Lang, WizardCopy> = {
     title: "把 AI 的思考過程可視化",
     subtitle: "先建立你的第一個工作區，再把提示詞貼給 AI，讓它開始規劃可追蹤的任務 DAG。",
     start: "開始設定",
+    skip: "跳過新手引導",
     setupTitle: "建立第一個工作區",
     setupBody: "工作區對應一個獨立的 `agent_memory.json` 來源。你可以先只填名稱，JSON 路徑之後再補。",
     workspaceName: "工作區名稱",
@@ -70,6 +74,7 @@ const COPY: Record<Lang, WizardCopy> = {
     title: "Visualize how your AI thinks",
     subtitle: "Create your first workspace, then hand the prompt to your AI so it can start planning a trackable task DAG.",
     start: "Start setup",
+    skip: "Skip onboarding",
     setupTitle: "Create your first workspace",
     setupBody: "Each workspace maps to one `agent_memory.json` source. You can set only the name now and add the JSON path later.",
     workspaceName: "Workspace name",
@@ -96,6 +101,7 @@ const COPY: Record<Lang, WizardCopy> = {
     title: "AIの思考プロセスを可視化する",
     subtitle: "最初のワークスペースを作成し、プロンプトをAIに渡して、追跡可能なタスクDAGの計画を開始させましょう。",
     start: "セットアップを開始",
+    skip: "ガイドをスキップ",
     setupTitle: "最初のワークスペースを作成",
     setupBody: "各ワークスペースは1つの `agent_memory.json` ソースに対応します。今は名前だけを設定し、JSONパスは後で追加できます。",
     workspaceName: "ワークスペース名",
@@ -122,6 +128,7 @@ const COPY: Record<Lang, WizardCopy> = {
     title: "Visualisez le processus de réflexion de l'IA",
     subtitle: "Créez votre premier espace de travail, puis fournissez l'invite à votre IA pour qu'elle commence à planifier un DAG de tâches traçable.",
     start: "Démarrer la configuration",
+    skip: "Passer le guide",
     setupTitle: "Créer votre premier espace de travail",
     setupBody: "Chaque espace de travail correspond à une source `agent_memory.json`. Vous pouvez définir uniquement le nom pour l'instant et ajouter le chemin JSON plus tard.",
     workspaceName: "Nom de l'espace de travail",
@@ -348,7 +355,7 @@ function DemoDagCard() {
   );
 }
 
-export function OnboardingWizard({ lang, onFinish }: OnboardingWizardProps) {
+export function OnboardingWizard({ lang, onFinish, onSkip }: OnboardingWizardProps) {
   const copy = COPY[lang];
   const [step, setStep] = useState(0);
   const [workspaceName, setWorkspaceName] = useState("My First Project");
@@ -384,8 +391,22 @@ export function OnboardingWizard({ lang, onFinish }: OnboardingWizardProps) {
         <div className="grid w-full gap-8 lg:grid-cols-[1.05fr_0.95fr]">
           <section className="control-surface flex flex-col justify-between p-8">
             <div>
-              <div className="mb-6 inline-flex rounded-md border px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em]" style={{ borderColor: "var(--border-c)", background: "var(--accent-bg)", color: "var(--accent-strong)" }}>
-                {copy.badge}
+              <div className="mb-6 flex items-center justify-between">
+                <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 text-xs font-medium text-indigo-300 backdrop-blur-md">
+                  <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                  <span>{copy.badge}</span>
+                </div>
+                {onSkip && (
+                  <button
+                    type="button"
+                    onClick={onSkip}
+                    className="quiet-button inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold t2 hover:text-[var(--t1)] cursor-pointer"
+                    title={copy.skip}
+                  >
+                    <span>{copy.skip}</span>
+                    <span className="text-xs opacity-60">→</span>
+                  </button>
+                )}
               </div>
               <div className="mb-8 flex items-center gap-3">
                 {[
@@ -418,8 +439,12 @@ export function OnboardingWizard({ lang, onFinish }: OnboardingWizardProps) {
 
               {step === 0 && (
                 <div className="max-w-xl">
-                  <h1 className="text-4xl font-semibold leading-tight tracking-tight lg:text-5xl" style={{ color: "var(--t1)" }}>{copy.title}</h1>
-                  <p className="mt-5 text-base leading-8" style={{ color: "var(--t2)" }}>{copy.subtitle}</p>
+                  <LampContainer className="py-2 mb-2">
+                    <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold leading-[1.1] tracking-tight text-transparent bg-clip-text bg-gradient-to-b from-white via-white/95 to-slate-400">
+                      <TextScramble text={copy.title} as="span" />
+                    </h1>
+                  </LampContainer>
+                  <p className="mt-4 text-base leading-relaxed text-slate-400">{copy.subtitle}</p>
                 </div>
               )}
 
@@ -495,32 +520,42 @@ export function OnboardingWizard({ lang, onFinish }: OnboardingWizardProps) {
               )}
 
               {step === 0 && (
-                <button
+                <ShimmerButton
                   type="button"
                   onClick={() => setStep(1)}
-                  className="primary-button rounded-lg px-6 py-3 text-sm font-semibold"
+                  className="rounded-lg px-6 py-3 text-sm font-semibold"
                 >
                   {copy.start}
-                </button>
+                </ShimmerButton>
               )}
 
               {step === 1 && (
-                <button
+                <ShimmerButton
                   type="button"
                   onClick={handleCreate}
-                  className="primary-button rounded-lg px-6 py-3 text-sm font-semibold"
+                  className="rounded-lg px-6 py-3 text-sm font-semibold"
                 >
                   {copy.create}
-                </button>
+                </ShimmerButton>
               )}
 
               {step === 2 && (
-                <button
+                <ShimmerButton
                   type="button"
                   onClick={finishWizard}
-                  className="primary-button rounded-lg px-6 py-3 text-sm font-semibold"
+                  className="rounded-lg px-6 py-3 text-sm font-semibold"
                 >
                   {copy.finish}
+                </ShimmerButton>
+              )}
+
+              {onSkip && (
+                <button
+                  type="button"
+                  onClick={onSkip}
+                  className="quiet-button rounded-lg px-5 py-3 text-sm font-semibold cursor-pointer"
+                >
+                  {copy.skip}
                 </button>
               )}
             </div>
@@ -528,23 +563,32 @@ export function OnboardingWizard({ lang, onFinish }: OnboardingWizardProps) {
 
           <section className="flex flex-col gap-6">
             <div>
-              <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em]" style={{ color: "var(--t3)" }}>{copy.previewTitle}</p>
+              <p className="mb-3 text-xs font-semibold text-slate-400 tracking-wide">{copy.previewTitle}</p>
               <DemoDagCard />
             </div>
 
             <div className="grid gap-4 md:grid-cols-3">
-              <div className="metric-card p-5">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ color: "var(--accent-strong)" }}>Plan</p>
-                <p className="mt-3 text-sm leading-7" style={{ color: "var(--t2)" }}>{copy.planCard}</p>
-              </div>
-              <div className="metric-card p-5">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ color: "var(--warning)" }}>Track</p>
-                <p className="mt-3 text-sm leading-7" style={{ color: "var(--t2)" }}>{copy.trackCard}</p>
-              </div>
-              <div className="metric-card p-5">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ color: "var(--success)" }}>Review</p>
-                <p className="mt-3 text-sm leading-7" style={{ color: "var(--t2)" }}>{copy.reviewCard}</p>
-              </div>
+              <BentoCard className="p-5" spotlight={true}>
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-400 font-mono">
+                  <span className="h-1.5 w-1.5 rounded-full bg-indigo-400" />
+                  01. PLAN
+                </span>
+                <p className="mt-2.5 text-xs leading-relaxed text-slate-300">{copy.planCard}</p>
+              </BentoCard>
+              <BentoCard className="p-5" spotlight={true}>
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-400 font-mono">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+                  02. TRACK
+                </span>
+                <p className="mt-2.5 text-xs leading-relaxed text-slate-300">{copy.trackCard}</p>
+              </BentoCard>
+              <BentoCard className="p-5" spotlight={true}>
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-400 font-mono">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  03. REVIEW
+                </span>
+                <p className="mt-2.5 text-xs leading-relaxed text-slate-300">{copy.reviewCard}</p>
+              </BentoCard>
             </div>
           </section>
         </div>

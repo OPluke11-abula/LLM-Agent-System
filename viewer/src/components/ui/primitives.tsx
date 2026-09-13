@@ -75,7 +75,7 @@ export function Button({ variant = "quiet", size = "md", className, ...props }: 
   return (
     <button
       className={cx(
-        "rounded-lg font-semibold transition-colors disabled:opacity-50 inline-flex items-center justify-center gap-1.5 cursor-pointer active:translate-y-px",
+        "rounded-md font-medium transition-all disabled:opacity-50 inline-flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98]",
         BUTTON_SIZE_CLASSES[size],
         variant === "primary" && "primary-button",
         variant === "quiet" && "quiet-button",
@@ -98,20 +98,24 @@ type StatusBadgeProps = {
   children: ReactNode;
   tone?: Tone;
   className?: string;
+  pulse?: boolean;
 };
 
-export function StatusBadge({ children, tone = "neutral", className }: StatusBadgeProps) {
+export function StatusBadge({ children, tone = "neutral", className, pulse = false }: StatusBadgeProps) {
   return (
     <span
-      className={cx("inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em]", className)}
+      className={cx("inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium leading-none", className)}
       style={{
         color: toneVar[tone],
-        borderColor: `color-mix(in srgb, ${toneVar[tone]} 34%, transparent)`,
+        borderColor: `color-mix(in srgb, ${toneVar[tone]} 28%, transparent)`,
         background: toneBgVar[tone],
       }}
     >
-      <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: toneVar[tone] }} />
-      {children}
+      <span
+        className={cx("h-1.5 w-1.5 rounded-full shrink-0", pulse && "animate-pulse")}
+        style={{ background: toneVar[tone] }}
+      />
+      <span>{children}</span>
     </span>
   );
 }
@@ -125,9 +129,9 @@ type MetricTileProps = {
 
 export function MetricTile({ label, value, tone, className }: MetricTileProps) {
   return (
-    <div className={cx("card-bg rounded-xl border p-4", className)} style={{ borderColor: "var(--border-c)" }}>
-      <div className="text-[10px] font-semibold uppercase tracking-[0.14em] t3">{label}</div>
-      <div className="mt-1 text-xl font-bold tracking-tight" style={{ color: tone ? toneVar[tone] : "var(--t1)" }}>
+    <div className={cx("card-bg rounded-lg border p-3.5", className)} style={{ borderColor: "var(--border-c)" }}>
+      <div className="text-xs font-medium text-[var(--t2)]">{label}</div>
+      <div className="mt-1 font-mono text-2xl font-semibold tracking-tight" style={{ color: tone ? toneVar[tone] : "var(--t1)" }}>
         {value}
       </div>
     </div>
@@ -422,5 +426,211 @@ export function DropdownMenuSeparator({
       className={cx("-mx-1 my-1 h-px bg-[var(--border-c)]", className)}
       {...props}
     />
+  );
+}
+
+/* =========================================================================
+   Modern 4-Star+ Dynamic UI Primitives (Aceternity, Magic UI, OriginKit)
+   ========================================================================= */
+
+/**
+ * Magic UI - BorderBeam: Infinite rotating gradient beam around container
+ */
+export function BorderBeam({
+  className,
+  colorFrom = "rgba(99, 102, 241, 0.9)",
+  colorTo = "rgba(6, 182, 212, 0.9)",
+  duration = "8s",
+}: {
+  className?: string;
+  colorFrom?: string;
+  colorTo?: string;
+  duration?: string;
+}) {
+  return (
+    <div className={cx("pointer-events-none absolute -inset-[1px] rounded-[inherit] overflow-hidden", className)}>
+      <div
+        className="absolute -inset-[100%] origin-center opacity-70"
+        style={{
+          background: `conic-gradient(from 0deg, transparent 0 330deg, ${colorFrom} 345deg, ${colorTo} 360deg)`,
+          animation: `borderBeamRotate ${duration} linear infinite`,
+        }}
+      />
+    </div>
+  );
+}
+
+/**
+ * Magic UI - ShimmerButton: High-impact primary action button with metallic gleam
+ */
+export function ShimmerButton({
+  children,
+  className,
+  shimmerColor = "rgba(255, 255, 255, 0.28)",
+  ...props
+}: ButtonProps & { shimmerColor?: string }) {
+  return (
+    <button
+      className={cx(
+        "group relative overflow-hidden rounded-lg px-3.5 py-1.5 text-xs font-semibold text-white",
+        "bg-gradient-to-r from-indigo-600 via-blue-600 to-indigo-600 bg-[length:200%_100%]",
+        "shadow-[0_0_20px_rgba(99,102,241,0.35)] transition-all duration-300 hover:shadow-[0_0_28px_rgba(99,102,241,0.55)] hover:scale-[1.01] active:scale-[0.98] cursor-pointer",
+        className
+      )}
+      {...props}
+    >
+      <span className="relative z-10 flex items-center justify-center gap-1.5">{children}</span>
+      <span
+        className="absolute inset-0 -translate-x-full group-hover:animate-[shimmerSlide_1.5s_ease-in-out_infinite]"
+        style={{
+          background: `linear-gradient(90deg, transparent, ${shimmerColor}, transparent)`,
+        }}
+      />
+    </button>
+  );
+}
+
+/**
+ * OriginKit - MagneticButton: Elastic cursor-tracking interaction
+ */
+export function MagneticButton({
+  children,
+  className,
+  strength = 0.25,
+  ...props
+}: HTMLAttributes<HTMLDivElement> & { strength?: number }) {
+  const ref = React.useRef<HTMLDivElement>(null);
+  const [transform, setTransform] = React.useState("translate(0px, 0px)");
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!ref.current) return;
+    const rect = ref.current.getBoundingClientRect();
+    const x = (e.clientX - (rect.left + rect.width / 2)) * strength;
+    const y = (e.clientY - (rect.top + rect.height / 2)) * strength;
+    setTransform(`translate(${x}px, ${y}px)`);
+  };
+
+  const handleMouseLeave = () => {
+    setTransform("translate(0px, 0px)");
+  };
+
+  return (
+    <div
+      ref={ref}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      role="presentation"
+      className={cx("inline-block transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]", className)}
+      style={{ transform }}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+}
+
+/**
+ * Magic UI - BentoCard: Asymmetric modular card with spotlight & border beam
+ */
+export function BentoCard({
+  children,
+  className,
+  borderBeam = false,
+  spotlight = true,
+  ...props
+}: HTMLAttributes<HTMLDivElement> & { borderBeam?: boolean; spotlight?: boolean }) {
+  return (
+    <div
+      className={cx(
+        "group relative overflow-hidden rounded-xl border border-white/10 bg-[#0d1017]/80 backdrop-blur-xl p-5",
+        "transition-all duration-300 hover:border-white/20 hover:shadow-[0_8px_30px_rgba(0,0,0,0.5)]",
+        spotlight && "hover:bg-[#121622]/90",
+        className
+      )}
+      {...props}
+    >
+      {borderBeam && <BorderBeam />}
+      <div className="relative z-10 h-full">{children}</div>
+    </div>
+  );
+}
+
+/**
+ * OriginKit & Motion-Primitives - TextScramble: Kinetic decrypt text effect
+ */
+export function TextScramble({
+  text,
+  className,
+  as = "span",
+}: {
+  text: string;
+  className?: string;
+  as?: "span" | "h1" | "h2" | "h3" | "p";
+}) {
+  const [display, setDisplay] = React.useState(text);
+  const Component = as;
+
+  React.useEffect(() => {
+    const chars = "!@#$%^&*()_+-=[]{}|;:,.<>?/0123456789";
+    let iteration = 0;
+    const interval = setInterval(() => {
+      setDisplay(
+        text
+          .split("")
+          .map((char, idx) => {
+            if (char === " ") return " ";
+            if (idx < iteration) return text[idx];
+            return chars[Math.floor(Math.random() * chars.length)];
+          })
+          .join("")
+      );
+      if (iteration >= text.length) {
+        clearInterval(interval);
+      }
+      iteration += 1 / 2;
+    }, 28);
+
+    return () => clearInterval(interval);
+  }, [text]);
+
+  return <Component className={className}>{display}</Component>;
+}
+
+/**
+ * Aceternity UI - LampContainer: Cinematic ceiling spotlight container
+ */
+export function LampContainer({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cx("relative flex flex-col items-center justify-center overflow-hidden w-full isolate z-0", className)}>
+      {/* Top Conic Beams */}
+      <div className="relative flex w-full flex-1 items-center justify-center isolate z-0 pointer-events-none">
+        {/* Left cone */}
+        <div
+          className="absolute inset-auto right-1/2 h-36 w-[22rem] opacity-60"
+          style={{
+            background: "conic-gradient(from 70deg at 100% 0%, #6366f1, transparent 55%)",
+            filter: "blur(20px)",
+          }}
+        />
+        {/* Right cone */}
+        <div
+          className="absolute inset-auto left-1/2 h-36 w-[22rem] opacity-60"
+          style={{
+            background: "conic-gradient(from 290deg at 0% 0%, transparent 45%, #6366f1)",
+            filter: "blur(20px)",
+          }}
+        />
+        {/* Center horizontal neon filament */}
+        <div className="absolute top-1/2 h-16 w-72 -translate-y-4 rounded-full bg-cyan-400/30 blur-2xl" />
+        <div className="absolute top-1/2 h-0.5 w-64 -translate-y-6 bg-cyan-400 shadow-[0_0_20px_#06b6d4]" />
+      </div>
+      <div className="relative z-10 w-full">{children}</div>
+    </div>
   );
 }

@@ -39,6 +39,7 @@ skill contracts.
 | `governed_memory` | `agent_workspace/core/skill_loader.py` | `governed_memory` | `.agent/skills/governed_memory.md` |
 | `structured_log` | `agent_workspace/core/skill_loader.py` | `structured_log` | `.agent/skills/structured_log.md` |
 | `topological_workspace` | `agent_workspace/core/skill_loader.py` | `topological_workspace` | `.agent/skills/topological_workspace.md` |
+| `generative_spec_generator` | `agent_workspace/skills/generative_spec_generator.py` | `generate_spec` | `.agent/skills/generative_spec_generator.md` |
 
 ## Adding New Skills
 

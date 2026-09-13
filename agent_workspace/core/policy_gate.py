@@ -28,6 +28,29 @@ CONSENSUS_REQUIRED_ACTIONS: frozenset[str] = frozenset(
     {"ultra_mode", "browser_use", "computer_use", "external_api"}
 )
 
+ROLE_SCOPE_RESTRICTIONS: dict[str, dict[str, Any]] = {
+    "UI_UX_AGENT": {
+        "forbidden_prefixes": ("agent_workspace/", "spec/", "migrations/"),
+        "description": "UI_UX_AGENT is strictly prohibited from modifying backend or spec files",
+    },
+    "BACKEND_INFRA_AGENT": {
+        "forbidden_prefixes": ("viewer/",),
+        "description": "BACKEND_INFRA_AGENT is strictly prohibited from modifying presentation UI files",
+    },
+    "DOMAIN_LOGIC_AGENT": {
+        "forbidden_prefixes": ("viewer/",),
+        "description": "DOMAIN_LOGIC_AGENT must remain framework-agnostic and cannot touch presentation UI",
+    },
+    "SECURITY_AUDIT_AGENT": {
+        "read_only": True,
+        "description": "SECURITY_AUDIT_AGENT is a read-only review authority",
+    },
+    "ARCHITECT_PLANNER_AGENT": {
+        "read_only": True,
+        "description": "ARCHITECT_PLANNER_AGENT is an advisory specialist and cannot mutate code directly",
+    },
+}
+
 
 class PolicyGateRequest(BaseModel):
     """Request evaluated by the runtime policy gate."""
@@ -130,9 +153,21 @@ class UnifiedPolicyGate:
         if not resource_path.is_absolute():
             resource_path = self._workspace_root / resource_path
         try:
-            resource_path.resolve().relative_to(self._workspace_root)
+            rel = resource_path.resolve().relative_to(self._workspace_root)
         except ValueError:
             return "resource outside workspace scope"
+
+        # Check role-based boundary restrictions
+        role = request.metadata.get("role") or (request.actor if "AGENT" in request.actor else None)
+        if role and role in ROLE_SCOPE_RESTRICTIONS:
+            role_rule = ROLE_SCOPE_RESTRICTIONS[role]
+            rel_str = str(rel).replace("\\", "/")
+            if role_rule.get("read_only") and request.metadata.get("is_write"):
+                return f"Role {role} is read-only: {role_rule['description']}"
+            for forbidden in role_rule.get("forbidden_prefixes", ()):
+                if rel_str.startswith(forbidden):
+                    return f"Boundary violation: {role_rule['description']} (attempted: {rel_str})"
+
         return None
 
     def _has_valid_consensus(self, request: PolicyGateRequest, payload_hash: str) -> bool:

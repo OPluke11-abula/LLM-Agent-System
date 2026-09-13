@@ -9,6 +9,86 @@ from typing import Any, Dict, List, Optional
 logger = logging.getLogger("AgentCrew")
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
+GROUNDED_AGENT_ROLES: Dict[str, Dict[str, Any]] = {
+    "UI_UX_AGENT": {
+        "class": "REPOSITORY_EXECUTOR",
+        "scope": ["viewer/", "viewer/src/"],
+        "antigravity_skills": ["frontend-design", "aesthetic-design-system", "theme-factory", "canvas-design", "obsidian-vault", "obsidian-research-notes"],
+        "codex_skills": ["figma", "figma-implement-design", "figma-code-connect-components", "frontend-skill", "obsidian-research-notes"],
+        "prohibitions": ["Strictly prohibited from touching SQL, Alembic, backend IPC, or raw HTTP client logic. Confined to presentation and widget tests."],
+    },
+    "BACKEND_INFRA_AGENT": {
+        "class": "REPOSITORY_EXECUTOR",
+        "scope": ["agent_workspace/core/", "agent_workspace/db/", "agent_workspace/api/"],
+        "antigravity_skills": ["resource-lifecycle-debug", "diagnose", "systematic-debugging", "obsidian-vault", "obsidian-research-notes"],
+        "codex_skills": ["sqlite", "codebase-design", "obsidian-research-notes"],
+        "prohibitions": ["Strictly prohibited from writing presentation UI or leaking raw SQL to presentation layer."],
+    },
+    "DOMAIN_LOGIC_AGENT": {
+        "class": "REPOSITORY_EXECUTOR",
+        "scope": ["agent_workspace/core/"],
+        "antigravity_skills": ["agent-rules-books", "brainstorming", "tdd", "obsidian-vault", "obsidian-research-notes"],
+        "codex_skills": ["domain-modeling", "codebase-design", "obsidian-research-notes"],
+        "prohibitions": ["Pure domain logic, framework-agnostic. Strictly prohibited from introducing direct UI, Win32, or raw ORM dependencies."],
+    },
+    "APPLICATION_FLOW_AGENT": {
+        "class": "REPOSITORY_EXECUTOR",
+        "scope": ["agent_workspace/core/workflow_engine.py", "agent_workspace/core/engine.py"],
+        "antigravity_skills": ["systematic-debugging", "dispatching-parallel-agents", "obsidian-vault", "obsidian-research-notes"],
+        "codex_skills": ["speech", "transcribe", "diagnosing-bugs", "obsidian-research-notes"],
+        "prohibitions": ["Strictly prohibited from direct SQL or raw native OS calls. Must enforce latest-request-wins and race elimination."],
+    },
+    "INTEGRATION_MERGE_AGENT": {
+        "class": "REPOSITORY_EXECUTOR",
+        "scope": ["."],
+        "antigravity_skills": ["finishing-a-development-branch", "using-git-worktrees", "git-guardrails-claude-code", "obsidian-vault", "obsidian-research-notes"],
+        "codex_skills": ["resolving-merge-conflicts", "gh-address-comments", "gh-fix-ci", "obsidian-research-notes"],
+        "prohibitions": ["Never perform untested fast-forward merges. Must compile master topology and pass full global regression gates."],
+    },
+    "SECURITY_AUDIT_AGENT": {
+        "class": "REPOSITORY_REVIEWER",
+        "scope": ["."],
+        "antigravity_skills": ["security-audit", "threat-model", "pentest", "incident-response", "skillspector", "obsidian-vault", "obsidian-research-notes"],
+        "codex_skills": ["codex-security-scan", "codex-security-diff-scan", "codex-security-threat-model", "codex-security-validate", "codex-security-fix", "obsidian-research-notes"],
+        "prohibitions": ["Read-only audit authority. Scans for plaintext credentials, injection flaws, and clipboard/IPC leakage; outputs evidence receipts."],
+    },
+    "PERFORMANCE_LATENCY_AGENT": {
+        "class": "REPOSITORY_REVIEWER",
+        "scope": ["."],
+        "antigravity_skills": ["resource-lifecycle-debug", "diagnose", "obsidian-vault", "obsidian-research-notes"],
+        "codex_skills": ["codex profiling", "obsidian-research-notes"],
+        "prohibitions": ["Resource lifecycle governance. Investigates thread lockups, connection leaks, IPC roundtrips, and token overhead."],
+    },
+    "QA_TEST_AGENT": {
+        "class": "REPOSITORY_REVIEWER",
+        "scope": ["agent_workspace/tests/", "scripts/", "docs/evidence/"],
+        "antigravity_skills": ["test-driven-development", "tdd", "brooks-test", "verification-before-completion", "obsidian-vault", "obsidian-research-notes"],
+        "codex_skills": ["tdd", "karpathy-review-lite", "playwright-interactive", "obsidian-research-notes"],
+        "prohibitions": ["Evidence before completion invariant. Must run actual test commands and attach verified terminal receipts."],
+    },
+    "ARCHITECT_PLANNER_AGENT": {
+        "class": "ADVISORY_SPECIALIST",
+        "scope": [".agent/", "spec/"],
+        "antigravity_skills": ["writing-plans", "executing-plans", "iterative-planner", "improve-codebase-architecture", "obsidian-vault", "obsidian-research-notes"],
+        "codex_skills": ["momus.toml", "codebase-design", "obsidian-research-notes"],
+        "prohibitions": ["Non-coding advisory role. Formulates RFCs/Plans; validates them against Deep Plan Reviewer before handoff."],
+    },
+    "KNOWLEDGE_TOPOLOGY_AGENT": {
+        "class": "OPS",
+        "scope": [".agent/knowledge_base/", "docs/obsidian/"],
+        "antigravity_skills": ["obsidian-vault", "obsidian-research-notes", "token-optimization", "caveman", "notion"],
+        "codex_skills": ["notion-knowledge-capture", "token-efficient-handoff", "claude-handoff", "obsidian-research-notes"],
+        "prohibitions": ["Knowledge integrity guardian. Synchronizes project documentation and local Obsidian vaults; prunes dead docs and verifies symbol freshness."],
+    },
+}
+
+LEGACY_ROLE_MAP: Dict[str, str] = {
+    "CEO": "CEO",
+    "DEVELOPER": "Developer",
+    "AUDITOR": "Auditor",
+    "CFO": "CFO",
+}
+
 class CrewRegistry:
     """
     A thread-safe global registry to track crew sessions and their agent nodes
@@ -42,18 +122,23 @@ class CrewRegistry:
             try:
                 from core.account_manager import AccountManager
                 tenant_id = AccountManager.get_session_tenant(session_id)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Session tenant lookup failed for session %s: %s", session_id, e)
             tenant_id = tenant_id or "default_tenant"
 
         with cls._lock:
             if session_id not in cls._sessions:
                 cls._sessions[session_id] = {}
-            
+
+            role_info = GROUNDED_AGENT_ROLES.get(role, {})
             cls._sessions[session_id][node_id] = {
                 "id": node_id,
                 "parent_id": parent_node_id,
                 "role": role,
+                "role_class": role_info.get("class", "REPOSITORY_EXECUTOR"),
+                "grounded_skills": role_info.get("antigravity_skills", []),
+                "codex_skills": role_info.get("codex_skills", []),
+                "mutable_scope": role_info.get("scope", ["."]),
                 "status": status,
                 "description": description,
                 "input_parameters": input_parameters or {},
@@ -78,10 +163,10 @@ class CrewRegistry:
         """
         nodes = []
         edges = []
-        
+
         with cls._lock:
             target_sessions = [session_id] if session_id else list(cls._sessions.keys())
-            
+
             for s_id in target_sessions:
                 if s_id not in cls._sessions:
                     continue
@@ -112,7 +197,7 @@ class CrewRegistry:
                             "target": node_id,
                             "type": "handoff"
                         })
-                        
+
         return {"nodes": nodes, "edges": edges}
 
 
@@ -145,16 +230,16 @@ class AgentCrew:
         checkpoint: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         response_channel = f"swarm:task:{node_id}:response"
-        
+
         loop = asyncio.get_running_loop()
         future = loop.create_future()
-        
+
         async def on_response(msg: dict):
             if not future.done():
                 future.set_result(msg)
-                
+
         await broker.subscribe(response_channel, on_response)
-        
+
         try:
             # Publish request
             request_msg = {
@@ -172,7 +257,7 @@ class AgentCrew:
                 "checkpoint": checkpoint
             }
             await broker.publish(f"swarm:role:{role.lower()}", request_msg)
-            
+
             # Wait for response with timeout (5.0 seconds)
             response = await asyncio.wait_for(future, timeout=5.0)
             return response
@@ -207,8 +292,8 @@ class AgentCrew:
         try:
             from core.account_manager import AccountManager
             tenant_id = AccountManager.get_session_tenant(self.session_id)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Session tenant lookup failed for session %s: %s", self.session_id, e)
         tenant_id = tenant_id or "default_tenant"
 
         # Verify tenant credits
@@ -223,20 +308,23 @@ class AgentCrew:
             mock_directives["downscale"] = True
             logger.info(f"Model downscaling policy active for tenant {tenant_id}. Flagging downstream dispatches.")
 
-        # Ensure valid roles
-        valid_roles = {"CEO", "Developer", "Auditor", "CFO"}
+        # Ensure valid roles (Canonical 10 Grounded Roles + Legacy Aliases)
         normalized_role = role.strip().upper()
-        # Find if role matches one of the canonical personas
         matched_role = None
-        for vr in valid_roles:
-            if vr in normalized_role:
-                matched_role = vr
+        for r_name in GROUNDED_AGENT_ROLES:
+            if r_name == normalized_role or r_name in normalized_role:
+                matched_role = r_name
                 break
+        if not matched_role:
+            for l_key, l_val in LEGACY_ROLE_MAP.items():
+                if l_key in normalized_role:
+                    matched_role = l_val
+                    break
         if not matched_role:
             matched_role = role  # Keep original if non-canonical
 
         node_id = f"node-{matched_role.lower()}-{uuid.uuid4()}"
-        
+
         # 1. Register as pending
         CrewRegistry.register_node(
             session_id=self.session_id,
@@ -258,18 +346,18 @@ class AgentCrew:
         from agent_workspace.core.broker import get_broker, RedisSwarmBroker, InMemorySwarmBroker
         from agent_workspace.core.swarm_coordinator import SwarmCoordinator
         from agent_workspace.core.sandbox import FileSnapshotTransaction
-            
+
         workspace_path = getattr(self, "workspace_path", ".")
         broker = get_broker()
-        
+
         from agent_workspace.core.p2p_router import get_p2p_router
-            
+
         p2p_router = get_p2p_router()
         has_p2p_peer = any(
             peer.get("status") == "connected" and peer.get("role", "").lower() == matched_role.lower()
             for peer in p2p_router.peers.values()
         )
-        
+
         if has_p2p_peer and isinstance(broker, InMemorySwarmBroker):
             logger.info(f"RedisSwarmBroker offline or unreachable. Attempting P2P dispatch to role '{matched_role}'...")
             async def run_p2p_dispatch():
@@ -305,13 +393,13 @@ class AgentCrew:
             best_node_id = SwarmCoordinator.get_best_node(matched_role)
             nodes_tracked = (best_node_id is not None)
             max_attempts = 2 if nodes_tracked else 1
-            
+
             for attempt in range(max_attempts):
                 if attempt > 0 and nodes_tracked:
                     best_node_id = SwarmCoordinator.get_best_node(matched_role)
                     if not best_node_id:
                         break
-                
+
                 try:
                     async def run_dispatch():
                         checkpoint = await self.get_checkpoint(broker)
@@ -328,7 +416,7 @@ class AgentCrew:
                             target_node_id=best_node_id,
                             checkpoint=checkpoint
                         )
-                    
+
                     # Wrap dispatch in transactional workspace snapshot
                     with FileSnapshotTransaction(workspace_path):
                         try:
@@ -342,7 +430,7 @@ class AgentCrew:
                                 res = loop.run_until_complete(run_dispatch())
                         except RuntimeError:
                             res = asyncio.run(run_dispatch())
-                    
+
                     if res and res.get("status") == "completed":
                         CrewRegistry.update_node_status(self.session_id, node_id, "completed")
                         if best_node_id:
@@ -359,7 +447,7 @@ class AgentCrew:
                         SwarmCoordinator.mark_node_offline(best_node_id, reason="dispatch_timeout")
                     if not nodes_tracked:
                         break
-            
+
             logger.info("All microservice dispatch attempts failed. Attempting P2P routing fallback...")
             has_p2p_peer = any(
                 peer.get("status") == "connected" and peer.get("role", "").lower() == matched_role.lower()
@@ -404,16 +492,16 @@ class AgentCrew:
 
             # Execute simulation/delegation response logic depending on role
             output = f"Execution result for role [{matched_role}] with instructions: {task_instructions}."
-            
+
             # Apply mock directives
             if mock_directives.get("force_mock_response"):
                 output = mock_directives["force_mock_response"]
-            
+
             # Run/validate assertions
             for assertion in validation_assertions:
                 if "fail" in assertion.lower() or "error" in assertion.lower():
                     raise AssertionError(f"Validation assertion failed: '{assertion}'")
-            
+
             # Update status to completed
             CrewRegistry.update_node_status(self.session_id, node_id, "completed")
             return {
@@ -434,7 +522,7 @@ class AgentCrew:
     def generate_checkpoint_signature(checkpoint_data: Dict[str, Any], role: str) -> str:
         import hashlib
         from agent_workspace.core.discussion_room import ProofOfConsensus
-            
+
         data_to_hash = {
             "session_id": checkpoint_data.get("session_id"),
             "node_id": checkpoint_data.get("node_id"),
@@ -452,12 +540,12 @@ class AgentCrew:
     def verify_checkpoint_signature(checkpoint_data: Dict[str, Any]) -> bool:
         import hashlib
         from agent_workspace.core.discussion_room import ProofOfConsensus
-            
+
         signature = checkpoint_data.get("signature")
         signer = checkpoint_data.get("signer", "ceo")
         if not signature:
             return False
-            
+
         data_to_hash = {
             "session_id": checkpoint_data.get("session_id"),
             "node_id": checkpoint_data.get("node_id"),
@@ -498,7 +586,7 @@ class AgentCrew:
 
         redis_key = f"swarm:session:{self.session_id}:checkpoint"
         from agent_workspace.core.broker import RedisSwarmBroker
-            
+
         if hasattr(broker, "kv_store"):
             broker.kv_store[redis_key] = json.dumps(checkpoint_data)
         elif getattr(broker, "client", None) is not None:
@@ -517,12 +605,17 @@ class AgentCrew:
         redis_key = f"swarm:session:{self.session_id}:checkpoint"
         data_str = None
         from agent_workspace.core.broker import RedisSwarmBroker
-            
+
         if hasattr(broker, "kv_store"):
             data_str = broker.kv_store.get(redis_key)
         elif getattr(broker, "client", None) is not None:
             data_str = await broker.client.get(redis_key)
-            
+
         if data_str:
             return json.loads(data_str)
         return None
+
+    @classmethod
+    def get_grounded_roles(cls) -> Dict[str, Dict[str, Any]]:
+        """Returns the canonical 10 grounded agent roles and their host skill mappings."""
+        return GROUNDED_AGENT_ROLES

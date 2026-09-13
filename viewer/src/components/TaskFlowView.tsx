@@ -19,8 +19,8 @@ import { Modal } from "./Modal";
 import { ContextMenu } from "./ContextMenu";
 import { ActivityLog } from "./ActivityLog";
 import { TASK_NODE_TYPES } from "./TaskNode";
-import { Button, Card, CardContent, CardHeader, CardTitle, Input, MetricTile, StatusBadge, Surface } from "./ui/primitives";
-import { AlertCircle, Brain, Download, FileCheck, FileCode, FileJson, FileText, GitFork, Key, Search, Terminal } from "./ui/icons";
+import { Button, Card, CardContent, CardHeader, CardTitle, Input, MetricTile, StatusBadge, Surface, cx } from "./ui/primitives";
+import { AlertCircle, Brain, FileCheck, FileCode, FileJson, FileText, GitFork, Key, Search, Terminal } from "./ui/icons";
 import type {
   ActivityLogEntry,
   AgentMemory,
@@ -836,24 +836,31 @@ function TaskFlowWorkspaceTabs({ controller }: { readonly controller: TaskFlowCo
 
   return (
     <div className="flex flex-shrink-0 flex-wrap gap-2">
-      {workspaces.map((workspace) => (
-        <Button
-          key={workspace.id}
-          type="button"
-          onClick={() => setActiveWorkspaceId(workspace.id)}
-          variant={workspace.id === activeWorkspaceId ? "primary" : "quiet"}
-          className="flex flex-col items-start px-3 py-2 text-xs"
-        >
-          <span>
-            {workspace.name} · {workspace.lang}
-          </span>
-          {workspace.path && (
-            <span className="mt-0.5 font-mono text-xs opacity-60">
-              {workspace.path}
+      {workspaces.map((workspace) => {
+        const active = workspace.id === activeWorkspaceId;
+        return (
+          <button
+            key={workspace.id}
+            type="button"
+            onClick={() => setActiveWorkspaceId(workspace.id)}
+            className={cx(
+              "flex flex-col items-start rounded-md px-3 py-1.5 text-xs transition-colors cursor-pointer border",
+              active
+                ? "bg-[var(--bg-elevated)] border-[var(--border-strong)] text-[var(--t1)] font-medium shadow-sm"
+                : "bg-[var(--bg-card)] border-[var(--border-c)] text-[var(--t3)] hover:text-[var(--t2)] hover:border-[var(--border-strong)]"
+            )}
+          >
+            <span className="font-semibold text-[var(--t1)]">
+              {workspace.name} <span className="font-normal text-[var(--t3)]">· {workspace.lang}</span>
             </span>
-          )}
-        </Button>
-      ))}
+            {workspace.path && (
+              <span className="mt-0.5 font-mono text-[10px] text-[var(--t3)]">
+                {workspace.path}
+              </span>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -862,16 +869,18 @@ function TaskFlowHero({ controller }: { readonly controller: TaskFlowController 
   const { focusTask, local } = controller;
 
   return (
-    <Surface elevated className="task-flow-hero flex min-h-[8rem] flex-col justify-center gap-3 p-4 sm:flex-row sm:items-end sm:justify-between">
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-[var(--border-c)] pb-3">
       <div>
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] accent-text">{local.graphWorkspace}</p>
-        <h1 className="mt-1 text-2xl font-semibold t1 sm:text-3xl">{local.cockpitTitle}</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed t2">{local.cockpitSubtitle}</p>
+        <div className="flex items-center gap-1.5 text-xs text-[var(--t3)] font-medium">
+          <span>{local.graphWorkspace}</span>
+        </div>
+        <h1 className="mt-0.5 text-xl font-semibold t1 tracking-tight">{local.cockpitTitle}</h1>
+        <p className="mt-0.5 text-xs text-[var(--t2)]">{local.cockpitSubtitle}</p>
       </div>
       <StatusBadge tone={focusTask ? toneForTaskStatus(focusTask.status) : "warning"}>
         {focusTask ? focusTask.status.replace("_", " ") : local.exportNoTasks}
       </StatusBadge>
-    </Surface>
+    </div>
   );
 }
 
@@ -886,7 +895,6 @@ function TaskFlowStats({ controller }: { readonly controller: TaskFlowController
           label={stat.label}
           value={stat.value}
           tone={stat.label === local.completionRate ? "accent" : "neutral"}
-          className="p-4"
         />
       ))}
     </div>
@@ -900,24 +908,20 @@ function TaskFlowControls({ controller }: { readonly controller: TaskFlowControl
   const filterOptions = FILTER_OPTIONS;
 
   return (
-    <Surface elevated className="flex flex-col gap-3.5 p-4 sm:p-5">
+    <Surface elevated className="flex flex-col gap-3 p-3.5 sm:p-4 rounded-lg">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] t3">{local.searchLabel}</p>
+        <span className="text-xs font-medium text-[var(--t3)]">{local.searchLabel}</span>
         <div className="flex flex-wrap items-center justify-end gap-2">
           {exportStatus && <StatusBadge tone="success">{exportStatus}</StatusBadge>}
-          <p className="text-xs t2">
+          <p className="text-xs text-[var(--t3)]">
             {local.matchingCount} {matchedTasks.length} / {total}
           </p>
-          <div className="flex flex-wrap items-center gap-1.5 rounded-lg border p-1" style={{ borderColor: "var(--border-c)", background: "var(--bg-card)" }}>
-            <span className="hidden px-2 text-[10px] font-semibold uppercase tracking-[0.14em] t3 sm:inline flex items-center gap-1">
-              <Download className="h-3 w-3" />
-              <span>{local.exportLabel}</span>
-            </span>
-            <Button type="button" onClick={() => handleExport("json")} variant="primary" className="flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs">
+          <div className="flex items-center gap-1">
+            <Button type="button" onClick={() => handleExport("json")} variant="quiet" size="sm" className="flex items-center gap-1">
               <FileJson className="h-3.5 w-3.5" />
               <span>{local.exportJson}</span>
             </Button>
-            <Button type="button" onClick={() => handleExport("markdown")} variant="quiet" className="flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs">
+            <Button type="button" onClick={() => handleExport("markdown")} variant="quiet" size="sm" className="flex items-center gap-1">
               <FileText className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">{local.exportMarkdown}</span>
               <span className="sm:hidden">MD</span>
@@ -925,28 +929,35 @@ function TaskFlowControls({ controller }: { readonly controller: TaskFlowControl
           </div>
         </div>
       </div>
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+      <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center">
         <div className="relative w-full">
-          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--t3)]" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--t3)]" />
           <Input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder={local.searchPlaceholder}
-            className="h-10 pl-10 text-xs"
+            className="h-9 pl-9 text-xs"
           />
         </div>
-        <div className="flex flex-wrap gap-2 shrink-0">
-          {filterOptions.map((status) => (
-            <Button
-              key={status}
-              type="button"
-              onClick={() => setFilter(status)}
-              variant={filter === status ? "primary" : "quiet"}
-              className="px-3 py-2 text-xs font-medium"
-            >
-              {local.filters[status]}
-            </Button>
-          ))}
+        <div className="inline-flex items-center gap-1 rounded-lg border border-[var(--border-c)] bg-[var(--bg-base)] p-1 shrink-0">
+          {filterOptions.map((status) => {
+            const active = filter === status;
+            return (
+              <button
+                key={status}
+                type="button"
+                onClick={() => setFilter(status)}
+                className={cx(
+                  "rounded-md px-2.5 py-1 text-xs font-medium transition-all cursor-pointer",
+                  active
+                    ? "bg-[var(--bg-elevated)] text-[var(--t1)] shadow-sm font-semibold border border-[var(--border-strong)]"
+                    : "text-[var(--t3)] hover:text-[var(--t2)] border border-transparent"
+                )}
+              >
+                {local.filters[status]}
+              </button>
+            );
+          })}
         </div>
       </div>
     </Surface>

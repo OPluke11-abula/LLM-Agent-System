@@ -47,17 +47,26 @@ type AuditBlock = {
   tenant_id: string;
 };
 
-const SWARM_AGENTS = ["CEO", "Developer", "QA", "CFO"] as const;
+const SWARM_AGENTS = [
+  "DOMAIN_LOGIC_AGENT",
+  "APPLICATION_FLOW_AGENT",
+  "BACKEND_INFRA_AGENT",
+  "UI_UX_AGENT",
+  "SECURITY_AUDIT_AGENT",
+  "QA_TEST_AGENT",
+] as const;
 
 type SwarmAgent = (typeof SWARM_AGENTS)[number];
 type SwarmNodeData = { readonly label: SwarmAgent };
 type SwarmEdgeData = Record<string, never>;
 
 const SWARM_AGENT_POSITIONS: Record<SwarmAgent, { readonly x: number; readonly y: number }> = {
-  CEO: { x: 120, y: 60 },
-  Developer: { x: 380, y: 60 },
-  QA: { x: 250, y: 220 },
-  CFO: { x: 500, y: 220 },
+  DOMAIN_LOGIC_AGENT: { x: 50, y: 50 },
+  APPLICATION_FLOW_AGENT: { x: 280, y: 50 },
+  BACKEND_INFRA_AGENT: { x: 520, y: 50 },
+  UI_UX_AGENT: { x: 50, y: 200 },
+  SECURITY_AUDIT_AGENT: { x: 280, y: 200 },
+  QA_TEST_AGENT: { x: 520, y: 200 },
 };
 
 const INITIAL_SWARM_NODES: readonly Node<SwarmNodeData>[] = SWARM_AGENTS.map(agent => ({
@@ -69,18 +78,21 @@ const INITIAL_SWARM_NODES: readonly Node<SwarmNodeData>[] = SWARM_AGENTS.map(age
     borderColor: "var(--border-c)",
     color: "var(--t1)",
     borderRadius: "12px",
-    padding: "10px 16px",
-    fontSize: "13px",
-    fontWeight: "bold",
+    padding: "8px 14px",
+    fontSize: "11px",
+    fontWeight: "600",
+    letterSpacing: "0.02em",
     borderWidth: "1.5px",
   },
 }));
 
 const INITIAL_SWARM_EDGES: readonly Edge<SwarmEdgeData>[] = [
-  { id: "ceo-dev", source: "CEO", target: "Developer", animated: false, style: { stroke: "var(--border-c)", strokeWidth: 1.5 } },
-  { id: "dev-qa", source: "Developer", target: "QA", animated: false, style: { stroke: "var(--border-c)", strokeWidth: 1.5 } },
-  { id: "qa-cfo", source: "QA", target: "CFO", animated: false, style: { stroke: "var(--border-c)", strokeWidth: 1.5 } },
-  { id: "cfo-ceo", source: "CFO", target: "CEO", animated: false, style: { stroke: "var(--border-c)", strokeWidth: 1.5 } },
+  { id: "domain-flow", source: "DOMAIN_LOGIC_AGENT", target: "APPLICATION_FLOW_AGENT", animated: false, style: { stroke: "var(--border-c)", strokeWidth: 1.5 } },
+  { id: "flow-backend", source: "APPLICATION_FLOW_AGENT", target: "BACKEND_INFRA_AGENT", animated: false, style: { stroke: "var(--border-c)", strokeWidth: 1.5 } },
+  { id: "flow-ui", source: "APPLICATION_FLOW_AGENT", target: "UI_UX_AGENT", animated: false, style: { stroke: "var(--border-c)", strokeWidth: 1.5 } },
+  { id: "backend-sec", source: "BACKEND_INFRA_AGENT", target: "SECURITY_AUDIT_AGENT", animated: false, style: { stroke: "var(--border-c)", strokeWidth: 1.5 } },
+  { id: "ui-qa", source: "UI_UX_AGENT", target: "QA_TEST_AGENT", animated: false, style: { stroke: "var(--border-c)", strokeWidth: 1.5 } },
+  { id: "sec-qa", source: "SECURITY_AUDIT_AGENT", target: "QA_TEST_AGENT", animated: false, style: { stroke: "var(--border-c)", strokeWidth: 1.5 } },
 ];
 
 type AdminCopy = {
@@ -396,7 +408,7 @@ function useAdminDashboardController({ t, lang }: AdminDashboardViewProps) {
       });
       if (!statusResp.ok) throw new Error(`Audit status failed with status ${statusResp.status}`);
       const statusData = await statusResp.json();
-      
+
       const logsResp = await fetch("http://localhost:8000/v1/audit/logs", {
         headers: adminAuthHeaders(),
       });

@@ -1,3 +1,45 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "llm-agent-system"
+version = "0.5.0"
+description = "LAS: Governed Autonomous Multi-Agent Development Control Plane under Protocol v3.8.0"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "Apache-2.0"}
+authors = [
+    {name = "LAS Team & Luke"}
+]
+dependencies = [
+    "pydantic>=2.0.0",
+    "jinja2>=3.0.0",
+    "watchdog>=3.0.0",
+    "httpx>=0.25.0",
+    "pyyaml>=6.0.0",
+    "jsonschema>=4.0.0",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "prometheus_client>=0.20.0",
+    "opentelemetry-api>=1.20.0",
+    "opentelemetry-sdk>=1.20.0",
+    "opentelemetry-instrumentation-fastapi>=0.41b0",
+    "python-dotenv>=1.0.0",
+    "redis>=5.0.0",
+    "cryptography>=41.0.0",
+    "tiktoken>=0.7.0",
+]
+
+[project.scripts]
+las = "agent_workspace.cli:main"
+las-server = "agent_workspace.server:main"
+las-benchmark = "scripts.run_golden_benchmark:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["agent_workspace*"]
+
 [tool.pytest.ini_options]
 minversion = "6.0"
 addopts = "-ra -q --cov=agent_workspace --cov-report=term-missing"

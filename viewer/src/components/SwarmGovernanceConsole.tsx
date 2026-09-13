@@ -319,10 +319,10 @@ const GOVERNANCE_COPY: Record<Lang, GovernanceCopy> = {
 };
 
 const fallbackNodes: SwarmNode[] = [
-  { id: "local-ceo-01", role: "CEO", status: "busy", taskLoad: 72 },
-  { id: "local-dev-02", role: "Developer", status: "busy", taskLoad: 64 },
-  { id: "local-qa-03", role: "QA", status: "idle", taskLoad: 18 },
-  { id: "local-cfo-04", role: "CFO", status: "idle", taskLoad: 31 },
+  { id: "local-domain-01", role: "DOMAIN_LOGIC_AGENT", status: "busy", taskLoad: 72 },
+  { id: "local-backend-02", role: "BACKEND_INFRA_AGENT", status: "busy", taskLoad: 64 },
+  { id: "local-qa-03", role: "QA_TEST_AGENT", status: "idle", taskLoad: 18 },
+  { id: "local-sec-04", role: "SECURITY_AUDIT_AGENT", status: "idle", taskLoad: 31 },
 ];
 
 const fallbackHealth: HealthLog[] = [
@@ -391,10 +391,10 @@ const fallbackRevokedCertificates: RevokedCertificate[] = [
 const fallbackMeteredUsage = Array.from({ length: 20 }, (_, index) => Number((0.012 + index * 0.002).toFixed(4)));
 
 const fallbackReplay: SwarmReplayEvent[] = [
-  { id: "r-1", step: 0, node_id: "CEO", target: "Developer", status: "running", label: "initialize", latency_ms: 210 },
-  { id: "r-2", step: 1, node_id: "Developer", target: "QA", status: "running", label: "execute", latency_ms: 360 },
-  { id: "r-3", step: 2, node_id: "QA", target: "CFO", status: "review", label: "audit", latency_ms: 440 },
-  { id: "r-4", step: 3, node_id: "CFO", target: "CEO", status: "completed", label: "finalize", latency_ms: 180 },
+  { id: "r-1", step: 0, node_id: "DOMAIN_LOGIC_AGENT", target: "BACKEND_INFRA_AGENT", status: "running", label: "initialize", latency_ms: 210 },
+  { id: "r-2", step: 1, node_id: "BACKEND_INFRA_AGENT", target: "QA_TEST_AGENT", status: "running", label: "execute", latency_ms: 360 },
+  { id: "r-3", step: 2, node_id: "QA_TEST_AGENT", target: "SECURITY_AUDIT_AGENT", status: "review", label: "audit", latency_ms: 440 },
+  { id: "r-4", step: 3, node_id: "SECURITY_AUDIT_AGENT", target: "DOMAIN_LOGIC_AGENT", status: "completed", label: "finalize", latency_ms: 180 },
 ];
 
 function asRecord(value: unknown): Record<string, unknown> {

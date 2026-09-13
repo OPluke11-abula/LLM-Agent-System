@@ -196,9 +196,9 @@ cython_debug/
 .abstra/
 
 # Visual Studio Code
-#   Visual Studio Code specific template is maintained in a separate VisualStudioCode.gitignore 
+#   Visual Studio Code specific template is maintained in a separate VisualStudioCode.gitignore
 #   that can be found at https://github.com/github/gitignore/blob/main/Global/VisualStudioCode.gitignore
-#   and can be added to the global gitignore or merged into this file. However, if you prefer, 
+#   and can be added to the global gitignore or merged into this file. However, if you prefer,
 #   you could uncomment the following to ignore the entire vscode folder
 # .vscode/
 # Temporary file for partial code execution
@@ -308,6 +308,21 @@ Desktop.ini
 .env.*
 !.env.example
 !.env.template
+
+# Local editors and operating-system metadata
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+*~
+
+# Local environment variants and temporary files
+.env.*
+!.env.example
+!.env.template
 *.tmp
 *.temp
 *.bak
@@ -316,3 +331,10 @@ Desktop.ini
 tmp_*.md
 .uv-cache/
 .venv-*/
+
+# Three-Tier Cognitive Relay: local session scratchpad and machine-local state
+stage.md
+*.stage.md
+.agent/local/
+.agent/patches/
+agent_worktrees/

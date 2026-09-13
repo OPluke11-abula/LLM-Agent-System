@@ -2,7 +2,7 @@ import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import { ALL_LANGS, THEME_LIST } from "../../constants";
 import type { Lang, LlmConfig, LlmConfigPayload, ThemeId, TranslationMessages, Workspace } from "../../types";
 import { logUiDiagnostic } from "../../utils/logger";
-import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, StatusBadge, Surface } from "../ui/primitives";
+import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, StatusBadge, Surface, cx } from "../ui/primitives";
 import { Cpu, Folder, Globe, Palette, Plus, RotateCcw, Sparkles, Trash2 } from "../ui/icons";
 
 type SettingsGeneralPanelProps = {
@@ -113,18 +113,25 @@ export function SettingsGeneralPanel({
           <CardDescription>選擇介面顯示語言與本地化訊息格式</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-wrap gap-2.5">
-            {(["zh", "en", "ja", "fr"] as const).map((item) => (
-              <Button
-                key={item}
-                type="button"
-                onClick={() => setLang(item)}
-                variant={lang === item ? "primary" : "quiet"}
-                className="px-4 py-2 text-xs font-semibold"
-              >
-                {LANG_NAMES[item]}
-              </Button>
-            ))}
+          <div className="flex flex-wrap gap-2">
+            {(["zh", "en", "ja", "fr"] as const).map((item) => {
+              const active = lang === item;
+              return (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => setLang(item)}
+                  className={cx(
+                    "rounded-md px-3.5 py-1.5 text-xs font-medium transition-all cursor-pointer border",
+                    active
+                      ? "bg-[var(--bg-elevated)] text-[var(--t1)] font-semibold shadow-sm border-[var(--border-strong)]"
+                      : "bg-[var(--bg-card)] text-[var(--t3)] hover:text-[var(--t2)] border-[var(--border-c)] hover:border-[var(--border-strong)]"
+                  )}
+                >
+                  {LANG_NAMES[item]}
+                </button>
+              );
+            })}
           </div>
         </CardContent>
       </Card>
@@ -139,17 +146,24 @@ export function SettingsGeneralPanel({
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2">
-            {THEME_LIST.map(({ id }) => (
-              <Button
-                key={id}
-                type="button"
-                onClick={() => setTheme(id)}
-                variant={theme === id ? "primary" : "quiet"}
-                className="px-3.5 py-1.5 text-xs font-medium"
-              >
-                {t.themes[id]}
-              </Button>
-            ))}
+            {THEME_LIST.map(({ id }) => {
+              const active = theme === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setTheme(id)}
+                  className={cx(
+                    "rounded-md px-3.5 py-1.5 text-xs font-medium transition-all cursor-pointer border",
+                    active
+                      ? "bg-[var(--bg-elevated)] text-[var(--t1)] font-semibold shadow-sm border-[var(--border-strong)]"
+                      : "bg-[var(--bg-card)] text-[var(--t3)] hover:text-[var(--t2)] border-[var(--border-c)] hover:border-[var(--border-strong)]"
+                  )}
+                >
+                  {t.themes[id]}
+                </button>
+              );
+            })}
           </div>
         </CardContent>
       </Card>

@@ -1,0 +1,58 @@
+{
+  "suite_id": "GBS-1789294420",
+  "timestamp": "2026-09-13T10:13:40.028283+00:00",
+  "total_scenarios": 3,
+  "successful_scenarios": 3,
+  "mission_completion_rate": 1.0,
+  "avg_time_to_verified_completion_ms": 715.52,
+  "total_scope_violations_blocked": 1,
+  "scope_containment_rate": 1.0,
+  "review_freshness_verified": true,
+  "canonical_host_preservation_pass": true,
+  "context_token_efficiency_kb": 18.5,
+  "scenario_receipts": [
+    {
+      "scenario_id": "SCENARIO_HAPPY_PATH_FEATURE",
+      "name": "Feature Addition with Verified Ladder",
+      "success": true,
+      "stage_reached": "COMPLETED",
+      "duration_ms": 1107.4748000246473,
+      "merkle_root": "a49ef6d1be04580f0cd1220a17b3858445e7683fad860daf3246e69d90ef99f7",
+      "canonical_preserved": true,
+      "scope_violations_blocked": 0,
+      "test_ladder_passed": true,
+      "test_ladder_receipts_count": 1,
+      "draft_pr_generated": true,
+      "error_message": null
+    },
+    {
+      "scenario_id": "SCENARIO_SECURITY_CONTAINMENT",
+      "name": "ScopeGuard Containment of Unauthorized Mutation",
+      "success": true,
+      "stage_reached": "FAILED",
+      "duration_ms": 460.8198999776505,
+      "merkle_root": "b0a61083179ad77986819b51a82875147ec97611a05cf053450175d7575b0b34",
+      "canonical_preserved": true,
+      "scope_violations_blocked": 1,
+      "test_ladder_passed": false,
+      "test_ladder_receipts_count": 1,
+      "draft_pr_generated": false,
+      "error_message": null
+    },
+    {
+      "scenario_id": "SCENARIO_FAIL_FAST_DIAGNOSTIC",
+      "name": "Fail-Fast Ladder Halts False Draft PR",
+      "success": true,
+      "stage_reached": "FAILED",
+      "duration_ms": 578.2618000521325,
+      "merkle_root": "83e793303992990cab8c868cb77d513d4e02ea7cf9dfa9e9cc6baaaadc25b1f0",
+      "canonical_preserved": true,
+      "scope_violations_blocked": 0,
+      "test_ladder_passed": false,
+      "test_ladder_receipts_count": 1,
+      "draft_pr_generated": false,
+      "error_message": null
+    }
+  ],
+  "advisory_verdict": "GOLDEN_FLOW_VERIFIED"
+}

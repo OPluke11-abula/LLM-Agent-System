@@ -37,11 +37,12 @@ class CrewSyncManager:
             from agent_workspace.core.replay_logger import ReplayLogger
             try:
                 msg_data = json.loads(decrypted_message)
-            except Exception:
+            except (json.JSONDecodeError, TypeError, ValueError) as decode_err:
+                logger.debug(f"Payload not JSON, treating as raw: {decode_err}")
                 msg_data = {"raw_message": decrypted_message}
             ReplayLogger.log_event(workspace, session_id, "crew_sync", msg_data)
         except Exception as e:
-            logger.error(f"Error logging crew sync event: {e}")
+            logger.warning(f"Error logging crew sync event: {e}")
 
         targets = []
         with self.lock:
@@ -50,11 +51,23 @@ class CrewSyncManager:
                     if ws != sender_ws:
                         targets.append((ws, key))
 
+        dead_sockets: list[WebSocket] = []
         for ws, key in targets:
             try:
                 enc_msg = SwarmP2PCrypto.encrypt_message(key, decrypted_message)
                 await ws.send_json(enc_msg)
             except Exception as e:
-                logger.error(f"Error broadcasting crew sync event: {e}")
+                logger.warning(f"Error broadcasting crew sync event, marking socket for cleanup: {e}")
+                dead_sockets.append(ws)
+
+        if dead_sockets:
+            with self.lock:
+                if session_id in self.sessions:
+                    self.sessions[session_id] = [
+                        (ws, key) for ws, key in self.sessions[session_id] if ws not in dead_sockets
+                    ]
+                    if not self.sessions[session_id]:
+                        del self.sessions[session_id]
+            logger.info(f"Reaped {len(dead_sockets)} dead sockets from session '{session_id}'")
 
 crew_sync_manager = CrewSyncManager()

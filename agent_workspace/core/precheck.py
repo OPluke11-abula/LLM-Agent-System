@@ -88,3 +88,61 @@ class SkillsPrechecker:
             "status": "PASS",
             "message": "Pre-check passed."
         }
+
+    def check_anti_summary_preflight(self, inspected_files: list[str]) -> dict[str, Any]:
+        """
+        Anti-Summary Invariant (調研先行):
+        Agents are strictly prohibited from generating architectural conclusions
+        or code changes without inspecting primary source files.
+        """
+        if not inspected_files:
+            return {
+                "status": "BLOCKED",
+                "message": "Anti-Summary violation: Primary source inspection required before planning or code changes. Citing concrete files is mandatory."
+            }
+        missing = []
+        for f in inspected_files:
+            fp = Path(f)
+            if not fp.is_absolute():
+                fp = self.workspace_path / fp
+            if not fp.exists():
+                missing.append(f)
+        if missing:
+            return {
+                "status": "BLOCKED",
+                "message": f"Anti-Summary violation: Specified primary source files do not exist: {', '.join(missing)}"
+            }
+        return {
+            "status": "PASS",
+            "message": f"Anti-Summary preflight verified across {len(inspected_files)} primary source files."
+        }
+
+    def check_stop_and_wait_gate(self, plan_approved: bool) -> dict[str, Any]:
+        """
+        Stop-and-Wait Architecture Gate:
+        Enforces human approval before any file mutation tool or destructive change.
+        """
+        if not plan_approved:
+            return {
+                "status": "BLOCKED",
+                "message": "Stop-and-Wait Gate: Plan proposal requires explicit Human sign-off before modifying code."
+            }
+        return {
+            "status": "PASS",
+            "message": "Stop-and-Wait Gate passed: Human sign-off confirmed."
+        }
+
+    @staticmethod
+    def check_seven_anti_corruption(code_text: str, filename: str = "") -> list[str]:
+        """
+        Seven Anti-Corruption static scanner:
+        Checks for bare excepts, empty catch blocks, and swallowed exceptions.
+        """
+        issues = []
+        if "except:" in code_text:
+            issues.append("Anti-Corruption #4: Bare 'except:' detected. Typed failures only; catch specific exception classes.")
+        if "catch (e) {}" in code_text or "catch (error) {}" in code_text:
+            issues.append("Anti-Corruption #4: Empty catch block detected. Silently swallowing exceptions is prohibited.")
+        if "except Exception:\n            pass" in code_text or "except Exception:\n        pass" in code_text:
+            issues.append("Anti-Corruption #4: Swallowed Exception with 'pass' detected. Map to typed ErrorCode.")
+        return issues
