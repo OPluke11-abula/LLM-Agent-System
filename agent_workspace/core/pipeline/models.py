@@ -90,6 +90,14 @@ class CodingTaskRequest(BaseModel):
         default=None,
         description="Reasoning intensity level: low, medium, high"
     )
+    use_mesh: bool = Field(
+        default=False,
+        description="Offload committee reasoning and test execution across federated P2P mesh peers"
+    )
+    mesh_peers: list[str] = Field(
+        default_factory=list,
+        description="Explicit mesh peer seed addresses (e.g. host:port)"
+    )
     metadata: dict[str, Any] = Field(default_factory=dict, description="Arbitrary extension metadata")
 
 
@@ -166,6 +174,16 @@ class DebateSpeechTurn(BaseModel):
     reasoning_content: Optional[str] = Field(default=None, description="Internal chain-of-thought or reasoning tokens")
     reasoning_tokens: int = Field(default=0, ge=0, description="Count of reasoning/thinking tokens consumed")
     timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+    @property
+    def agent_role(self) -> str:
+        """Alias for speaker_role."""
+        return self.speaker_role
+
+    @property
+    def speech_content(self) -> str:
+        """Alias for content."""
+        return self.content
 
 
 class DebateRoundRecord(BaseModel):

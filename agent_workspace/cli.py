@@ -283,8 +283,29 @@ def handle_pipeline_run(args):
     offline_mode = getattr(args, "offline", False) or getattr(args, "local", False)
     thinking_budget = getattr(args, "thinking_budget", None)
     reasoning_effort = getattr(args, "reasoning_effort", None)
+    use_mesh = getattr(args, "mesh", False)
+    mesh_peers = [p.strip() for p in args.mesh_peers.split(",")] if getattr(args, "mesh_peers", None) else []
 
-    manager = CodingPipelineManager(workspace_path=target_dir, ladder_test_commands=ladder_tests)
+    mesh_coordinator = None
+    if use_mesh:
+        from agent_workspace.core.federated_mesh import get_federated_coordinator, PeerCapability
+        mesh_coordinator = get_federated_coordinator()
+        for p_addr in mesh_peers:
+            if ":" in p_addr:
+                h, pt = p_addr.split(":", 1)
+                mesh_coordinator.register_peer(
+                    node_id=f"peer-{h}-{pt}",
+                    role="worker",
+                    host=h,
+                    port=int(pt),
+                    capabilities=[PeerCapability.REASONING_ENGINE, PeerCapability.TEST_RUNNER],
+                )
+
+    manager = CodingPipelineManager(
+        workspace_path=target_dir,
+        ladder_test_commands=ladder_tests,
+        mesh_coordinator=mesh_coordinator,
+    )
     req = CodingTaskRequest(
         requirement=requirement,
         inspected_files=inspected_files,
@@ -296,6 +317,8 @@ def handle_pipeline_run(args):
         offline_mode=offline_mode,
         thinking_budget=thinking_budget,
         reasoning_effort=reasoning_effort,
+        use_mesh=use_mesh,
+        mesh_peers=mesh_peers,
     )
 
     print(f"🚀 Initializing LAS Autonomous Coding Task: {requirement}")
@@ -309,6 +332,8 @@ def handle_pipeline_run(args):
         print("   Execution Mode   : AIR-GAPPED OFFLINE (Ollama local inference)")
     if thinking_budget:
         print(f"   Thinking Budget  : {thinking_budget} tokens (Effort: {reasoning_effort or 'auto'})")
+    if use_mesh:
+        print(f"   Federated Mesh   : ENABLED (Peers: {len(mesh_coordinator.peers) if mesh_coordinator else 0})")
 
     auto_approve = getattr(args, "auto_approve", False)
     if auto_approve:
@@ -396,6 +421,108 @@ def handle_status(args):
     print(f" Ecosystems        : {', '.join(profile.detected_ecosystems) or 'None'}")
     print(f" Latest Benchmark  : {last_benchmark}")
     print("=" * 60)
+
+
+def handle_mesh(args):
+    """Manage Distributed P2P Mesh peering and worktree federation (Phase 87)."""
+    sub = getattr(args, "mesh_action", "status")
+    import urllib.request
+    import urllib.error
+
+    server_url = os.environ.get("LAS_SERVER_URL", "http://127.0.0.1:8000")
+
+    if sub == "status":
+        live_data = None
+        try:
+            req = urllib.request.Request(f"{server_url}/v1/mesh/status")
+            with urllib.request.urlopen(req, timeout=0.8) as resp:
+                if resp.status == 200:
+                    live_data = json.loads(resp.read().decode("utf-8"))
+        except Exception:
+            pass
+
+        if live_data:
+            local_prof = live_data["local_node"]
+            peers = live_data["connected_peers"]
+            print("=" * 75)
+            print(" 🌐 LAS Federated P2P Mesh Topology Status (Live Daemon)")
+            print("=" * 75)
+            print(f" Local Node ID  : {local_prof['node_id']}")
+            print(f" Role / Address : {local_prof['role']} ({local_prof['host']}:{local_prof['port']})")
+            print(f" Capabilities   : {', '.join(local_prof['capabilities'])}")
+            print(f" Connected Peers: {len(peers)} / {live_data['peer_count']}")
+            print(f" Cluster Health : {live_data['cluster_health']} (Avg Latency: {live_data['avg_latency_ms']}ms)")
+            print("-" * 75)
+            if not peers:
+                print(" No remote mesh peers registered. Operating in standalone local mode.")
+            else:
+                print(f" {'Peer Node ID':<22} | {'Role':<12} | {'Address':<20} | {'Latency':<9} | {'Load'}")
+                print("-" * 75)
+                for p in peers:
+                    print(f" {p['node_id']:<22} | {p['role']:<12} | {p['host'] + ':' + str(p['port']):<20} | {p['latency_ms']:5.1f}ms  | {p['load_score']:.2f}")
+            print("=" * 75)
+            return
+
+        from agent_workspace.core.federated_mesh import get_federated_coordinator, PeerCapability
+        coordinator = get_federated_coordinator()
+        local_prof = coordinator.get_local_profile()
+        peers = coordinator.list_peers()
+        print("=" * 75)
+        print(" 🌐 LAS Federated P2P Mesh Topology Status (Local Node)")
+        print("=" * 75)
+        print(f" Local Node ID  : {local_prof.node_id}")
+        print(f" Role / Address : {local_prof.role} ({local_prof.host}:{local_prof.port})")
+        print(f" Capabilities   : {', '.join(c.value for c in local_prof.capabilities)}")
+        print(f" Connected Peers: {len([p for p in peers if p.status == 'connected'])} / {len(peers)}")
+        print("-" * 75)
+        if not peers:
+            print(" No remote mesh peers registered. Operating in standalone local mode.")
+        else:
+            print(f" {'Peer Node ID':<22} | {'Role':<12} | {'Address':<20} | {'Latency':<9} | {'Load'}")
+            print("-" * 75)
+            for p in peers:
+                print(f" {p.node_id:<22} | {p.role:<12} | {p.host + ':' + str(p.port):<20} | {p.latency_ms:5.1f}ms  | {p.load_score:.2f}")
+        print("=" * 75)
+
+    elif sub == "join":
+        seed = getattr(args, "seed", None)
+        if not seed:
+            print("Error: seed address required. Usage: las mesh join <host:port>", file=sys.stderr)
+            sys.exit(1)
+        if ":" not in seed:
+            print("Error: Invalid address format. Expected host:port (e.g. 127.0.0.1:8001)", file=sys.stderr)
+            sys.exit(1)
+
+        try:
+            req_data = json.dumps({"seed_address": seed}).encode("utf-8")
+            req = urllib.request.Request(f"{server_url}/v1/mesh/join", data=req_data, headers={"Content-Type": "application/json"})
+            with urllib.request.urlopen(req, timeout=1.5) as resp:
+                if resp.status == 200:
+                    data = json.loads(resp.read().decode("utf-8"))
+                    print(f"Successfully joined mesh seed node '{data.get('node_id')}' ({seed}) via live daemon.")
+                    return
+        except Exception:
+            pass
+
+        host, port_str = seed.split(":", 1)
+        try:
+            port = int(port_str)
+        except ValueError:
+            print("Error: Port must be an integer.", file=sys.stderr)
+            sys.exit(1)
+
+        from agent_workspace.core.federated_mesh import get_federated_coordinator, PeerCapability
+        coordinator = get_federated_coordinator()
+        prof = coordinator.register_peer(
+            node_id=f"seed-{host}-{port}",
+            role="worker",
+            host=host,
+            port=port,
+            capabilities=[PeerCapability.REASONING_ENGINE, PeerCapability.TEST_RUNNER],
+            latency_ms=10.0,
+            load_score=0.1,
+        )
+        print(f"Successfully joined mesh seed node '{prof.node_id}' ({host}:{port}).")
 
 def handle_lint(args):
     """Statically lint the PAP workspace contracts."""
@@ -721,7 +848,7 @@ def main() -> None:
     sys_args = sys.argv[1:]
 
     # Subcommands
-    subcommands = {"init", "onboard", "benchmark", "pipeline", "serve", "status"}
+    subcommands = {"init", "onboard", "benchmark", "pipeline", "serve", "status", "mesh"}
 
     if sys_args and sys_args[0] in subcommands:
         cmd = sys_args[0]
@@ -774,6 +901,8 @@ def main() -> None:
             pipe_sub.add_argument("--local", action="store_true", help="Alias for --offline")
             pipe_sub.add_argument("--thinking-budget", type=int, default=None, help="Extended thinking token budget for reasoning roles (e.g. 4096, 8192)")
             pipe_sub.add_argument("--reasoning-effort", choices=["low", "medium", "high"], default=None, help="Reasoning intensity level for o-series models")
+            pipe_sub.add_argument("--mesh", action="store_true", help="Offload reasoning debate and test execution across federated P2P mesh peers")
+            pipe_sub.add_argument("--mesh-peers", type=str, default=None, help="Comma-separated seed addresses of mesh peers (e.g. host:port)")
             args = pipe_sub.parse_args(pipe_args[1:])
             handle_pipeline_run(args)
             return
@@ -795,6 +924,20 @@ def main() -> None:
             handle_status(args)
             return
 
+        elif cmd == "mesh":
+            mesh_args = sys_args[1:]
+            action = mesh_args[0] if mesh_args and not mesh_args[0].startswith("-") else "status"
+            mesh_sub = argparse.ArgumentParser(prog=f"las mesh {action}", description="Manage Distributed P2P Mesh peering.")
+            if action == "join":
+                mesh_sub.add_argument("seed", help="Seed node address in host:port format")
+                args = mesh_sub.parse_args(mesh_args[1:])
+                args.mesh_action = "join"
+            else:
+                args = mesh_sub.parse_args(mesh_args[1:] if mesh_args and mesh_args[0] == "status" else mesh_args)
+                args.mesh_action = "status"
+            handle_mesh(args)
+            return
+
     # If no args or standard help
     if not sys_args or sys_args in (["-h"], ["--help"]):
         print("""LAS: Governed Autonomous Multi-Agent Development Control Plane under Protocol v3.8.0
@@ -809,6 +952,7 @@ Core Subcommands:
   benchmark          Run the official Golden Flow Benchmark suite and calculate 6 KPIs
   serve              Launch FastAPI REST API server and WebSocket telemetry hub
   status [path]      Inspect repository branch, worktree status, and latest verification receipt
+  mesh [status|join] Manage Distributed P2P Mesh peering and worktree federation
 
 Developer Tools & Legacy Flags:
   --list-skills      List all registered tools

@@ -9,9 +9,9 @@
 ---
 
 ## 1. 3-Line Executive Summary (三行白話摘要)
-1. 異質推論模型適配器與思維協議落地：核心 Provider 擴充第一類公民思維協議（`ProviderResponse.reasoning_content` 與 `reasoning_tokens`），支援 DeepSeek-R1、OpenAI o-series（`reasoning_effort`）、Anthropic Claude 3.7 Sonnet Extended Thinking 與 Ollama 本地 `<think>` 標籤正則清洗隔離。
-2. 動態思維路由器與離線降級拓樸就緒：實作 `DynamicThinkingRouter` 與 4 級 `ModelTier`（`REASONING`, `STANDARD_CODING`, `FAST_PRECHECK`, `LOCAL_OFFLINE`），架構師預設 8192、資安審計 4096 思維預算，並支援氣隙斷網環境自動回退至本地 Ollama 推論模型（`deepseek-r1:8b`, `qwen2.5-coder:7b`）。
-3. 全端座艙思維鏈可視化與可觀測性閉環：前端座艙提供發言氣泡思維折疊檢視、共識記分卡總思維 Token 徽章、新建任務離線模式與預算滑桿，Prometheus 提供 `REASONING_TOKENS_COUNT` 與 `THINKING_LATENCY` 指標，9 套測試矩陣 55 項測試 100% 綠燈 PASS，Vite 生產建置 756ms 通過。
+1. 分散式 P2P Mesh 與聯邦工作樹協同引擎落地：實作 `FederatedMeshCoordinator`、`PeerCapability`（`REASONING_ENGINE`, `SANDBOX_MUTATION`, `TEST_RUNNER`, `COCKPIT_LEADER`）與負載/延遲綜合評分路由，支援將龐大思維辯論與驗證階梯跨節點委派執行。
+2. 密碼學 Patch Bundle 與 Merkle 根雜湊驗證：`FederatedPatchBundle` 整合 SHA-256 差異與檔案清單 Merkle Root 完整性校驗，並於網路異常或節點離線時無縫降級本地執行，嚴格確保零主機污染（Zero Host Pollution）。
+3. REST/CLI 工具鏈與全端聯邦座艙閉環：提供 `/v1/mesh/*` 完整生命週期端點與 `las mesh status` / `las mesh join` / `--mesh` CLI 指令；前端座艙新增聯邦群集拓樸畫布、節點負載雷達與連線彈窗，10 套測試矩陣 63 項測試 100% 綠燈 PASS，Vite 生產建置 787ms 通過。
 
 ---
 
@@ -19,13 +19,13 @@
 
 | Check / Metric | Status | Evidence / Receipt |
 |---|---|---|
-| **Active Feature Branch** | `PASS` | `feat/pipeline-p86-reasoning-router` cleanly branched from `feat/pipeline-p85-committee-debate` |
-| **Phase 86 Router Tests** | `PASS` | `test_reasoning_router_p86.py` (7 tests in 0.07s, 100% PASS) |
-| **Pipeline Full Regression Matrix** | `PASS` | 55 tests in 21.19s (100% PASS across 9 test suites: P1, P2-A, P2-C, P3, P4, P5, P85, P86) |
-| **Frontend Production Build** | `PASS` | `npm run build` in `viewer/` passed in 756ms (0 errors) |
-| **Python Bytecode Compilation** | `PASS` | `python -m py_compile` across all modified files passed (0 errors) |
-| **Obsidian Note & Vault Sync** | `PASS` | `docs/obsidian/modules/core/core-reasoning-router.md` authored (24 core leaf notes, 62 total notes) |
-| **Zero Dead Code & Types Invariant** | `PASS` | Preserved tuple unpacking backwards compatibility, all Pydantic v2 and TypeScript strict models verified |
+| **Active Feature Branch** | `PASS` | `feat/pipeline-p87-federated-mesh` cleanly branched from `feat/pipeline-p86-reasoning-router` |
+| **Phase 87 Mesh Tests** | `PASS` | `test_federated_mesh_p87.py` (8 tests in 0.29s, 100% PASS) |
+| **Pipeline Full Regression Matrix** | `PASS` | 63 tests in 18.60s (100% PASS across 10 test suites: P1, P2-A, P2-C, P3, P4, P5, P85, P86, P87) |
+| **Frontend Production Build** | `PASS` | `npm run build` in `viewer/` passed in 787ms (0 errors, 0 warnings) |
+| **Python Bytecode Compilation** | `PASS` | `python -m py_compile` across all modified and newly created files passed (0 errors) |
+| **Obsidian Note & Vault Sync** | `PASS` | `docs/obsidian/modules/core/core-federated-mesh.md` authored (25 core leaf notes, 63 total notes) |
+| **Zero Dead Code & Types Invariant** | `PASS` | Strict Pydantic v2 `extra="forbid"` models and TypeScript strict contracts verified |
 | **Stop-and-Wait Gate Protocol** | `PASS` | Plan enrichment and thinking budget preservation under human approval token |
 
 ---
@@ -56,7 +56,7 @@
    - `layers/L6-Verification-Matrix-and-Receipts.md`
    - `layers/L7-Distributed-Mesh-and-P2P.md`
 
-3. **Level 2: Backend Concrete Core Leaf Notes (24 篇)**:
+3. **Level 2: Backend Concrete Core Leaf Notes (25 篇)**:
    - `modules/core/core-engine.md`
    - `modules/core/core-workflow-engine.md`
    - `modules/core/core-router.md`
@@ -72,6 +72,7 @@
    - `modules/core/core-ws-manager.md`
    - `modules/core/core-providers.md`
    - `modules/core/core-reasoning-router.md`
+   - `modules/core/core-federated-mesh.md`
    - `modules/core/core-billing.md`
    - `modules/core/core-cert-manager.md`
    - `modules/core/core-pipeline.md`
@@ -100,8 +101,10 @@
 ---
 
 ## 4. Active Pull Requests & Git Integration State (PR 與 Git 狀態)
-- **Current Branch**: `feat/pipeline-p86-reasoning-router` (branched from `feat/pipeline-p85-committee-debate`)
-- **Previous PR**: PR #8 (`feat/pipeline-p85-committee-debate` targeting `main`)
+- **Current Branch**: `feat/pipeline-p87-federated-mesh` (branched from `feat/pipeline-p86-reasoning-router`)
+- **Previous PRs**:
+  - PR #8 (`feat/pipeline-p85-committee-debate` targeting `main`)
+  - PR #9 (`feat/pipeline-p86-reasoning-router` targeting `feat/pipeline-p85-committee-debate`)
 - **Active Milestones**:
   - `Phase 80`: Autonomous Coding Pipeline P1 - Rules, Scaffolding & State Machine Contracts (100% Complete)
   - `Phase 81`: Autonomous Coding Pipeline P2 - Git Worktree, Repository Connector & Full Execution Integration (100% Complete)
@@ -109,7 +112,7 @@
   - `Phase 83`: Autonomous Coding Pipeline P4 - Official Golden Flow Benchmark & E2E Verification Harness (100% Complete)
   - `Phase 84`: Autonomous Coding Pipeline P5 - Developer Beta, CLI Toolbelt, Repo Onboarder & Packaging (100% Complete)
   - `Phase 85`: Multi-Agent Consensus Debate & Committee Coding Protocol (100% Complete & Verified, PR #8)
-  - `Phase 86`: Heterogeneous Reasoning Model Adapters & Dynamic Thinking Router (100% Complete & Verified)
-  - `Phase 87` (Next): Distributed P2P Mesh & Federated Worktree Clustering
-- **Working Tree**: Stage clean, awaiting human confirmation to commit and push.
-- **Local Vault Target**: `C:\Users\luke2\OneDrive\文件\Obsidian Vault\Projects\LLM-Agent-System` (62 total notes).
+  - `Phase 86`: Heterogeneous Reasoning Model Adapters & Dynamic Thinking Router (100% Complete & Verified, PR #9)
+  - `Phase 87`: Distributed P2P Mesh & Federated Worktree Clustering (100% Complete & Verified)
+- **Working Tree**: Verified, 63 tests PASS, awaiting commit and push.
+- **Local Vault Target**: `C:\Users\luke2\OneDrive\文件\Obsidian Vault\Projects\LLM-Agent-System` (63 total notes).

@@ -44,6 +44,7 @@ graph TD
     T16["T-016: Coding Pipeline P5 (Developer Beta & Packaging)"]:::done
     T17["T-017: Committee Debate & Consensus Protocol (P85)"]:::done
     T18["T-018: Reasoning Adapters & Dynamic Thinking Router (P86)"]:::done
+    T19["T-019: Distributed P2P Mesh & Federated Worktree Clustering (P87)"]:::done
 
     T01 --> T02
     T01 --> T03
@@ -64,6 +65,7 @@ graph TD
     T15 --> T16
     T16 --> T17
     T17 --> T18
+    T18 --> T19
 ```
 
 ---
@@ -231,4 +233,12 @@ graph TD
 - **Scope**: Extended core LLM providers with first-class reasoning/thinking awareness (`ProviderResponse.reasoning_content` and `reasoning_tokens`) across DeepSeek-R1, OpenAI `completion_tokens_details.reasoning_tokens` / `reasoning_effort`, Anthropic Claude 3.7 Sonnet Extended Thinking (`budget_tokens`, `type: thinking`), and Ollama local `<think>...</think>` regex extraction and text sanitization. Authored `agent_workspace/core/reasoning_router.py` providing `DynamicThinkingRouter` with 4 `ModelTier` levels (`REASONING`, `STANDARD_CODING`, `FAST_PRECHECK`, `LOCAL_OFFLINE`), role-specific budget mapping (`ARCHITECT_PLANNER_AGENT`: 8192, `SECURITY_AUDIT_AGENT`: 4096, others: 0), and air-gapped `offline_mode` fallback to local Ollama models (`deepseek-r1:8b`, `qwen2.5-coder:7b`). Connected reasoning tokens and content to `DebateSpeechTurn`, `CommitteeConsensusScorecard`, and `CodingTaskRequest`. Added Prometheus metrics `REASONING_TOKENS_COUNT` and `THINKING_LATENCY` to `agent_workspace/observability.py`. Added CLI flags `--offline`, `--local`, `--thinking-budget`, and `--reasoning-effort` in `agent_workspace/cli.py`. Upgraded frontend cockpit in `viewer/src/components/CodingPipelineView.tsx` with collapsible Thinking Process inspection in deliberation speeches, total reasoning tokens badge in scorecard, and air-gapped offline & thinking budget controls in task creation modal.
 - **Target Files**: `agent_workspace/core/providers.py`, `agent_workspace/core/reasoning_router.py`, `agent_workspace/core/pipeline/models.py`, `agent_workspace/core/pipeline/committee.py`, `agent_workspace/core/pipeline/debate_protocol.py`, `agent_workspace/cli.py`, `agent_workspace/observability.py`, `viewer/src/components/CodingPipelineView.tsx`, `agent_workspace/tests/test_reasoning_router_p86.py`, `docs/obsidian/modules/core/core-reasoning-router.md`.
 - **Verification**: `test_reasoning_router_p86.py` (7 tests, 100% PASS in 0.07s); full regression matrix 55 tests PASS in 21.19s; `npm run build` in `viewer/` (Pass, 0 errors, 756ms); `git diff --check` (0 trailing whitespace).
+- **Status**: `PASS` (Completed).
+
+### [DONE] T-019: Distributed P2P Mesh & Federated Worktree Clustering (Phase 87)
+- **Assigned Role**: `ARCHITECT_PLANNER_AGENT` (Luke) / `BACKEND_INFRA_AGENT` (Ethan) / `QA_TEST_AGENT` (Jimmy) / `UI_UX_AGENT` (Joe)
+- **Reference ADR**: [[60 Architectural Decision Records (ADR) Graph#ADR-005|ADR-005: Stop-and-Wait Gate]], [[60 Architectural Decision Records (ADR) Graph#ADR-006|ADR-006: Agent Strategy Integration]]
+- **Scope**: Implemented distributed peer-to-peer mesh clustering and federated worktree offloading across decentralized worker nodes. Authored `agent_workspace/core/federated_mesh.py` providing `PeerCapability` (`REASONING_ENGINE`, `SANDBOX_MUTATION`, `TEST_RUNNER`, `COCKPIT_LEADER`), `FederatedPeerProfile` with load and latency scoring, `FederatedPatchBundle` with SHA-256 Merkle root integrity verification, and `FederatedMeshCoordinator` supporting peer discovery, registration, and stage delegation. Integrated peer delegation into `PipelineDebateProtocol` (offloading speech turns to reasoning nodes) and `CodingPipelineManager`. Exposed REST API endpoints (`/v1/mesh/status`, `/v1/mesh/peers`, `/v1/mesh/join`, `/v1/mesh/delegate/turn`, `/v1/mesh/delegate/verify`, `/v1/mesh/sync/patch`) in `agent_workspace/routes/mesh.py`. Added unified CLI commands (`las mesh status`, `las mesh join <seed>`, `--mesh`, `--mesh-peers`) in `agent_workspace/cli.py`. Authored frontend cockpit in `viewer/src/components/FederatedMeshView.tsx` with live topology graph, cluster health badges, seed join modal, and peer load/latency monitors.
+- **Target Files**: `agent_workspace/core/federated_mesh.py`, `agent_workspace/core/pipeline/models.py`, `agent_workspace/core/pipeline/debate_protocol.py`, `agent_workspace/core/pipeline/manager.py`, `agent_workspace/routes/mesh.py`, `agent_workspace/api.py`, `agent_workspace/cli.py`, `viewer/src/components/FederatedMeshView.tsx`, `viewer/src/App.tsx`, `viewer/src/components/Sidebar.tsx`, `viewer/src/components/CodingPipelineView.tsx`, `agent_workspace/tests/test_federated_mesh_p87.py`, `docs/obsidian/modules/core/core-federated-mesh.md`.
+- **Verification**: `test_federated_mesh_p87.py` (8 tests, 100% PASS in 0.29s); full combined regression matrix across 10 suites (63 tests, 100% PASS in 18.60s); `npm run build` in `viewer/` (Pass, 0 errors, 787ms); `git diff --check` (0 trailing whitespace).
 - **Status**: `PASS` (Completed).
