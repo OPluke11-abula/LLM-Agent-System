@@ -10,7 +10,7 @@ import yaml
 import jsonschema
 
 # Reference protocol and runtime version defaults
-PROTOCOL_VERSION = "1.0.0"
+PROTOCOL_VERSION = "3.8.0"
 RUNTIME_VERSION = "0.5.0"
 MEMORY_TIER_BACKENDS: Final[dict[str, frozenset[str]]] = {
     "ephemeral": frozenset({"in_memory", "none"}),

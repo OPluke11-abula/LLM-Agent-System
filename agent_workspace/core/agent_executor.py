@@ -223,6 +223,7 @@ class GovernedToolRegistry:
         self, file_path: str, content: str, append: bool = False
     ) -> dict[str, Any]:
         """Write text to an authorized file within the isolated worktree."""
+        self.guard.validate_tool_call("filesystem.write", {"file_path": file_path, "content": content})
         abs_path, rel_path = self.guard.resolve_and_verify_path(file_path)
         abs_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -242,6 +243,7 @@ class GovernedToolRegistry:
         self, command: str, timeout_seconds: Optional[float] = None
     ) -> dict[str, Any]:
         """Execute a shell command inside the worktree environment."""
+        self.guard.validate_tool_call("shell.exec", {"command": command})
         timeout = timeout_seconds or self.sandbox_policy.max_execution_seconds
 
         # Windows/POSIX shell invocation

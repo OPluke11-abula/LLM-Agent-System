@@ -89,6 +89,10 @@ class CodingPipelineManager:
         self, result: CodingPipelineResult, stage: PipelineStage, detail: str
     ) -> None:
         """Record state machine transitions monotonically."""
+        if result.current_stage in (PipelineStage.COMPLETED, PipelineStage.FAILED) and stage not in (PipelineStage.COMPLETED, PipelineStage.FAILED):
+            raise ValueError(
+                f"Illegal state transition: cannot re-enter active stage '{stage.value}' from terminal stage '{result.current_stage.value}'"
+            )
         result.current_stage = stage
         entry = {
             "stage": stage.value,
@@ -214,11 +218,19 @@ class CodingPipelineManager:
             raise PipelineError(f"Task '{task_id}' not found in active pipeline sessions.", PipelineStage.INTAKE)
 
         result.mutation_plan = plan
-        gate_res = self.prechecker.check_stop_and_wait_gate(plan.human_approved)
+
+        gate_res = self.prechecker.check_stop_and_wait_gate(plan.human_approved, approver_id=plan.approval_token)
         if gate_res.get("status") != "PASS":
             result.status = VerificationStatus.BLOCKED
             result.error_message = gate_res.get("message", "Stop-and-Wait Gate: Human approval required.")
             self._record_stage(result, PipelineStage.PLAN_AND_GATE, result.error_message)
+            return result
+
+        # Enforce anti-self-approval (GAP-02)
+        if plan.approval_token and plan.approval_token.strip().lower() == plan.assigned_role.strip().lower():
+            result.status = VerificationStatus.BLOCKED
+            result.error_message = f"Self-approval rejected: Assigned role '{plan.assigned_role}' cannot approve its own plan."
+            self._record_stage(result, PipelineStage.FAILED, result.error_message)
             return result
 
         # Validate that plan target files match assigned role permissions
@@ -362,6 +374,12 @@ class CodingPipelineManager:
                     result.error_message = f"Verification ladder failed on steps: {failed_names}"
                     self._record_stage(result, PipelineStage.FAILED, result.error_message)
                     return result
+
+            if not receipts:
+                result.status = VerificationStatus.FAIL
+                result.error_message = "Verification ladder cannot be empty. Zero verification receipts were generated."
+                self._record_stage(result, PipelineStage.FAILED, result.error_message)
+                return result
 
             result.status = VerificationStatus.PASS
             self._record_stage(result, PipelineStage.VERIFY_AND_EVIDENCE, f"All {len(receipts)} verification steps passed with Exit Code 0.")

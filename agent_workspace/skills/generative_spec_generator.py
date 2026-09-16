@@ -38,7 +38,7 @@ class GenerativeSpecArgs(BaseModel):
     )
 
 
-def generate_spec(args: GenerativeSpecArgs) -> str:
+def generative_spec_generator(args: GenerativeSpecArgs) -> str:
     """
     Generate a production-grade engineering specification prompt.
     Supported domains: '3d', 'ui', '2d'.
@@ -155,3 +155,6 @@ def generate_spec(args: GenerativeSpecArgs) -> str:
 """
 
     return spec
+
+
+generate_spec = generative_spec_generator

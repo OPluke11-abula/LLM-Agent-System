@@ -40,6 +40,16 @@ def lint_workflow(
 
     root_path = Path(root).resolve()
     manifest_path = _resolve_existing_file(root_path, workflow_path, "workflow")
+    if str(manifest_path).endswith(".schema.json"):
+        with open(manifest_path, "r", encoding="utf-8") as f:
+            schema_data = json.load(f)
+        jsonschema.Draft7Validator.check_schema(schema_data)
+        return WorkflowLintResult(
+            workflow_id=schema_data.get("title", "workflow.schema"),
+            stage_count=len(schema_data.get("properties", {})),
+            checkpoint_count=0,
+        )
+
     if declarative or manifest_path.suffix == ".md":
         decl = lint_declarative_workflow(root_path, manifest_path)
         return WorkflowLintResult(
@@ -242,8 +252,10 @@ def _resolve_workspace_path(root: Path, path_value: str, label: str) -> Path:
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Validate LAS/PAP workflow manifests and checkpoints.")
+    parser.add_argument("command", nargs="?", default=None, help="Optional command (e.g. validate)")
+    parser.add_argument("workflow_pos", nargs="?", default=None, help="Positional workflow manifest or schema path.")
     parser.add_argument("--root", default=".", help="Workspace root. Defaults to current directory.")
-    parser.add_argument("--workflow", required=True, help="Workflow manifest path.")
+    parser.add_argument("--workflow", default=None, help="Workflow manifest path.")
     parser.add_argument(
         "--checkpoint",
         action="append",
@@ -261,16 +273,19 @@ def _build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
-    is_decl = args.declarative or str(args.workflow).endswith(".md")
+    target = args.workflow or args.workflow_pos or (args.command if args.command and args.command != "validate" else None)
+    if not target:
+        parser.exit(2, "Workflow manifest or schema path required via --workflow or positional argument.\n")
+    is_decl = args.declarative or str(target).endswith(".md")
     try:
         if is_decl:
-            decl_result = lint_declarative_workflow(args.root, args.workflow)
+            decl_result = lint_declarative_workflow(args.root, target)
             print(
                 f"Declarative workflow valid: {decl_result.workflow_id} "
                 f"('{decl_result.workflow_name}', {decl_result.step_count} step(s))"
             )
             return 0
-        result = lint_workflow(args.root, args.workflow, args.checkpoint)
+        result = lint_workflow(args.root, target, args.checkpoint)
     except WorkflowLintError as error:
         parser.exit(1, f"Workflow lint failed: {error}\n")
 

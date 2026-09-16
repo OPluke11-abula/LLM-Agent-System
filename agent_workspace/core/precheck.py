@@ -117,19 +117,29 @@ class SkillsPrechecker:
             "message": f"Anti-Summary preflight verified across {len(inspected_files)} primary source files."
         }
 
-    def check_stop_and_wait_gate(self, plan_approved: bool) -> dict[str, Any]:
+    def check_stop_and_wait_gate(
+        self, plan_approved: bool, approver_id: Optional[str] = None
+    ) -> dict[str, Any]:
         """
         Stop-and-Wait Architecture Gate:
         Enforces human approval before any file mutation tool or destructive change.
+        Rejects agent self-approval.
         """
         if not plan_approved:
             return {
                 "status": "BLOCKED",
-                "message": "Stop-and-Wait Gate: Plan proposal requires explicit Human sign-off before modifying code."
+                "message": "Stop-and-Wait Gate: Plan proposal requires explicit Human sign-off before modifying code.",
             }
+        if approver_id:
+            cleaned = approver_id.strip().lower()
+            if cleaned.startswith("agent") or cleaned.startswith("bot"):
+                return {
+                    "status": "BLOCKED",
+                    "message": f"Stop-and-Wait Gate: Self-approval rejected. Autonomous agent '{approver_id}' cannot approve execution plans.",
+                }
         return {
             "status": "PASS",
-            "message": "Stop-and-Wait Gate passed: Human sign-off confirmed."
+            "message": "Stop-and-Wait Gate passed: Human sign-off confirmed.",
         }
 
     @staticmethod

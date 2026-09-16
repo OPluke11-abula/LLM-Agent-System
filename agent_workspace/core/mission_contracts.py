@@ -184,6 +184,13 @@ class ApprovalRequest(ContractModel):
             raise ValueError("approval subject must match decision type")
         return self
 
+    @model_validator(mode="after")
+    def prevent_self_approval(self) -> ApprovalRequest:
+        if self.decision is not None and self.decision.actor_id == self.requested_actor:
+            raise ValueError("self_approval_prohibited: Approver cannot be the same actor who requested approval")
+        return self
+
+
 
 class ApprovalGate(ContractModel):
     gate_id: GateId

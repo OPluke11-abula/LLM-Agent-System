@@ -291,6 +291,13 @@ class Mission(ContractModel):
     def add_approval_gate(self, gate: ApprovalGate) -> Mission:
         if gate.gate_id in {item.gate_id for item in self.approval_gates}:
             raise MissionAggregateError("duplicate_approval_gate", "Approval gate ID already exists")
+        if gate.status is ApprovalStatus.APPROVED and gate.actor_id:
+            actor_lower = gate.actor_id.lower()
+            if actor_lower.startswith("agent") or actor_lower.startswith("bot"):
+                raise MissionAggregateError(
+                    "self_approval_prohibited",
+                    f"Autonomous agent '{gate.actor_id}' is prohibited from approving gates. Only human operators may approve.",
+                )
         if gate.gate_type is ApprovalType.PLAN:
             if self.execution_plan is None:
                 raise MissionAggregateError("plan_required", "Plan approval requires an attached plan")

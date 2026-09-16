@@ -49,7 +49,28 @@ ROLE_SCOPE_RESTRICTIONS: dict[str, dict[str, Any]] = {
         "read_only": True,
         "description": "ARCHITECT_PLANNER_AGENT is an advisory specialist and cannot mutate code directly",
     },
+    "QA_TEST_AGENT": {
+        "read_only": True,
+        "description": "QA_TEST_AGENT is a verification authority and cannot mutate production code",
+    },
+    "PERFORMANCE_LATENCY_AGENT": {
+        "read_only": True,
+        "description": "PERFORMANCE_LATENCY_AGENT is a benchmarking authority and cannot mutate code",
+    },
+    "APPLICATION_FLOW_AGENT": {
+        "forbidden_prefixes": ("viewer/", "migrations/"),
+        "description": "APPLICATION_FLOW_AGENT manages workflows and cannot mutate presentation UI or migrations",
+    },
+    "INTEGRATION_MERGE_AGENT": {
+        "forbidden_prefixes": (),
+        "description": "INTEGRATION_MERGE_AGENT handles PR and branch integration",
+    },
+    "KNOWLEDGE_TOPOLOGY_AGENT": {
+        "forbidden_prefixes": ("agent_workspace/core/", "viewer/"),
+        "description": "KNOWLEDGE_TOPOLOGY_AGENT maintains documentation and topology notes",
+    },
 }
+
 
 
 class PolicyGateRequest(BaseModel):
