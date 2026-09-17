@@ -155,6 +155,3 @@ def generative_spec_generator(args: GenerativeSpecArgs) -> str:
 """
 
     return spec
-
-
-generate_spec = generative_spec_generator

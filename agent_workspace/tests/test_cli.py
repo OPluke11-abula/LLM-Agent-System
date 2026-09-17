@@ -25,7 +25,7 @@ def mock_cli_env():
         # Create dummy agent.md
         with open(pap_dir / "agent.md", "w", encoding="utf-8") as f:
             f.write("""---
-protocol_version: "1.0.0"
+protocol_version: "3.8.0"
 min_runtime_version: "0.1.0"
 name: test-agent
 version: "0.1.0"

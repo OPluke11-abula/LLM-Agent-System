@@ -3,7 +3,7 @@ tests:
     input:
       agent.md: |
         ---
-        protocol_version: "1.0.0"
+        protocol_version: "3.8.0"
         min_runtime_version: "0.1.0"
         name: "TestAgent"
         version: "1.0"
@@ -31,7 +31,7 @@ tests:
     input:
       agent.md: |
         ---
-        protocol_version: "1.0.0"
+        protocol_version: "3.8.0"
         min_runtime_version: "0.1.0"
         name: "AdvancedAgent"
         version: "1.0"

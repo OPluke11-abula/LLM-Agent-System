@@ -145,6 +145,10 @@ class TopologyEmitter:
 
         return state
 
+    def record_event(self, event: TopologyEvent) -> dict[str, Any]:
+        """Record a topology event and atomically update state on disk."""
+        return self.emit(event)
+
     def _edge_from_event(self, event: TopologyEvent) -> dict[str, Any]:
         edge_id = f"edge-{event.parent_node_id}-{event.node_id}-{event.edge_type}"
         label = (

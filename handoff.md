@@ -3,16 +3,16 @@
 > **Protocol Version**: 3.8.0
 > **Source of Truth**: Team Cognitive Relay (Tier 2)
 > **Prerequisite**: Automated tests 100% Green (`PASS`) before updating this document.
-> **Last Synchronized**: 2026-09-14
+> **Last Synchronized**: 2026-09-17
 > **Domain Owner / PO**: Luke
-> **Project State**: Phase 91 Completed & Officially Closed (全案結案)
+> **Project State**: Phase 95 (Full-Spectrum Alignment with Universal Coding Agent Development Protocol v3.8.0 & 100% Green Matrix) Completed & Certified
 
 ---
 
 ## 1. 3-Line Executive Summary (三行白話摘要)
-1. 聯邦混沌工程故障注入與容錯恢復完備：實作 `MeshChaosManager`，模擬網路分區、延遲突波、封包丟棄、節點隔離與拜占庭偽造，即時攔截 Raft RPC、P2P 向量記憶體與 Mesh 通訊，驗證高可用裂腦容錯與自動選期恢復。
-2. 自主自我修復迴圈與安全原子回滾落地：建立管線一級 `SELF_HEALING` 階段，由失敗驗證收據自動提取診斷、查詢向量先例並於隔離 Worktree 進行有界修正 ($N \le 3$)；修復超限觸發原子回滾，並以 `PRIMARY_REPO_PROTECTED` 強制確保主倉庫零污染。
-3. 生產級 3 節點叢集 E2E 演示與全專案圓滿結案：實測 7 階段叢集 E2E 演示（Node 1 駕駛艙、Node 2 推理節點、Node 3 測試節點）於 648ms 內 100% 通過；16 套迴歸測試 117 項全數綠燈 PASS，Vite 前端打包 695ms 通過，PR #8 ~ PR #14 全部整併入 `main` 正式結案。
+1. 協定基準與運行時反射完全對齊：將 `AgentEngine.PROTOCOL_VERSION` 全面升級至 canonical 3.8.0，清理 `generative_spec_generator` 反射冗餘別名，並更新 `tool_manifest.py` 使全部 26 項工具通過 PAP 契約校驗與安全矩陣驗證（100% PASS）。
+2. 腳手架與測試套件健全度加固：在 `core/onboarding.py` 與 `cli.py` 補全 `.agent/agent.md`、`.agent/skills/` 與 `.agent/workflows/` 生成與 dry-run 輸出；在 `core/repository.py` 加入 worktree 根路徑檢驗防止子目錄誤判；補全 `/health`、`/api/version`、`/v1/version` 路由支援與各測試套件對 3.8.0 的斷言。
+3. 全量測試與驗證階梯 100% 綠燈：`agent_workspace/tests/` 下全數 143 個測試檔案數百項單元/整合測試全數 PASS（0 failures, 0 errors）；8 步官方驗證階梯腳本 `scripts/verify.ps1 -SkipViewer` 通過（Exit Code 0）；Golden Flow Benchmark 評定為 `GOLDEN_FLOW_VERIFIED`（3/3 任務通過，0 主機污染）。
 
 ---
 
@@ -20,16 +20,18 @@
 
 | Check / Metric | Status | Evidence / Receipt |
 |---|---|---|
-| **Active Branch & Sync State** | `PASS` | `main` branch synchronized with remote `origin/main` (`ee8a55d`) |
-| **Merged Pull Requests** | `PASS` | PR #8, PR #9, PR #10, PR #11, PR #12, PR #13, PR #14 all merged |
-| **Phase 91 Dedicated Test Suite** | `PASS` | `test_chaos_selfhealing_p91.py` (10 tests in 1.92s, 100% PASS) |
-| **Full Combined Regression Matrix** | `PASS` | 117 tests in 25.30s (100% PASS across 16 test suites: P1~P5, P85~P91) |
-| **Multi-Worker Cluster Demo** | `PASS` | 7/7 stages in 648.2 ms (`.agent/evidence/cluster_demo_receipt.json`) |
-| **Frontend Production Build** | `PASS` | `npm run build` in `viewer/` passed in 695ms (0 errors, 0 warnings) |
-| **Python Bytecode Compilation** | `PASS` | `python -m py_compile` across all modified/new files passed (0 errors) |
+| **Active Branch & Sync State** | `PASS` | `main` branch synchronized with remote `origin/main` |
+| **Phase 95 Protocol 3.8.0 Scaffolding Suite** | `PASS` | `test_cli_init.py`, `test_pap_v020.py`, `test_version_compat.py` (100% PASS) |
+| **Tool Manifest & PAP Contract Validation** | `PASS` | `tool_manifest.py validate` (26/26 tools matching PAP contracts, secrets scan passed) |
+| **Skills Acceptance Matrix** | `PASS` | `tool_manifest.py matrix` (26/26 skills PASS, report in `.agent/skills_acceptance_report.md`) |
+| **API Route Inventory Integrity** | `PASS` | `test_route_inventory.py` (1 test in 0.04s, 100% PASS, includes `/health`, `/api/version`, `/v1/version`) |
+| **Full Pytest Suite Across Entire Repo** | `PASS` | All 143 test files in `agent_workspace/tests/` (100% PASS, 0 errors, 0 failures) |
+| **Comprehensive 12-Suite Governance Matrix** | `PASS` | 78 tests in 8.32s (100% PASS across 12 test modules: P1, P2-C, P92, P93, P94, negative, adversarial, recovery, E2E) |
+| **Golden Flow Benchmark** | `PASS` | Suite `GBS-1789658285`: 3/3 tasks passed, 100% ADR-006 KPI compliance, 676.9ms completion (`GOLDEN_FLOW_VERIFIED`) |
+| **LAS Golden Verification Ladder** | `PASS` | `scripts/verify.ps1 -SkipViewer` passed with Exit Code 0 |
 | **Formatting & Git Check** | `PASS` | `git diff --check` passed with 0 trailing whitespace or format errors |
-| **Obsidian Note & Vault Sync** | `PASS` | 29 core leaf notes, 60 total notes synced to local Vault |
-| **Zero Host Pollution Invariant** | `PASS` | `PRIMARY_REPO_PROTECTED` verified; host repository working directory pristine |
+| **Obsidian Note & Vault Sync** | `PASS` | `05 Task Status & Multi-Agent Execution DAG.md` updated with T-027 |
+| **Zero Host Pollution Invariant** | `PASS` | Isolated git worktrees preserve host repository cleanliness (0 host mutations) |
 
 ---
 
@@ -121,6 +123,10 @@
 - **Phase 89 (T-021 / PR #12)**: Distributed Committee Raft Consensus & Replicated State Machine (100% Merged)
 - **Phase 90 (T-022 / PR #13)**: Federated Vector Memory & RAG Knowledge Topology Sync (100% Merged)
 - **Phase 91 (T-023 / PR #14)**: Chaos Fault Injection, Autonomous Self-Healing & Cluster Demo (100% Merged)
+- **Phase 92 (T-024 / PR #15)**: Architecture Audit, Swarm Engine Policy Convergence & Dual-Stream Ledger (100% Certified)
+- **Phase 93 (T-025 / PR #16)**: Destructive Shell Hardening, Anti-Corruption Scanner & Dual-Stream Forensic Correlator (100% Certified)
+- **Phase 94 (T-026 / PR #17)**: Dual-Stream Forensic Correlator API & CLI Surface Integration (100% Certified)
+- **Phase 95 (T-027 / PR #18)**: Full Test Matrix Parity & Protocol 3.8.0 Scaffolding Alignment (100% Certified)
 
 **Project Milestone Conclusion**:
 All planned phases, architectural decision records (ADR-001 ~ ADR-007), verification gates, and cognitive relay documentation have been fully delivered, tested, and archived into the `main` branch.

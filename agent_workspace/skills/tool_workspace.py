@@ -78,6 +78,15 @@ class WorkspaceManager:
         if not os.path.exists(self.md_path):
             self.save()
 
+    def add_task(self, task_id: str, title: str, status: str = "Todo", agent: str = "Unassigned", description: str = "") -> TaskNode:
+        """Add and return a TaskNode in this workspace manager."""
+        task = TaskNode(task_id, title)
+        task.status = status
+        task.agent = agent
+        task.description = description
+        self.tasks[task_id] = task
+        return task
+
     def load(self):
         """Load tasks from workspace.json if available, fallback to basic parsing of workspace.md"""
         if os.path.exists(self.json_path):
@@ -115,11 +124,11 @@ class WorkspaceManager:
                 
                 self.tasks[task_id] = task
 
-    def save(self):
+    def save(self, auto_compact: bool = False):
         """Save state to both JSON and Markdown."""
         # Automatic milestone compaction:
         # Check if we have active tasks and all of them are completed/Done/Cancelled
-        if self.tasks:
+        if auto_compact and self.tasks:
             all_done = all(t.status in ["completed", "Done", "Cancelled"] for t in self.tasks.values())
             if all_done:
                 from agent_workspace.core.log_compactor import LogCompactor

@@ -144,6 +144,7 @@ async def run_background_task(record: TaskRecord, allowed_tools: list[str] | Non
         record.completed_at = utc_now()
 
 
+@router.get("/health")
 @router.get("/v1/health")
 async def health() -> dict[str, Any]:
     llm_config = load_llm_config()
@@ -158,6 +159,12 @@ async def health() -> dict[str, Any]:
         "llm_configured": True if required_env is None else bool(os.environ.get(required_env)),
         "prometheus_available": PROMETHEUS_AVAILABLE,
     }
+
+
+@router.get("/api/version")
+@router.get("/v1/version")
+async def api_version() -> dict[str, Any]:
+    return {"version": API_VERSION}
 
 
 @router.get("/metrics")

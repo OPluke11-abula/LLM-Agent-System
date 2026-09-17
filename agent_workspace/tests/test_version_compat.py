@@ -30,7 +30,7 @@ def test_version_compat_happy_path():
         
         # Valid and compatible metadata
         agent_md_content = """---
-protocol_version: "1.0.0"
+protocol_version: "3.8.0"
 min_runtime_version: "0.1.0"
 name: compatible-agent
 version: "0.1.0"
@@ -57,7 +57,7 @@ def test_min_runtime_version_warning():
         
         # Requires runtime version 10.0.0 (which exceeds current 0.5.0)
         agent_md_content = """---
-protocol_version: "1.0.0"
+protocol_version: "3.8.0"
 min_runtime_version: "10.0.0"
 name: futuristic-agent
 version: "1.0.0"

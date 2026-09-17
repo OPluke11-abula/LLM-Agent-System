@@ -86,3 +86,27 @@ async def verify_audit_proof(req: AuditVerifyProofRequest, tenant_id: str = Depe
         "status": "success",
         "valid": is_valid
     }
+
+@router.get("/v1/audit/forensics/{session_id}")
+async def get_forensic_timeline(session_id: str, tenant_id: str = Depends(get_tenant_context)):
+    from agent_workspace.core.forensic_correlator import ForensicCorrelator
+    correlator = ForensicCorrelator(get_workspace())
+    timeline = correlator.correlate_session(session_id=session_id, tenant_id=tenant_id)
+    return {
+        "status": "success",
+        "forensics": timeline.model_dump()
+    }
+
+@router.post("/v1/audit/forensics/{session_id}/export")
+async def export_forensic_receipt_endpoint(session_id: str, tenant_id: str = Depends(get_tenant_context)):
+    from agent_workspace.core.forensic_correlator import ForensicCorrelator
+    correlator = ForensicCorrelator(get_workspace())
+    receipt_path = correlator.export_forensic_receipt(session_id=session_id)
+    timeline = correlator.correlate_session(session_id=session_id, tenant_id=tenant_id)
+    return {
+        "status": "success",
+        "session_id": session_id,
+        "receipt_path": str(receipt_path),
+        "is_tamper_free": timeline.is_tamper_free,
+        "total_events": timeline.total_events
+    }

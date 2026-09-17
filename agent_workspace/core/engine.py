@@ -62,12 +62,14 @@ class HandoffRequired(RuntimeError):
 class AgentEngine:
     """Runtime owner for prompt rendering and reflected tool execution."""
 
-    PROTOCOL_VERSION = "1.0.0"
+    PROTOCOL_VERSION = "3.8.0"
     RUNTIME_VERSION = "0.5.0"
 
     def __init__(self, workspace_path: str = ".", bypass_onboarding: bool = False, enforce_onboarding: bool | None = None):
         self.workspace_path = os.path.abspath(workspace_path)
         self.prechecker = SkillsPrechecker(self.workspace_path)
+        from .policy_gate import UnifiedPolicyGate
+        self.policy_gate = UnifiedPolicyGate(self.workspace_path)
 
         # Load agent config YAML frontmatter if it exists
         self.config = {}
@@ -316,6 +318,55 @@ class AgentEngine:
                 "status": "BLOCKED",
                 "message": f"Pre-check failed for tool '{tool_name}': {precheck_res['message']} Please verify configuration."
             })
+
+        # Evaluate UnifiedPolicyGate (GAP-01 Policy Convergence)
+        ctx = context or {}
+        session_id = ctx.get("session_id", "default_session")
+        actor_role = ctx.get("agent_role") or ctx.get("actor", "system")
+
+        resource = None
+        for key in ("file_path", "path", "target_file", "filepath", "url", "resource"):
+            if key in arguments and isinstance(arguments[key], str):
+                resource = arguments[key]
+                break
+
+        is_write = False
+        lower_tool = tool_name.lower()
+        if any(w in lower_tool for w in ("write", "create", "delete", "remove", "edit", "append", "mutate", "save")):
+            is_write = True
+            action = "file_mutation"
+        elif tool_name in ("browser_use", "browser"):
+            action = "browser_use"
+        elif tool_name in ("computer_use", "computer"):
+            action = "computer_use"
+        elif tool_name in ("external_api", "fetch_url") or (resource and resource.startswith(("http://", "https://"))):
+            action = "external_api"
+        elif "safety_scan" in lower_tool:
+            action = "safety_scan"
+        elif "ultra_mode" in lower_tool:
+            action = "ultra_mode"
+        else:
+            action = "tool_execution"
+
+        if hasattr(self, "policy_gate") and self.policy_gate is not None:
+            from .policy_gate import PolicyGateRequest
+            gate_req = PolicyGateRequest(
+                action=action,
+                scope="session",
+                session_id=session_id,
+                actor=actor_role,
+                resource=resource,
+                metadata={
+                    "tool_name": tool_name,
+                    "role": actor_role,
+                    "is_write": is_write,
+                    "command": arguments.get("command") or arguments.get("cmd"),
+                    "content": arguments.get("content"),
+                },
+            )
+            decision = self.policy_gate.evaluate(gate_req)
+            if not decision.allowed:
+                raise PermissionError(f"Policy Gate Denied: {decision.reason}")
 
         validated_args = tool["args_model"](**arguments)
 

@@ -20,6 +20,8 @@ PolicyAction = Literal[
     "computer_use",
     "safety_scan",
     "external_api",
+    "file_mutation",
+    "tool_execution",
 ]
 PolicyScope = Literal["workspace", "session", "tenant"]
 
@@ -157,6 +159,24 @@ class UnifiedPolicyGate:
             return "tenant scope requires tenant_id"
         if request.scope == "session" and not request.session_id:
             return "session scope requires session_id"
+
+        # Check command safety for shell / tool execution
+        command = request.metadata.get("command") or request.metadata.get("cmd")
+        if command and isinstance(command, str):
+            from agent_workspace.core.agent_executor import DESTRUCTIVE_COMMAND_PATTERNS
+            for pattern in DESTRUCTIVE_COMMAND_PATTERNS:
+                if pattern.search(command):
+                    return f"Destructive shell command rejected by PolicyGate: '{command}'"
+
+        # Check anti-corruption code patterns if content is provided
+        content = request.metadata.get("content")
+        target_file = request.resource or request.metadata.get("target_file") or request.metadata.get("file_path")
+        if content and isinstance(content, str) and target_file and str(target_file).endswith((".py", ".ts", ".js")):
+            from agent_workspace.core.precheck import SkillsPrechecker
+            violations = SkillsPrechecker.check_seven_anti_corruption(content, str(target_file))
+            if violations:
+                return f"Anti-Corruption violation rejected by PolicyGate: {violations[0]}"
+
         if not request.resource:
             return None
 

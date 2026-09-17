@@ -44,9 +44,16 @@ DESTRUCTIVE_COMMAND_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"\bgit\s+push\s+.*(-f\b|--force\b)", re.IGNORECASE),
     re.compile(r"\bgit\s+reset\s+.*--hard\b", re.IGNORECASE),
     re.compile(r"\bgit\s+clean\s+.*(-[a-z]*f|--force\b)", re.IGNORECASE),
+    re.compile(r"\bgit\s+branch\s+.*(-[dD]\b|--delete\s+--force\b)", re.IGNORECASE),
+    re.compile(r"\bgit\s+checkout\s+.*(-f\b|--force\b)", re.IGNORECASE),
     re.compile(r"\brm\s+-[rf]{1,2}\s+(/|[a-z]:\\|~)", re.IGNORECASE),
     re.compile(r"\brmdir\s+/s\s+/q\s+([a-z]:\\|/)", re.IGNORECASE),
     re.compile(r"\bformat\s+[a-z]:", re.IGNORECASE),
+    re.compile(r"\bRemove-Item\s+.*(-r|-recurse)\b.*(-f|-force)\b", re.IGNORECASE),
+    re.compile(r"\bRemove-Item\s+.*(-f|-force)\b.*(-r|-recurse)\b", re.IGNORECASE),
+    re.compile(r"\bdel\s+.*(/[sfq]|/q|/f)\b.*([a-z]:\\|/)", re.IGNORECASE),
+    re.compile(r"\b(curl|wget|iwr)\s+.*\|\s*(ba|z)?sh\b", re.IGNORECASE),
+    re.compile(r"\bInvoke-Expression\s+.*(Invoke-WebRequest|iwr|curl|wget)", re.IGNORECASE),
 )
 
 
@@ -177,6 +184,16 @@ class ScopeGuard:
                         attempted_path=rel_path,
                         allowed_scope=self.task_env.mutable_scope,
                         reason=f"Violates role boundary prefix '{forbidden}'",
+                    )
+
+            # Enforce Anti-Corruption static scan on code mutations (Principle #4: Typed Failures Only)
+            content = args.get("content")
+            if isinstance(content, str) and content and rel_path.endswith((".py", ".ts", ".js")):
+                from agent_workspace.core.precheck import SkillsPrechecker
+                violations = SkillsPrechecker.check_seven_anti_corruption(content, rel_path)
+                if violations:
+                    raise SecurityViolationError(
+                        f"Anti-Corruption violation intercepted by ScopeGuard in '{rel_path}': {violations[0]}"
                     )
 
         # 3. Check Shell Command for destructive operations

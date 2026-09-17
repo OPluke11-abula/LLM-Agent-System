@@ -26,6 +26,8 @@ def test_cli_init_dry_run(capsys):
         assert "Dry run active" in captured.out
         assert "[Directory] .agent" in captured.out
         assert "[File]      .agent\\agent.md" in captured.out or "[File]      .agent/agent.md" in captured.out
+        assert "AGENTS.md" in captured.out
+        assert "state.md" in captured.out
         
         # Verify no files were created
         assert not (Path(temp_dir) / ".agent").exists()
@@ -44,28 +46,24 @@ def test_cli_init_success():
         agent_dir = temp_path / ".agent"
         
         # Verify subdirectories exist
+        assert (agent_dir / "evidence").is_dir()
+        assert (agent_dir / "patches").is_dir()
         assert (agent_dir / "skills").is_dir()
-        assert (agent_dir / "prompts").is_dir()
-        assert (agent_dir / "memory").is_dir()
         assert (agent_dir / "workflows").is_dir()
-        assert (agent_dir / "knowledge_base").is_dir()
-        assert (agent_dir / "memory" / "episodic").is_dir()
-        assert (agent_dir / "workflows" / "runs").is_dir()
         
         # Verify manifest files exist
+        assert (temp_path / "AGENTS.md").is_file()
         assert (agent_dir / "agent.md").is_file()
-        assert (agent_dir / "skills.md").is_file()
-        assert (agent_dir / "agent_tasks.md").is_file()
-        assert (agent_dir / "README.md").is_file()
-        assert (agent_dir / "prompts.md").is_file()
-        assert (agent_dir / "memory.md").is_file()
-        assert (agent_dir / "workflows.md").is_file()
-        assert (agent_dir / "skills" / "calculate.md").is_file()
+        assert (agent_dir / "state.md").is_file()
+        assert (agent_dir / "ownership.md").is_file()
+        assert (agent_dir / "test_policy.md").is_file()
+        assert (agent_dir / "task_environment.json").is_file()
         
         # Verify file content
         agent_content = (agent_dir / "agent.md").read_text(encoding="utf-8")
-        assert 'protocol_version: "1.0.0"' in agent_content
+        assert 'protocol_version: "3.8.0"' in agent_content
         assert 'min_runtime_version: "0.1.0"' in agent_content
-        assert 'name: skeletal-agent' in agent_content
         assert 'tools:' in agent_content
-        assert '  - calculate' in agent_content
+
+        state_content = (agent_dir / "state.md").read_text(encoding="utf-8")
+        assert "Protocol Baseline: 3.8.0" in state_content

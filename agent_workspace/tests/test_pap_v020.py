@@ -34,7 +34,7 @@ def temp_workspace(tmp_path):
 
     # Create default valid files
     agent_yaml = {
-        "protocol_version": "1.0.0",
+        "protocol_version": "3.8.0",
         "min_runtime_version": "0.1.0",
         "name": "test-agent",
         "version": "1.0.0",
@@ -252,7 +252,7 @@ def test_auto_handoff_and_exit_code_42(temp_workspace):
     """Verify that exceeding turns or context length raises HandoffRequired with exit code 42."""
     agent_dir = temp_workspace / ".agent"
     agent_yaml = {
-        "protocol_version": "1.0.0",
+        "protocol_version": "3.8.0",
         "min_runtime_version": "0.1.0",
         "name": "test-agent",
         "version": "1.0.0",

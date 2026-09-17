@@ -59,14 +59,21 @@ class TargetRepoOnboarder:
 
     def analyze(self) -> OnboardingRecommendation:
         """Inspect target repository and infer recommended TaskEnvironment configuration."""
-        profile: RepositoryProfile = self.inspector.inspect(str(self.target_path))
+        try:
+            profile: RepositoryProfile = self.inspector.inspect(str(self.target_path))
+            detected = profile.detected_ecosystems
+            test_commands = profile.test_commands
+            linter_commands = profile.linter_commands
+            protected_paths = profile.protected_paths
+        except ValueError:
+            detected, test_commands, linter_commands = self.inspector._detect_ecosystems(str(self.target_path))
+            protected_paths = list(DEFAULT_PROTECTED_PATTERNS)
 
-        detected = profile.detected_ecosystems
         primary = detected[0] if detected else "unknown"
 
         # Determine recommended test command
         all_tests: list[str] = []
-        for cmd_dict in profile.test_commands:
+        for cmd_dict in test_commands:
             for _, cmd in cmd_dict.items():
                 if cmd not in all_tests:
                     all_tests.append(cmd)
@@ -83,8 +90,8 @@ class TargetRepoOnboarder:
 
         # Determine recommended linter command
         primary_linter: Optional[str] = None
-        if profile.linter_commands:
-            for _, cmd in profile.linter_commands[0].items():
+        if linter_commands:
+            for _, cmd in linter_commands[0].items():
                 primary_linter = cmd
                 break
 
@@ -99,7 +106,7 @@ class TargetRepoOnboarder:
             mutable_scopes = ["src/**", "tests/**"]
 
         # Protected scopes
-        protected = list(profile.protected_paths)
+        protected = list(protected_paths)
         additional_protected = [".agent/state.md", ".agent/ownership.md", ".github/**"]
         for p in additional_protected:
             if p not in protected:
@@ -119,7 +126,19 @@ class TargetRepoOnboarder:
 
     def onboard(self, scaffold: bool = True, force: bool = False) -> OnboardingResult:
         """Perform full repository analysis and optionally scaffold Protocol v3.8.0 configuration."""
-        profile = self.inspector.inspect(str(self.target_path))
+        is_git = True
+        current_branch = ""
+        head_commit = ""
+        is_clean = True
+        try:
+            profile = self.inspector.inspect(str(self.target_path))
+            current_branch = profile.current_branch
+            head_commit = profile.head_commit
+            is_clean = profile.is_clean
+            is_git = profile.head_commit != "0" * 40
+        except ValueError:
+            is_git = False
+
         rec = self.analyze()
 
         scaffolded: list[str] = []
@@ -128,10 +147,10 @@ class TargetRepoOnboarder:
 
         return OnboardingResult(
             target_path=str(self.target_path),
-            is_git_repository=profile.head_commit != "0" * 40,
-            current_branch=profile.current_branch,
-            head_commit=profile.head_commit,
-            is_clean=profile.is_clean,
+            is_git_repository=is_git,
+            current_branch=current_branch,
+            head_commit=head_commit,
+            is_clean=is_clean,
             recommendation=rec,
             scaffolded_files=scaffolded,
         )
@@ -144,6 +163,8 @@ class TargetRepoOnboarder:
         agent_dir.mkdir(parents=True, exist_ok=True)
         (agent_dir / "evidence").mkdir(parents=True, exist_ok=True)
         (agent_dir / "patches").mkdir(parents=True, exist_ok=True)
+        (agent_dir / "skills").mkdir(parents=True, exist_ok=True)
+        (agent_dir / "workflows").mkdir(parents=True, exist_ok=True)
 
         files_to_create: dict[Path, str] = {
             self.target_path / "AGENTS.md": """# Project Agent Entry Point (AGENTS.md)
@@ -157,6 +178,22 @@ Use this file as the thin, authoritative entry point for all collaborating codin
 1. **Anti-Summary Invariant**: Always inspect concrete primary source files before modifying code.
 2. **Stop-and-Wait Architecture Gate**: Propose diff plan, target files, and wait for human approval.
 3. **Seven Universal Anti-Corruption Principles**: Zero dead code, single responsibility, concurrency elimination, typed failures only.
+""",
+            agent_dir / "agent.md": f"""---
+protocol_version: "3.8.0"
+min_runtime_version: "0.1.0"
+name: {self.target_path.name}
+version: "0.1.0"
+purpose: >
+  Autonomous agent execution contract aligned with Universal Protocol v3.8.0.
+language: en
+authorization_level: interactive-approval
+use_case_tags:
+  - general
+  - pap-compatible
+tools: []
+---
+# Agent Contract ({self.target_path.name})
 """,
             agent_dir / "state.md": f"""# Protocol State & Baseline
 Protocol Baseline: 3.8.0

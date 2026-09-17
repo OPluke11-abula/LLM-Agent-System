@@ -48,6 +48,7 @@ tools:
   - governed_memory
   - structured_log
   - topological_workspace
+  - generative_spec_generator
 schema_evolution:
   allow_self_evolution: false
   strict_forward_compatibility: true

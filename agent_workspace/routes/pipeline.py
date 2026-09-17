@@ -626,6 +626,26 @@ async def get_pipeline_events(task_id: str) -> dict[str, Any]:
     }
 
 
+@router.get("/tasks/{task_id}/forensics")
+async def get_pipeline_task_forensics(task_id: str) -> dict[str, Any]:
+    """Retrieves unified dual-stream forensic correlation (compliance + runtime) for a task."""
+    with _registry_lock:
+        record = _task_registry.get(task_id)
+
+    if not record:
+        raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found.")
+
+    from agent_workspace.core.forensic_correlator import ForensicCorrelator
+    correlator = ForensicCorrelator(get_workspace())
+    timeline = correlator.correlate_session(session_id=task_id)
+
+    return {
+        "status": "success",
+        "task_id": task_id,
+        "forensics": timeline.model_dump(),
+    }
+
+
 @router.get("/tasks/{task_id}/preservation")
 async def get_pipeline_preservation(task_id: str) -> dict[str, Any]:
     """Verifies that the canonical host repository was 100% preserved."""

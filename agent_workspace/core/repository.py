@@ -135,6 +135,15 @@ class RepositoryInspector:
         if res_inside.returncode != 0 or res_inside.stdout.strip() != "true":
             raise ValueError(f"Directory is not a valid git work tree: {abs_path}")
 
+        res_toplevel = self._run_git(abs_path, ["rev-parse", "--show-toplevel"], check=False)
+        if res_toplevel.returncode != 0:
+            raise ValueError(f"Directory is not a valid git work tree: {abs_path}")
+
+        toplevel_path = os.path.realpath(res_toplevel.stdout.strip())
+        current_path = os.path.realpath(abs_path)
+        if toplevel_path != current_path:
+            raise ValueError(f"Directory is not the root of a git work tree: {abs_path}")
+
         # 2. Get HEAD commit and Branch
         head_commit = self._run_git(abs_path, ["rev-parse", "HEAD"]).stdout.strip()
         branch_res = self._run_git(abs_path, ["rev-parse", "--abbrev-ref", "HEAD"])

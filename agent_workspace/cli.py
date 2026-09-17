@@ -164,6 +164,7 @@ def handle_init(args):
         print("  [Directory] .agent/evidence")
         print("  [Directory] .agent/patches")
         print("  [File]      AGENTS.md")
+        print("  [File]      .agent/agent.md")
         print("  [File]      .agent/state.md")
         print("  [File]      .agent/ownership.md")
         print("  [File]      .agent/test_policy.md")
@@ -919,6 +920,55 @@ def handle_cluster(args):
         print("=" * 80)
 
 
+def handle_forensics(args):
+    """Inspect and export dual-stream forensic audit timelines (GAP-07 / Phase 94)."""
+    session_id = getattr(args, "session_id", None)
+    if not session_id:
+        print("Error: session_id is required. Usage: las forensics <session_id>", file=sys.stderr)
+        sys.exit(1)
+
+    export_flag = getattr(args, "export", False)
+    custom_output = getattr(args, "output", None)
+    json_output = getattr(args, "json", False)
+
+    from agent_workspace.core.forensic_correlator import ForensicCorrelator
+    correlator = ForensicCorrelator(workspace_path=workspace)
+    timeline = correlator.correlate_session(session_id)
+
+    receipt_path = None
+    if export_flag or custom_output:
+        receipt_path = correlator.export_forensic_receipt(session_id, output_path=custom_output)
+
+    if json_output:
+        print(timeline.model_dump_json(indent=2))
+        return
+
+    print("=" * 80)
+    print(" 🛡️ LAS Dual-Stream Forensic Timeline & Integrity Audit (ADR-006 / GAP-07)")
+    print("=" * 80)
+    print(f" Session / Task ID  : {timeline.session_id}")
+    print(f" Total Events       : {timeline.total_events} ({timeline.audit_event_count} compliance, {timeline.runtime_event_count} runtime)")
+    tamper_verdict = "✅ VERIFIED (100% Tamper-Free)" if timeline.is_tamper_free else "❌ TAMPER DETECTED / INVALID"
+    print(f" Tamper-Free Status : {tamper_verdict}")
+    print(f" Audit Chain Valid  : {'VALID' if timeline.audit_chain_valid else 'INVALID'}")
+    print(f" Audit Merkle Root  : {timeline.audit_merkle_root or 'None'}")
+    print(f" Runtime Chain Valid: {'VALID' if timeline.runtime_chain_valid else 'INVALID'}")
+    print(f" Runtime Merkle Root: {timeline.runtime_merkle_root or 'None'}")
+    print(f" Generated At       : {timeline.generated_at}")
+    if receipt_path:
+        print(f" Exported Receipt   : {receipt_path}")
+    print("-" * 80)
+    if not timeline.timeline:
+        print(" No audit or runtime events recorded for this session.")
+    else:
+        print(f" {'#':<4} | {'Stream':<18} | {'Event Type':<24} | {'Timestamp':<25}")
+        print("-" * 80)
+        for idx, ev in enumerate(timeline.timeline, 1):
+            stream_tag = "[Compliance]" if ev.stream == "compliance_audit" else "[Runtime]"
+            print(f" {idx:<4} | {stream_tag:<18} | {ev.event_type[:24]:<24} | {ev.timestamp:<25}")
+    print("=" * 80)
+
+
 def handle_lint(args):
     """Statically lint the PAP workspace contracts."""
     project_root = Path(args.path).resolve()
@@ -1243,7 +1293,7 @@ def main() -> None:
     sys_args = sys.argv[1:]
 
     # Subcommands
-    subcommands = {"init", "onboard", "benchmark", "pipeline", "serve", "status", "mesh", "chaos", "cluster"}
+    subcommands = {"init", "onboard", "benchmark", "pipeline", "serve", "status", "mesh", "chaos", "cluster", "forensics"}
 
     if sys_args and sys_args[0] in subcommands:
         cmd = sys_args[0]
@@ -1409,6 +1459,17 @@ def main() -> None:
             handle_cluster(args)
             return
 
+        elif cmd == "forensics":
+            forensic_args = sys_args[1:]
+            forensic_sub = argparse.ArgumentParser(prog="las forensics", description="Inspect and export dual-stream forensic audit timelines (GAP-07 / Phase 94).")
+            forensic_sub.add_argument("session_id", help="Session ID or Task ID to correlate")
+            forensic_sub.add_argument("--export", action="store_true", help="Export forensic receipt JSON to .agent/evidence/")
+            forensic_sub.add_argument("--output", type=str, default=None, help="Custom output path for exported receipt")
+            forensic_sub.add_argument("--json", action="store_true", help="Output raw JSON timeline")
+            args = forensic_sub.parse_args(forensic_args)
+            handle_forensics(args)
+            return
+
     # If no args or standard help
     if not sys_args or sys_args in (["-h"], ["--help"]):
         print("""LAS: Governed Autonomous Multi-Agent Development Control Plane under Protocol v3.8.0
@@ -1426,6 +1487,7 @@ Core Subcommands:
   mesh [status|join|pki|rotate|attest|raft|memory] Manage Distributed P2P Mesh, PKI, Raft & Vector Memory
   chaos [list|inject|partition|isolate|clear] Manage Federated Chaos Fault Injection
   cluster [demo]     Production E2E Multi-Worker Cluster Demonstration
+  forensics <session_id> Inspect and export dual-stream forensic audit timelines (GAP-07)
 
 Developer Tools & Legacy Flags:
   --list-skills      List all registered tools
