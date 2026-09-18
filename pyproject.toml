@@ -47,6 +47,10 @@ testpaths = [
     "agent_workspace/tests",
 ]
 asyncio_mode = "strict"
+filterwarnings = [
+    "ignore:.*Using `httpx` with `starlette.testclient` is deprecated.*:Warning",
+    "ignore:.*BlockingPortal.*:DeprecationWarning",
+]
 
 [tool.coverage.run]
 source = ["agent_workspace"]

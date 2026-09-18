@@ -53,6 +53,7 @@ graph TD
     T25["T-025: Destructive Shell Hardening, Anti-Corruption Scanner & Forensic Correlator (P93)"]:::done
     T26["T-026: Forensic Correlator REST & CLI Surface Integration (P94)"]:::done
     T27["T-027: Full Test Matrix Parity & Protocol 3.8.0 Scaffolding Alignment (P95)"]:::done
+    T28["T-028: Frontend Swarm UI Test Parity, React Doctor a11y & Vault UTF-8 (P96)"]:::done
 
     T01 --> T02
     T01 --> T03
@@ -82,6 +83,7 @@ graph TD
     T24 --> T25
     T25 --> T26
     T26 --> T27
+    T27 --> T28
 ```
 
 ---
@@ -321,4 +323,12 @@ graph TD
 - **Scope**: Resolved all legacy test discrepancies and harmonized workspace initialization with Protocol v3.8.0. Upgraded `TargetRepoOnboarder.analyze` and `onboard` in `agent_workspace/core/onboarding.py` with graceful non-git directory fallback and standard `.agent/agent.md`, `.agent/skills/`, and `.agent/workflows/` scaffolding. Updated `las init --dry-run` in `agent_workspace/cli.py`. Aligned route inventory in `agent_workspace/routes/chat.py` with `/health`, `/api/version`, and `/v1/version` aliases. Enhanced `WorkspaceManager` with `add_task` helper and `TopologyEmitter` with `record_event`. Hardened test mode detection in `agent_workspace/routes/collaboration.py`. Purged redundant `generate_spec.md` draft contract and registered `generative_spec_generator` in `.agent/agent.md`.
 - **Target Files**: `agent_workspace/core/onboarding.py`, `agent_workspace/cli.py`, `agent_workspace/routes/chat.py`, `agent_workspace/skills/tool_workspace.py`, `agent_workspace/topology_bridge.py`, `agent_workspace/routes/collaboration.py`, `agent_workspace/core/engine.py`, `.agent/agent.md`, `agent_workspace/tests/test_cli_init.py`, `agent_workspace/tests/test_cli_lint.py`, `agent_workspace/tests/test_route_chat_direct.py`, `agent_workspace/tests/test_route_inventory.py`, `agent_workspace/tests/test_tool_log_direct.py`, `agent_workspace/tests/test_topology_bridge_direct.py`, `agent_workspace/tests/test_tenant_channels.py`, `agent_workspace/tests/test_pap_v020.py`, `agent_workspace/tests/test_pap_conformance.py`, `agent_workspace/tests/test_skill_contracts.py`, `agent_workspace/tests/test_version_compat.py`.
 - **Verification**: Full test suite across all 143 test files in `agent_workspace/tests/` (100% PASS, 0 failures, 0 errors); 12-suite governance matrix (78/78 PASS in 8.32s); `scripts/run_golden_benchmark.py` (`GOLDEN_FLOW_VERIFIED`, 3/3 PASS in 676.9ms, 0 host mutations); `git diff --check` (0 trailing whitespace).
+- **Status**: `PASS` (Completed).
+
+### [DONE] T-028: Frontend Swarm UI Test Parity, React Doctor a11y, Obsidian Vault UTF-8 & Pytest Cleanliness (Phase 96)
+- **Assigned Role**: `UI_UX_AGENT` (Elena) / `QA_TEST_AGENT` (Jimmy) / `BACKEND_INFRA_AGENT` (Ethan) / `KNOWLEDGE_TOPOLOGY_AGENT` (Nora)
+- **Reference ADR**: [[60 Architectural Decision Records (ADR) Graph#ADR-001|ADR-001: Protocol Baseline]], [[60 Architectural Decision Records (ADR) Graph#ADR-002|ADR-002: Dual Knowledge Mirror]], [[60 Architectural Decision Records (ADR) Graph#ADR-006|ADR-006: Agent Strategy Integration]]
+- **Scope**: Perfected the 5 cross-stack optimization frontiers identified during comprehensive validation. Aligned `viewer/scripts/verify-swarm-governance-ui.mjs` with grounded Protocol 3.8.0 role `local-domain-01` (`DOMAIN_LOGIC_AGENT`). Optimized evidence compatibility in `ReviewPage.tsx` with `new Set` for $O(1)$ lookups. Refactored `CodingPipelineView.tsx` and `FederatedMeshView.tsx` with accessible `aria-label`/`<label>` bindings, keyboard event handlers, re-entry guards on mutating async handlers, and stable composite keys, completely eliminating all 23 accessibility and performance warnings in React Doctor. Fixed Windows ANSI mojibake in `lint_obsidian_vault.ps1` and `lint_knowledge_base.ps1` by forcing UTF-8 encoding, and established `.agent/knowledge_base/raw/.gitkeep` (0 findings). Added warning filters to `pyproject.toml` eliminating all upstream third-party deprecation warnings in Pytest. Closed strategic questions in `09 Open Questions & Strategic Horizons.md` with verified code references. Verified the full 8-step verification ladder with active Viewer checks (Exit Code 0).
+- **Target Files**: `viewer/scripts/verify-swarm-governance-ui.mjs`, `viewer/src/components/mission/ReviewPage.tsx`, `viewer/src/components/CodingPipelineView.tsx`, `viewer/src/components/FederatedMeshView.tsx`, `.agent/knowledge_base/tools/lint_obsidian_vault.ps1`, `.agent/knowledge_base/tools/lint_knowledge_base.ps1`, `.agent/knowledge_base/raw/.gitkeep`, `pyproject.toml`, `docs/obsidian/09 Open Questions & Strategic Horizons.md`, `handoff.md`.
+- **Verification**: `scripts/verify.ps1` (all 8 steps verified including Viewer build, UI smoke tests, and React Doctor, Exit Code 0); `npm run build` in `viewer/` (Pass in 646ms, 0 errors); `npm run test:swarm-ui` (Pass, Exit Code 0); `npm run verify:ui` (Pass, Exit Code 0); `npm run doctor` (37 issues, 0 accessibility, 0 performance warnings); `lint_knowledge_base.ps1` (85 notes, 0 findings); `scripts/run_golden_benchmark.py` (`GOLDEN_FLOW_VERIFIED`, 3/3 PASS in 716ms, 0 host mutations); `git diff --check` (0 trailing whitespace).
 - **Status**: `PASS` (Completed).

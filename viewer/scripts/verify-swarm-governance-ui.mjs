@@ -50,7 +50,7 @@ const offlineRenderMarkers = [
   "data-testid=\"mtls-tunneling-status-panel\"",
   "data-testid=\"billing-policy-controls\"",
   "data-testid=\"cryptographic-proof-inspector\"",
-  "local-ceo-01",
+  "local-domain-01",
   "recovery-ops-184",
   "peer-tpe-01",
   "fallback-sibling-left",
@@ -102,7 +102,7 @@ if (existsSync(distAssets)) {
     throw new Error("AdminDashboardView production chunk missing. Run `npm run build` first.");
   }
   const chunkSource = readFileSync(join(distAssets, adminChunk), "utf8");
-  for (const marker of ["swarm-node-monitor", "mtls-tunneling-status-panel", "local-ceo-01", "peer-tpe-01", "strict_limit", "fallback-sibling-left", "fallback-cert-sha-256", "Revoked Certificates Ledger", "Metered Token Usage"]) {
+  for (const marker of ["swarm-node-monitor", "mtls-tunneling-status-panel", "local-domain-01", "peer-tpe-01", "strict_limit", "fallback-sibling-left", "fallback-cert-sha-256", "Revoked Certificates Ledger", "Metered Token Usage"]) {
     assertIncludes(chunkSource, marker, "production offline render marker");
   }
 }

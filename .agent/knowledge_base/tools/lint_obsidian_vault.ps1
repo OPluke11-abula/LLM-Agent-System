@@ -97,7 +97,7 @@ if (-not (Test-Path -LiteralPath $logPath)) {
 
 $indexedPathSet = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
 if (Test-Path -LiteralPath $indexPath) {
-    $indexText = Get-Content -LiteralPath $indexPath -Raw
+    $indexText = Get-Content -LiteralPath $indexPath -Raw -Encoding utf8
     foreach ($match in [regex]::Matches($indexText, '\[\[([^\]]+)\]\]')) {
         $target = (($match.Groups[1].Value -split '\|')[0] -split '#')[0].Trim().Replace('\', '/')
         if (-not [string]::IsNullOrWhiteSpace($target)) {
@@ -137,7 +137,7 @@ foreach ($file in $markdownFiles) {
         }
     }
 
-    $text = Get-Content -LiteralPath $file.FullName -Raw
+    $text = Get-Content -LiteralPath $file.FullName -Raw -Encoding utf8
     if ($null -eq $text) { $text = '' }
     $secretPattern = '(?i)(authorization:\s*bearer\s+[A-Za-z0-9._-]{8,}|\bsk-[A-Za-z0-9]{8,}|\b(api[_-]?key|secret|token|password|cookie)\b\s*[:=]\s*[^\s`''"]{4,})'
     if ($text -match $secretPattern) {

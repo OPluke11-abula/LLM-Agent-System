@@ -374,6 +374,7 @@ export const FederatedMeshView: React.FC<FederatedMeshViewProps> = ({ lang: _lan
   };
 
   const handleTriggerElection = async () => {
+    if (electing) return;
     try {
       setElecting(true);
       const res = await fetch("http://127.0.0.1:8000/v1/mesh/raft/elect", {
@@ -397,6 +398,7 @@ export const FederatedMeshView: React.FC<FederatedMeshViewProps> = ({ lang: _lan
   };
 
   const handleRotateCert = async () => {
+    if (rotatingCert) return;
     try {
       setRotatingCert(true);
       const res = await fetch("http://127.0.0.1:8000/v1/mesh/pki/rotate", {
@@ -507,6 +509,7 @@ export const FederatedMeshView: React.FC<FederatedMeshViewProps> = ({ lang: _lan
   };
 
   const handleRunClusterDemo = async () => {
+    if (clusterDemoRunning) return;
     try {
       setClusterDemoRunning(true);
       const res = await fetch("http://127.0.0.1:8000/v1/mesh/cluster/demo", {
@@ -545,7 +548,7 @@ export const FederatedMeshView: React.FC<FederatedMeshViewProps> = ({ lang: _lan
 
   const handleJoinPeer = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!seedAddress.trim()) return;
+    if (!seedAddress.trim() || joining) return;
 
     try {
       setJoining(true);
@@ -907,6 +910,7 @@ export const FederatedMeshView: React.FC<FederatedMeshViewProps> = ({ lang: _lan
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-[var(--t3)]" />
             <input
               type="text"
+              aria-label="Query federated experiences"
               value={queryInput}
               onChange={(e) => setQueryInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSearchMemory()}
@@ -1192,7 +1196,7 @@ export const FederatedMeshView: React.FC<FederatedMeshViewProps> = ({ lang: _lan
               <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
                 {clusterDemoReceipt.step_receipts?.map((step: any, idx: number) => (
                   <div
-                    key={idx}
+                    key={`cluster-step-${step.step_name}-${idx}`}
                     className="flex items-center justify-between rounded bg-white/[0.02] p-2 text-xs font-mono border border-white/5"
                   >
                     <span className="text-slate-200 truncate max-w-[280px]">{step.step_name}</span>
@@ -1349,11 +1353,13 @@ export const FederatedMeshView: React.FC<FederatedMeshViewProps> = ({ lang: _lan
 
             <form onSubmit={handleJoinPeer} className="mt-4 space-y-4">
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--t2)] mb-1">
+                <label htmlFor="seed-node-address" className="block text-xs font-semibold uppercase tracking-wider text-[var(--t2)] mb-1">
                   Seed Node Address (host:port)
                 </label>
                 <input
+                  id="seed-node-address"
                   type="text"
+                  aria-label="Seed Node Address (host:port)"
                   value={seedAddress}
                   onChange={(e) => setSeedAddress(e.target.value)}
                   placeholder="e.g. 192.168.1.120:8000"

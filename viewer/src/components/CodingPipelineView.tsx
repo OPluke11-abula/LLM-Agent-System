@@ -574,7 +574,15 @@ export function CodingPipelineView({ lang = "zh", activeWorkspacePath }: CodingP
                   return (
                     <div
                       key={t.task_id}
+                      role="button"
+                      tabIndex={0}
                       onClick={() => setSelectedTaskId(t.task_id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          setSelectedTaskId(t.task_id);
+                        }
+                      }}
                       className={cx(
                         "group cursor-pointer rounded-lg border p-3 transition-all",
                         isSelected
@@ -832,7 +840,7 @@ export function CodingPipelineView({ lang = "zh", activeWorkspacePath }: CodingP
                           <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-200 space-y-1">
                             <div className="font-bold font-mono text-[11px]">⚠️ Dissenting Objections Recorded:</div>
                             {sc.dissenting_opinions.map((d, i) => (
-                              <div key={i} className="font-mono text-[11px]">• {d}</div>
+                              <div key={`dissent-${i}-${d.slice(0, 16)}`} className="font-mono text-[11px]">• {d}</div>
                             ))}
                           </div>
                         )}
@@ -920,6 +928,7 @@ export function CodingPipelineView({ lang = "zh", activeWorkspacePath }: CodingP
                         <Key className="h-4 w-4 text-amber-400 shrink-0" />
                         <input
                           type="text"
+                          aria-label="Approval token"
                           value={approvalToken}
                           onChange={(e) => setApprovalToken(e.target.value)}
                           placeholder="Enter approval token..."
@@ -968,7 +977,7 @@ export function CodingPipelineView({ lang = "zh", activeWorkspacePath }: CodingP
                         </thead>
                         <tbody className="divide-y divide-white/5">
                           {taskDetail.result.receipts.map((r, i) => (
-                            <tr key={i} className="hover:bg-white/[0.02]">
+                            <tr key={`receipt-${r.step_name}-${i}`} className="hover:bg-white/[0.02]">
                               <td className="py-2.5 text-slate-300">{r.step_name}</td>
                               <td className="py-2.5 text-indigo-300 font-semibold truncate max-w-[200px]">
                                 {r.command}
@@ -1021,7 +1030,7 @@ export function CodingPipelineView({ lang = "zh", activeWorkspacePath }: CodingP
                         </div>
                         <div className="space-y-2">
                           {taskDetail.result.self_healing_attempts.map((att, i) => (
-                            <div key={i} className="rounded-lg border border-white/10 bg-black/40 p-3 text-xs font-mono space-y-1">
+                            <div key={`heal-attempt-${att.attempt_number}-${att.strategy}-${i}`} className="rounded-lg border border-white/10 bg-black/40 p-3 text-xs font-mono space-y-1">
                               <div className="flex items-center justify-between">
                                 <span className="font-bold text-slate-200">
                                   Attempt #{att.attempt_number} ({att.strategy})
@@ -1165,6 +1174,7 @@ export function CodingPipelineView({ lang = "zh", activeWorkspacePath }: CodingP
               </h3>
               <button
                 onClick={() => setShowCreateModal(false)}
+                aria-label="Close modal"
                 className="text-slate-400 hover:text-white text-xs"
               >
                 ✕
@@ -1173,9 +1183,11 @@ export function CodingPipelineView({ lang = "zh", activeWorkspacePath }: CodingP
 
             <div className="space-y-3 text-xs">
               <div>
-                <label className="block text-slate-400 font-mono mb-1">Task ID</label>
+                <label htmlFor="init-task-id" className="block text-slate-400 font-mono mb-1">Task ID</label>
                 <input
+                  id="init-task-id"
                   type="text"
+                  aria-label="Task ID"
                   value={newTaskId}
                   onChange={(e) => setNewTaskId(e.target.value)}
                   className="w-full bg-black/50 border border-white/10 rounded px-3 py-1.5 text-white font-mono"
@@ -1183,9 +1195,11 @@ export function CodingPipelineView({ lang = "zh", activeWorkspacePath }: CodingP
               </div>
 
               <div>
-                <label className="block text-slate-400 font-mono mb-1">Target Repository Path</label>
+                <label htmlFor="init-repo-path" className="block text-slate-400 font-mono mb-1">Target Repository Path</label>
                 <input
+                  id="init-repo-path"
                   type="text"
+                  aria-label="Target Repository Path"
                   value={newRepoPath}
                   onChange={(e) => setNewRepoPath(e.target.value)}
                   placeholder="Absolute path to target repository..."
@@ -1194,9 +1208,11 @@ export function CodingPipelineView({ lang = "zh", activeWorkspacePath }: CodingP
               </div>
 
               <div>
-                <label className="block text-slate-400 font-mono mb-1">Requirement Prompt</label>
+                <label htmlFor="init-requirement" className="block text-slate-400 font-mono mb-1">Requirement Prompt</label>
                 <textarea
+                  id="init-requirement"
                   rows={3}
+                  aria-label="Requirement Prompt"
                   value={newRequirement}
                   onChange={(e) => setNewRequirement(e.target.value)}
                   placeholder="Describe the coding requirement..."
@@ -1206,17 +1222,21 @@ export function CodingPipelineView({ lang = "zh", activeWorkspacePath }: CodingP
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-400 font-mono mb-1">Target Branch</label>
+                  <label htmlFor="init-target-branch" className="block text-slate-400 font-mono mb-1">Target Branch</label>
                   <input
+                    id="init-target-branch"
                     type="text"
+                    aria-label="Target Branch"
                     value={newTargetBranch}
                     onChange={(e) => setNewTargetBranch(e.target.value)}
                     className="w-full bg-black/50 border border-white/10 rounded px-3 py-1.5 text-white font-mono"
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-400 font-mono mb-1">Specialist Role</label>
+                  <label htmlFor="init-specialist-role" className="block text-slate-400 font-mono mb-1">Specialist Role</label>
                   <select
+                    id="init-specialist-role"
+                    aria-label="Specialist Role"
                     value={newRole}
                     onChange={(e) => setNewRole(e.target.value)}
                     className="w-full bg-black/50 border border-white/10 rounded px-3 py-1.5 text-white font-mono"
@@ -1229,11 +1249,13 @@ export function CodingPipelineView({ lang = "zh", activeWorkspacePath }: CodingP
               </div>
 
               <div>
-                <label className="block text-slate-400 font-mono mb-1">
+                <label htmlFor="init-inspected-files" className="block text-slate-400 font-mono mb-1">
                   Inspected Files (Anti-Summary Invariant)
                 </label>
                 <input
+                  id="init-inspected-files"
                   type="text"
+                  aria-label="Inspected Files"
                   value={newInspectedFiles}
                   onChange={(e) => setNewInspectedFiles(e.target.value)}
                   className="w-full bg-black/50 border border-white/10 rounded px-3 py-1.5 text-white font-mono"
@@ -1241,9 +1263,11 @@ export function CodingPipelineView({ lang = "zh", activeWorkspacePath }: CodingP
               </div>
 
               <div>
-                <label className="block text-slate-400 font-mono mb-1">Target Files to Modify</label>
+                <label htmlFor="init-target-files" className="block text-slate-400 font-mono mb-1">Target Files to Modify</label>
                 <input
+                  id="init-target-files"
                   type="text"
+                  aria-label="Target Files to Modify"
                   value={newTargetFiles}
                   onChange={(e) => setNewTargetFiles(e.target.value)}
                   className="w-full bg-black/50 border border-white/10 rounded px-3 py-1.5 text-white font-mono"
@@ -1271,6 +1295,7 @@ export function CodingPipelineView({ lang = "zh", activeWorkspacePath }: CodingP
                   <div className="flex items-center gap-2.5 pt-1 text-[11px] text-slate-300">
                     <span className="text-slate-400 font-mono">Deliberation:</span>
                     <select
+                      aria-label="Deliberation rounds"
                       value={debateRounds}
                       onChange={(e) => setDebateRounds(Number(e.target.value))}
                       className="bg-black/60 border border-white/15 rounded px-2 py-1 text-white font-mono text-xs"
@@ -1305,8 +1330,12 @@ export function CodingPipelineView({ lang = "zh", activeWorkspacePath }: CodingP
                   <div className="flex items-center gap-2">
                     <input
                       type="number"
+                      aria-label="Thinking budget tokens"
                       value={thinkingBudget}
-                      onChange={(e) => setThinkingBudget(Number(e.target.value))}
+                      onChange={(e) => {
+                        const parsed = Number(e.target.value);
+                        setThinkingBudget(Number.isFinite(parsed) ? parsed : 0);
+                      }}
                       step={1024}
                       min={0}
                       max={32768}
@@ -1475,7 +1504,7 @@ export function CodingPipelineView({ lang = "zh", activeWorkspacePath }: CodingP
                     </thead>
                     <tbody className="divide-y divide-white/5 text-[11px]">
                       {benchmarkScorecard.scenario_receipts?.map((sc: any, idx: number) => (
-                        <tr key={idx} className="hover:bg-white/[0.02]">
+                        <tr key={`bench-sc-${sc.name}-${idx}`} className="hover:bg-white/[0.02]">
                           <td className="p-2.5 font-sans font-medium text-white">{sc.name}</td>
                           <td className="p-2.5 text-slate-300">{sc.stage_reached}</td>
                           <td className="p-2.5">

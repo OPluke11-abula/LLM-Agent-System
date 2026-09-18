@@ -51,8 +51,8 @@ export function ReviewPage() {
     const refs = record?.evidence_refs ?? [];
     const linkedEvidence = refs.map((ref) => evidenceById.get(ref));
     const refsValid = refs.length > 0 && linkedEvidence.every((item) => item !== undefined);
-    const compatibleTypes = EVIDENCE_TYPE_COMPATIBILITY[gate] as readonly string[];
-    const typesCompatible = linkedEvidence.every((item) => item !== undefined && compatibleTypes.includes(item.evidence_type));
+    const compatibleTypes = new Set(EVIDENCE_TYPE_COMPATIBILITY[gate] as readonly string[]);
+    const typesCompatible = linkedEvidence.every((item) => item !== undefined && compatibleTypes.has(item.evidence_type));
     const pass = record?.status === GateStatus.PASSED && refsValid && linkedEvidence.every((item) => item?.verification_status === GateStatus.PASSED) && typesCompatible;
     const notApplicable = record?.status === GateStatus.NOT_APPLICABLE;
     return { gate, record, refs, linkedEvidence, pass, resolved: pass || notApplicable, typesCompatible, compatibilityWarning: record?.status === GateStatus.PASSED && !typesCompatible };

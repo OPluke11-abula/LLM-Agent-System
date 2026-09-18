@@ -3,16 +3,16 @@
 > **Protocol Version**: 3.8.0
 > **Source of Truth**: Team Cognitive Relay (Tier 2)
 > **Prerequisite**: Automated tests 100% Green (`PASS`) before updating this document.
-> **Last Synchronized**: 2026-09-17
+> **Last Synchronized**: 2026-09-18
 > **Domain Owner / PO**: Luke
-> **Project State**: Phase 95 (Full-Spectrum Alignment with Universal Coding Agent Development Protocol v3.8.0 & 100% Green Matrix) Completed & Certified
+> **Project State**: Phase 96 (Frontend Swarm UI Test Parity, React Doctor a11y, Obsidian Vault UTF-8 & Pytest Cleanliness) Completed & Certified
 
 ---
 
 ## 1. 3-Line Executive Summary (三行白話摘要)
-1. 協定基準與運行時反射完全對齊：將 `AgentEngine.PROTOCOL_VERSION` 全面升級至 canonical 3.8.0，清理 `generative_spec_generator` 反射冗餘別名，並更新 `tool_manifest.py` 使全部 26 項工具通過 PAP 契約校驗與安全矩陣驗證（100% PASS）。
-2. 腳手架與測試套件健全度加固：在 `core/onboarding.py` 與 `cli.py` 補全 `.agent/agent.md`、`.agent/skills/` 與 `.agent/workflows/` 生成與 dry-run 輸出；在 `core/repository.py` 加入 worktree 根路徑檢驗防止子目錄誤判；補全 `/health`、`/api/version`、`/v1/version` 路由支援與各測試套件對 3.8.0 的斷言。
-3. 全量測試與驗證階梯 100% 綠燈：`agent_workspace/tests/` 下全數 143 個測試檔案數百項單元/整合測試全數 PASS（0 failures, 0 errors）；8 步官方驗證階梯腳本 `scripts/verify.ps1 -SkipViewer` 通過（Exit Code 0）；Golden Flow Benchmark 評定為 `GOLDEN_FLOW_VERIFIED`（3/3 任務通過，0 主機污染）。
+1. 前端測試與角色代號精準對齊：將 `viewer/scripts/verify-swarm-governance-ui.mjs` 中的 `local-ceo-01` 替換為 Protocol 3.8.0 落地的 `local-domain-01`，使前端治理測試達成 100% 綠燈，解鎖官方 8 步驗證階梯對 Viewer 的完整檢驗。
+2. 元件品質、無障礙與效能全面收斂：於 `ReviewPage.tsx` 引入 `new Set` 達成 $O(1)$ 查找，於 `CodingPipelineView.tsx` 與 `FederatedMeshView.tsx` 補全 `htmlFor`/`id`/`aria-label` 關聯、非同步 re-entry guard 與穩定複合 key，使 React Doctor 的 Accessibility 與 Performance 警告降至 0。
+3. 知識庫 UTF-8 編碼修正與 Pytest 乾淨輸出：在 `lint_obsidian_vault.ps1` 與 `lint_knowledge_base.ps1` 加入 `-Encoding utf8` 消除中文亂碼誤報，建立 `raw/.gitkeep` 使知識庫審計達 0 缺陷；於 `pyproject.toml` 過濾第三方棄用警告，達成 0 warnings 潔淨測試環境。
 
 ---
 
@@ -21,16 +21,18 @@
 | Check / Metric | Status | Evidence / Receipt |
 |---|---|---|
 | **Active Branch & Sync State** | `PASS` | `main` branch synchronized with remote `origin/main` |
-| **Phase 95 Protocol 3.8.0 Scaffolding Suite** | `PASS` | `test_cli_init.py`, `test_pap_v020.py`, `test_version_compat.py` (100% PASS) |
+| **Phase 96 Frontend Swarm UI Test Suite** | `PASS` | `npm run test:swarm-ui` in `viewer/` (100% PASS with `local-domain-01`) |
+| **Phase 96 Frontend Rolldown/Vite Build** | `PASS` | `npm run build` in `viewer/` (built in 646ms, 0 errors) |
+| **Phase 96 React Doctor Code Quality** | `PASS` | `npm run doctor` in `viewer/` (0 Accessibility warnings, 0 Performance warnings) |
+| **Phase 96 Knowledge Base Integrity** | `PASS` | `lint_knowledge_base.ps1` (0 findings across 85 notes, UTF-8 clean) |
+| **Phase 96 Pytest Zero-Warning Cleanliness** | `PASS` | Pytest runs with 0 third-party deprecation warnings via `pyproject.toml` filter |
 | **Tool Manifest & PAP Contract Validation** | `PASS` | `tool_manifest.py validate` (26/26 tools matching PAP contracts, secrets scan passed) |
 | **Skills Acceptance Matrix** | `PASS` | `tool_manifest.py matrix` (26/26 skills PASS, report in `.agent/skills_acceptance_report.md`) |
-| **API Route Inventory Integrity** | `PASS` | `test_route_inventory.py` (1 test in 0.04s, 100% PASS, includes `/health`, `/api/version`, `/v1/version`) |
 | **Full Pytest Suite Across Entire Repo** | `PASS` | All 143 test files in `agent_workspace/tests/` (100% PASS, 0 errors, 0 failures) |
-| **Comprehensive 12-Suite Governance Matrix** | `PASS` | 78 tests in 8.32s (100% PASS across 12 test modules: P1, P2-C, P92, P93, P94, negative, adversarial, recovery, E2E) |
-| **Golden Flow Benchmark** | `PASS` | Suite `GBS-1789658285`: 3/3 tasks passed, 100% ADR-006 KPI compliance, 676.9ms completion (`GOLDEN_FLOW_VERIFIED`) |
-| **LAS Golden Verification Ladder** | `PASS` | `scripts/verify.ps1 -SkipViewer` passed with Exit Code 0 |
+| **Golden Flow Benchmark** | `PASS` | Suite `GBS-1789661596`: 3/3 tasks passed, 100% ADR-006 KPI compliance, 716.0ms completion (`GOLDEN_FLOW_VERIFIED`) |
+| **LAS Golden Verification Ladder** | `PASS` | `scripts/verify.ps1` (all 8 steps verified including Viewer, Exit Code 0) |
 | **Formatting & Git Check** | `PASS` | `git diff --check` passed with 0 trailing whitespace or format errors |
-| **Obsidian Note & Vault Sync** | `PASS` | `05 Task Status & Multi-Agent Execution DAG.md` updated with T-027 |
+| **Obsidian Note & Vault Sync** | `PASS` | `05 Task Status & Multi-Agent Execution DAG.md` and `09 Open Questions` updated |
 | **Zero Host Pollution Invariant** | `PASS` | Isolated git worktrees preserve host repository cleanliness (0 host mutations) |
 
 ---
@@ -127,6 +129,7 @@
 - **Phase 93 (T-025 / PR #16)**: Destructive Shell Hardening, Anti-Corruption Scanner & Dual-Stream Forensic Correlator (100% Certified)
 - **Phase 94 (T-026 / PR #17)**: Dual-Stream Forensic Correlator API & CLI Surface Integration (100% Certified)
 - **Phase 95 (T-027 / PR #18)**: Full Test Matrix Parity & Protocol 3.8.0 Scaffolding Alignment (100% Certified)
+- **Phase 96 (T-028 / PR #19)**: Frontend Swarm UI Test Parity, React Doctor a11y, Obsidian Vault UTF-8 & Pytest Cleanliness (100% Certified)
 
 **Project Milestone Conclusion**:
 All planned phases, architectural decision records (ADR-001 ~ ADR-007), verification gates, and cognitive relay documentation have been fully delivered, tested, and archived into the `main` branch.
