@@ -57,6 +57,9 @@ const CodingPipelineView = lazy(() =>
 const FederatedMeshView = lazy(() =>
   import("./components/FederatedMeshView").then((module) => ({ default: module.FederatedMeshView })),
 );
+const SoftwareFactoryView = lazy(() =>
+  import("./components/SoftwareFactoryView").then((module) => ({ default: module.SoftwareFactoryView })),
+);
 
 function PageFallback() {
   return (
@@ -288,6 +291,12 @@ export default function App() {
                   <FederatedMeshView
                     lang={lang}
                   />
+                }
+              />
+              <Route
+                path="/factory"
+                element={
+                  <SoftwareFactoryView />
                 }
               />
             </Routes>

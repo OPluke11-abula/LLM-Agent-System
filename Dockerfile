@@ -15,14 +15,14 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Set container Python environment invariants
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/app \
-    LAS_BIND_HOST=0.0.0.0 \
-    LAS_ENABLE_STRIPE=false \
-    LAS_ENABLE_REDIS_SWARM=false \
-    LAS_ENABLE_MULTI_WORKER=false \
-    LAS_ENABLE_AUDIT_CONSENSUS=false
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app
+ENV LAS_BIND_HOST=0.0.0.0
+ENV LAS_ENABLE_STRIPE=false
+ENV LAS_ENABLE_REDIS_SWARM=false
+ENV LAS_ENABLE_MULTI_WORKER=false
+ENV LAS_ENABLE_AUDIT_CONSENSUS=false
 
 # Install curl for health check validation and git for worktree execution
 RUN apt-get update && \

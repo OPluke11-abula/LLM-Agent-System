@@ -354,6 +354,7 @@ from agent_workspace.routes.pipeline import router as pipeline_router
 from agent_workspace.routes.missions import router as missions_router
 from agent_workspace.routes.system import router as system_router
 from agent_workspace.routes.mesh import router as mesh_router
+from agent_workspace.routes.factory import router as factory_router
 
 app.include_router(swarm_router)
 app.include_router(cross_cloud_router)
@@ -366,6 +367,7 @@ app.include_router(pipeline_router)
 app.include_router(missions_router)
 app.include_router(system_router)
 app.include_router(mesh_router)
+app.include_router(factory_router)
 
 # Backwards compatibility exports for testing and legacy imports
 from agent_workspace.routes.dependencies import (

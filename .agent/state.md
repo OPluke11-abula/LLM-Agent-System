@@ -12,9 +12,9 @@
 - Realtime Working Coordination: External surface optional; `.agent/` is durable canonical execution authority.
 
 ## Project Frontier
-- Current Phase: Phase 91 - Chaos Fault Injection, Autonomous Self-Healing & Cluster Demo
-- Active Milestone: Milestones T-001 ~ T-023 100% Completed & Merged into Main
-- Current Frontier Ref: LAS-PHASE-91-COMPLETE
+- Current Phase: Phase 103 - Closed-Loop Experience Distillation & Factory Cockpit
+- Active Milestone: Phases 0 ~ 103 Completed & Certified (Autonomous Software Factory Swarm)
+- Current Frontier Ref: LAS-PHASE-103-COMPLETE
 - Coordination Checkpoint: Closed (結案)
 - Working Tree Policy: Strict Clean Tree on PR Merge (Verified)
 
