@@ -114,8 +114,146 @@ function compactPath(path: string) {
   return `${parts[0]}/.../${parts.slice(-2).join("/")}`;
 }
 
-export function IntelligenceMapView({ memory, sessions, lastUpdatedSessionId, lang }: IntelligenceMapViewProps) {
-  const copy = COPY[lang];
+interface StageItem {
+  label: string;
+  value: string | number;
+  body: string;
+  tone: "accent" | "warning" | "success" | "neutral";
+}
+
+function IntelligenceStagesCard({
+  summaryLabel,
+  executionMode,
+  stages,
+}: {
+  summaryLabel: string;
+  executionMode: string;
+  stages: StageItem[];
+}) {
+  return (
+    <Surface className="intelligence-flow p-4">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[10px] font-bold uppercase tracking-[0.14em] t3">{summaryLabel}</p>
+        <StatusBadge tone={executionMode === "waiting" ? "warning" : "success"}>{executionMode}</StatusBadge>
+      </div>
+      <div className="mt-4 grid gap-3 lg:grid-cols-4">
+        {stages.map((stage, index) => (
+          <div key={stage.label} className="intelligence-stage rounded-xl border p-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-mono text-[10px] t3">{String(index + 1).padStart(2, "0")}</span>
+              <StatusBadge tone={stage.tone}>{stage.value}</StatusBadge>
+            </div>
+            <h2 className="mt-3 text-sm font-semibold t1">{stage.label}</h2>
+            <p className="mt-2 line-clamp-4 text-xs leading-relaxed t2">{stage.body}</p>
+          </div>
+        ))}
+      </div>
+    </Surface>
+  );
+}
+
+function ImpactedSymbolsPanel({
+  label,
+  codeRefs,
+  noRefsText,
+}: {
+  label: string;
+  codeRefs: any[];
+  noRefsText: string;
+}) {
+  return (
+    <Surface className="p-4">
+      <p className="text-[10px] font-bold uppercase tracking-[0.14em] t3">{label}</p>
+      <div className="mt-3 space-y-2">
+        {codeRefs.length > 0 ? (
+          codeRefs.slice(0, 8).map((ref) => (
+            <div key={`${ref.path}:${ref.qualified_name ?? ref.symbol ?? ref.description ?? ""}`} className="intelligence-ref-card rounded-lg border p-3">
+              <div className="flex items-center justify-between gap-3">
+                <p className="truncate font-mono text-[11px] t1" title={ref.qualified_name ?? ref.symbol ?? ref.path}>
+                  {ref.symbol ?? ref.qualified_name ?? compactPath(ref.path)}
+                </p>
+                <StatusBadge tone="accent">{ref.ref_type ?? "ref"}</StatusBadge>
+              </div>
+              <p className="mt-1 truncate font-mono text-[10px] t3" title={ref.path}>{compactPath(ref.path)}</p>
+              {ref.description && <p className="mt-2 text-xs leading-relaxed t2">{ref.description}</p>}
+            </div>
+          ))
+        ) : (
+          <p className="text-sm t3">{noRefsText}</p>
+        )}
+      </div>
+    </Surface>
+  );
+}
+
+function EvidencePanel({
+  evidenceLabel,
+  evidenceRefs,
+  securityPaths,
+  noRefsText,
+}: {
+  evidenceLabel: string;
+  evidenceRefs: string[];
+  securityPaths: string[];
+  noRefsText: string;
+}) {
+  return (
+    <Surface className="p-4">
+      <p className="text-[10px] font-bold uppercase tracking-[0.14em] t3">{evidenceLabel}</p>
+      <div className="mt-3 grid gap-2">
+        {evidenceRefs.length > 0 ? (
+          evidenceRefs.slice(0, 6).map((ref) => (
+            <p key={ref} className="intelligence-ref-row truncate rounded-lg border px-3 py-2 font-mono text-[11px] t2" title={ref}>{ref}</p>
+          ))
+        ) : (
+          <p className="text-sm t3">{noRefsText}</p>
+        )}
+      </div>
+      {securityPaths.length > 0 && (
+        <div className="mt-4 border-t pt-3" style={{ borderColor: "var(--border-c)" }}>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-[10px] font-bold uppercase tracking-[0.14em] t3">Security paths</p>
+            <StatusBadge tone="warning">{securityPaths.length}</StatusBadge>
+          </div>
+          <div className="mt-2 space-y-1">
+            {securityPaths.slice(0, 4).map((path) => (
+              <p key={path} className="truncate font-mono text-[10px] t2" title={path}>{compactPath(path)}</p>
+            ))}
+          </div>
+        </div>
+      )}
+    </Surface>
+  );
+}
+
+function DecisionsPanel({
+  label,
+  decision,
+  copy,
+}: {
+  label: string;
+  decision: string;
+  copy: typeof COPY[Lang];
+}) {
+  return (
+    <Surface className="p-4">
+      <p className="text-[10px] font-bold uppercase tracking-[0.14em] t3">{label}</p>
+      <p className="mt-3 text-sm leading-relaxed t2">{decision}</p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Link to="/tasks" className="primary-button rounded-lg px-3 py-1.5 text-xs font-semibold">{copy.openTasks}</Link>
+        <Link to="/topology" className="quiet-button rounded-lg px-3 py-1.5 text-xs font-semibold">{copy.openTopology}</Link>
+        <Link to="/memory" className="quiet-button rounded-lg px-3 py-1.5 text-xs font-semibold">{copy.openMemory}</Link>
+      </div>
+    </Surface>
+  );
+}
+
+function computeIntelligenceSnapshot(
+  memory: AgentMemory,
+  sessions: TopologyState[],
+  lastUpdatedSessionId: string | null,
+  copy: typeof COPY[Lang]
+) {
   const tasks = flattenTasks(memory.tasks);
   const session = latestSession(sessions, lastUpdatedSessionId);
   const trace = latestTrace(session);
@@ -124,18 +262,73 @@ export function IntelligenceMapView({ memory, sessions, lastUpdatedSessionId, la
   const evidenceRefs = trace?.evidence_refs ?? [];
   const linkedTests = impact?.linked_test_count ?? 0;
   const securityPaths = impact?.security_relevant_paths ?? [];
-  const activeTask =
-    (trace ? tasks.find((task) => task.id === trace.task_id) : null)
-    ?? tasks.find((task) => task.status === "in_progress")
-    ?? tasks[0];
-  const decision = trace?.decision_rationale ?? impact?.summary ?? copy.noTrace;
 
-  const stages = [
-    { label: copy.taskContext, value: activeTask?.id ?? "--", body: activeTask?.description ?? copy.noTrace, tone: activeTask ? "accent" as const : "warning" as const },
-    { label: copy.impactedSymbols, value: impact?.impacted_symbol_count ?? codeRefs.length, body: impact?.summary ?? copy.noRefs, tone: codeRefs.length > 0 ? "success" as const : "neutral" as const },
-    { label: copy.linkedTests, value: linkedTests, body: linkedTests > 0 ? `${linkedTests} linked verification targets` : copy.noRefs, tone: linkedTests > 0 ? "success" as const : "neutral" as const },
-    { label: copy.evidence, value: evidenceRefs.length, body: evidenceRefs[0] ?? copy.noRefs, tone: evidenceRefs.length > 0 ? "success" as const : "neutral" as const },
+  let activeTask = null;
+  if (trace) {
+    activeTask = tasks.find((task) => task.id === trace.task_id) ?? null;
+  }
+  if (!activeTask) {
+    activeTask = tasks.find((task) => task.status === "in_progress") ?? tasks[0] ?? null;
+  }
+
+  let decision = copy.noTrace;
+  if (trace?.decision_rationale) {
+    decision = trace.decision_rationale;
+  } else if (impact?.summary) {
+    decision = impact.summary;
+  }
+
+  const stages: StageItem[] = [
+    {
+      label: copy.taskContext,
+      value: activeTask ? activeTask.id : "--",
+      body: activeTask ? activeTask.description : copy.noTrace,
+      tone: activeTask ? "accent" : "warning",
+    },
+    {
+      label: copy.impactedSymbols,
+      value: impact?.impacted_symbol_count ?? codeRefs.length,
+      body: impact?.summary ?? copy.noRefs,
+      tone: codeRefs.length > 0 ? "success" : "neutral",
+    },
+    {
+      label: copy.linkedTests,
+      value: linkedTests,
+      body: linkedTests > 0 ? `${linkedTests} linked verification targets` : copy.noRefs,
+      tone: linkedTests > 0 ? "success" : "neutral",
+    },
+    {
+      label: copy.evidence,
+      value: evidenceRefs.length,
+      body: evidenceRefs[0] ?? copy.noRefs,
+      tone: evidenceRefs.length > 0 ? "success" : "neutral",
+    },
   ];
+
+  return {
+    tasks,
+    trace,
+    codeRefs,
+    evidenceRefs,
+    linkedTests,
+    securityPaths,
+    decision,
+    stages,
+  };
+}
+
+export function IntelligenceMapView({ memory, sessions, lastUpdatedSessionId, lang }: IntelligenceMapViewProps) {
+  const copy = COPY[lang];
+  const {
+    tasks,
+    trace,
+    codeRefs,
+    evidenceRefs,
+    linkedTests,
+    securityPaths,
+    decision,
+    stages,
+  } = computeIntelligenceSnapshot(memory, sessions, lastUpdatedSessionId, copy);
 
   return (
     <main className="mission-control h-full min-h-0 overflow-y-auto">
@@ -157,74 +350,32 @@ export function IntelligenceMapView({ memory, sessions, lastUpdatedSessionId, la
         </Surface>
 
         <section className="intelligence-map-grid" data-testid="intelligence-map">
-          <Surface className="intelligence-flow p-4">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-[10px] font-bold uppercase tracking-[0.14em] t3">{copy.summary}</p>
-              <StatusBadge tone={trace ? "success" : "warning"}>{trace ? trace.execution_mode : "waiting"}</StatusBadge>
-            </div>
-            <div className="mt-4 grid gap-3 lg:grid-cols-4">
-              {stages.map((stage, index) => (
-                <div key={stage.label} className="intelligence-stage rounded-xl border p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-mono text-[10px] t3">{String(index + 1).padStart(2, "0")}</span>
-                    <StatusBadge tone={stage.tone}>{stage.value}</StatusBadge>
-                  </div>
-                  <h2 className="mt-3 text-sm font-semibold t1">{stage.label}</h2>
-                  <p className="mt-2 line-clamp-4 text-xs leading-relaxed t2">{stage.body}</p>
-                </div>
-              ))}
-            </div>
-          </Surface>
+          <IntelligenceStagesCard
+            summaryLabel={copy.summary}
+            executionMode={trace ? trace.execution_mode : "waiting"}
+            stages={stages}
+          />
 
           <ReactHealthPanel />
 
-          <Surface className="p-4">
-            <p className="text-[10px] font-bold uppercase tracking-[0.14em] t3">{copy.impactedSymbols}</p>
-            <div className="mt-3 space-y-2">
-              {codeRefs.length > 0 ? codeRefs.slice(0, 8).map((ref) => (
-                <div key={`${ref.path}:${ref.qualified_name ?? ref.symbol ?? ref.description ?? ""}`} className="intelligence-ref-card rounded-lg border p-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="truncate font-mono text-[11px] t1" title={ref.qualified_name ?? ref.symbol ?? ref.path}>{ref.symbol ?? ref.qualified_name ?? compactPath(ref.path)}</p>
-                    <StatusBadge tone="accent">{ref.ref_type ?? "ref"}</StatusBadge>
-                  </div>
-                  <p className="mt-1 truncate font-mono text-[10px] t3" title={ref.path}>{compactPath(ref.path)}</p>
-                  {ref.description && <p className="mt-2 text-xs leading-relaxed t2">{ref.description}</p>}
-                </div>
-              )) : <p className="text-sm t3">{copy.noRefs}</p>}
-            </div>
-          </Surface>
+          <ImpactedSymbolsPanel
+            label={copy.impactedSymbols}
+            codeRefs={codeRefs}
+            noRefsText={copy.noRefs}
+          />
 
-          <Surface className="p-4">
-            <p className="text-[10px] font-bold uppercase tracking-[0.14em] t3">{copy.evidence}</p>
-            <div className="mt-3 grid gap-2">
-              {evidenceRefs.length > 0 ? evidenceRefs.slice(0, 6).map((ref) => (
-                <p key={ref} className="intelligence-ref-row truncate rounded-lg border px-3 py-2 font-mono text-[11px] t2" title={ref}>{ref}</p>
-              )) : <p className="text-sm t3">{copy.noRefs}</p>}
-            </div>
-            {securityPaths.length > 0 && (
-              <div className="mt-4 border-t pt-3" style={{ borderColor: "var(--border-c)" }}>
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] t3">Security paths</p>
-                  <StatusBadge tone="warning">{securityPaths.length}</StatusBadge>
-                </div>
-                <div className="mt-2 space-y-1">
-                  {securityPaths.slice(0, 4).map((path) => (
-                    <p key={path} className="truncate font-mono text-[10px] t2" title={path}>{compactPath(path)}</p>
-                  ))}
-                </div>
-              </div>
-            )}
-          </Surface>
+          <EvidencePanel
+            evidenceLabel={copy.evidence}
+            evidenceRefs={evidenceRefs}
+            securityPaths={securityPaths}
+            noRefsText={copy.noRefs}
+          />
 
-          <Surface className="p-4">
-            <p className="text-[10px] font-bold uppercase tracking-[0.14em] t3">{copy.decisions}</p>
-            <p className="mt-3 text-sm leading-relaxed t2">{decision}</p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <Link to="/tasks" className="primary-button rounded-lg px-3 py-1.5 text-xs font-semibold">{copy.openTasks}</Link>
-              <Link to="/topology" className="quiet-button rounded-lg px-3 py-1.5 text-xs font-semibold">{copy.openTopology}</Link>
-              <Link to="/memory" className="quiet-button rounded-lg px-3 py-1.5 text-xs font-semibold">{copy.openMemory}</Link>
-            </div>
-          </Surface>
+          <DecisionsPanel
+            label={copy.decisions}
+            decision={decision}
+            copy={copy}
+          />
         </section>
       </div>
     </main>

@@ -8,7 +8,13 @@ const viewerRoot = fileURLToPath(new URL("..", import.meta.url));
 const root = resolve(viewerRoot, "dist");
 const outputRoot = resolve(process.env.UI_VERIFY_OUTPUT_DIR || resolve(viewerRoot, "output", "ui-regression"));
 const topologyViewPath = resolve(viewerRoot, "src", "components", "TopologyView.tsx");
-const topologyViewSource = readFileSync(topologyViewPath, "utf8");
+const topologySubcomponents = [
+  resolve(viewerRoot, "src", "components", "topology", "ConductorTracePanel.tsx"),
+];
+const topologyViewSource = [
+  readFileSync(topologyViewPath, "utf8"),
+  ...topologySubcomponents.filter(existsSync).map((p) => readFileSync(p, "utf8")),
+].join("\n");
 const tokenModePanelPath = resolve(viewerRoot, "src", "components", "TokenModePanel.tsx");
 const tokenModePanelSource = readFileSync(tokenModePanelPath, "utf8");
 const designAgentPanelPath = resolve(viewerRoot, "src", "components", "DesignAgentPanel.tsx");

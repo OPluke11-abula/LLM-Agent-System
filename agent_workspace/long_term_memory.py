@@ -764,8 +764,8 @@ class LongTermMemoryStore:
                     age_days = (now_dt - created_dt).days
                     if age_days > 0:
                         recency_factor = 1.0 / (1.0 + decay_rate * age_days)
-                except Exception:
-                    pass
+                except (ValueError, TypeError) as dt_err:
+                    logger.debug("Failed to parse created_at timestamp '%s': %s", rec.get("created_at"), dt_err)
 
             composite_score = relevance * dom_weight * conf_weight * recency_factor
             scored_candidates.append((composite_score, rec))
@@ -1005,8 +1005,8 @@ class EpisodicSummarizer:
         if created_at:
             try:
                 date_str = created_at.split("T")[0].replace("-", "")
-            except Exception:
-                pass
+            except (AttributeError, IndexError) as parse_err:
+                logger.debug("Failed to derive date_str from created_at '%s': %s", created_at, parse_err)
 
         lesson_id = f"L-{date_str}-{task_id[:8]}"
         title = f"Task execution failure in session {session_id}"
@@ -1169,10 +1169,10 @@ class ConcurrencyAuditor:
             for cb in DiscussionRoom.telemetry_callbacks:
                 try:
                     cb(session_id, warning_event)
-                except Exception:
-                    pass
-        except Exception:
-            pass
+                except Exception as cb_err:
+                    logger.warning("[LongTermMemoryStore] Telemetry callback execution failed: %s", cb_err)
+        except (ImportError, AttributeError) as import_err:
+            logger.debug("[LongTermMemoryStore] Could not broadcast telemetry event: %s", import_err)
 
         return warning_event
 

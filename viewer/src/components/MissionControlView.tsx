@@ -13,7 +13,7 @@ import {
   BentoCard,
   ShimmerButton,
 } from "./ui/primitives";
-import { toneForStatus } from "./ui/utils";
+import { toneForStatus, type Tone } from "./ui/utils";
 import { ArrowRight, GitFork, Network, Radio, Workflow } from "./ui/icons";
 import { TokenModePanel } from "./TokenModePanel";
 import type { ActivityLogEntry, AgentMemory, AgentTask, Lang, TopologyEvent, TopologyState, Workspace } from "../types";
@@ -161,7 +161,7 @@ function latestSession(sessions: TopologyState[], lastUpdatedSessionId: string |
   return sessions.find((session) => session.session_id === lastUpdatedSessionId) ?? sessions[0] ?? null;
 }
 
-function signalTone(session: TopologyState | null) {
+function signalTone(session: TopologyState | null): Tone {
   if (!session) return "warning";
   if (session.stats.errors > 0) return "danger";
   if (session.stats.running > 0 || session.stats.pending > 0) return "accent";
@@ -305,6 +305,87 @@ function ConductorPanel({ event, copy }: { event: TopologyEvent | null; copy: (t
   );
 }
 
+function computeMissionSnapshot(
+  memory: AgentMemory,
+  workspaces: any[],
+  activeWorkspaceId: string | null,
+  sessions: TopologyState[],
+  lastUpdatedSessionId: string | null
+) {
+  const session = latestSession(sessions, lastUpdatedSessionId);
+  const taskStats = collectTaskStats(memory.tasks);
+  const workspace = workspaces.find((item) => item.id === activeWorkspaceId);
+  const activeEvent =
+    session?.nodes.find((node) =>
+      ["running", "in_process", "awaiting_approval", "review"].includes(node.status)
+    ) ?? session?.nodes[0] ?? null;
+  const riskTone = signalTone(session);
+  const verificationScore = taskStats.total
+    ? Math.round((taskStats.completed / taskStats.total) * 100)
+    : 0;
+
+  return {
+    session,
+    taskStats,
+    workspace,
+    activeEvent,
+    riskTone,
+    verificationScore,
+  };
+}
+
+function ActiveMissionCard({
+  taskStats,
+  verificationScore,
+  workspace,
+  activeWorkspaceId,
+  copy,
+}: {
+  taskStats: any;
+  verificationScore: number;
+  workspace: any;
+  activeWorkspaceId: string | null;
+  copy: typeof COPY[Lang];
+}) {
+  let badgeTone: "warning" | "accent" | "success" = "success";
+  let badgeLabel = "clear";
+  if (taskStats.running > 0) {
+    badgeTone = "warning";
+    badgeLabel = "running";
+  } else if (taskStats.pending > 0) {
+    badgeTone = "accent";
+    badgeLabel = "queued";
+  }
+
+  return (
+    <BentoCard className="p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-slate-400">{copy.activeMission}</p>
+          <h2 className="mt-1 line-clamp-2 break-words text-sm font-semibold t1">
+            {taskStats.nextTask?.description ?? copy.noTask}
+          </h2>
+        </div>
+        <StatusBadge tone={badgeTone}>{badgeLabel}</StatusBadge>
+      </div>
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        <MetricTile label="Pending" value={taskStats.pending} tone="warning" />
+        <MetricTile label="Running" value={taskStats.running} tone="accent" />
+        <MetricTile label="Done" value={taskStats.completed} tone="success" />
+      </div>
+      <ProgressBar
+        ariaLabel={copy.verification}
+        className="mt-3"
+        value={verificationScore}
+        tone={verificationScore === 100 ? "success" : "accent"}
+      />
+      <p className="mt-2.5 break-all text-[11px] font-mono t3" title={workspace?.path}>
+        {workspace?.name ?? activeWorkspaceId} · {workspace?.path || "default workspace"}
+      </p>
+    </BentoCard>
+  );
+}
+
 export function MissionControlView({
   memory,
   workspaces,
@@ -316,20 +397,20 @@ export function MissionControlView({
   lang,
 }: MissionControlViewProps) {
   const copy = COPY[lang];
-  const session = latestSession(sessions, lastUpdatedSessionId);
-  const taskStats = collectTaskStats(memory.tasks);
-  const workspace = workspaces.find((item) => item.id === activeWorkspaceId);
-  const activeEvent = session?.nodes.find((node) => ["running", "in_process", "awaiting_approval", "review"].includes(node.status)) ?? session?.nodes[0] ?? null;
-  const riskTone = signalTone(session);
-  const verificationScore = taskStats.total ? Math.round((taskStats.completed / taskStats.total) * 100) : 0;
+  const {
+    session,
+    taskStats,
+    workspace,
+    activeEvent,
+    riskTone,
+    verificationScore,
+  } = computeMissionSnapshot(memory, workspaces, activeWorkspaceId, sessions, lastUpdatedSessionId);
 
   return (
     <main className="mission-control relative h-full min-h-0 overflow-y-auto overflow-x-hidden">
-      {/* MotionSites Ambient Radial Spotlight */}
       <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[320px] bg-[radial-gradient(ellipse_at_top,rgba(99,102,241,0.14)_0%,rgba(6,182,212,0.04)_45%,transparent_70%)] blur-3xl" />
 
       <div className="relative z-10 mx-auto flex max-w-[1480px] flex-col gap-4 pb-6">
-        {/* Modern Executive Header */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-white/10 pb-3">
           <div>
             <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium">
@@ -360,7 +441,6 @@ export function MissionControlView({
           </div>
         </div>
 
-        {/* 4 KPI Metric Tiles */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <MetricTile label={copy.agents} value={session?.stats.total_nodes ?? 0} tone={session ? "accent" : "neutral"} className="acrylic-surface acrylic-surface-hover transition-colors" />
           <MetricTile label={copy.tasks} value={taskStats.total} className="acrylic-surface acrylic-surface-hover transition-colors" />
@@ -368,28 +448,16 @@ export function MissionControlView({
           <MetricTile label={copy.risk} value={session?.stats.errors ?? 0} tone={riskTone} className="acrylic-surface acrylic-surface-hover transition-colors" />
         </div>
 
-        {/* Main 60/40 Split */}
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.55fr)]">
           <MissionTopology session={session} copy={copy} />
           <div className="grid gap-4">
-            <BentoCard className="p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-xs font-medium text-slate-400">{copy.activeMission}</p>
-                  <h2 className="mt-1 line-clamp-2 break-words text-sm font-semibold t1">{taskStats.nextTask?.description ?? copy.noTask}</h2>
-                </div>
-                <StatusBadge tone={taskStats.running > 0 ? "warning" : taskStats.pending > 0 ? "accent" : "success"}>
-                  {taskStats.running > 0 ? "running" : taskStats.pending > 0 ? "queued" : "clear"}
-                </StatusBadge>
-              </div>
-              <div className="mt-3 grid grid-cols-3 gap-2">
-                <MetricTile label="Pending" value={taskStats.pending} tone="warning" />
-                <MetricTile label="Running" value={taskStats.running} tone="accent" />
-                <MetricTile label="Done" value={taskStats.completed} tone="success" />
-              </div>
-              <ProgressBar ariaLabel={copy.verification} className="mt-3" value={verificationScore} tone={verificationScore === 100 ? "success" : "accent"} />
-              <p className="mt-2.5 break-all text-[11px] font-mono t3" title={workspace?.path}>{workspace?.name ?? activeWorkspaceId} · {workspace?.path || "default workspace"}</p>
-            </BentoCard>
+            <ActiveMissionCard
+              taskStats={taskStats}
+              verificationScore={verificationScore}
+              workspace={workspace}
+              activeWorkspaceId={activeWorkspaceId}
+              copy={copy}
+            />
 
             <TokenModePanel session={session} nextTask={taskStats.nextTask} lang={lang} compact />
 
@@ -403,7 +471,6 @@ export function MissionControlView({
           </div>
         </div>
 
-        {/* Bottom Split */}
         <div className="grid min-h-[280px] gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(360px,0.55fr)]">
           <ConductorPanel event={activeEvent} copy={copy} />
           <ActivityLog entries={activityEntries.slice(0, 8)} lang={lang} onClear={onClearActivityLog} />

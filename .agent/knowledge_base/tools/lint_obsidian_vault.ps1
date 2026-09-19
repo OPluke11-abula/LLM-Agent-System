@@ -95,18 +95,6 @@ if (-not (Test-Path -LiteralPath $logPath)) {
     Add-Finding $findings 'High' 'missing-log' 'log.md' 'Vault log.md is missing.'
 }
 
-$indexedPathSet = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
-if (Test-Path -LiteralPath $indexPath) {
-    $indexText = Get-Content -LiteralPath $indexPath -Raw -Encoding utf8
-    foreach ($match in [regex]::Matches($indexText, '\[\[([^\]]+)\]\]')) {
-        $target = (($match.Groups[1].Value -split '\|')[0] -split '#')[0].Trim().Replace('\', '/')
-        if (-not [string]::IsNullOrWhiteSpace($target)) {
-            [void]$indexedPathSet.Add($target)
-            [void]$indexedPathSet.Add(($target -replace '\.md$', ''))
-        }
-    }
-}
-
 $markdownFiles = @(Get-ChildItem -LiteralPath $rootPath -Recurse -File -Filter '*.md' |
     Where-Object { $_.FullName -notmatch '\\.obsidian\\' } |
     Sort-Object FullName)
@@ -115,6 +103,37 @@ foreach ($file in $markdownFiles) {
     $stem = [System.IO.Path]::GetFileNameWithoutExtension($file.Name).ToLowerInvariant()
     if (-not $stemIndex.ContainsKey($stem)) { $stemIndex[$stem] = New-Object System.Collections.Generic.List[string] }
     [void]$stemIndex[$stem].Add($file.FullName)
+}
+
+$indexedPathSet = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+$indexQueue = [System.Collections.Generic.Queue[string]]::new()
+$visitedIndexes = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+
+if (Test-Path -LiteralPath $indexPath) {
+    $indexQueue.Enqueue($indexPath)
+    [void]$visitedIndexes.Add($indexPath)
+}
+
+while ($indexQueue.Count -gt 0) {
+    $currentIndexFile = $indexQueue.Dequeue()
+    if (-not (Test-Path -LiteralPath $currentIndexFile)) { continue }
+    $indexText = Get-Content -LiteralPath $currentIndexFile -Raw -Encoding utf8
+    if ([string]::IsNullOrWhiteSpace($indexText)) { continue }
+
+    foreach ($match in [regex]::Matches($indexText, '\[\[([^\]]+)\]\]')) {
+        $rawTarget = (($match.Groups[1].Value -split '\|')[0] -split '#')[0].Trim().Replace('\', '/')
+        if (-not [string]::IsNullOrWhiteSpace($rawTarget)) {
+            [void]$indexedPathSet.Add($rawTarget)
+            [void]$indexedPathSet.Add(($rawTarget -replace '\.md$', ''))
+
+            if ($rawTarget -match '(?i)(index|domain|cluster|topology)') {
+                $targetFile = Resolve-WikilinkPath -RootPath $rootPath -SourceDirectory (Split-Path -Parent $currentIndexFile) -RawLink $rawTarget -StemIndex $stemIndex
+                if ($targetFile -and (Test-Path -LiteralPath $targetFile) -and $visitedIndexes.Add($targetFile)) {
+                    $indexQueue.Enqueue($targetFile)
+                }
+            }
+        }
+    }
 }
 
 foreach ($file in $markdownFiles) {

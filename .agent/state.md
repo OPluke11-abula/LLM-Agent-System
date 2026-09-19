@@ -12,11 +12,11 @@
 - Realtime Working Coordination: External surface optional; `.agent/` is durable canonical execution authority.
 
 ## Project Frontier
-- Current Phase: Phase 103 - Closed-Loop Experience Distillation & Factory Cockpit
-- Active Milestone: Phases 0 ~ 103 Completed & Certified (Autonomous Software Factory Swarm)
-- Current Frontier Ref: LAS-PHASE-103-COMPLETE
+- Current Phase: Phase 104 - Production Hardening, Architectural Deconstruction & Zero-Debt Release Certification
+- Active Milestone: Release v0.5.0 Certified (Enterprise Autonomous Software Factory Swarm & Zero-Debt Core)
+- Current Frontier Ref: LAS-V0.5.0-RELEASE-CERTIFIED
 - Coordination Checkpoint: Closed (結案)
-- Working Tree Policy: Strict Clean Tree on PR Merge (Verified)
+- Working Tree Policy: Strict Clean Tree on Release (Verified)
 
 ## Shared Workspace Registry
 - Entry Point: `AGENTS.md`

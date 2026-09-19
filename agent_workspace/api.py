@@ -259,8 +259,8 @@ async def metrics_middleware(request: Request, call_next):
             payload = verify_jwt(token)
             if payload and "tenant_id" in payload:
                 tenant_id = payload["tenant_id"]
-    except Exception:
-        pass
+    except (ValueError, KeyError, TypeError) as auth_err:
+        logger.debug("Failed to extract tenant from auth headers: %s", auth_err)
 
     try:
         response = await call_next(request)
@@ -273,8 +273,8 @@ async def metrics_middleware(request: Request, call_next):
                 from prometheus_client import Histogram
                 api_latency = _get_or_create_metric(Histogram, "las_api_response_latency_seconds", "API response latency in seconds", ["endpoint", "tenant_id"])
                 api_latency.labels(endpoint=endpoint, tenant_id=tenant_id).observe(elapsed)
-            except Exception:
-                pass
+            except (ImportError, ValueError, KeyError) as metric_err:
+                logger.debug("Failed to observe Prometheus latency metric: %s", metric_err)
         return response
     except Exception as exc:
         elapsed = time.perf_counter() - start
@@ -286,8 +286,8 @@ async def metrics_middleware(request: Request, call_next):
                 from prometheus_client import Histogram
                 api_latency = _get_or_create_metric(Histogram, "las_api_response_latency_seconds", "API response latency in seconds", ["endpoint", "tenant_id"])
                 api_latency.labels(endpoint=endpoint, tenant_id=tenant_id).observe(elapsed)
-            except Exception:
-                pass
+            except (ImportError, ValueError, KeyError) as metric_err:
+                logger.debug("Failed to observe Prometheus error metric: %s", metric_err)
         raise
 
 @app.middleware("http")

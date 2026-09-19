@@ -581,21 +581,23 @@ async def update_config(req: ConfigUpdateRequest) -> dict[str, Any]:
             key_name = "ANTHROPIC_API_KEY"
 
         if key_name:
-            # Update .env
-            env_vars = {}
-            if env_path.is_file():
-                with open(env_path, "r", encoding="utf-8") as f:
-                    for line in f:
-                        line = line.strip()
-                        if line and not line.startswith("#") and "=" in line:
-                            k, v = line.split("=", 1)
-                            env_vars[k.strip()] = v.strip()
+            def _update_env_file(path: Path, target_key: str, target_val: str) -> None:
+                env_vars: dict[str, str] = {}
+                if path.is_file():
+                    with open(path, "r", encoding="utf-8") as f:
+                        for line in f:
+                            line = line.strip()
+                            if line and not line.startswith("#") and "=" in line:
+                                k, v = line.split("=", 1)
+                                env_vars[k.strip()] = v.strip()
 
-            env_vars[key_name] = req.api_key.strip()
+                env_vars[target_key] = target_val
 
-            with open(env_path, "w", encoding="utf-8") as f:
-                for k, v in env_vars.items():
-                    f.write(f"{k}={v}\n")
+                with open(path, "w", encoding="utf-8") as f:
+                    for k, v in env_vars.items():
+                        f.write(f"{k}={v}\n")
+
+            await asyncio.to_thread(_update_env_file, env_path, key_name, req.api_key.strip())
 
             # Reload dotenv
             dotenv.load_dotenv(env_path, override=True)

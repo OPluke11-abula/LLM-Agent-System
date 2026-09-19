@@ -98,6 +98,16 @@ Goal: Distill self-healing patterns into Vector Memory OS and provide real-time 
 - [x] **103-03 Factory Production Stream Cockpit (Viewer)** (`viewer/src/components/SoftwareFactoryView.tsx`, `/factory` route, 0 React Doctor warnings).
 - [x] **103-04 End-to-End Golden Factory Benchmark Receipt** (`scripts/run_factory_benchmark.py`, `.agent/evidence/factory_golden_receipt.json`, 17/17 tests PASS).
 
+### Phase 104 - Production Hardening, Architectural Deconstruction & Release v0.5.0 Certification
+
+Status: `[x]` 4/4 complete.
+Goal: Pure deconstruction of UI surfaces to achieve 0 React Doctor warnings, backend monolithic decoupling of router and discussion room, async concurrency hardening, and Obsidian hierarchical indexing.
+
+- [x] **104-01 Frontend Pure Deconstruction**: React Doctor maintainability warnings reduced from 6 to 0 (`IntelligenceMapView`, `MissionControlView`, `SwarmGovernanceConsole`, `TopologyView` / `ConductorTracePanel.tsx`).
+- [x] **104-02 Backend Core Monolith Decoupling**: Extracted `agent_workspace/core/routing/` (registry, memory, template_watcher) and `agent_workspace/core/discussion/` (ids, consensus), slashing >860 LOC and CC by ~60 points with 100% backward compatibility.
+- [x] **104-03 Concurrency & Typed Failure Hardening**: Async non-blocking file I/O for credential updates via `asyncio.to_thread`; eliminated all bare `except Exception: pass` swallows in API and memory.
+- [x] **104-04 Knowledge Base & Obsidian Index Topology**: Implemented transitive hierarchical BFS linter in `lint_obsidian_vault.ps1`, eliminating all 249 unindexed skill warnings; confirmed 100% bitwise SHA-256 parity with external vault.
+
 ---
 
 Managed by the LAS Developer Agent. Keep completed history compact and pending work executable.

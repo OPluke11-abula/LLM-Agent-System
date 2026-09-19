@@ -12,6 +12,7 @@ import { ActivityLog } from "./ActivityLog";
 import { TOPOLOGY_EDGE_TYPES } from "./edges";
 import { TOPOLOGY_NODE_TYPES } from "./nodes";
 import { Button, MetricTile, ProgressBar, StatusBadge, Surface, Tooltip } from "./ui/primitives";
+import { ConductorTracePanel } from "./topology/ConductorTracePanel";
 import { buildTopologyFlow, formatDuration, NODE_COLORS, summarizeTopology } from "../utils/topologyUtils";
 import { logUiDiagnostic } from "../utils/logger";
 import type { ActivityLogEntry, ConductorTrace, Lang, TopologyEvent, TopologyNodeData, TopologyState } from "../types";
@@ -124,29 +125,6 @@ function JsonBlock({ value }: { value: unknown }) {
   );
 }
 
-function asMetricRecord(value: unknown): Record<string, any> {
-  return value && typeof value === "object" ? value as Record<string, any> : {};
-}
-
-function compactWorkflowRef(value?: string | null) {
-  if (!value) return "--";
-  const normalized = value.replace(/\\/g, "/");
-  const parts = normalized.split("/").filter(Boolean);
-  return parts.slice(-2).join("/") || normalized;
-}
-
-function safeCount(value: unknown) {
-  const count = Number(value ?? 0);
-  return Number.isFinite(count) && count > 0 ? count : 0;
-}
-
-function compactCodeGraphRef(path?: string | null, symbol?: string | null) {
-  const compactPath = compactWorkflowRef(path);
-  if (!symbol) return compactPath;
-  const compactSymbol = symbol.split(".").slice(-2).join(".");
-  return `${compactSymbol} @ ${compactPath}`;
-}
-
 function isConductorTrace(value: unknown): value is ConductorTrace {
   if (!value || typeof value !== "object") return false;
   const trace = value as Partial<ConductorTrace>;
@@ -163,289 +141,7 @@ function latestConductorTrace(session?: TopologyState) {
   return null;
 }
 
-function ConductorTracePanel({
-  trace,
-  telemetry,
-  ledger,
-  lang,
-}: {
-  trace: ConductorTrace | null;
-  telemetry: unknown;
-  ledger: { total_cost: number; cost_threshold: number } | null;
-  lang: Lang;
-}) {
-  const metric = asMetricRecord(telemetry);
-  const selectedModel = trace?.selected_models?.[0];
-  const verification = trace?.verification_strategy;
-  const latencyValue = metric.latency_ms ?? metric.latencyMs ?? metric.ws_latency_ms ?? metric.wsLatencyMs;
-  const latency = Number.isFinite(Number(latencyValue)) ? `${Number(latencyValue).toFixed(0)}ms` : "--";
-  const cost = ledger ? `$${ledger.total_cost.toFixed(5)}` : "--";
-  const costLimit = ledger?.cost_threshold ?? trace?.budget?.cost_limit ?? null;
-  const memoryHits = trace?.routing_memory_hints ?? [];
-  const verifierTone = verification?.approval_required ? "warning" : verification?.required ? "accent" : "success";
-  const workflowStage = trace?.workflow_stage_id || null;
-  const workflowCheckpoint = trace?.workflow_checkpoint_ref || null;
-  const evidenceRefs = trace?.evidence_refs ?? [];
-  const codeGraphRefs = trace?.code_graph_refs ?? [];
-  const impactSummary = trace?.impact_summary ?? null;
-  const changedFileCount = safeCount(impactSummary?.changed_file_count);
-  const impactedSymbolCount = safeCount(impactSummary?.impacted_symbol_count);
-  const linkedTestCount = safeCount(impactSummary?.linked_test_count);
-  const securityRelevantPaths = impactSummary?.security_relevant_paths ?? [];
-  const reviewGateTone = verification?.approval_required ? "warning" : evidenceRefs.length > 0 ? "success" : "neutral";
-  const reviewGateLabel = verification?.approval_required ? "review" : evidenceRefs.length > 0 ? "evidence" : "open";
-  const hasWorkflowSignal = Boolean(workflowStage || workflowCheckpoint || evidenceRefs.length > 0 || verification?.required);
-  const hasStructuralSignal = Boolean(codeGraphRefs.length > 0 || impactSummary);
-  const structuralTone = securityRelevantPaths.length > 0 ? "warning" : codeGraphRefs.length > 0 ? "success" : "neutral";
 
-  return (
-    <Surface className="group/conductor relative mx-3 mb-3 flex flex-col gap-2 p-3">
-      <div className="flex items-center justify-between">
-        <p className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: "var(--accent)" }}>
-          {lang === "zh" ? "Conductor Trace" : "Conductor Trace"}
-        </p>
-        <StatusBadge tone={trace ? "accent" : "warning"} className="text-[8px]">
-          {trace ? trace.execution_mode : "WAITING"}
-        </StatusBadge>
-      </div>
-
-      {trace ? (
-        <>
-          <div className="grid grid-cols-3 gap-1.5 text-center font-mono">
-            <MetricTile label={lang === "zh" ? "Memory" : "Memory"} value={memoryHits.length} tone={memoryHits.length > 0 ? "success" : "neutral"} className="p-1" />
-            <MetricTile label={lang === "zh" ? "Cost" : "Cost"} value={cost} tone="success" className="p-1" />
-            <MetricTile label={lang === "zh" ? "Latency" : "Latency"} value={latency} tone="accent" className="p-1" />
-          </div>
-
-          <div className="space-y-1.5 border-t pt-2 font-mono text-[8px]" style={{ borderColor: "var(--border-c)" }}>
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-bold uppercase tracking-[0.14em] t3">{lang === "zh" ? "Model" : "Model"}</span>
-              <span className="truncate text-right t1" title={selectedModel ? `${selectedModel.provider}/${selectedModel.model}` : ""}>
-                {selectedModel ? `${selectedModel.provider}/${selectedModel.model}` : "--"}
-              </span>
-            </div>
-            <p className="line-clamp-2 leading-relaxed t2">
-              {selectedModel?.selection_reason || trace.decision_rationale}
-            </p>
-          </div>
-
-          <div className="space-y-1.5 border-t pt-2" style={{ borderColor: "var(--border-c)" }}>
-            <div className="flex items-center justify-between">
-              <span className="text-[8px] font-bold uppercase tracking-[0.14em] t3">
-                {lang === "zh" ? "Verification" : "Verification"}
-              </span>
-              <StatusBadge tone={verifierTone} className="text-[8px]">
-                {verification?.kind ?? "none"}
-              </StatusBadge>
-            </div>
-            <p className="text-[8px] leading-relaxed t3">
-              {verification?.success_criteria?.[0] || (lang === "zh" ? "No verifier criteria published yet." : "No verifier criteria published yet.")}
-            </p>
-          </div>
-
-          <div className="space-y-1.5 border-t pt-2" style={{ borderColor: "var(--border-c)" }}>
-            <div className="flex items-center justify-between">
-              <span className="text-[8px] font-bold uppercase tracking-[0.14em] t3">
-                {lang === "zh" ? "Workflow Gate" : "Workflow Gate"}
-              </span>
-              <StatusBadge tone={reviewGateTone} className="text-[8px]">
-                {reviewGateLabel}
-              </StatusBadge>
-            </div>
-            <div className="grid grid-cols-3 gap-1.5 text-center font-mono">
-              <MetricTile
-                label={lang === "zh" ? "Stage" : "Stage"}
-                value={workflowStage ? workflowStage.split("-").slice(-1)[0] : "--"}
-                tone={workflowStage ? "accent" : "neutral"}
-                className="p-1"
-              />
-              <MetricTile
-                label={lang === "zh" ? "Checkpoint" : "Checkpoint"}
-                value={workflowCheckpoint ? "set" : "--"}
-                tone={workflowCheckpoint ? "success" : "neutral"}
-                className="p-1"
-              />
-              <MetricTile
-                label={lang === "zh" ? "Evidence" : "Evidence"}
-                value={evidenceRefs.length}
-                tone={evidenceRefs.length > 0 ? "success" : "neutral"}
-                className="p-1"
-              />
-            </div>
-            {hasWorkflowSignal ? (
-              <div className="space-y-1 font-mono text-[8px]">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="shrink-0 font-bold uppercase tracking-[0.14em] t3">{lang === "zh" ? "Stage" : "Stage"}</span>
-                  <span className="truncate text-right t2" title={workflowStage ?? ""}>{workflowStage ?? "--"}</span>
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="shrink-0 font-bold uppercase tracking-[0.14em] t3">{lang === "zh" ? "Checkpoint" : "Checkpoint"}</span>
-                  <span className="truncate text-right t2" title={workflowCheckpoint ?? ""}>{compactWorkflowRef(workflowCheckpoint)}</span>
-                </div>
-                <div className="max-h-14 space-y-1 overflow-y-auto pr-1">
-                  {evidenceRefs.slice(0, 3).map((ref) => (
-                    <div key={ref} className="flex items-center justify-between gap-2">
-                      <span className="shrink-0 font-bold uppercase tracking-[0.14em] t3">{lang === "zh" ? "Ref" : "Ref"}</span>
-                      <span className="truncate text-right t2" title={ref}>{compactWorkflowRef(ref)}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <p className="text-[8px] leading-relaxed t3">
-                {lang === "zh"
-                  ? "No workflow stage, checkpoint, or evidence refs published yet."
-                  : "No workflow stage, checkpoint, or evidence refs published yet."}
-              </p>
-            )}
-          </div>
-
-          <div
-            className="space-y-1.5 border-t pt-2"
-            style={{ borderColor: "var(--border-c)" }}
-            data-testid="structural-memory-surface"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-[8px] font-bold uppercase tracking-[0.14em] t3">
-                {lang === "zh" ? "Structural Memory" : "Structural Memory"}
-              </span>
-              <StatusBadge tone={structuralTone} className="text-[8px]">
-                {codeGraphRefs.length > 0 ? "graph" : "open"}
-              </StatusBadge>
-            </div>
-            <div className="grid grid-cols-4 gap-1.5 text-center font-mono">
-              <MetricTile
-                label={lang === "zh" ? "Refs" : "Refs"}
-                value={codeGraphRefs.length}
-                tone={codeGraphRefs.length > 0 ? "success" : "neutral"}
-                className="p-1"
-              />
-              <MetricTile
-                label={lang === "zh" ? "Files" : "Files"}
-                value={changedFileCount}
-                tone={changedFileCount > 0 ? "accent" : "neutral"}
-                className="p-1"
-              />
-              <MetricTile
-                label={lang === "zh" ? "Symbols" : "Symbols"}
-                value={impactedSymbolCount}
-                tone={impactedSymbolCount > 0 ? "accent" : "neutral"}
-                className="p-1"
-              />
-              <MetricTile
-                label={lang === "zh" ? "Tests" : "Tests"}
-                value={linkedTestCount}
-                tone={linkedTestCount > 0 ? "success" : "neutral"}
-                className="p-1"
-              />
-            </div>
-            {hasStructuralSignal ? (
-              <div className="space-y-1 font-mono text-[8px]">
-                {impactSummary?.summary && (
-                  <p className="line-clamp-2 leading-relaxed t3" title={impactSummary.summary}>
-                    {impactSummary.summary}
-                  </p>
-                )}
-                <div className="max-h-20 space-y-1 overflow-y-auto pr-1">
-                  {codeGraphRefs.slice(0, 3).map((ref) => (
-                    <div key={`ref-${ref.path}-${ref.ref_type ?? "ref"}-${ref.symbol ?? "sym"}`} className="flex items-center justify-between gap-2">
-                      <span className="shrink-0 font-bold uppercase tracking-[0.14em] t3">
-                        {ref.ref_type || "ref"}
-                      </span>
-                      <span
-                        className="truncate text-right t2"
-                        title={ref.qualified_name || ref.symbol || ref.path}
-                      >
-                        {compactCodeGraphRef(ref.path, ref.symbol)}
-                      </span>
-                    </div>
-                  ))}
-                  {securityRelevantPaths.slice(0, 3).map((path) => (
-                    <div key={path} className="flex items-center justify-between gap-2">
-                      <span className="shrink-0 font-bold uppercase tracking-[0.14em] t3">
-                        {lang === "zh" ? "Risk" : "Risk"}
-                      </span>
-                      <span className="truncate text-right t2" title={path}>
-                        {compactWorkflowRef(path)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <p className="text-[8px] leading-relaxed t3">
-                {lang === "zh"
-                  ? "No code graph refs or impact summary published yet."
-                  : "No code graph refs or impact summary published yet."}
-              </p>
-            )}
-          </div>
-
-          <div className="space-y-1.5 border-t pt-2" style={{ borderColor: "var(--border-c)" }}>
-            <span className="text-[8px] font-bold uppercase tracking-[0.14em] t3">
-              {lang === "zh" ? "Task Breakdown" : "Task Breakdown"}
-            </span>
-            <div className="max-h-20 space-y-1 overflow-y-auto pr-1">
-              {trace.subtasks.slice(0, 4).map((subtask) => (
-                <div key={subtask.id} className="flex items-start justify-between gap-2 font-mono text-[8px]">
-                  <span className="min-w-0 flex-1 truncate t2" title={subtask.description || subtask.title}>
-                    {subtask.title}
-                  </span>
-                  <span className="shrink-0 t3">{subtask.role_id || "worker"}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-1.5 border-t pt-2" style={{ borderColor: "var(--border-c)" }}>
-            <div className="flex items-center justify-between font-mono text-[8px]">
-              <span className="font-bold uppercase tracking-[0.14em] t3">{lang === "zh" ? "Budget" : "Budget"}</span>
-              <span className="t2">
-                {trace.budget?.max_iterations ?? "--"} loops / {trace.budget?.max_tool_calls ?? "--"} tools
-              </span>
-            </div>
-            {costLimit !== null && (
-              <ProgressBar
-                value={ledger ? (ledger.total_cost / Math.max(costLimit, 0.00001)) * 100 : 0}
-                tone={ledger && ledger.total_cost > costLimit * 0.8 ? "warning" : "success"}
-              />
-            )}
-          </div>
-
-          {memoryHits.length > 0 && (
-            <div className="space-y-1.5 border-t pt-2" style={{ borderColor: "var(--border-c)" }}>
-              <span className="text-[8px] font-bold uppercase tracking-[0.14em] t3">
-                {lang === "zh" ? "Memory Hits" : "Memory Hits"}
-              </span>
-              <div className="max-h-20 space-y-1 overflow-y-auto pr-1 font-mono text-[8px]">
-                {memoryHits.slice(0, 3).map((hint) => (
-                  <div key={hint.record_id || `${hint.task_type}-${hint.latency_ms}`} className="flex items-center justify-between gap-2">
-                    <span className="truncate t2">{hint.task_type} / {hint.execution_mode}</span>
-                    <span style={{ color: hint.success ? "var(--success)" : "var(--danger)" }}>
-                      {hint.success ? "ok" : hint.error_type || "fail"} {hint.latency_ms}ms
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </>
-      ) : (
-        <div className="rounded border p-3 text-[9px] leading-relaxed t3" style={{ background: "var(--bg-panel)", borderColor: "var(--border-c)" }}>
-          {lang === "zh"
-            ? "Waiting for a routed session to publish conductor task breakdown, model rationale, memory hints, verification, cost, and latency."
-            : "Waiting for a routed session to publish conductor task breakdown, model rationale, memory hints, verification, cost, and latency."}
-        </div>
-      )}
-
-      <Tooltip>
-        {lang === "zh"
-          ? "Conductor trace: shows the telemetry-only route plan emitted before provider execution."
-          : "Conductor trace: shows the telemetry-only route plan emitted before provider execution."}
-      </Tooltip>
-    </Surface>
-  );
-}
 
 function SessionCanvas({ state, onOpenNode }: SessionCanvasProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState<TopologyNodeData>([]);
@@ -1226,6 +922,85 @@ function TelemetryControl({ controller }: { readonly controller: TopologyControl
   );
 }
 
+function ActiveRoutesList({ activeRoutes, lang }: { activeRoutes: any[]; lang: Lang }) {
+  if (activeRoutes.length === 0) {
+    return (
+      <div className="py-1 text-center text-[8px] t3">
+        {lang === "zh" ? "無活躍節點負載" : "No active node dispatches"}
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {activeRoutes.map((route: any) => {
+        const avgLat =
+          route.latency_history.length > 0
+            ? (route.latency_history.reduce((a: number, b: number) => a + b, 0) /
+                route.latency_history.length) *
+              1000
+            : 0;
+
+        return (
+          <div
+            key={route.node_id}
+            className="flex flex-col gap-1 border-t pt-1.5 first:border-0 first:pt-0"
+            style={{ borderColor: "var(--border-c)" }}
+          >
+            <div className="flex items-center justify-between text-[8px]">
+              <span className="font-bold t2">{route.node_id}</span>
+              <span className="text-[8px] font-bold t3">
+                {route.active_load} active / {Math.round(avgLat)}ms
+              </span>
+            </div>
+            <ProgressBar
+              value={Math.min(100, route.active_load > 0 ? route.active_load * 25 : 10)}
+              tone={route.active_load > 0 ? "warning" : "success"}
+            />
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+function PrunedHistoryList({
+  prunedHistory,
+  lang,
+}: {
+  prunedHistory?: any[];
+  lang: Lang;
+}) {
+  if (!prunedHistory || prunedHistory.length === 0) {
+    return (
+      <div className="py-1 text-center text-[8px] t3">
+        {lang === "zh" ? "無已修剪路徑" : "No paths pruned yet"}
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-h-20 space-y-1.5 overflow-y-auto font-mono text-[8px] scrollbar-thin">
+      {prunedHistory.slice().reverse().map((path: any) => (
+        <div
+          key={`prune-${path.id ?? `${path.node_id}-${path.pruned_at}`}`}
+          className="flex flex-col rounded border p-1 t3"
+          style={{
+            background: "var(--danger-bg)",
+            borderColor: "color-mix(in srgb, var(--danger) 28%, transparent)",
+          }}
+        >
+          <div className="flex items-center justify-between text-[7px] font-bold">
+            <span style={{ color: "var(--danger)" }}>{path.node_id}</span>
+            <span className="t3">{new Date(path.pruned_at).toLocaleTimeString()}</span>
+          </div>
+          <span className="truncate t3">{path.reason || "pruned"}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function RouterControl({ controller }: { readonly controller: TopologyController }) {
   const { handlePrune, lang, pruning, routerStatus } = controller;
   const activeRoutes = routerStatus?.routes?.filter((route: any) => route.status === "active") ?? [];
@@ -1243,51 +1018,13 @@ function RouterControl({ controller }: { readonly controller: TopologyController
         <span className="text-[8px] font-bold uppercase tracking-[0.15em] t3">
           {lang === "zh" ? "活躍節點負載" : "Active Node Load"}
         </span>
-        {activeRoutes.length > 0 ? (
-          activeRoutes.map((route: any) => {
-            const avgLat = route.latency_history.length > 0
-              ? (route.latency_history.reduce((a: number, b: number) => a + b, 0) / route.latency_history.length) * 1000
-              : 0;
-
-            return (
-              <div key={route.node_id} className="flex flex-col gap-1 border-t pt-1.5 first:border-0 first:pt-0" style={{ borderColor: "var(--border-c)" }}>
-                <div className="flex items-center justify-between text-[8px]">
-                  <span className="font-bold t2">{route.node_id}</span>
-                  <span className="text-[8px] font-bold t3">
-                    {route.active_load} active / {Math.round(avgLat)}ms
-                  </span>
-                </div>
-                <ProgressBar value={Math.min(100, route.active_load > 0 ? route.active_load * 25 : 10)} tone={route.active_load > 0 ? "warning" : "success"} />
-              </div>
-            );
-          })
-        ) : (
-          <div className="py-1 text-center text-[8px] t3">
-            {lang === "zh" ? "無活躍節點負載" : "No active node dispatches"}
-          </div>
-        )}
+        <ActiveRoutesList activeRoutes={activeRoutes} lang={lang} />
 
         <div className="mt-1 flex flex-col gap-1.5 border-t pt-1.5" style={{ borderColor: "var(--border-c)" }}>
           <span className="text-[8px] font-bold uppercase tracking-[0.15em]" style={{ color: "var(--warning)" }}>
             {lang === "zh" ? "被修剪路由路徑" : "Pruned Path History"}
           </span>
-          <div className="max-h-20 space-y-1.5 overflow-y-auto font-mono text-[8px] scrollbar-thin">
-            {routerStatus?.pruned_history?.length ? (
-              routerStatus.pruned_history.slice().reverse().map((path: any) => (
-                <div key={`prune-${path.id ?? `${path.node_id}-${path.pruned_at}`}`} className="flex flex-col rounded border p-1 t3" style={{ background: "var(--danger-bg)", borderColor: "color-mix(in srgb, var(--danger) 28%, transparent)" }}>
-                  <div className="flex items-center justify-between text-[7px] font-bold">
-                    <span style={{ color: "var(--danger)" }}>{path.node_id}</span>
-                    <span className="t3">{new Date(path.pruned_at).toLocaleTimeString()}</span>
-                  </div>
-                  <span className="truncate t3">{path.reason || "pruned"}</span>
-                </div>
-              ))
-            ) : (
-              <div className="py-1 text-center text-[8px] t3">
-                {lang === "zh" ? "無已修剪路徑" : "No paths pruned yet"}
-              </div>
-            )}
-          </div>
+          <PrunedHistoryList prunedHistory={routerStatus?.pruned_history} lang={lang} />
         </div>
       </div>
 
@@ -1468,6 +1205,152 @@ function TopologyCanvasArea({ controller }: { readonly controller: TopologyContr
   );
 }
 
+function HitlGateApprovalCard({
+  sessionId,
+  resolving,
+  handleResolveApproval,
+}: {
+  sessionId: string;
+  resolving: string | null;
+  handleResolveApproval: (sessionId: string, approved: boolean) => void;
+}) {
+  return (
+    <Surface
+      className="space-y-3 p-3"
+      style={{
+        borderColor: "color-mix(in srgb, var(--warning) 30%, transparent)",
+        background: "var(--warning-bg)",
+      }}
+    >
+      <p
+        className="text-[10px] font-bold uppercase tracking-[0.2em]"
+        style={{ color: "var(--warning)" }}
+      >
+        Human-in-the-Loop Required
+      </p>
+      <div className="flex gap-2">
+        <Button
+          type="button"
+          disabled={resolving !== null}
+          onClick={() => handleResolveApproval(sessionId, true)}
+          variant="warning"
+          className="flex-1"
+        >
+          {resolving === "approving" ? "..." : "Approve"}
+        </Button>
+        <Button
+          type="button"
+          disabled={resolving !== null}
+          onClick={() => handleResolveApproval(sessionId, false)}
+          className="flex-1"
+        >
+          {resolving === "rejecting" ? "..." : "Reject"}
+        </Button>
+      </div>
+    </Surface>
+  );
+}
+
+function NodePayloadJsonSection({
+  copy,
+  payload,
+}: {
+  copy: typeof COPY[Lang];
+  payload: any;
+}) {
+  return (
+    <>
+      <div>
+        <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] t3">{copy.input}</p>
+        <JsonBlock value={payload?.input} />
+      </div>
+      <div>
+        <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] t3">{copy.output}</p>
+        <JsonBlock value={payload?.output} />
+      </div>
+      <div>
+        <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] t3">{copy.notes}</p>
+        <p
+          className="rounded-lg border p-3 text-xs t2"
+          style={{ background: "var(--bg-card)", borderColor: "var(--border-c)" }}
+        >
+          {payload?.human_notes || "-"}
+        </p>
+      </div>
+    </>
+  );
+}
+
+function NodeInspectorContent({
+  selectedNode,
+  resolving,
+  handleResolveApproval,
+  copy,
+}: {
+  selectedNode: TopologyEvent;
+  resolving: string | null;
+  handleResolveApproval: (sessionId: string, approved: boolean) => void;
+  copy: typeof COPY[Lang];
+}) {
+  const isPendingApproval =
+    selectedNode.status === "awaiting_approval" ||
+    selectedNode.status === "review" ||
+    selectedNode.node_type === "hitl_gate";
+
+  const isDone = selectedNode.status === "done" || selectedNode.status === "completed";
+  const nodeTitle = selectedNode.title || selectedNode.payload?.name || selectedNode.id || selectedNode.node_id;
+  const nodeDesc = selectedNode.description || selectedNode.payload?.description || selectedNode.status;
+
+  return (
+    <div className="h-full space-y-4 overflow-y-auto p-4 pb-20">
+      <div>
+        <div className="flex items-center justify-between">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] t3">{selectedNode.node_type}</p>
+          {selectedNode.assigned_agent && (
+            <StatusBadge tone="accent" className="text-[9px]">
+              @{selectedNode.assigned_agent}
+            </StatusBadge>
+          )}
+        </div>
+        <h3 className="mt-1 text-lg font-black t1">{nodeTitle}</h3>
+        <p className="mt-1 text-xs t2">{nodeDesc}</p>
+      </div>
+
+      {isPendingApproval && (
+        <HitlGateApprovalCard
+          sessionId={selectedNode.session_id}
+          resolving={resolving}
+          handleResolveApproval={handleResolveApproval}
+        />
+      )}
+
+      <div className="grid grid-cols-2 gap-2">
+        <div className="rounded-lg border p-2" style={{ background: "var(--bg-card)", borderColor: "var(--border-c)" }}>
+          <p className="text-[10px] font-bold t3">Status</p>
+          <p className="text-xs font-black t1">{selectedNode.status}</p>
+        </div>
+        <div className="rounded-lg border p-2" style={{ background: "var(--bg-card)", borderColor: "var(--border-c)" }}>
+          <p className="text-[10px] font-bold t3">Duration</p>
+          <p className="text-xs font-black t1">{formatDuration(selectedNode.payload?.duration_ms)}</p>
+        </div>
+      </div>
+
+      {isDone && selectedNode.result_summary && (
+        <div>
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: "var(--success)" }}>
+            Result Summary
+          </p>
+          <p className="rounded-lg border p-3 text-xs t2" style={{ background: "var(--bg-card)", borderColor: "var(--border-c)" }}>
+            {selectedNode.result_summary}
+          </p>
+        </div>
+      )}
+
+      <NodePayloadJsonSection copy={copy} payload={selectedNode.payload} />
+    </div>
+  );
+}
+
 function TopologyInspectorRail({ controller }: { readonly controller: TopologyController }) {
   const { activityEntries, copy, handleResolveApproval, lang, onClearActivityLog, resolving, selectedNode } = controller;
 
@@ -1479,79 +1362,12 @@ function TopologyInspectorRail({ controller }: { readonly controller: TopologyCo
           <p className="mt-1 text-[10px] font-mono t3">{selectedNode?.node_id || copy.noNode}</p>
         </div>
         {selectedNode ? (
-          <div className="h-full space-y-4 overflow-y-auto p-4 pb-20">
-            <div>
-              <div className="flex items-center justify-between">
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] t3">{selectedNode.node_type}</p>
-                {selectedNode.assigned_agent && (
-                  <StatusBadge tone="accent" className="text-[9px]">
-                    @{selectedNode.assigned_agent}
-                  </StatusBadge>
-                )}
-              </div>
-              <h3 className="mt-1 text-lg font-black t1">{selectedNode.title || selectedNode.payload?.name || selectedNode.id || selectedNode.node_id}</h3>
-              <p className="mt-1 text-xs t2">{selectedNode.description || selectedNode.payload?.description || selectedNode.status}</p>
-            </div>
-
-            {(selectedNode.status === "awaiting_approval" || selectedNode.status === "review" || selectedNode.node_type === "hitl_gate") && (
-              <Surface className="space-y-3 p-3" style={{ borderColor: "color-mix(in srgb, var(--warning) 30%, transparent)", background: "var(--warning-bg)" }}>
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: "var(--warning)" }}>Human-in-the-Loop Required</p>
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    disabled={resolving !== null}
-                    onClick={() => handleResolveApproval(selectedNode.session_id, true)}
-                    variant="warning"
-                    className="flex-1"
-                  >
-                    {resolving === "approving" ? "..." : "Approve"}
-                  </Button>
-                  <Button
-                    type="button"
-                    disabled={resolving !== null}
-                    onClick={() => handleResolveApproval(selectedNode.session_id, false)}
-                    className="flex-1"
-                  >
-                    {resolving === "rejecting" ? "..." : "Reject"}
-                  </Button>
-                </div>
-              </Surface>
-            )}
-
-            <div className="grid grid-cols-2 gap-2">
-              <div className="rounded-lg border p-2" style={{ background: "var(--bg-card)", borderColor: "var(--border-c)" }}>
-                <p className="text-[10px] font-bold t3">Status</p>
-                <p className="text-xs font-black t1">{selectedNode.status}</p>
-              </div>
-              <div className="rounded-lg border p-2" style={{ background: "var(--bg-card)", borderColor: "var(--border-c)" }}>
-                <p className="text-[10px] font-bold t3">Duration</p>
-                <p className="text-xs font-black t1">{formatDuration(selectedNode.payload?.duration_ms)}</p>
-              </div>
-            </div>
-
-            {(selectedNode.status === "done" || selectedNode.status === "completed") && selectedNode.result_summary && (
-              <div>
-                <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: "var(--success)" }}>Result Summary</p>
-                <p className="rounded-lg border p-3 text-xs t2" style={{ background: "var(--bg-card)", borderColor: "var(--border-c)" }}>
-                  {selectedNode.result_summary}
-                </p>
-              </div>
-            )}
-            <div>
-              <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] t3">{copy.input}</p>
-              <JsonBlock value={selectedNode.payload?.input} />
-            </div>
-            <div>
-              <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] t3">{copy.output}</p>
-              <JsonBlock value={selectedNode.payload?.output} />
-            </div>
-            <div>
-              <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] t3">{copy.notes}</p>
-              <p className="rounded-lg border p-3 text-xs t2" style={{ background: "var(--bg-card)", borderColor: "var(--border-c)" }}>
-                {selectedNode.payload?.human_notes || "-"}
-              </p>
-            </div>
-          </div>
+          <NodeInspectorContent
+            selectedNode={selectedNode}
+            resolving={resolving}
+            handleResolveApproval={handleResolveApproval}
+            copy={copy}
+          />
         ) : (
           <div className="flex h-64 items-center justify-center p-6 text-center text-xs font-semibold t3">{copy.noNode}</div>
         )}

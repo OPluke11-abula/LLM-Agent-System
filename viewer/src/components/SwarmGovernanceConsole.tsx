@@ -739,6 +739,266 @@ function statusLabel(tone: CockpitTone) {
   return "OBSERVE";
 }
 
+function computeGovernanceCockpitSnapshot({
+  sessions,
+  peers,
+  billing,
+  mtlsStatus,
+  countdownSeconds,
+  alerts,
+  revokedCertificates,
+  proof,
+  validation,
+  healthLogs,
+}: {
+  sessions: SwarmSession[];
+  peers: PeerNode[];
+  billing: BillingStatus;
+  mtlsStatus: MTLSTunnelStatus;
+  countdownSeconds: number;
+  alerts: GatewayAlert[];
+  revokedCertificates: RevokedCertificate[];
+  proof: AuditProof | null;
+  validation: ProofValidation | null;
+  healthLogs: HealthLog[];
+}) {
+  const checkpoints = checkpointCompletion(sessions);
+  const riskyPeers = peers.filter(hasRiskyPeer);
+  const mtlsStatusValue = normalizeMTLSStatus(mtlsStatus.status, countdownSeconds);
+
+  let proofTone: CockpitTone = "neutral";
+  if (validation) {
+    proofTone = validation.valid ? "success" : "danger";
+  } else if (proof) {
+    proofTone = "warning";
+  }
+
+  let consensusTone: CockpitTone = "warning";
+  if (sessions.some((session) => session.status === "blocked" || session.status === "failed")) {
+    consensusTone = "danger";
+  } else if (checkpoints.percent >= 75) {
+    consensusTone = "success";
+  }
+
+  let tunnelTone: CockpitTone = "success";
+  if (
+    mtlsStatusValue === "expired" ||
+    mtlsStatusValue === "revoked" ||
+    riskyPeers.some((peer) => peer.status.toLowerCase().includes("signature"))
+  ) {
+    tunnelTone = "danger";
+  } else if (
+    mtlsStatusValue === "expiring" ||
+    riskyPeers.length > 0 ||
+    alerts.length > 0 ||
+    revokedCertificates.length > 0
+  ) {
+    tunnelTone = "warning";
+  }
+
+  let overallTone: CockpitTone = "success";
+  if ([proofTone, tunnelTone, consensusTone].includes("danger")) {
+    overallTone = "danger";
+  } else if ([proofTone, tunnelTone, consensusTone].includes("warning")) {
+    overallTone = "warning";
+  }
+
+  const gates: Array<{ label: string; tone: CockpitTone; detail: string }> = [
+    {
+      label: "Proof-of-Consensus",
+      tone: consensusTone,
+      detail: `${checkpoints.completed}/${checkpoints.total} checkpoints complete across ${sessions.length} active sessions.`,
+    },
+    {
+      label: "mTLS tunnel trust",
+      tone: tunnelTone,
+      detail: `${riskyPeers.length} peers need review; cert state is ${mtlsStatusValue}.`,
+    },
+    {
+      label: "Audit proof path",
+      tone: proofTone,
+      detail: validation
+        ? validation.message
+        : proof
+          ? `${proof.merkleProof.length} Merkle steps loaded.`
+          : "No proof loaded yet.",
+    },
+    {
+      label: "Cost safety policy",
+      tone: billing.policy === "strict_limit" ? "success" : "warning",
+      detail:
+        billing.policy === "strict_limit"
+          ? "Strict quota blocks runaway spend."
+          : "Auto-downscale is active; review high-risk operations before escalation.",
+    },
+  ];
+
+  const findings = [
+    ...alerts.map((alert) => ({
+      id: alert.id,
+      tone: alert.tone as CockpitTone,
+      label: alert.peerId,
+      detail: alert.message,
+    })),
+    ...revokedCertificates.slice(0, 3).map((certificate) => ({
+      id: certificate.certSha,
+      tone: "warning" as CockpitTone,
+      label: "Revoked certificate",
+      detail: truncateFingerprint(certificate.certSha),
+    })),
+    ...(validation && !validation.valid
+      ? [
+          {
+            id: "proof-validation",
+            tone: "danger" as CockpitTone,
+            label: "Proof rejected",
+            detail: validation.message,
+          },
+        ]
+      : []),
+  ];
+
+  const timeline = proof?.merkleProof.length
+    ? proof.merkleProof.map((step, index) => ({
+        id: `${step.hash}-${index}`,
+        label: `${index + 1}. ${step.position}`,
+        detail: step.hash,
+      }))
+    : healthLogs.slice(0, 4).map((log) => ({
+        id: log.id,
+        label: log.timestamp,
+        detail: log.message,
+      }));
+
+  return {
+    overallTone,
+    proofTone,
+    gates,
+    findings,
+    timeline,
+  };
+}
+
+function ApprovalGatesSurface({
+  overallTone,
+  gates,
+}: {
+  overallTone: CockpitTone;
+  gates: Array<{ label: string; tone: CockpitTone; detail: string }>;
+}) {
+  return (
+    <Surface className="governance-risk-panel p-3">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[10px] font-bold uppercase tracking-[0.14em] t3">Approval Gates</p>
+        <StatusBadge tone={overallTone}>{statusLabel(overallTone)}</StatusBadge>
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        {gates.map((gate) => (
+          <div key={gate.label} className="governance-gate-card rounded-lg border p-3">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-xs font-semibold t1">{gate.label}</h3>
+              <StatusBadge tone={gate.tone}>{statusLabel(gate.tone)}</StatusBadge>
+            </div>
+            <p className="mt-2 text-[11px] leading-relaxed t2">{gate.detail}</p>
+          </div>
+        ))}
+      </div>
+    </Surface>
+  );
+}
+
+function AuditTimelineSurface({
+  timeline,
+  noDataText,
+}: {
+  timeline: Array<{ id: string; label: string; detail: string }>;
+  noDataText: string;
+}) {
+  return (
+    <Surface className="p-3">
+      <p className="text-[10px] font-bold uppercase tracking-[0.14em] t3">Audit Ledger Timeline</p>
+      <div className="mt-3 space-y-2">
+        {timeline.length > 0 ? (
+          timeline.map((item) => (
+            <div key={item.id} className="governance-timeline-row rounded-lg border px-3 py-2">
+              <p className="font-mono text-[10px] t3">{item.label}</p>
+              <p className="mt-1 truncate text-xs t2" title={item.detail}>
+                {item.detail}
+              </p>
+            </div>
+          ))
+        ) : (
+          <p className="text-sm t3">{noDataText}</p>
+        )}
+      </div>
+    </Surface>
+  );
+}
+
+function SecurityFindingsSurface({
+  findings,
+}: {
+  findings: Array<{ id: string; tone: CockpitTone; label: string; detail: string }>;
+}) {
+  return (
+    <Surface className="p-3">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[10px] font-bold uppercase tracking-[0.14em] t3">Security Findings</p>
+        <StatusBadge tone={findings.length > 0 ? "warning" : "success"}>
+          {findings.length}
+        </StatusBadge>
+      </div>
+      <div className="mt-3 space-y-2">
+        {findings.length > 0 ? (
+          findings.slice(0, 6).map((finding) => (
+            <div key={finding.id} className="governance-finding-row rounded-lg border px-3 py-2">
+              <div className="flex items-center justify-between gap-2">
+                <p className="truncate text-xs font-semibold t1">{finding.label}</p>
+                <StatusBadge tone={finding.tone}>{statusLabel(finding.tone)}</StatusBadge>
+              </div>
+              <p className="mt-1 text-[11px] leading-relaxed t2">{finding.detail}</p>
+            </div>
+          ))
+        ) : (
+          <p className="text-sm t3">No active findings.</p>
+        )}
+      </div>
+    </Surface>
+  );
+}
+
+function ProofVerificationSurface({
+  proof,
+  proofTone,
+}: {
+  proof: AuditProof | null;
+  proofTone: CockpitTone;
+}) {
+  return (
+    <Surface className="p-3">
+      <p className="text-[10px] font-bold uppercase tracking-[0.14em] t3">Proof Verification Path</p>
+      <div className="mt-3 grid gap-2">
+        <div className="governance-proof-card rounded-lg border p-3">
+          <div className="flex items-center justify-between gap-3">
+            <p className="truncate font-mono text-[11px] t1" title={proof?.eventId ?? "no event"}>
+              {proof?.eventId ?? "No proof event loaded"}
+            </p>
+            <StatusBadge tone={proofTone}>{statusLabel(proofTone)}</StatusBadge>
+          </div>
+          <p className="mt-2 truncate font-mono text-[10px] t3" title={proof?.root ?? "no root"}>
+            {proof?.root ?? "No Merkle root available"}
+          </p>
+          <p className="mt-2 text-[11px] leading-relaxed t2">
+            {proof
+              ? `${proof.merkleProof.length} Merkle proof steps and ${proof.zkKeys.length} ZK key entries are ready for inspection.`
+              : "Load an audit event to inspect Merkle and ZK proof evidence."}
+          </p>
+        </div>
+      </div>
+    </Surface>
+  );
+}
+
 function GovernanceSecurityCockpit({
   copy,
   nodes,
@@ -766,63 +1026,18 @@ function GovernanceSecurityCockpit({
   validation: ProofValidation | null;
   healthLogs: HealthLog[];
 }) {
-  const checkpoints = checkpointCompletion(sessions);
-  const riskyPeers = peers.filter(hasRiskyPeer);
-  const mtlsStatusValue = normalizeMTLSStatus(mtlsStatus.status, countdownSeconds);
-  const proofTone: CockpitTone = validation ? (validation.valid ? "success" : "danger") : proof ? "warning" : "neutral";
-  const consensusTone: CockpitTone = sessions.some((session) => session.status === "blocked" || session.status === "failed")
-    ? "danger"
-    : checkpoints.percent >= 75
-      ? "success"
-      : "warning";
-  const tunnelTone: CockpitTone = mtlsStatusValue === "expired" || mtlsStatusValue === "revoked" || riskyPeers.some((peer) => peer.status.toLowerCase().includes("signature"))
-    ? "danger"
-    : mtlsStatusValue === "expiring" || riskyPeers.length > 0 || alerts.length > 0 || revokedCertificates.length > 0
-      ? "warning"
-      : "success";
-  const overallTone: CockpitTone = [proofTone, tunnelTone, consensusTone].includes("danger")
-    ? "danger"
-    : [proofTone, tunnelTone, consensusTone].includes("warning")
-      ? "warning"
-      : "success";
-
-  const gates: Array<{ label: string; tone: CockpitTone; detail: string }> = [
-    {
-      label: "Proof-of-Consensus",
-      tone: consensusTone,
-      detail: `${checkpoints.completed}/${checkpoints.total} checkpoints complete across ${sessions.length} active session${sessions.length === 1 ? "" : "s"}.`,
-    },
-    {
-      label: "mTLS tunnel trust",
-      tone: tunnelTone,
-      detail: `${riskyPeers.length} peer${riskyPeers.length === 1 ? "" : "s"} need review; cert state is ${mtlsStatusValue}.`,
-    },
-    {
-      label: "Audit proof path",
-      tone: proofTone,
-      detail: validation ? validation.message : proof ? `${proof.merkleProof.length} Merkle step${proof.merkleProof.length === 1 ? "" : "s"} loaded.` : "No proof loaded yet.",
-    },
-    {
-      label: "Cost safety policy",
-      tone: billing.policy === "strict_limit" ? "success" : "warning",
-      detail: billing.policy === "strict_limit" ? "Strict quota blocks runaway spend." : "Auto-downscale is active; review high-risk operations before escalation.",
-    },
-  ];
-
-  const findings = [
-    ...alerts.map((alert) => ({ id: alert.id, tone: alert.tone as CockpitTone, label: alert.peerId, detail: alert.message })),
-    ...revokedCertificates.slice(0, 3).map((certificate) => ({
-      id: certificate.certSha,
-      tone: "warning" as CockpitTone,
-      label: "Revoked certificate",
-      detail: truncateFingerprint(certificate.certSha),
-    })),
-    ...(validation && !validation.valid ? [{ id: "proof-validation", tone: "danger" as CockpitTone, label: "Proof rejected", detail: validation.message }] : []),
-  ];
-
-  const timeline = proof?.merkleProof.length
-    ? proof.merkleProof.map((step, index) => ({ id: `${step.hash}-${index}`, label: `${index + 1}. ${step.position}`, detail: step.hash }))
-    : healthLogs.slice(0, 4).map((log) => ({ id: log.id, label: log.timestamp, detail: log.message }));
+  const { overallTone, proofTone, gates, findings, timeline } = computeGovernanceCockpitSnapshot({
+    sessions,
+    peers,
+    billing,
+    mtlsStatus,
+    countdownSeconds,
+    alerts,
+    revokedCertificates,
+    proof,
+    validation,
+    healthLogs,
+  });
 
   return (
     <Surface as="section" elevated className="governance-cockpit flex flex-col gap-4 p-4" data-testid="governance-security-cockpit">
@@ -843,69 +1058,10 @@ function GovernanceSecurityCockpit({
       </div>
 
       <div className="governance-cockpit-grid">
-        <Surface className="governance-risk-panel p-3">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-[10px] font-bold uppercase tracking-[0.14em] t3">Approval Gates</p>
-            <StatusBadge tone={overallTone}>{statusLabel(overallTone)}</StatusBadge>
-          </div>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            {gates.map((gate) => (
-              <div key={gate.label} className="governance-gate-card rounded-lg border p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-xs font-semibold t1">{gate.label}</h3>
-                  <StatusBadge tone={gate.tone}>{statusLabel(gate.tone)}</StatusBadge>
-                </div>
-                <p className="mt-2 text-[11px] leading-relaxed t2">{gate.detail}</p>
-              </div>
-            ))}
-          </div>
-        </Surface>
-
-        <Surface className="p-3">
-          <p className="text-[10px] font-bold uppercase tracking-[0.14em] t3">Audit Ledger Timeline</p>
-          <div className="mt-3 space-y-2">
-            {timeline.length > 0 ? timeline.map((item) => (
-              <div key={item.id} className="governance-timeline-row rounded-lg border px-3 py-2">
-                <p className="font-mono text-[10px] t3">{item.label}</p>
-                <p className="mt-1 truncate text-xs t2" title={item.detail}>{item.detail}</p>
-              </div>
-            )) : <p className="text-sm t3">{copy.noData}</p>}
-          </div>
-        </Surface>
-
-        <Surface className="p-3">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-[10px] font-bold uppercase tracking-[0.14em] t3">Security Findings</p>
-            <StatusBadge tone={findings.length > 0 ? "warning" : "success"}>{findings.length}</StatusBadge>
-          </div>
-          <div className="mt-3 space-y-2">
-            {findings.length > 0 ? findings.slice(0, 6).map((finding) => (
-              <div key={finding.id} className="governance-finding-row rounded-lg border px-3 py-2">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="truncate text-xs font-semibold t1">{finding.label}</p>
-                  <StatusBadge tone={finding.tone}>{statusLabel(finding.tone)}</StatusBadge>
-                </div>
-                <p className="mt-1 text-[11px] leading-relaxed t2">{finding.detail}</p>
-              </div>
-            )) : <p className="text-sm t3">No active findings.</p>}
-          </div>
-        </Surface>
-
-        <Surface className="p-3">
-          <p className="text-[10px] font-bold uppercase tracking-[0.14em] t3">Proof Verification Path</p>
-          <div className="mt-3 grid gap-2">
-            <div className="governance-proof-card rounded-lg border p-3">
-              <div className="flex items-center justify-between gap-3">
-                <p className="truncate font-mono text-[11px] t1" title={proof?.eventId ?? "no event"}>{proof?.eventId ?? "No proof event loaded"}</p>
-                <StatusBadge tone={proofTone}>{statusLabel(proofTone)}</StatusBadge>
-              </div>
-              <p className="mt-2 truncate font-mono text-[10px] t3" title={proof?.root ?? "no root"}>{proof?.root ?? "No Merkle root available"}</p>
-              <p className="mt-2 text-[11px] leading-relaxed t2">
-                {proof ? `${proof.merkleProof.length} Merkle proof steps and ${proof.zkKeys.length} ZK key entries are ready for inspection.` : "Load an audit event to inspect Merkle and ZK proof evidence."}
-              </p>
-            </div>
-          </div>
-        </Surface>
+        <ApprovalGatesSurface overallTone={overallTone} gates={gates} />
+        <AuditTimelineSurface timeline={timeline} noDataText={copy.noData} />
+        <SecurityFindingsSurface findings={findings} />
+        <ProofVerificationSurface proof={proof} proofTone={proofTone} />
       </div>
     </Surface>
   );
