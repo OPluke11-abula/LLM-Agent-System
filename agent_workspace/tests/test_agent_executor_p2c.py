@@ -298,5 +298,87 @@ class TestPipelineIntegrationWithAgentExecutorP2C(unittest.TestCase):
         self.assertIsNotNone(result.pr_payload)
 
 
+class TestAsyncAgentExecutorP99(unittest.IsolatedAsyncioTestCase):
+    """Verifies non-blocking asynchronous tool execution in GovernedToolRegistry and AgentExecutor."""
+
+    async def asyncSetUp(self):
+        self.temp_dir = tempfile.mkdtemp(prefix="las_test_async_exec_")
+        subprocess.run(["git", "init", "-b", "main"], cwd=self.temp_dir, check=True, capture_output=True)
+        subprocess.run(["git", "config", "user.name", "Async Agent"], cwd=self.temp_dir, check=True)
+        subprocess.run(["git", "config", "user.email", "async@test.local"], cwd=self.temp_dir, check=True)
+
+        readme_file = os.path.join(self.temp_dir, "README.md")
+        with open(readme_file, "w", encoding="utf-8") as f:
+            f.write("# Async Test\nInitial Line\n")
+        subprocess.run(["git", "add", "README.md"], cwd=self.temp_dir, check=True)
+        subprocess.run(["git", "commit", "-m", "init"], cwd=self.temp_dir, check=True)
+
+        self.env = TaskEnvironment(
+            intent="Async execution verification",
+            agent_role="DOMAIN_LOGIC_AGENT",
+            mutable_scope=["README.md", "src/"],
+            available_governed_tools=["filesystem.read", "filesystem.write", "shell.exec", "git.diff"],
+            stop_condition={"max_turns": 5, "loop_limit": 5, "hitl_gate_required": True},
+        )
+        self.executor = AgentExecutor(task_env=self.env)
+        self.session = WorktreeSessionConfig(
+            session_id="sess-async-01",
+            worktree_path=self.temp_dir,
+            branch_name="feat/async-test",
+            base_commit="init_sha",
+        )
+        res = self.executor.execute_plan(
+            self.session,
+            ScopedMutationPlan(
+                task_id="t-async-01",
+                plan_summary="Test async execution",
+                target_files=["README.md", "src/index.ts"],
+                assigned_role="DOMAIN_LOGIC_AGENT",
+            ),
+        )
+        self.tools: GovernedToolRegistry = res["tools"]
+        self.attempt: ExecutionAttempt = res["attempt"]
+
+    async def asyncTearDown(self):
+        if os.path.exists(self.temp_dir):
+            shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    async def test_async_filesystem_read_and_write(self):
+        # 1. Async write
+        write_res = await self.tools.filesystem_write_async(
+            "src/index.ts", "export const version = '2.0.0';\n"
+        )
+        self.assertEqual(write_res["status"], "SUCCESS")
+
+        # 2. Async read
+        content = await self.tools.filesystem_read_async("src/index.ts")
+        self.assertIn("version = '2.0.0'", content)
+
+    async def test_async_shell_exec_and_git_diff(self):
+        # Modify file
+        await self.tools.filesystem_write_async("README.md", "# Async Test\nUpdated content\n")
+
+        # 1. Async git diff
+        diff = await self.tools.git_diff_async()
+        self.assertIn("+Updated content", diff)
+
+        # 2. Async shell execution
+        shell_res = await self.tools.shell_exec_async("git status")
+        self.assertEqual(shell_res["exit_code"], 0)
+        self.assertIn("modified:   README.md", shell_res["stdout"])
+
+    async def test_async_execute_tool_dispatch(self):
+        # Dispatch through execute_tool_async
+        res = await self.executor.execute_tool_async(
+            self.tools,
+            self.attempt,
+            "filesystem.read",
+            {"file_path": "README.md", "start_line": 1, "end_line": 1},
+        )
+        self.assertEqual(res["status"], "SUCCESS")
+        self.assertEqual(res["content"], "# Async Test")
+        self.assertTrue(len(self.attempt.evidence_trail) > 0)
+
+
 if __name__ == "__main__":
     unittest.main()

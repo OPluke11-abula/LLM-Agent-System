@@ -14,17 +14,39 @@ RUN npm run build
 FROM python:3.11-slim
 WORKDIR /app
 
-# Install curl for health check validation
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+# Set container Python environment invariants
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app \
+    LAS_BIND_HOST=0.0.0.0 \
+    LAS_ENABLE_STRIPE=false \
+    LAS_ENABLE_REDIS_SWARM=false \
+    LAS_ENABLE_MULTI_WORKER=false \
+    LAS_ENABLE_AUDIT_CONSENSUS=false
+
+# Install curl for health check validation and git for worktree execution
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl git && \
+    rm -rf /var/lib/apt/lists/*
 
 # Install python packages
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy backend application
+# Create unprivileged system group and user for air-gapped container security
+RUN groupadd -g 1001 lasgroup && \
+    useradd -u 1001 -g lasgroup -m -s /bin/bash lasuser && \
+    mkdir -p /app/.agent /app/agent_workspace/memory /app/workspace /app/viewer/dist && \
+    chown -R lasuser:lasgroup /app
+
+# Copy backend application and static assets
 COPY . .
 # Copy compiled frontend into place
 COPY --from=frontend-builder /app/viewer/dist ./viewer/dist
+RUN chown -R lasuser:lasgroup /app
+
+# Switch to non-root execution
+USER lasuser
 
 EXPOSE 8000
 
@@ -32,10 +54,4 @@ EXPOSE 8000
 HEALTHCHECK --interval=15s --timeout=5s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:8000/v1/health || exit 1
 
-# Start FastAPI API backend
-ENV LAS_BIND_HOST=0.0.0.0
-ENV LAS_ENABLE_STRIPE=false
-ENV LAS_ENABLE_REDIS_SWARM=false
-ENV LAS_ENABLE_MULTI_WORKER=false
-ENV LAS_ENABLE_AUDIT_CONSENSUS=false
 CMD ["python", "-m", "agent_workspace.server"]

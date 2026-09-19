@@ -32,6 +32,8 @@ graph TD
     Topo["TopologyView.tsx"]:::ui
     Gov["SwarmGovernanceConsole.tsx"]:::ui
     Admin["AdminDashboardView.tsx"]:::ui
+    Pipe["CodingPipelineView.tsx"]:::ui
+    Mesh["FederatedMeshView.tsx"]:::ui
     LTM["LongTermMemoryView.tsx"]:::ui
     Prim["ui/primitives.tsx (Radix UI Base)"]:::ui
     WS["useWebSocket.ts (Real-time Stream)"]:::hook
@@ -43,12 +45,16 @@ graph TD
     App --> Topo
     App --> Gov
     App --> Admin
+    App --> Pipe
+    App --> Mesh
     App --> LTM
     MC --> Prim
     TF --> Prim
     Topo --> Prim
     Gov --> Prim
     Admin --> Prim
+    Pipe --> Prim
+    Mesh --> Prim
     App --> WS
     WS --> Nginx
 ```
@@ -59,6 +65,8 @@ graph TD
 
 - [[viewer-app]]: Application root container, theme provider, and global layout (`viewer/src/App.tsx`).
 - [[viewer-mission-control]]: Cockpit dashboard, system health meters, activity feed (`viewer/src/components/MissionControlView.tsx`).
+- [[viewer-coding-pipeline]]: Autonomous developer agent coding pipeline cockpit, 5-stage stepper, and verification ladder (`viewer/src/components/CodingPipelineView.tsx`, `viewer/src/components/pipeline/`).
+- [[viewer-federated-mesh]]: Federated P2P mesh control plane, Zero-Trust PKI attestation, Raft consensus, vector memory, and chaos console (`viewer/src/components/FederatedMeshView.tsx`, `viewer/src/components/mesh/`).
 - [[viewer-task-flow]]: Directed graph workflow execution and interactive node debugger (`viewer/src/components/TaskFlowView.tsx`).
 - [[viewer-topology-view]]: Dynamic multi-agent topology visualizer with real-time edges (`viewer/src/components/TopologyView.tsx`).
 - [[viewer-swarm-governance]]: Multi-agent debate, consensus voting quorum, and replay timeline (`viewer/src/components/SwarmGovernanceConsole.tsx`).

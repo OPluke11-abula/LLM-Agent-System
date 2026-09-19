@@ -29,21 +29,17 @@ function resolveModelColor(tone: TopologyNodeType, model: string) {
   return NODE_COLORS[tone];
 }
 
-export function TopologyNodeBase({ data, selected, tone, badge }: TopologyNodeBaseProps) {
-  const event = data.event;
-  const model = String(event.payload?.model || event.payload?.active_model || "");
-  const accent = resolveModelColor(tone, model);
-  const isLive = event.status === "running" || event.status === "awaiting_approval" || event.status === "in_process" || event.status === "review";
-  const isHitl = event.node_type === "hitl_gate";
-  const tokenCount = Number(event.payload?.token_used ?? event.payload?.tokens ?? 0);
+const LIVE_STATUSES = new Set(["running", "awaiting_approval", "in_process", "review"]);
+
+function computeNodeSparkline(tokenCount: number, nodeId: string) {
   const costVal = tokenCount * 0.00002;
   const historyLength = 6;
-  const hash = (event.node_id || event.id || "").charCodeAt(0) || 1;
+  const hash = nodeId.charCodeAt(0) || 1;
   const costHistory = Array.from({ length: historyLength }, (_, index) => {
     const progress = (index + 1) / historyLength;
     return costVal * (progress * 0.75 + 0.25) * (1 + Math.sin(hash + index) * 0.08);
   });
-  const points = costHistory
+  return costHistory
     .map((value, index) => {
       const x = (index / (costHistory.length - 1)) * 48;
       const maxVal = Math.max(...costHistory, 0.0001);
@@ -51,15 +47,31 @@ export function TopologyNodeBase({ data, selected, tone, badge }: TopologyNodeBa
       return `${x},${y}`;
     })
     .join(" ");
+}
+
+function resolveBorderColor(selected: boolean, isHitl: boolean): string {
+  if (selected) return "var(--accent)";
+  if (isHitl) return "color-mix(in srgb, var(--warning) 45%, var(--border-c))";
+  return "var(--border-c)";
+}
+
+export function TopologyNodeBase({ data, selected, tone, badge }: TopologyNodeBaseProps) {
+  const event = data.event;
+  const model = String(event.payload?.model || event.payload?.active_model || "");
+  const accent = resolveModelColor(tone, model);
+  const isLive = LIVE_STATUSES.has(event.status);
+  const isHitl = event.node_type === "hitl_gate";
+  const tokenCount = Number(event.payload?.token_used ?? event.payload?.tokens ?? 0);
+  const nodeId = event.node_id || event.id || "";
+  const points = computeNodeSparkline(tokenCount, nodeId);
+  const borderColor = resolveBorderColor(Boolean(selected), isHitl);
 
   return (
     <button
       type="button"
       onClick={() => data.onOpen(event)}
       className={`topology-node group relative w-[260px] p-3.5 text-left ${selected ? "topology-node-selected" : ""}`}
-      style={{
-        borderColor: selected ? "var(--accent)" : isHitl ? "color-mix(in srgb, var(--warning) 45%, var(--border-c))" : "var(--border-c)",
-      }}
+      style={{ borderColor }}
     >
       <Handle
         type="target"

@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
-import { StatusBadge, Surface, cx } from "./ui/primitives";
+import { StatusBadge, Surface } from "./ui/primitives";
+import { cx } from "./ui/utils";
 import type { AgentTask, Lang, TopologyEvent, TopologyState } from "../types";
 
 type ActionTone = "accent" | "success" | "warning" | "danger" | "neutral";

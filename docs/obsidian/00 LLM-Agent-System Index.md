@@ -141,10 +141,13 @@ graph TD
 - [[core-repository]]: Repository environment sensing, protected paths, native Git worktree isolation.
 - [[core-mission]]: Mission domain aggregate root, durable SQLite mission store, lifecycle state machine.
 - [[core-merkle]]: Deterministic binary Merkle tree, leaf pre-hashing, cryptographic state proofs.
+- [[core-forensic-correlator]]: Dual-stream cryptographic forensic correlator unifying compliance audit trail and runtime execution telemetry.
 
 ### 5.2 Frontend Cockpit & UI Components (`viewer/src/`)
 - [[viewer-app]]: Root shell component, multi-session tab navigation, global shortcut bindings.
 - [[viewer-mission-control]]: Operator prompt bar, streaming reasoning tokens, tool approval modals.
+- [[viewer-coding-pipeline]]: Autonomous developer agent coding pipeline cockpit, 5-stage stepper, and verification ladder.
+- [[viewer-federated-mesh]]: Distributed P2P mesh control plane, Zero-Trust attestation, Raft consensus, vector memory, and chaos console.
 - [[viewer-task-flow]]: Interactive ReactFlow workflow DAG canvas, step playback stepper.
 - [[viewer-topology-view]]: Swarm topology graph, real-time agent/tool nodes, handoff latency indicators.
 - [[viewer-swarm-governance]]: Mesh health monitor, mTLS rotation countdowns, ZK proof inspector.

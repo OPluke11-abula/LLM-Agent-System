@@ -90,5 +90,3 @@ export function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
     </div>
   );
 }
-
-export const TASK_NODE_TYPES = { taskNode: TaskNode };

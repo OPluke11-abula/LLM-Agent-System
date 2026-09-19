@@ -30,7 +30,9 @@ timeline
     2026-09-10 : T-003 10 Grounded Roles Matrix : T-004 Backend Core Optimization : T-005 UI/UX Control Plane Polish : T-006 End-to-End Bridge : T-007 Verification Ladder : T-008 Obsidian 4-Tier Topology
     2026-09-11 : T-009 Coding Pipeline P1 (Rules & Scaffolding) : T-010 Coding Pipeline P2-A (Worktree Isolation)
     2026-09-12 : T-011 Coding Pipeline P2-B (TaskEnvironment & DAG) : T-012 Coding Pipeline P2-C (Governed Execution)
-    2026-09-13 : T-013 Coding Pipeline P2-D (Durable Events & Recovery) : T-014 Coding Pipeline P3 (REST/WS Gateways & Cockpit UI)
+    2026-09-13 : T-013 Coding Pipeline P2-D (Durable Events & Recovery) : T-014 Coding Pipeline P3 (REST/WS Gateways & Cockpit UI) : T-017 Committee Debate (P85) : T-018 Reasoning Router (P86) : T-019 Distributed Mesh (P87)
+    2026-09-14 : T-020 Zero-Trust PKI Mesh (P88) : T-021 Raft Consensus (P89) : T-022 Federated Vector Memory (P90) : T-023 Chaos & Self-Healing (P91)
+    2026-09-18 : T-024 Swarm Policy Convergence (P92) : T-025 Destructive Shell Hardening (P93) : T-026 Forensic Correlator (P94) : T-027 Full Test Matrix Parity (P95) : T-028 Frontend a11y & Vault UTF-8 (P96) : T-029 Frontend Modularization & SQLite WAL (P97)
 ```
 
 ---
@@ -620,3 +622,194 @@ timeline
     - Python bytecode compilation: `python -m py_compile` (0 errors)
     - Frontend production build: `npm run build` in `viewer/` (Pass, 0 errors, 3.83s)
     - Formatting check: `git diff --check` (0 errors)
+
+---
+
+### Milestone T-024: Architecture Audit, Swarm Engine Policy Convergence & Dual-Stream Ledger Phase 92
+- **Goal**:
+  - Execute exhaustive Architecture Optimization & Validation cycle resolving GAP-01 through GAP-09, complete certification across Gates 0 through 7, and harden AgentEngine tool execution with UnifiedPolicyGate, role scope restrictions, and unbroken Merkle audit chaining.
+- **Process**:
+  - Hardened `AgentEngine` tool execution pipeline by integrating `UnifiedPolicyGate` directly into `execute_tool`, enforcing `ROLE_SCOPE_RESTRICTIONS` (`UI_UX_AGENT` forbidden path access, `QA_TEST_AGENT` read-only mutation blocking), workspace containment, and recording all policy decisions directly to `AuditLedger` with unbroken SHA-256 Merkle chaining.
+  - Authored 5 new targeted test suites (`test_engine_policy_integration.py`, `test_adversarial_replanning.py`, `test_adversarial_governance.py`, `test_governance_negative.py`, `test_state_recovery.py`, `test_e2e_north_star.py`).
+  - Validated Golden Benchmark (3/3 PASS, 100% KPI achievement) and repository verification ladder.
+- **Result**:
+  - Phase 92 (Architecture Audit, Swarm Engine Policy Convergence & Dual-Stream Ledger) 100% complete and verified.
+  - Receipts:
+    - `test_engine_policy_integration.py`: 5/5 PASS (0.15s)
+    - Combined regression suite across 6 test modules: 36/36 PASS (7.74s)
+    - `scripts/run_golden_benchmark.py`: 3/3 PASS, `GOLDEN_FLOW_VERIFIED`
+    - `scripts/verify.ps1 -SkipViewer`: Exit code 0, PASS
+
+---
+
+### Milestone T-025: Destructive Shell Hardening, Anti-Corruption Scanner & Dual-Stream Forensic Correlator Phase 93
+- **Goal**:
+  - Implement advanced security hardening and evidence plane forensic correlation, blocking dangerous Windows PowerShell cmdlets and Git commands, intercepting swallowed exceptions, and correlating compliance audit trails with runtime execution streams.
+- **Process**:
+  - Expanded `DESTRUCTIVE_COMMAND_PATTERNS` in `agent_workspace/core/agent_executor.py` to intercept Windows PowerShell cmdlets (`Remove-Item -Recurse -Force`, `del /f /s /q`), dangerous Git branch commands (`git branch -D`, `git checkout -f`), and remote pipe-to-shell injections (`curl | bash`, `Invoke-Expression`).
+  - Embedded destructive command inspection directly into `UnifiedPolicyGate._validate_scope` in `agent_workspace/core/policy_gate.py`.
+  - Wired `check_seven_anti_corruption` into `ScopeGuard.validate_tool_call` and `UnifiedPolicyGate._validate_scope` to block bare `except:` and swallowed `except Exception: pass` violations upon file mutations (Principle #4: Typed Failures Only).
+  - Authored `agent_workspace/core/forensic_correlator.py` providing `ForensicCorrelator` and `ForensicSessionTimeline`, correlating compliance audit trails (`audit_ledger.db`) and runtime execution streams (`runtime_events.db`) with cryptographic dual-Merkle proof verification and JSON receipt export (resolving GAP-07).
+- **Result**:
+  - Phase 93 (Destructive Shell Hardening, Anti-Corruption Scanner & Forensic Correlator) 100% complete and verified.
+  - Receipts:
+    - `test_forensic_correlator_and_anti_corruption.py`: 6/6 PASS (0.14s)
+    - Combined regression suite across 11 test modules: 70/70 PASS (7.71s)
+    - `scripts/run_golden_benchmark.py`: 3/3 PASS, `GOLDEN_FLOW_VERIFIED` in 717.5ms
+    - `scripts/verify.ps1 -SkipViewer`: Exit code 0, PASS
+
+---
+
+### Milestone T-026: Dual-Stream Forensic Correlator API & CLI Surface Integration Phase 94
+- **Goal**:
+  - Surface the dual-stream `ForensicCorrelator` engine across all primary developer control planes via REST endpoints, unified CLI commands, and multi-tenant event reconciliation.
+- **Process**:
+  - Mounted REST endpoints `GET /v1/audit/forensics/{session_id}` and `POST /v1/audit/forensics/{session_id}/export` in `agent_workspace/routes/audit.py`.
+  - Mounted `GET /v1/pipeline/tasks/{task_id}/forensics` in `agent_workspace/routes/pipeline.py`.
+  - Added unified CLI subcommand `las forensics <session_id> [--export] [--output PATH] [--json]` in `agent_workspace/cli.py` with ANSI table rendering and JSON export.
+  - Enhanced `ForensicCorrelator.correlate_session` with multi-tenant event reconciliation across `default_tenant` and isolated tenant namespaces.
+  - Synchronized `agent_workspace/tests/test_route_inventory.py` expected route inventory.
+  - Delivered comprehensive automated integration test suite in `agent_workspace/tests/test_forensic_api_and_cli.py`.
+- **Result**:
+  - Phase 94 (Forensic Correlator API & CLI Surface Integration) 100% complete and verified.
+  - Receipts:
+    - `test_forensic_api_and_cli.py`: 8/8 PASS (0.42s)
+    - `test_route_inventory.py`: 1/1 PASS (0.04s)
+    - Full governance regression matrix: 78/78 PASS across 12 test modules (7.97s)
+    - `scripts/run_golden_benchmark.py`: `GOLDEN_FLOW_VERIFIED`, 3/3 PASS in 671.4ms
+    - `scripts/verify.ps1 -SkipViewer -SkipTests`: Exit code 0, PASS
+    - `git diff --check`: 0 trailing whitespace
+
+---
+
+### Milestone T-027: Full Test Matrix Parity & Protocol 3.8.0 Scaffolding Alignment Phase 95
+- **Goal**:
+  - Resolve all legacy test discrepancies and harmonize workspace initialization with Protocol v3.8.0.
+- **Process**:
+  - Upgraded `TargetRepoOnboarder.analyze` and `onboard` in `agent_workspace/core/onboarding.py` with graceful non-git directory fallback and standard `.agent/agent.md`, `.agent/skills/`, and `.agent/workflows/` scaffolding.
+  - Updated `las init --dry-run` in `agent_workspace/cli.py`.
+  - Aligned route inventory in `agent_workspace/routes/chat.py` with `/health`, `/api/version`, and `/v1/version` aliases.
+  - Enhanced `WorkspaceManager` with `add_task` helper and `TopologyEmitter` with `record_event`.
+  - Hardened test mode detection in `agent_workspace/routes/collaboration.py`.
+  - Purged redundant `generate_spec.md` draft contract and registered `generative_spec_generator` in `.agent/agent.md`.
+- **Result**:
+  - Phase 95 (Full Test Matrix Parity & Protocol 3.8.0 Scaffolding Alignment) 100% complete and verified.
+  - Receipts:
+    - Full test suite across all 143 test files in `agent_workspace/tests/`: 100% PASS (0 failures, 0 errors)
+    - 12-suite governance matrix: 78/78 PASS in 8.32s
+    - `scripts/run_golden_benchmark.py`: `GOLDEN_FLOW_VERIFIED`, 3/3 PASS in 676.9ms, 0 host mutations
+    - `git diff --check`: 0 trailing whitespace
+
+---
+
+### Milestone T-028: Frontend Swarm UI Test Parity, React Doctor a11y, Obsidian Vault UTF-8 & Pytest Cleanliness Phase 96
+- **Goal**:
+  - Perfect the 5 cross-stack optimization frontiers: test parity with Grounded Roles, React Doctor accessibility zero-warning, UTF-8 clean vault linting, and Pytest warning cleanup.
+- **Process**:
+  - Aligned `viewer/scripts/verify-swarm-governance-ui.mjs` with grounded Protocol 3.8.0 role `local-domain-01` (`DOMAIN_LOGIC_AGENT`).
+  - Optimized evidence compatibility in `ReviewPage.tsx` with `new Set` for $O(1)$ lookups.
+  - Refactored `CodingPipelineView.tsx` and `FederatedMeshView.tsx` with accessible `aria-label`/`<label>` bindings, keyboard event handlers, re-entry guards on mutating async handlers, and stable composite keys, completely eliminating all 23 accessibility and performance warnings in React Doctor.
+  - Fixed Windows ANSI mojibake in `lint_obsidian_vault.ps1` and `lint_knowledge_base.ps1` by forcing UTF-8 encoding, and established `.agent/knowledge_base/raw/.gitkeep` (0 findings).
+  - Added warning filters to `pyproject.toml` eliminating all upstream third-party deprecation warnings in Pytest.
+  - Closed strategic questions in `09 Open Questions & Strategic Horizons.md` with verified code references.
+  - Verified the full 8-step verification ladder with active Viewer checks (Exit Code 0).
+- **Result**:
+  - Phase 96 (Frontend Swarm UI Test Parity, React Doctor a11y & Vault UTF-8) 100% complete and verified.
+  - Receipts:
+    - `scripts/verify.ps1`: all 8 steps verified including Viewer build, UI smoke tests, and React Doctor (Exit Code 0)
+    - `npm run build` in `viewer/`: Pass in 646ms, 0 errors
+    - `npm run test:swarm-ui`: Pass, Exit Code 0
+    - `npm run verify:ui`: Pass, Exit Code 0
+    - `npm run doctor`: 37 issues, 0 accessibility, 0 performance warnings
+    - `lint_knowledge_base.ps1`: 85 notes, 0 findings
+    - `scripts/run_golden_benchmark.py`: `GOLDEN_FLOW_VERIFIED`, 3/3 PASS in 716ms, 0 host mutations
+    - `git diff --check`: 0 trailing whitespace
+
+---
+
+### Milestone T-029: Frontend Architecture Modularization, React Doctor Zero-Bug Convergence & SQLite WAL Concurrency Hardening Phase 97
+- **Goal**:
+  - Address technical debt across frontend architecture and backend persistence:
+    1. Decompose giant React components (`CodingPipelineView.tsx`, `FederatedMeshView.tsx`, `SettingsGeneralPanel.tsx`) into cohesive subcomponents, isolate utility helpers to `utils.ts`, enforce strict HMR component export rules, and reduce React Doctor warnings to 0 bugs and 0 performance regressions.
+    2. Harden all 5 core SQLite persistence modules (`AuditLedger`, `RuntimeEventsLedger`, `MissionStore`, `Ledger`, `ReplayLogger`) with WAL journal mode, busy timeouts, normal synchronization, and re-entrant `threading.RLock()` to eliminate Windows file locking and database busy collisions.
+- **Process**:
+  - Backend SQLite WAL & Concurrency Hardening:
+    - Upgraded locks to `threading.RLock()` in `agent_workspace/core/audit_ledger.py`, `runtime_events.py`, `ledger.py`, and `replay_logger.py`.
+    - Enforced `PRAGMA journal_mode = WAL`, `PRAGMA synchronous = NORMAL`, and `PRAGMA busy_timeout = 5000` across all 5 database connection initializers (`AuditLedger`, `RuntimeEventsLedger`, `MissionStore`, `Ledger`, `ReplayLogger`).
+    - Verified against concurrent operations and multi-threaded test runs.
+  - Frontend Utility & Contract Decoupling:
+    - Created `viewer/src/components/ui/utils.ts` housing `Tone`, `cx`, `toneVar`, `toneBgVar`, and `toneForStatus`.
+    - Removed non-component runtime exports from `viewer/src/components/ui/primitives.tsx`, achieving full compliance with `react-refresh/only-export-components`.
+    - Updated all call sites in `viewer/src/components/` to import helpers directly from `ui/utils`.
+  - Frontend Component Modularization:
+    - Decomposed `CodingPipelineView.tsx` from 1,539 lines down to 388 lines by extracting `PipelineHeaderBanner.tsx`, `PipelineStageStepper.tsx`, `CommitteeDebateCard.tsx`, `ApprovalGateCard.tsx`, `VerificationLadderCard.tsx`, `TasksRail.tsx`, `TaskCreationModal.tsx`, and `BenchmarkModal.tsx` into `viewer/src/components/pipeline/`.
+    - Decomposed `FederatedMeshView.tsx` from 1,394 lines down to 420 lines by extracting `PkiAttestationCard.tsx`, `RaftConsensusCard.tsx`, `VectorMemoryCard.tsx`, `LocalCapabilitiesBanner.tsx`, `ChaosConsoleCard.tsx`, `ClusterDemoCard.tsx`, `ConnectedPeersSection.tsx`, `JoinPeerModal.tsx`, and `mockData.ts` into `viewer/src/components/mesh/`.
+    - Decomposed `SettingsGeneralPanel.tsx` from 370 lines down to 180 lines by extracting `LlmConfigCard.tsx` and `WorkspacesConfigCard.tsx` into `viewer/src/components/settings/`.
+  - Async Lifecycle & Bug Remediation:
+    - Guarded async operations with synchronous `useRef` locks (`electingRef`, `rotatingCertRef`, `clusterDemoRunningRef`, `joiningRef`).
+    - Guarded `useEffect` async data fetches with `AbortController` and `isSubscribed` across `ReviewPage.tsx`, `SettingsGeneralPanel.tsx`, `SwarmGovernanceConsole.tsx`, and `FederatedMeshView.tsx`.
+    - Eliminated composite array-index keys in `ClusterDemoCard.tsx`.
+- **Result**:
+  - Phase 97 100% complete and verified across both frontend and backend.
+  - Receipts:
+    - React Doctor Scorecard: Issues reduced from 37 to 15 (0 Bugs, 0 Performance regressions, 0 HMR errors).
+    - Frontend Rolldown/Vite Build: `npm run build` in `viewer/` PASS in 785ms (0 errors).
+    - Frontend UI Smoke & Swarm Test: `npm run verify:ui` and `npm run test:swarm-ui` PASS.
+    - Python Pytest Suite: All tests PASS with exit code 0.
+    - Full 8-Step Golden Verification Ladder: `scripts/verify.ps1` 100% PASS (Exit Code 0).
+    - Formatting check: `git diff --check` (0 errors).
+
+---
+
+### Milestone T-030: Zero Hardcoded Host Paths, Custom Hook Extraction, React Doctor Complexity Reduction & Forensic Knowledge Topology Phase 98
+- **Goal**:
+  - Eliminate hardcoded host environment paths across runtime and frontend views.
+  - Extract stateful business logic from heavy views into custom hooks (`useCodingPipeline`, `useFederatedMesh`).
+  - Decompose high-complexity React functional components to drive React Doctor maintainability warnings down from 15 to 6.
+  - Establish Tier 3 Obsidian knowledge leaf note for `ForensicCorrelator` and complete bidirectional vault synchronization.
+- **Process**:
+  - Phase 98-A (Zero Hardcoded Host Paths):
+    - Replaced hardcoded user python path in `agent_workspace/core/engine.py:938` with dynamic resolution `python_exe = sys.executable or shutil.which("python") or "python"`. Bytecode verified via `python -m py_compile`.
+    - Replaced hardcoded repository path in `viewer/src/components/CodingPipelineView.tsx:36` with dynamic `activeWorkspacePath`.
+  - Phase 98-B (Frontend Hook Extraction & Complexity Reduction):
+    - Authored `viewer/src/hooks/useCodingPipeline.ts` (363 lines) encapsulating task lifecycle, websocket telemetry, debate triggers, and benchmark execution.
+    - Refactored `CodingPipelineView.tsx` from 386 lines down to 147 lines, eliminating giant component warning.
+    - Authored `viewer/src/hooks/useFederatedMesh.ts` (393 lines) encapsulating mesh state, Raft consensus, PKI attestation, and chaos injection.
+    - Extracted `MeshHeader.tsx` and `MeshKpiGrid.tsx` into `viewer/src/components/mesh/`. Refactored `FederatedMeshView.tsx` from 596 lines down to 160 lines, eliminating giant component warning.
+    - Decomposed complex JSX control-flow in `BenchmarkModal.tsx`, `CommitteeDebateCard.tsx`, `ReviewPage.tsx`, `MissionDetailPage.tsx`, `TokenModePanel.tsx`, and `TopologyNodeBase.tsx`.
+    - Dropped React Doctor maintainability warnings from 15 down to 6 (0 bugs, 0 performance, 0 giant components).
+  - Phase 98-C (Tier 3 Forensic Knowledge Topology):
+    - Authored `docs/obsidian/modules/core/core-forensic-correlator.md` detailing dual-stream correlation topology, symbol table, and cryptographic invariants.
+    - Updated `docs/obsidian/00 LLM-Agent-System Index.md`, `layers/L5-Security-Sandbox-and-Merkle.md`, `05 Task Status DAG.md`, and `80 Milestone Logs.md`.
+    - Synchronized all notes to external Obsidian Vault at `C:\Users\luke2\OneDrive\文件\Obsidian Vault\Projects\LLM-Agent-System` with 100% SHA-256 match.
+- **Result**:
+  - Phase 98 100% complete and verified.
+  - Receipts:
+    - Frontend Rolldown/Vite Build: `npm run build` in `viewer/` PASS in 800ms (0 errors).
+    - React Doctor Scorecard: 0 Bugs, 0 Performance, 0 Giant Components, maintainability warnings reduced from 15 to 6.
+    - Python Bytecode: `python -m py_compile agent_workspace/core/engine.py` (Exit Code 0).
+    - Knowledge Base Linting: `lint_knowledge_base.ps1` 100% PASS (0 findings).
+    - Obsidian Dual-Sync: 100% byte-for-byte SHA-256 parity.
+    - Formatting check: `git diff --check` (0 errors).
+### 2026-09-19 - Phase 99 & Phase 100: Non-blocking Async Subprocess, Concurrency Stress Benchmark & Air-gap Container Hardening
+- **Task ID**: T-031
+- **Driver**: Antigravity
+- **Protocol**: Universal Protocol v3.8.0
+- **Summary**:
+  - Phase 99 (Asynchronous Subprocess & Non-blocking I/O):
+    - Wrapped blocking synchronous subprocess and filesystem calls in async execution flows (`shell_exec_async`, `git_diff_async`, `filesystem_read_async`, `filesystem_write_async`, `execute_tool_async`) in `GovernedToolRegistry` and `AgentExecutor` (`agent_workspace/core/agent_executor.py`).
+    - Added `attempt_self_healing_async` and `execute_auto_rollback_async` in `PipelineSelfHealingEngine` (`agent_workspace/core/pipeline/self_healing.py`).
+    - Added `TestAsyncAgentExecutorP99` in `agent_workspace/tests/test_agent_executor_p2c.py` and `test_async_self_healing_and_rollback` in `agent_workspace/tests/test_chaos_selfhealing_p91.py`.
+  - Phase 100 (Multi-Tenant Concurrency Stress Benchmark & Air-gapped Dockerfile):
+    - Created `scripts/run_concurrency_stress_benchmark.py` running 16 concurrent tenant agents performing 400 ledger writes and vector searches.
+    - Resolved cross-instance race condition in `AuditLedger` (`agent_workspace/core/audit_ledger.py`) by binding shared class-level RLocks per database path, achieving 100% SHA-256 hash chaining integrity, zero lock contention, and 80.06 TPS.
+    - Hardened `Dockerfile` for production air-gapped deployment: added unprivileged non-root user `lasuser` (UID 1001), installed `git`, optimized environment flags (`PYTHONDONTWRITEBYTECODE=1`, `PYTHONUNBUFFERED=1`).
+    - Created comprehensive `.dockerignore` excluding `.git`, `.venv`, `node_modules`, caches, and sensitive keys.
+- **Result**:
+  - Phases 99 & 100 100% complete and verified.
+  - Receipts:
+    - Concurrency Stress Benchmark: 16 tenants, 400 ops, 0.0% error rate, 80.06 TPS, AuditLedger SHA-256 hash chaining `VERIFIED`, SQLite WAL `OK`.
+    - Unit tests: 40 tests passed across executor, self-healing, ledger, and consensus suites.
+    - Frontend build: `npm run build` PASS in 3.71s (0 errors).
+    - React Doctor: 0 bugs, 0 performance warnings, 0 giant components.
+    - Knowledge Base Linting: `lint_knowledge_base.ps1` 100% PASS (0 findings).

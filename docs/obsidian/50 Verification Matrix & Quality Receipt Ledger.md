@@ -1,4 +1,4 @@
----
+﻿---
 tags:
   - verification/ladder
   - quality/receipts
@@ -30,13 +30,17 @@ All verification tasks, PR claims, and test runs must strictly report one of the
 
 ---
 
-## 2. 4-Stage Verification Ladder
+## 2. 8-Stage Golden Verification Ladder
 
 ```mermaid
 graph LR
-    L1["Ladder 1: Docs & Formatting<br/>(git diff --check)"] --> L2["Ladder 2: Python Bytecode<br/>(compileall)"]
-    L2 --> L3["Ladder 3: Frontend Build<br/>(npm run build)"]
-    L3 --> L4["Ladder 4: Full Golden Verification<br/>(verify.ps1)"]
+    L1["1. Preflight Inspection"] --> L2["2. Git Formatting Hygiene"]
+    L2 --> L3["3. Python Bytecode"]
+    L3 --> L4["4. Knowledge Base Lint"]
+    L4 --> L5["5. Pytest Suite"]
+    L5 --> L6["6. Golden Benchmark"]
+    L6 --> L7["7. Frontend Build & Doctor"]
+    L7 --> L8["8. E2E Governance Smoke"]
 ```
 
 ---
@@ -50,3 +54,7 @@ graph LR
 | 2026-09-10 00:07 | Python Bytecode Compilation | `python -m compileall agent_workspace` | 0 | `PASS` |
 | 2026-09-10 00:08 | Frontend TypeScript & Vite | `npm run build` (in `viewer/`) | 0 | `PASS` (901ms, 0 errors) |
 | 2026-09-10 00:10 | Protocol Baseline 3.8.0 | Verified against `.agent/state.md` | 0 | `PASS` |
+| 2026-09-18 18:20 | React Doctor Zero-Bug Audit | `npm run doctor` (in `viewer/`) | 0 | `PASS` (0 bugs, 0 perf, 0 a11y) |
+| 2026-09-18 18:22 | Frontend Production Build | `npm run build` (in `viewer/`) | 0 | `PASS` (785ms, 0 errors) |
+| 2026-09-18 18:23 | Swarm UI & Governance Smoke | `npm run test:swarm-ui` | 0 | `PASS` (Exit code 0) |
+| 2026-09-18 18:25 | 8-Step Golden Verification Ladder | `scripts/verify.ps1` | 0 | `PASS` (100% 8/8 verified) |

@@ -18,9 +18,11 @@ import {
 import { Modal } from "./Modal";
 import { ContextMenu } from "./ContextMenu";
 import { ActivityLog } from "./ActivityLog";
-import { TASK_NODE_TYPES } from "./TaskNode";
+import { TaskNode } from "./TaskNode";
+const TASK_NODE_TYPES = { taskNode: TaskNode };
 import { TASK_CATEGORY_EDGE_TYPES } from "./edges";
-import { Button, Card, CardContent, CardHeader, CardTitle, Input, MetricTile, StatusBadge, Surface, cx } from "./ui/primitives";
+import { Button, Card, CardContent, CardHeader, CardTitle, Input, MetricTile, StatusBadge, Surface } from "./ui/primitives";
+import { cx } from "./ui/utils";
 import { AlertCircle, Brain, FileCheck, FileCode, FileJson, FileText, GitFork, Key, Search, Terminal } from "./ui/icons";
 import type {
   ActivityLogEntry,

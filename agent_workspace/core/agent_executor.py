@@ -12,6 +12,7 @@ Core Guarantees:
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import logging
 import os
@@ -293,6 +294,31 @@ class GovernedToolRegistry:
         )
         return proc.stdout
 
+    async def shell_exec_async(
+        self, command: str, timeout_seconds: Optional[float] = None
+    ) -> dict[str, Any]:
+        """Asynchronously execute a shell command inside worktree without blocking the event loop."""
+        return await asyncio.to_thread(self.shell_exec, command, timeout_seconds)
+
+    async def git_diff_async(self) -> str:
+        """Asynchronously return the unified git diff without blocking the event loop."""
+        return await asyncio.to_thread(self.git_diff)
+
+    async def filesystem_read_async(
+        self,
+        file_path: str,
+        start_line: Optional[int] = None,
+        end_line: Optional[int] = None,
+    ) -> str:
+        """Asynchronously read text from a file within the isolated worktree."""
+        return await asyncio.to_thread(self.filesystem_read, file_path, start_line, end_line)
+
+    async def filesystem_write_async(
+        self, file_path: str, content: str, append: bool = False
+    ) -> dict[str, Any]:
+        """Asynchronously write text to an authorized file within the isolated worktree."""
+        return await asyncio.to_thread(self.filesystem_write, file_path, content, append)
+
 
 class AgentExecutor(IScopedExecutor):
     """
@@ -464,3 +490,16 @@ class AgentExecutor(IScopedExecutor):
             attempt.evidence_trail.append(evidence)
 
         return result
+
+    async def execute_tool_async(
+        self,
+        tools: GovernedToolRegistry,
+        attempt: ExecutionAttempt,
+        tool_name: str,
+        args: dict[str, Any],
+    ) -> dict[str, Any]:
+        """
+        Asynchronously executes a single tool call through the complete non-bypassable governance chain,
+        yielding control back to the event loop during I/O and subprocess execution.
+        """
+        return await asyncio.to_thread(self.execute_tool, tools, attempt, tool_name, args)

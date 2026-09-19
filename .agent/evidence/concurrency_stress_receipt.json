@@ -1,0 +1,22 @@
+{
+  "suite_id": "stress-1789783343",
+  "timestamp": "2026-09-19T02:02:23.078184+00:00",
+  "num_tenants": 16,
+  "ops_per_tenant": 25,
+  "total_operations": 400,
+  "successful_operations": 400,
+  "failed_operations": 0,
+  "error_rate_pct": 0.0,
+  "total_duration_sec": 4.996,
+  "throughput_tps": 80.06,
+  "latency_min_ms": 9.01,
+  "latency_mean_ms": 197.51,
+  "latency_p50_ms": 101.62,
+  "latency_p95_ms": 527.14,
+  "latency_p99_ms": 552.01,
+  "latency_max_ms": 557.76,
+  "ledger_chain_valid": true,
+  "sqlite_integrity_pass": true,
+  "advisory_verdict": "PASS",
+  "errors": []
+}

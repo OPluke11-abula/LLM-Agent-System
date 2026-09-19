@@ -1,4 +1,4 @@
----
+﻿---
 tags:
   - concurrency/lifecycle
   - swarm/state-machine
@@ -55,3 +55,21 @@ stateDiagram-v2
 
 - **Channel Types**: Session updates, Swarm debate events, Topology live streams, Token metering.
 - **Heartbeat & Backoff**: Ping/pong interval every 15s; automatic reconnection with exponential jitter backoff (1s ~ 16s).
+
+---
+
+## 4. SQLite WAL Concurrency & Synchronous Re-entry Protection (Phase 97)
+
+To satisfy Anti-Corruption Principle #3 (Concurrency & Race Elimination) at both persistence and presentation boundaries:
+
+### 4.1 Backend: SQLite WAL & Thread-Safe Re-entrancy
+Every core SQLite storage adapter (`AuditLedger`, `RuntimeEventsLedger`, `MissionStore`, `Ledger`, `ReplayLogger`) enforces:
+1. **Thread-Safe Re-entrant Locking**: All database initializations and write operations synchronize through an instance-level `threading.RLock()`, preventing concurrent thread corruption.
+2. **Write-Ahead Logging (WAL)**: `PRAGMA journal_mode = WAL` enables concurrent readers while writing, eradicating reader-writer blocking.
+3. **Busy Timeout Resilience**: `PRAGMA busy_timeout = 5000` allows waiting up to 5,000ms for locks to clear before raising `sqlite3.OperationalError: database is locked`, completely mitigating Windows file-locking collisions.
+4. **Synchronous Normal**: `PRAGMA synchronous = NORMAL` provides optimal durability without excessive filesystem sync stalls.
+
+### 4.2 Frontend: Synchronous Re-entry & Unmount Protection
+To prevent UI event race conditions and state corruption during async operations:
+1. **Synchronous Mutation Locks**: Long-running asynchronous actions (`electLeader`, `rotateCertificates`, `runClusterDemo`, `handleJoinPeer`) are guarded by immediate, synchronous React `useRef` locks (`electingRef`, `rotatingCertRef`, `clusterDemoRunningRef`, `joiningRef`). If a user clicks rapidly, repeated triggers exit immediately prior to any microtask or re-render.
+2. **Lifecycle Unmount Guarding**: Asynchronous data loading inside `useEffect` utilizes `AbortController` and `isSubscribed` boolean closures (`ReviewPage.tsx`, `SettingsGeneralPanel.tsx`, `SwarmGovernanceConsole.tsx`, `FederatedMeshView.tsx`) to abort in-flight network requests and suppress React state updates when components unmount, eliminating React Doctor leak warnings.

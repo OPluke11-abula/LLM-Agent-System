@@ -17,18 +17,28 @@ class ReplayLogger:
     Thread-safe SQLite-backed session replay registry logging chronological 
     WebSocket telemetry updates for each active crew session.
     """
-    _lock = threading.Lock()
+    _lock = threading.RLock()
 
     @classmethod
     def _get_db_conn(cls, db_path: Path) -> sqlite3.Connection:
         conn = sqlite3.connect(str(db_path), timeout=30.0)
         conn.row_factory = sqlite3.Row
+        try:
+            conn.execute("PRAGMA busy_timeout = 5000")
+        except sqlite3.OperationalError:
+            pass
         return conn
 
     @classmethod
     def _init_db(cls, db_path: Path) -> None:
         conn = cls._get_db_conn(db_path)
         try:
+            try:
+                conn.execute("PRAGMA journal_mode = WAL")
+                conn.execute("PRAGMA synchronous = NORMAL")
+                conn.execute("PRAGMA busy_timeout = 5000")
+            except sqlite3.OperationalError:
+                pass
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS replay_events (

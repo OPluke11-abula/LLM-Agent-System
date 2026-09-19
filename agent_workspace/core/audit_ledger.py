@@ -22,15 +22,21 @@ class AuditLedger:
     implementing SOC2 security audit trail capabilities.
     """
     _initialized_dbs = set()
+    _db_locks: Dict[str, threading.RLock] = {}
+    _meta_lock = threading.Lock()
 
     def __init__(self, workspace_path: str):
         self.workspace_path = os.path.abspath(workspace_path)
         self.db_dir = Path(self.workspace_path) / "memory"
         self.db_dir.mkdir(parents=True, exist_ok=True)
         self.db_path = self.db_dir / "audit_ledger.db"
-        self._lock = threading.Lock()
+        db_path_str = str(self.db_path.resolve())
+
+        with AuditLedger._meta_lock:
+            if db_path_str not in AuditLedger._db_locks:
+                AuditLedger._db_locks[db_path_str] = threading.RLock()
+            self._lock = AuditLedger._db_locks[db_path_str]
         
-        db_path_str = str(self.db_path)
         if db_path_str not in AuditLedger._initialized_dbs:
             self._init_db()
             AuditLedger._initialized_dbs.add(db_path_str)
@@ -38,12 +44,22 @@ class AuditLedger:
     def _get_conn(self) -> sqlite3.Connection:
         conn = sqlite3.connect(str(self.db_path), timeout=30.0)
         conn.row_factory = sqlite3.Row
+        try:
+            conn.execute("PRAGMA busy_timeout = 5000")
+        except sqlite3.OperationalError:
+            pass
         return conn
 
     def _init_db(self) -> None:
         with self._lock:
             conn = self._get_conn()
             try:
+                try:
+                    conn.execute("PRAGMA journal_mode = WAL")
+                    conn.execute("PRAGMA synchronous = NORMAL")
+                    conn.execute("PRAGMA busy_timeout = 5000")
+                except sqlite3.OperationalError:
+                    pass
                 conn.execute(
                     """
                     CREATE TABLE IF NOT EXISTS audit_ledger (

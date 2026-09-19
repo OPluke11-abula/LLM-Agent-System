@@ -16,6 +16,7 @@ import importlib
 import inspect
 import logging
 import os
+import shutil
 import sys
 from typing import Any
 
@@ -935,7 +936,7 @@ def test_dynamic_run():
 """
         test_file_path.write_text(test_code, encoding="utf-8")
 
-        python_exe = sys.executable or "C:\\Users\\luke2\\AppData\\Local\\Programs\\Python\\Python314\\python.exe"
+        python_exe = sys.executable or shutil.which("python") or "python"
         try:
             res = subprocess.run(
                 [python_exe, "-I", "-m", "pytest", str(test_file_path)],

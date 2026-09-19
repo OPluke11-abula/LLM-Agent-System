@@ -13,6 +13,7 @@ When verification ladders fail during isolated worktree execution, this engine:
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import subprocess
@@ -234,4 +235,36 @@ class PipelineSelfHealingEngine:
             restoration_status="PRISTINE_ROLLBACK" if not teardown_worktree else "BRANCH_TEARDOWN",
             canonical_clean=True,
             timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+
+    async def attempt_self_healing_async(
+        self,
+        task_id: str,
+        worktree_session: WorktreeSessionConfig,
+        plan: ScopedMutationPlan,
+        failed_receipts: List[VerificationReceipt],
+        attempt_index: int,
+    ) -> SelfHealingAttemptReceipt:
+        """Asynchronously executes self-healing iteration without blocking event loop."""
+        return await asyncio.to_thread(
+            self.attempt_self_healing,
+            task_id,
+            worktree_session,
+            plan,
+            failed_receipts,
+            attempt_index,
+        )
+
+    async def execute_auto_rollback_async(
+        self,
+        task_id: str,
+        worktree_session: WorktreeSessionConfig,
+        teardown_worktree: bool = False,
+    ) -> RollbackReceipt:
+        """Asynchronously executes atomic auto-rollback without blocking event loop."""
+        return await asyncio.to_thread(
+            self.execute_auto_rollback,
+            task_id,
+            worktree_session,
+            teardown_worktree,
         )

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PromptCalibrationDashboard } from "./PromptCalibrationDashboard";
-import { Button, MetricTile, ProgressBar, StatusBadge, Surface, toneForStatus } from "./ui/primitives";
+import { Button, MetricTile, ProgressBar, StatusBadge, Surface } from "./ui/primitives";
+import { toneForStatus } from "./ui/utils";
 import { adminApiUrl, adminJsonHeaders, adminWsUrl } from "../services/adminRuntimeAuth";
 import type { Lang } from "../types";
 
@@ -1484,26 +1485,29 @@ export function ReplayPlaybackWidget({
     indexRef.current = index;
   }, [index]);
 
-  useEffect(() => {
-    let cancelled = false;
-    fetchJson<unknown>(`http://localhost:8000/v1/swarm/replays/${sessionId}`)
-      .then(raw => {
-        if (cancelled) return;
-        const nextEvents = mapReplay(raw);
-        setEvents(nextEvents.length > 0 ? nextEvents : fallbackReplay);
-        setIndex(0);
-        indexRef.current = 0;
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setEvents(fallbackReplay);
-        setIndex(0);
-        indexRef.current = 0;
-      });
-    return () => {
-      cancelled = true;
-    };
+  const loadReplay = useCallback(async (signal?: AbortSignal) => {
+    try {
+      const raw = await fetchJson<unknown>(`http://localhost:8000/v1/swarm/replays/${sessionId}`);
+      if (signal?.aborted) return;
+      const nextEvents = mapReplay(raw);
+      setEvents(nextEvents.length > 0 ? nextEvents : fallbackReplay);
+      setIndex(0);
+      indexRef.current = 0;
+    } catch {
+      if (signal?.aborted) return;
+      setEvents(fallbackReplay);
+      setIndex(0);
+      indexRef.current = 0;
+    }
   }, [sessionId]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    loadReplay(controller.signal);
+    return () => {
+      controller.abort();
+    };
+  }, [loadReplay]);
 
   useEffect(() => {
     if (!playing || events.length === 0) return undefined;

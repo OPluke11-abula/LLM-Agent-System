@@ -42,4 +42,5 @@ graph TD
 - [[core-sandbox]]: FileSnapshotTransaction filesystem isolation and automatic transaction rollback on failure (`agent_workspace/core/sandbox.py`).
 - [[core-audit-ledger]]: Immutable SQLite-based audit trail with tamper-proof SHA-256 hash chaining (`agent_workspace/core/audit_ledger.py`).
 - [[core-merkle]]: Cryptographic Merkle tree implementation supporting tamper detection and inclusion proofs (`agent_workspace/core/merkle.py`).
+- [[core-forensic-correlator]]: Dual-stream forensic correlation engine reconciling compliance audit trail and runtime execution telemetry (`agent_workspace/core/forensic_correlator.py`).
 - [[core-billing]]: Tenant credit verification, token consumption metering, and downscaling enforcement (`agent_workspace/core/billing.py`).

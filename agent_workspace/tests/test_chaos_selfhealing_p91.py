@@ -14,6 +14,7 @@ Validates:
 
 from __future__ import annotations
 
+import asyncio
 import os
 import subprocess
 import tempfile
@@ -365,6 +366,72 @@ class TestChaosSelfHealingP91(unittest.TestCase):
         self.assertEqual(receipt.restoration_status, "PRIMARY_REPO_PROTECTED")
         self.assertFalse(receipt.canonical_clean)
         self.assertEqual(len(receipt.untracked_files_purged), 0)
+
+    def test_async_self_healing_and_rollback(self) -> None:
+        """Verifies asynchronous wrappers for self-healing iteration and rollback."""
+        async def _run():
+            with tempfile.TemporaryDirectory(prefix="las_test_async_healing_") as tmp_dir:
+                subprocess.run(["git", "init"], cwd=tmp_dir, capture_output=True, check=True)
+                subprocess.run(["git", "config", "user.name", "Tester"], cwd=tmp_dir, capture_output=True, check=True)
+                subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=tmp_dir, capture_output=True, check=True)
+                base_file = Path(tmp_dir) / "baseline.txt"
+                base_file.write_text("v1.0 baseline", encoding="utf-8")
+                subprocess.run(["git", "add", "."], cwd=tmp_dir, capture_output=True, check=True)
+                subprocess.run(["git", "commit", "-m", "Init"], cwd=tmp_dir, capture_output=True, check=True)
+                base_sha = subprocess.run(["git", "rev-parse", "HEAD"], cwd=tmp_dir, capture_output=True, text=True, check=True).stdout.strip()
+
+                # Pollute worktree
+                base_file.write_text("v2.0 corrupted", encoding="utf-8")
+                untracked = Path(tmp_dir) / "async_leak.tmp"
+                untracked.write_text("leak", encoding="utf-8")
+
+                session = WorktreeSessionConfig(
+                    session_id="session-async-healing",
+                    worktree_path=tmp_dir,
+                    branch_name="feat/async-healing",
+                    base_commit=base_sha,
+                    is_isolated=True,
+                )
+
+                engine = PipelineSelfHealingEngine()
+
+                # Test async rollback
+                receipt = await engine.execute_auto_rollback_async(
+                    task_id="TASK-ASYNC-ROLLBACK",
+                    worktree_session=session,
+                    teardown_worktree=False,
+                )
+                self.assertEqual(receipt.restoration_status, "PRISTINE_ROLLBACK")
+                self.assertTrue(receipt.canonical_clean)
+                self.assertIn("async_leak.tmp", receipt.untracked_files_purged)
+                self.assertFalse(untracked.exists())
+
+                # Test async self-healing attempt
+                fake_failed_receipt = VerificationReceipt(
+                    step_name="pytest test_async.py",
+                    command="pytest test_async.py",
+                    status=VerificationStatus.FAIL,
+                    exit_code=1,
+                    stderr_snippet="AssertionError: 1 != 2",
+                    duration_ms=50.0,
+                )
+                attempt = await engine.attempt_self_healing_async(
+                    task_id="TASK-ASYNC-HEAL",
+                    worktree_session=session,
+                    plan=ScopedMutationPlan(
+                        task_id="TASK-ASYNC-HEAL",
+                        plan_summary="Async healing patch",
+                        assigned_role="DOMAIN_LOGIC_AGENT",
+                        target_files=["src/async.py"],
+                        test_strategy=["pytest test_async.py"],
+                    ),
+                    failed_receipts=[fake_failed_receipt],
+                    attempt_index=1,
+                )
+                self.assertEqual(attempt.attempt_index, 1)
+                self.assertTrue(any("AssertionError" in diag for diag in attempt.diagnostic_evidence))
+
+        asyncio.run(_run())
 
     # ---------------------------------------------------------------------
     # 5. MultiWorkerCluster End-to-End Demonstration

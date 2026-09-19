@@ -1,4 +1,4 @@
----
+﻿---
 tags:
   - memory/crdt
   - persistence/sqlite
@@ -54,3 +54,13 @@ graph TD
 
 - **Token Budgeting**: Prompts check available token budget before LLM dispatch (`context_budget_preflight.py`).
 - **Bounded Compaction**: Long conversation histories are automatically compacted into structured episodic summaries (`log_compactor.py`), preventing context overflow while preserving essential facts.
+
+---
+
+## 4. Persistence Engine & SQLite Concurrency Hardening (Phase 97)
+
+All SQLite persistence engines backing Tier 2 and Tier 3 (`memory.py`, `audit_ledger.py`, `runtime_events.py`, `mission_store.py`, `ledger.py`, `replay_logger.py`) operate under the unified Phase 97 concurrency profile:
+- **Journal Mode**: `PRAGMA journal_mode = WAL` (Write-Ahead Logging) allowing non-blocking concurrent reads during writes.
+- **Synchronization**: `PRAGMA synchronous = NORMAL` providing crash durability with minimized filesystem sync latency.
+- **Busy Timeout**: `PRAGMA busy_timeout = 5000` (5,000ms spin-wait) eliminating Windows file locking deadlocks.
+- **Re-entrant Lock**: Protected by `threading.RLock()` ensuring thread-safe cross-turn execution in multi-agent environments.

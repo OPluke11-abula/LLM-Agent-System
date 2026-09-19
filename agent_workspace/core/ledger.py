@@ -17,18 +17,28 @@ class FinancialLedger:
         self.db_dir = Path(self.workspace_path) / "memory"
         self.db_dir.mkdir(parents=True, exist_ok=True)
         self.db_path = self.db_dir / "financial_ledger.db"
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
         self._init_db()
 
     def _get_conn(self) -> sqlite3.Connection:
         conn = sqlite3.connect(str(self.db_path), timeout=30.0)
         conn.row_factory = sqlite3.Row
+        try:
+            conn.execute("PRAGMA busy_timeout = 5000")
+        except sqlite3.OperationalError:
+            pass
         return conn
 
     def _init_db(self) -> None:
         with self._lock:
             conn = self._get_conn()
             try:
+                try:
+                    conn.execute("PRAGMA journal_mode = WAL")
+                    conn.execute("PRAGMA synchronous = NORMAL")
+                    conn.execute("PRAGMA busy_timeout = 5000")
+                except sqlite3.OperationalError:
+                    pass
                 conn.execute(
                     """
                     CREATE TABLE IF NOT EXISTS financial_ledger (

@@ -1,6 +1,6 @@
 # LAS Knowledge Inventory - Latest
 
-Generated: 2026-09-08
+Generated: 2026-09-19
 
 This inventory is generated from compact metadata only. It does not store full note bodies.
 

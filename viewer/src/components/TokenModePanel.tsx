@@ -92,8 +92,66 @@ function formatTokens(value: number) {
   return value >= 1000 ? `${(value / 1000).toFixed(value >= 10_000 ? 0 : 1)}k` : String(value);
 }
 
-export function TokenModePanel({ session, nextTask, lang, compact = false }: TokenModePanelProps) {
-  const copy = COPY[lang];
+function TokenMetricsSection({
+  copy,
+  usedTokens,
+  verificationProfile,
+  handoffRecommended,
+  tokenBudget,
+  contextRatio,
+  action,
+}: {
+  copy: (typeof COPY)["en"];
+  usedTokens: number;
+  verificationProfile: string;
+  handoffRecommended: boolean;
+  tokenBudget: number | null;
+  contextRatio: number;
+  action: string;
+}) {
+  return (
+    <div>
+      <div className="grid grid-cols-3 gap-2">
+        <MetricTile label={copy.context} value={formatTokens(usedTokens)} tone="accent" />
+        <MetricTile label={copy.profile} value={verificationProfile} />
+        <MetricTile label={copy.handoff} value={handoffRecommended ? "Review" : "Clear"} tone={handoffRecommended ? "warning" : "success"} />
+      </div>
+      {tokenBudget && tokenBudget > 0 ? <ProgressBar ariaLabel={copy.context} className="mt-3" value={contextRatio} tone={handoffRecommended ? "warning" : "accent"} /> : null}
+      <div className="mt-3 rounded-lg border px-3 py-2" style={{ borderColor: "var(--border-c)" }}>
+        <p className="text-[10px] font-bold uppercase tracking-[0.12em] t3">{copy.nextAction}</p>
+        <p className="mt-1 line-clamp-2 text-xs leading-relaxed t1" aria-label={action} title={action}>{action}</p>
+      </div>
+    </div>
+  );
+}
+
+function TokenContributorsList({
+  copy,
+  contributors,
+}: {
+  copy: (typeof COPY)["en"];
+  contributors: { node: any; tokens: number }[];
+}) {
+  return (
+    <div className="rounded-lg border px-3 py-2" style={{ borderColor: "var(--border-c)" }}>
+      <p className="text-[10px] font-bold uppercase tracking-[0.12em] t3">{copy.contributors}</p>
+      {contributors.length === 0 ? (
+        <p className="mt-3 text-xs t2">{copy.noContributors}</p>
+      ) : (
+        <ol className="mt-2 space-y-2">
+          {contributors.map(({ node, tokens }) => (
+            <li key={node.id} className="flex items-center justify-between gap-3 text-xs">
+              <span className="min-w-0 truncate t1" title={node.title}>{node.title || node.node_type}</span>
+              <span className="flex-shrink-0 font-mono text-[10px] t3">{formatTokens(tokens)} tok</span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}
+
+function computeTokenStats(session: TopologyState | null | undefined, nextTask: { description?: string } | null | undefined, copy: (typeof COPY)["en"]) {
   const trace = session?.nodes.find((node) => node.payload.conductor_trace)?.payload.conductor_trace;
   const tokenBudget = trace?.budget.token_budget ?? null;
   const usedTokens = session?.stats.total_tokens ?? 0;
@@ -116,10 +174,40 @@ export function TokenModePanel({ session, nextTask, lang, compact = false }: Tok
   const verificationProfile = trace?.verification_strategy.kind || "focused";
   const mode = trace?.execution_mode || "token_efficient";
 
+  return {
+    tokenBudget,
+    usedTokens,
+    contextRatio,
+    contributors,
+    handoffRecommended,
+    action,
+    verificationProfile,
+    mode,
+  };
+}
+
+export function TokenModePanel({ session, nextTask, lang, compact = false }: TokenModePanelProps) {
+  const copy = COPY[lang];
+  const {
+    tokenBudget,
+    usedTokens,
+    contextRatio,
+    contributors,
+    handoffRecommended,
+    action,
+    verificationProfile,
+    mode,
+  } = computeTokenStats(session, nextTask, copy);
+
+  const budgetLabel = tokenBudget ? ` / ${formatTokens(tokenBudget)}` : "";
+  const handoffLabel = handoffRecommended ? copy.handoffRecommended : copy.handoffClear;
+  const flexCls = compact ? "flex flex-col gap-4" : "flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between";
+  const gridCls = compact ? "mt-4 grid gap-3" : "mt-4 grid gap-3 lg:grid-cols-[minmax(0,1.1fr)_minmax(260px,0.9fr)]";
+
   return (
     <>
       <Surface as="section" elevated className={`token-mode-panel ${compact ? "token-mode-panel-compact" : ""} p-4 sm:p-5`} data-testid="token-mode-panel">
-      <div className={`flex flex-col gap-4 ${compact ? "" : "xl:flex-row xl:items-start xl:justify-between"}`}>
+      <div className={flexCls}>
         <div className="min-w-0">
           <p className="text-[10px] font-bold uppercase tracking-[0.14em] accent-text">{copy.eyebrow}</p>
           <div className="mt-1 flex flex-wrap items-center gap-2">
@@ -127,43 +215,25 @@ export function TokenModePanel({ session, nextTask, lang, compact = false }: Tok
             <StatusBadge tone="accent">{mode}</StatusBadge>
           </div>
           <p className="mt-2 max-w-2xl text-xs leading-relaxed t2">
-            {copy.context}: {copy.estimated} {formatTokens(usedTokens)}{tokenBudget ? ` / ${formatTokens(tokenBudget)}` : ""} tokens.
+            {copy.context}: {copy.estimated} {formatTokens(usedTokens)}{budgetLabel} tokens.
           </p>
         </div>
         <StatusBadge className="self-start whitespace-nowrap" tone={handoffRecommended ? "warning" : "success"}>
-          {handoffRecommended ? copy.handoffRecommended : copy.handoffClear}
+          {handoffLabel}
         </StatusBadge>
       </div>
 
-      <div className={`mt-4 grid gap-3 ${compact ? "" : "lg:grid-cols-[minmax(0,1.1fr)_minmax(260px,0.9fr)]"}`}>
-        <div>
-          <div className="grid grid-cols-3 gap-2">
-            <MetricTile label={copy.context} value={formatTokens(usedTokens)} tone="accent" />
-            <MetricTile label={copy.profile} value={verificationProfile} />
-            <MetricTile label={copy.handoff} value={handoffRecommended ? "Review" : "Clear"} tone={handoffRecommended ? "warning" : "success"} />
-          </div>
-          {tokenBudget && tokenBudget > 0 ? <ProgressBar ariaLabel={copy.context} className="mt-3" value={contextRatio} tone={handoffRecommended ? "warning" : "accent"} /> : null}
-          <div className="mt-3 rounded-lg border px-3 py-2" style={{ borderColor: "var(--border-c)" }}>
-            <p className="text-[10px] font-bold uppercase tracking-[0.12em] t3">{copy.nextAction}</p>
-            <p className="mt-1 line-clamp-2 text-xs leading-relaxed t1" aria-label={action} title={action}>{action}</p>
-          </div>
-        </div>
-
-        <div className="rounded-lg border px-3 py-2" style={{ borderColor: "var(--border-c)" }}>
-          <p className="text-[10px] font-bold uppercase tracking-[0.12em] t3">{copy.contributors}</p>
-          {contributors.length === 0 ? (
-            <p className="mt-3 text-xs t2">{copy.noContributors}</p>
-          ) : (
-            <ol className="mt-2 space-y-2">
-              {contributors.map(({ node, tokens }) => (
-                <li key={node.id} className="flex items-center justify-between gap-3 text-xs">
-                  <span className="min-w-0 truncate t1" title={node.title}>{node.title || node.node_type}</span>
-                  <span className="flex-shrink-0 font-mono text-[10px] t3">{formatTokens(tokens)} tok</span>
-                </li>
-              ))}
-            </ol>
-          )}
-        </div>
+      <div className={gridCls}>
+        <TokenMetricsSection
+          copy={copy}
+          usedTokens={usedTokens}
+          verificationProfile={verificationProfile}
+          handoffRecommended={handoffRecommended}
+          tokenBudget={tokenBudget}
+          contextRatio={contextRatio}
+          action={action}
+        />
+        <TokenContributorsList copy={copy} contributors={contributors} />
       </div>
       </Surface>
       <DesignAgentPanel session={session} lang={lang} />

@@ -59,10 +59,10 @@ graph LR
 | **F-002** | Dynamic Routing & Intent Classification | Ethan | `BACKEND_INFRA_AGENT` | `agent_workspace/core/router.py`, `agent_workspace/core/engine.py` |
 | **F-003** | 4-Tier Memory OS & FTS5 Search | Ethan | `BACKEND_INFRA_AGENT` | `agent_workspace/core/memory.py`, `.agent/memory/` |
 | **F-004** | Swarm Debate & Consensus Quorum | Eason | `APPLICATION_FLOW_AGENT` | `agent_workspace/core/discussion_room.py`, `workflow_engine.py` |
-| **F-005** | Control Plane Cockpit & Topology View | Joe | `UI_UX_AGENT` | `viewer/src/components/`, `viewer/src/index.css` |
+| **F-005** | Control Plane Cockpit & Topology View | Joe | `UI_UX_AGENT` | `viewer/src/components/`, `viewer/src/components/ui/utils.ts`, `viewer/src/index.css` |
 | **F-006** | Cryptographic Merkle Ledger & Sandbox | Luke | `SECURITY_AUDIT_AGENT` | `agent_workspace/core/audit_ledger.py`, `sandbox.py` |
-| **F-007** | Distributed Mesh & P2P Broker | Ethan | `BACKEND_INFRA_AGENT` | `agent_workspace/core/broker.py`, `p2p_router.py` |
-| **F-008** | Autonomous Developer Agent Coding Pipeline | Luke / Ethan / Joe | `DOMAIN_LOGIC_AGENT` / `BACKEND_INFRA_AGENT` / `UI_UX_AGENT` | `agent_workspace/core/pipeline/`, `core/{repository,git_worktree,task_environment,agent_executor,runtime_events}.py`, `routes/pipeline.py`, `viewer/src/components/CodingPipelineView.tsx` |
+| **F-007** | Distributed Mesh & P2P Broker | Ethan | `BACKEND_INFRA_AGENT` | `agent_workspace/core/broker.py`, `p2p_router.py`, `federated_mesh.py`, `viewer/src/components/mesh/` |
+| **F-008** | Autonomous Developer Agent Coding Pipeline | Luke / Ethan / Joe | `DOMAIN_LOGIC_AGENT` / `BACKEND_INFRA_AGENT` / `UI_UX_AGENT` | `agent_workspace/core/pipeline/`, `core/{repository,git_worktree,task_environment,agent_executor,runtime_events}.py`, `routes/pipeline.py`, `viewer/src/components/CodingPipelineView.tsx`, `viewer/src/components/pipeline/` |
 
 
 ---

@@ -10,10 +10,10 @@ import {
   MetricTile,
   ProgressBar,
   StatusBadge,
-  toneForStatus,
   BentoCard,
   ShimmerButton,
 } from "./ui/primitives";
+import { toneForStatus } from "./ui/utils";
 import { ArrowRight, GitFork, Network, Radio, Workflow } from "./ui/icons";
 import { TokenModePanel } from "./TokenModePanel";
 import type { ActivityLogEntry, AgentMemory, AgentTask, Lang, TopologyEvent, TopologyState, Workspace } from "../types";

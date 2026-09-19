@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import type { Mission } from "../../generated/missionContracts";
 import { MissionApiError, missionApi } from "../../services/missionApi";
-import { LinkButton, StatusBadge, Surface, toneForStatus } from "../ui/primitives";
+import { LinkButton, StatusBadge, Surface } from "../ui/primitives";
+import { toneForStatus } from "../ui/utils";
 
 export function MissionListPage() {
   const [missions, setMissions] = useState<readonly Mission[]>([]);

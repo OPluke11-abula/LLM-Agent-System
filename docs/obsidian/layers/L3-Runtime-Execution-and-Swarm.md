@@ -49,3 +49,7 @@ graph TD
 - [[core-router]]: Intent classifier, active route latency tracking, and semantic dispatcher (`agent_workspace/core/router.py`).
 - [[core-agent-crew]]: 10 Grounded Roles dispatching, CrewRegistry thread-safe topology tracking, and host skill bindings (`agent_workspace/core/agent_crew.py`).
 - [[core-discussion-room]]: Swarm multi-agent debate, proposal synthesis, and Byzantine quorum voting (`agent_workspace/core/discussion_room.py`).
+- [[core-pipeline]]: Autonomous developer agent coding pipeline lifecycle, Stop-and-Wait gate, and Draft PR generation (`agent_workspace/core/pipeline/`).
+- [[core-pipeline-committee]]: Multi-agent committee consensus debate, dynamic role assembly, weighted scorecards, and veto protocol (`agent_workspace/core/pipeline/debate_protocol.py`).
+- [[core-pipeline-benchmark]]: Autonomous coding golden benchmark engine, 3 canonical scenarios, ADR-006 6 KPIs scorecard (`scripts/run_golden_benchmark.py`).
+- [[core-reasoning-router]]: Heterogeneous reasoning model adapters, dynamic thinking budgets, and air-gapped offline routing (`agent_workspace/core/reasoning_router.py`).

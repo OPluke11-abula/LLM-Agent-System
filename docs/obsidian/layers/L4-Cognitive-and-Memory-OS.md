@@ -41,3 +41,4 @@ graph TD
 
 - [[40 4-Tier Memory OS & SQLite FTS5 Persistence Topology]]: Comprehensive 4-tier memory OS architecture, SQLite FTS5 indexing, and BM25 reranking.
 - [[core-memory]]: Context defragmentation, episodic handoff sorting, and federated graph reconciliation (`agent_workspace/core/memory.py`).
+- [[core-vector-memory]]: Federated vector memory, semantic cosine similarity search, deterministic Merkle delta sync, and committee debate RAG (`agent_workspace/core/vector_memory.py`).
