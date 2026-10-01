@@ -122,6 +122,25 @@ class TestQuotaAwareRouter(unittest.TestCase):
         with self.assertRaises(QuotaExhaustedError):
             self.router.get_available_account()
 
+    def test_get_fallback_account_or_provider(self):
+        """Returns alternate provider when primary account/provider fails."""
+        # Fail acc-1 (openai)
+        self.router.mark_rate_limited("acc-1")
+        acc, prov, model = self.router.get_fallback_account_or_provider(
+            failed_account_id="acc-1", failed_provider="openai"
+        )
+        self.assertIsNotNone(acc)
+        self.assertEqual(prov, "google-genai")
+
+        # Fail all accounts, test default provider hierarchy fallback
+        self.router.mark_rate_limited("acc-2")
+        self.router.mark_rate_limited("acc-3")
+        acc2, prov2, model2 = self.router.get_fallback_account_or_provider(
+            failed_account_id="acc-2", failed_provider="google-genai"
+        )
+        self.assertIsNone(acc2)
+        self.assertIn(prov2, ("ollama", "openai"))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -371,3 +371,25 @@ template: "Task: {{ task_description }}\\nUnsafe: {{ unsafe_var }}"
     # 2. Semantic Context Insertion Assertion
     assert "## 🧠 RELEVANT HISTORICAL CONTEXT (Long-Term Memories):" in rendered
     assert "historical reference to building safe systems" in rendered
+
+
+def test_distill_self_healing_pattern():
+    """Verify that FederatedVectorMemory can distill and vectorize self-healing repair patterns."""
+    from agent_workspace.core.vector_memory import FederatedVectorMemory, VectorCategory
+
+    fvm = FederatedVectorMemory(node_id="node-test")
+    entry = fvm.distill_self_healing_pattern(
+        task_id="task-heal-01",
+        tool_name="filesystem.write",
+        original_error="Missing required parameter 'content'",
+        repaired_arguments={"file_path": "main.py", "content": "print('hello')"},
+        strategy="DETERMINISTIC",
+        context="Recovered missing content parameter",
+    )
+    assert entry.task_id == "task-heal-01"
+    assert entry.category == VectorCategory.PATTERN
+    assert entry.metadata["tool_name"] == "filesystem.write"
+    assert entry.metadata["strategy"] == "DETERMINISTIC"
+    assert "filesystem.write" in entry.content
+    assert entry.verify_integrity() is True
+

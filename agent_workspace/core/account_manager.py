@@ -114,6 +114,55 @@ class QuotaAwareRouter:
                 return cand
         return candidates[0]
 
+    def get_fallback_account_or_provider(
+        self,
+        failed_account_id: str | None = None,
+        failed_provider: str | None = None,
+        fallback_providers: tuple[str, ...] = ("google-genai", "ollama", "openai", "anthropic"),
+    ) -> tuple[dict[str, Any] | None, str, str]:
+        """
+        Dynamically finds an eligible fallback account or provider when the current one is rate-limited.
+        Returns (account_dict_or_none, provider_name, model_name).
+        """
+        accounts = self.account_manager.list_accounts()
+        candidates: list[dict[str, Any]] = []
+
+        for acc in accounts:
+            acc_id = acc.get("id")
+            if not acc_id or acc_id == failed_account_id:
+                continue
+            if self.is_account_cooling(acc_id):
+                continue
+            budget = acc.get("token_budget", -1)
+            used = acc.get("tokens_used", 0)
+            if budget != -1 and used >= budget:
+                continue
+            candidates.append(acc)
+
+        # 1. Prefer candidate from alternate provider if failed_provider given
+        if candidates and failed_provider:
+            alt_candidates = [
+                c for c in candidates
+                if c.get("provider", "").lower() != failed_provider.lower()
+            ]
+            if alt_candidates:
+                chosen = alt_candidates[0]
+                return chosen, chosen.get("provider", "google-genai"), chosen.get("model", "gemini-1.5-flash")
+
+        # 2. Candidate from same pool
+        if candidates:
+            chosen = candidates[0]
+            return chosen, chosen.get("provider", "google-genai"), chosen.get("model", "gemini-1.5-flash")
+
+        # 3. No candidate in configured accounts, fallback to default provider hierarchy
+        failed_prov_norm = (failed_provider or "").lower()
+        for prov in fallback_providers:
+            if prov.lower() != failed_prov_norm:
+                model = "gemini-1.5-flash" if "genai" in prov or "gemini" in prov else ("llama3" if prov == "ollama" else "gpt-4o-mini")
+                return None, prov, model
+
+        return None, "google-genai", "gemini-1.5-flash"
+
 
 class AccountManager:
     """Manages secure loading, saving, and token usage tracking for multiple LLM accounts."""

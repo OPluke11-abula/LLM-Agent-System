@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -248,3 +249,59 @@ class GitWorktreeManager(IWorktreeManager):
         # Return new HEAD SHA
         new_commit = self._run_git(wt_path, ["rev-parse", "HEAD"]).stdout.strip()
         return new_commit
+
+    def create_multi_agent_worktrees(
+        self,
+        repo_path: str,
+        roles: list[str],
+        base_ref: str = "main",
+    ) -> dict[str, WorktreeSessionConfig]:
+        """
+        Creates isolated concurrent worktrees for multiple roles (e.g. BackendDev, FrontendDev).
+        Returns a dict mapping role -> WorktreeSessionConfig.
+        """
+        sessions: dict[str, WorktreeSessionConfig] = {}
+        for role in roles:
+            sanitized_role = re.sub(r"[^a-zA-Z0-9_\-]", "_", role.lower())
+            branch_name = f"task_{sanitized_role}_{uuid.uuid4().hex[:6]}"
+            session = self.create_worktree(repo_path, branch_name=branch_name, base_ref=base_ref)
+            sessions[role] = session
+        return sessions
+
+    def squash_merge_worktree_branch(
+        self,
+        repo_path: str,
+        source_branch: str,
+        target_branch: str = "main",
+        commit_message: Optional[str] = None,
+    ) -> tuple[bool, str]:
+        """
+        Squash merges a completed worktree branch into the target branch.
+        Returns (success: bool, commit_or_error: str).
+        """
+        abs_repo = os.path.abspath(repo_path)
+        msg = commit_message or f"chore(worktree): squash merge {source_branch} into {target_branch}"
+
+        try:
+            curr_branch = self._run_git(abs_repo, ["rev-parse", "--abbrev-ref", "HEAD"]).stdout.strip()
+
+            if curr_branch != target_branch:
+                self._run_git(abs_repo, ["checkout", target_branch])
+
+            merge_res = self._run_git(abs_repo, ["merge", "--squash", source_branch], check=False)
+            if merge_res.returncode != 0:
+                self._run_git(abs_repo, ["reset", "--hard", "HEAD"], check=False)
+                return False, f"Squash merge conflict or failure: {merge_res.stderr.strip()}"
+
+            diff_cached = self._run_git(abs_repo, ["diff", "--cached", "--quiet"], check=False)
+            if diff_cached.returncode != 0:
+                self._run_git(abs_repo, ["commit", "-m", msg])
+                new_sha = self._run_git(abs_repo, ["rev-parse", "HEAD"]).stdout.strip()
+                return True, new_sha
+            else:
+                return True, "NOOP_NO_CHANGES"
+
+        except Exception as exc:
+            logger.error("Error squash merging branch '%s': %s", source_branch, exc)
+            return False, str(exc)
+

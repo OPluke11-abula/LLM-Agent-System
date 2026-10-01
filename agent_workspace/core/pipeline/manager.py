@@ -529,3 +529,111 @@ class CodingPipelineManager:
 *Generated autonomously by LLM-Agent-System (LAS) under Universal Protocol v3.8.0.*
 """
         return body
+
+    def execute_concurrent_role_pipeline(
+        self,
+        task_id: str,
+        request: CodingTaskRequest,
+        role_plans: dict[str, ScopedMutationPlan],
+    ) -> dict[str, Any]:
+        """
+        Executes concurrent multi-agent worktrees across multiple specialist roles
+        (e.g. BackendDev and FrontendDev) with UnifiedPolicyGate boundary validation,
+        file overlap arbitration, and atomic squash merge.
+        """
+        if not self.worktree_manager:
+            raise PipelineError("WorktreeManager is not configured on pipeline.", PipelineStage.ISOLATED_MUTATION)
+
+        # 1. Policy Gate: Validate role scopes for each role
+        for role, plan in role_plans.items():
+            is_valid, err_msg = self.validate_role_scope(role, plan.target_files)
+            if not is_valid:
+                return {
+                    "success": False,
+                    "error": f"Policy Gate violation for role '{role}': {err_msg}",
+                    "stage": PipelineStage.PLAN_AND_GATE.value,
+                }
+
+        # 2. File overlap arbitration (Conflict Elimination Invariant)
+        assigned_files: dict[str, str] = {}
+        for role, plan in role_plans.items():
+            for f in plan.target_files:
+                if f in assigned_files:
+                    return {
+                        "success": False,
+                        "error": f"Role overlap arbitration conflict: file '{f}' claimed by both '{assigned_files[f]}' and '{role}'",
+                        "stage": PipelineStage.PLAN_AND_GATE.value,
+                    }
+                assigned_files[f] = role
+
+        # 3. Create isolated worktree sessions for each role
+        roles_list = list(role_plans.keys())
+        if hasattr(self.worktree_manager, "create_multi_agent_worktrees"):
+            worktree_sessions = self.worktree_manager.create_multi_agent_worktrees(
+                repo_path=request.repository_path,
+                roles=roles_list,
+                base_ref=request.base_branch,
+            )
+        else:
+            worktree_sessions = {
+                r: self.worktree_manager.create_worktree(
+                    repo_path=request.repository_path,
+                    branch_name=f"{request.target_branch}_{r.lower()}",
+                    base_ref=request.base_branch,
+                )
+                for r in roles_list
+            }
+
+        # 4. Execute scoped mutations inside each isolated worktree
+        execution_results: dict[str, Any] = {}
+        commits: dict[str, str] = {}
+        try:
+            for role, plan in role_plans.items():
+                session = worktree_sessions[role]
+                if self.scoped_executor:
+                    self.scoped_executor.execute_plan(session, plan)
+                commit_msg = f"feat({role.lower()}): apply concurrent mutation for {task_id}"
+                new_commit = self.worktree_manager.commit_changes(session, commit_msg)
+                commits[role] = new_commit
+                diff_stat = self.worktree_manager.get_diff(session)
+                execution_results[role] = {
+                    "session_id": session.session_id,
+                    "branch": session.branch_name,
+                    "commit": new_commit,
+                    "diff": diff_stat,
+                }
+
+            # 5. Merge / squash branches sequentially into target branch if squash method supported
+            squash_results: dict[str, Any] = {}
+            if hasattr(self.worktree_manager, "squash_merge_worktree_branch"):
+                for role, session in worktree_sessions.items():
+                    ok, sha_or_err = self.worktree_manager.squash_merge_worktree_branch(
+                        repo_path=request.repository_path,
+                        source_branch=session.branch_name,
+                        target_branch=request.target_branch,
+                    )
+                    squash_results[role] = {"merged": ok, "receipt": sha_or_err}
+                    if not ok:
+                        return {
+                            "success": False,
+                            "error": f"Squash merge failed for role '{role}': {sha_or_err}",
+                            "stage": PipelineStage.ISOLATED_MUTATION.value,
+                            "partial_results": execution_results,
+                        }
+
+            return {
+                "success": True,
+                "roles": roles_list,
+                "executions": execution_results,
+                "squash_receipts": squash_results,
+                "arbitrated_files_count": len(assigned_files),
+            }
+
+        finally:
+            # Cleanup worktrees
+            for session in worktree_sessions.values():
+                try:
+                    self.worktree_manager.cleanup_worktree(session)
+                except Exception as exc:
+                    logger.warning("Failed to clean up worktree '%s': %s", session.worktree_path, exc)
+

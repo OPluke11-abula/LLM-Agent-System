@@ -5,14 +5,14 @@
 > **Prerequisite**: Automated tests 100% Green (`PASS`) before updating this document.
 > **Last Synchronized**: 2026-10-01
 > **Domain Owner / PO**: Luke
-> **Project State**: Phase 105 (Tasks A~D External Ecosystem Fusion & Golden Path Hardening) Completed & Certified (Milestone T-032); Transitioning to Phase 106.
+> **Project State**: Phase 106 (Autonomous Swarm Orchestration & Desktop Interactive Loop) Completed & Certified (Milestone T-033); App v0.6.0 Release Completed.
 
 ---
 
 ## 1. 3-Line Executive Summary (三行白話摘要)
-1. 外部生態先進模組融合 (Tasks A~D)：借鑑 coucou 實作 Tauri 2 邊緣懸浮伴侶 (`AmbientCompanion.tsx`, `useAmbientCompanion.ts`) 與 1-Click HITL 審批卡片；借鑑 web-bridge 實裝 `ProtocolRepairManager` 雙輪自癒協議；借鑑 codex-bridge 完成脫敏委派封包 `DelegationPacket` (<2000 tokens) 與 Advisor 降級機制；借鑑 opencodex 建立 `POST /v1/responses` SSE 串流協議與 `QuotaAwareRouter` 429 退避與多帳號切換。
-2. Golden Path 6 大架構缺口根治與深度優化：修正 test collection NameError；加固分支保護機制避免本機分支被誤刪；建立 Token 遮蔽與認證審批關卡；接通真實 Worktree Mutation 執行與不可繞過之 `UnifiedPolicyGate` 管制關口；狀態權威收斂至 SQLite `MissionStore`；將獨立審查納為交付必經門檻；同步前端 9 階段響應式 Stepper 與持久化審批收據。
-3. 雙軌遠端 CI 100% 綠燈驗收 (Milestone T-032 結案)：GitHub Actions Run 36855797639 (`python`, `mission-e2e`, `viewer`) 與 Run 36855797783 (`react-doctor`) 全數通過；本地 48 筆核心單元測試、前端 0 錯誤 0 警告、Companion 驗證 100% PASS，主幹 HEAD `68ba016` 乾淨整潔。
+1. Phase 106 全功能閉環交付 (Tasks 106-01 ~ 106-04)：桌面懸浮伴侶拆解為 4 大單一職責子組件與 9 階 Stepper（0 React Doctor 告警）；Responses API 整合 `ProtocolRepairManager` 參數透明自癒與 429 雲端至 Gemini Flash/本地 Ollama 動態熔斷降級；實作多代理 Worktrees 並行作業機制與 Policy Gate 衝突仲裁；`FederatedVectorMemory` 自動萃取自癒經驗模式。
+2. 零死碼與生產級安全收據驗證：本地 66 筆核心單元測試全數通過（0 失敗 0 警告）、Vite 8 編譯 938ms 達成、React Doctor 掃描 113 個檔案全綠燈無警告、版本號一致晉升至 `v0.6.0`。
+3. 雙軌遠端 CI 歷次 100% 綠燈驗收 (Milestone T-033 結案)：PR #19（Commit `b6ab70a`）遠端 CI Runs 36858807078 與 36858807077 全數通過；Phase 106 全量代碼均為必要且安全可執行之模組，主幹與分支全面封裝。
 
 ---
 
@@ -20,17 +20,16 @@
 
 | Check / Metric | Status | Evidence / Receipt |
 |---|---|---|
-| **Active Branch & Sync State** | `PASS` | `main` branch synchronized at HEAD `68ba0169f580` (Clean tree) |
-| **GitHub Actions Remote CI** | `PASS` | Run [36855797639](https://github.com/OPluke11-abula/LLM-Agent-System/actions/runs/36855797639) (`python`: 1m24s, `mission-e2e`: 1m44s, `viewer`: 12s) |
-| **GitHub Actions React Doctor** | `PASS` | Run [36855797783](https://github.com/OPluke11-abula/LLM-Agent-System/actions/runs/36855797783) (`react-doctor`: 19s, 0 issues) |
-| **Phase 105 Core Python Pytest** | `PASS` | `test_protocol_repair.py`, `test_delegation_packet.py`, `test_responses_api.py`, `test_quota_router.py`, `test_golden_path_hardening_slice2.py`, `test_pipeline_api_p3.py` (48/48 PASS in 9.17s) |
-| **Frontend Rolldown/Vite Build** | `PASS` | `npm run build` in `viewer/` (Pass in 778ms, 0 TypeScript errors, 677 modules transformed) |
+| **Active Release Version** | `PASS` | `v0.6.0` (`pyproject.toml`, `viewer/package.json`) |
+| **Phase 106 Full Test Suite** | `PASS` | 66/66 Python Core Tests PASS (responses, quota_router, concurrent_worktrees, protocol_repair, delegation_packet, vector_memory) |
+| **GitHub Actions Remote CI** | `PASS` | Run [36858807078](https://github.com/OPluke11-abula/LLM-Agent-System/actions/runs/36858807078) (`python`, `mission-e2e`, `viewer`) & Run [36858807077](https://github.com/OPluke11-abula/LLM-Agent-System/actions/runs/36858807077) (`react-doctor`) |
+| **Frontend Production Build** | `PASS` | `npm run build` in `viewer/` (Built in 938ms, 0 TypeScript errors, 681 modules transformed) |
 | **Frontend Companion Verification** | `PASS` | `npm run verify:companion` in `viewer/` (All 4 checks PASSED successfully) |
-| **React Doctor Code Quality** | `PASS` | `npm run doctor:changed` in `viewer/` (0 Bugs, 0 Performance regressions, 0 Giant Components) |
-| **6 Golden Path Architecture Gaps** | `PASS` | Remediated via PR #16: Branch preservation, HITL auth, worktree mutation, unified policy, SQLite authority, independent review |
-| **Tauri 2 Ambient Companion** | `PASS` | Delivered via PR #17: `companion-window`, `useAmbientCompanion.ts`, `AmbientCompanion.tsx`, 1-Click Allow/Deny card |
-| **Deep Optimization Pack** | `PASS` | Delivered via PR #18: 9-Stage Stepper sync, Gate Approved Receipt, structured function call streaming, token redaction |
-| **Obsidian Note & Vault Sync** | `PASS` | 62 notes synchronized across `docs/obsidian/` and external Vault; T-032 milestone recorded |
+| **React Doctor Code Quality** | `PASS` | `npm run doctor` in `viewer/` (Scanned 113 files, ✔ No issues found!) |
+| **Multi-Agent Worktree Sandbox** | `PASS` | Verified via `test_concurrent_worktrees_p106.py`: scope boundary enforcement & file overlap conflict arbitration |
+| **Responses API Dynamic Failover** | `PASS` | Verified via `test_responses_api.py`: `response.repair` and `response.failover` SSE events |
+| **Pattern Vector Distillation** | `PASS` | Verified via `test_vector_memory.py`: `distill_self_healing_pattern` Merkle-attested vectorization |
+| **Obsidian Note & Vault Sync** | `PASS` | 62 notes synchronized across `docs/obsidian/` and external Vault; Milestone T-033 recorded |
 | **Zero Host Pollution Invariant** | `PASS` | Isolated git worktrees preserve host repository cleanliness (0 host mutations) |
 
 ---

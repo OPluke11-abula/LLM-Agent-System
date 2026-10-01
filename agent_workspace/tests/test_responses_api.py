@@ -141,6 +141,89 @@ class TestResponsesApi(unittest.TestCase):
         self.assertEqual(_infer_provider_from_model("deepseek-chat"), "deepseek")
         self.assertEqual(_infer_provider_from_model("gpt-4o"), "openai")
 
+    @patch("agent_workspace.core.providers.ProviderFactory.get_provider")
+    def test_post_responses_streaming_tool_repair_event(self, mock_factory):
+        mock_provider = AsyncMock()
+        mock_provider.complete.return_value = (
+            "tool_calls",
+            [{"name": "filesystem.read", "arguments": "```json\n{\"path\": \"app.py\", \"start_line\": \"10\"}\n```"}],
+        )
+        mock_factory.return_value = mock_provider
+
+        payload = {
+            "model": "gpt-4o",
+            "input": "Read file",
+            "stream": True,
+            "tools": [{
+                "name": "filesystem.read",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "file_path": {"type": "string"},
+                        "start_line": {"type": "integer"},
+                    },
+                    "required": ["file_path"],
+                },
+            }],
+        }
+        res = self.client.post("/v1/responses", json=payload)
+        self.assertEqual(res.status_code, 200)
+        lines = res.text.strip().split("\n")
+        events = [line for line in lines if line.startswith("event: ")]
+        self.assertTrue(any("response.repair" in e for e in events))
+        self.assertTrue(any("response.function_call" in e for e in events))
+
+    @patch("agent_workspace.core.providers.ProviderFactory.get_provider")
+    def test_post_responses_streaming_dynamic_failover(self, mock_factory):
+        primary_provider = AsyncMock()
+        primary_provider.complete.side_effect = RuntimeError("429 Quota Exceeded")
+        fallback_provider = AsyncMock()
+        fallback_provider.complete.return_value = ("text", "Response from fallback provider")
+
+        def factory_side_effect(provider_name, **kwargs):
+            if provider_name == "openai":
+                return primary_provider
+            return fallback_provider
+
+        mock_factory.side_effect = factory_side_effect
+
+        payload = {
+            "model": "gpt-4o",
+            "input": "Prompt needing failover",
+            "stream": True,
+        }
+        res = self.client.post("/v1/responses", json=payload)
+        self.assertEqual(res.status_code, 200)
+        lines = res.text.strip().split("\n")
+        events = [line for line in lines if line.startswith("event: ")]
+        self.assertTrue(any("response.failover" in e for e in events))
+        self.assertTrue(any("response.completed" in e for e in events))
+
+    @patch("agent_workspace.core.providers.ProviderFactory.get_provider")
+    def test_post_responses_non_streaming_dynamic_failover(self, mock_factory):
+        primary_provider = AsyncMock()
+        primary_provider.complete.side_effect = RuntimeError("429 Quota Exceeded")
+        fallback_provider = AsyncMock()
+        fallback_provider.complete.return_value = ("text", "Recovered in non-streaming mode")
+
+        def factory_side_effect(provider_name, **kwargs):
+            if provider_name == "openai":
+                return primary_provider
+            return fallback_provider
+
+        mock_factory.side_effect = factory_side_effect
+
+        payload = {
+            "model": "gpt-4o",
+            "input": "Prompt needing failover",
+            "stream": False,
+        }
+        res = self.client.post("/v1/responses", json=payload)
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertEqual(data["status"], "completed")
+        self.assertEqual(data["output"][0]["content"][0]["text"], "Recovered in non-streaming mode")
+
 
 if __name__ == "__main__":
     unittest.main()

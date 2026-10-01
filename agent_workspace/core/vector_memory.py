@@ -338,3 +338,44 @@ class FederatedVectorMemory:
                 "embedding_dimension": self.embedding_dim,
                 "category_breakdown": category_counts,
             }
+
+    def distill_self_healing_pattern(
+        self,
+        task_id: str,
+        tool_name: str,
+        original_error: str,
+        repaired_arguments: Dict[str, Any],
+        strategy: str,
+        context: str = "",
+    ) -> VectorMemoryEntry:
+        """
+        Distills and vectorizes a self-healing protocol repair pattern into federated vector memory.
+        Enables cross-agent peer synchronization and associative recall of verified repair patterns.
+        """
+        content = (
+            f"Self-Healing Protocol Pattern for tool '{tool_name}' using strategy '{strategy}'.\n"
+            f"Original Error / Malformed Input: {original_error}\n"
+            f"Repaired Arguments: {json.dumps(repaired_arguments, sort_keys=True, ensure_ascii=False)}\n"
+            f"Context: {context}"
+        )
+        metadata = {
+            "tool_name": tool_name,
+            "strategy": strategy,
+            "original_error": original_error[:300],
+            "repaired_keys": list(repaired_arguments.keys()),
+            "distilled_at": time.time(),
+        }
+        entry = self.store(
+            task_id=task_id,
+            category=VectorCategory.PATTERN,
+            content=content,
+            metadata=metadata,
+        )
+        logger.info(
+            "[VectorMemory] Distilled self-healing pattern %s for tool '%s' (strategy: %s)",
+            entry.entry_id,
+            tool_name,
+            strategy,
+        )
+        return entry
+

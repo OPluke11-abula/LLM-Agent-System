@@ -12,19 +12,17 @@
 - Realtime Working Coordination: External surface optional; `.agent/` is durable canonical execution authority.
 
 ## Project Frontier
-- Current Phase: Phase 106 - Autonomous Swarm Orchestration & Desktop Interactive Loop (HEAD: 68ba0169f580)
-- Active Milestone: Milestone T-032 (Phase 105 Closure & Ecosystem Fusion Certified) -> Transitioning to Phase 106
+- Current Phase: Phase 106 - Autonomous Swarm Orchestration & Desktop Interactive Loop (COMPLETED & CERTIFIED)
+- Active Milestone: Milestone T-033 (Phase 106 Formal Closure & Release v0.6.0 Certified)
+- Release Version: `v0.6.0`
 - Slice Status:
-  - Task A (Tauri 2 Ambient Companion & 1-Click HITL): COMPLETED & VERIFIED (PR #17).
-  - Task B (Protocol Repair Loop): COMPLETED & VERIFIED (PR #15).
-  - Task C (Delegation Packet): COMPLETED & VERIFIED (PR #15).
-  - Task D (Responses API Gateway): COMPLETED & VERIFIED (PR #15).
-  - Slices 1 & 2 (Golden Path Hardening Gaps 1~6): COMPLETED & VERIFIED (PR #16).
-  - Deep Optimization Pack (9-Stage Stepper Sync + Gate Approved Receipt + Responses API Structured Tools + Secret Redaction at Rest): COMPLETED & VERIFIED (PR #18).
-  - Phase 105 Milestone T-032: FULLY CLOSED & CERTIFIED (Remote CI Runs 36855797639, 36855797783 100% PASS).
-  - Phase 106 Task 106-01 (Ambient Companion Full Pipeline Interop): QUEUED.
-- Current Frontier Ref: LAS-PHASE-106-SWARM-DESKTOP-LOOP
-- Coordination Checkpoint: Phase 105 核心與深度優化全數驗證通過 (100% Green CI & Clean Build)
+  - Task 106-01 (Desktop Companion Full Interactive Loop & Modular Decomposition): COMPLETED & VERIFIED (PR #19).
+  - Task 106-02 (Responses API Dynamic Failover & In-Session Self-Healing Integration): COMPLETED & VERIFIED.
+  - Task 106-03 (Concurrent Multi-Agent Worktree Mutation Sandbox & Policy Gate Arbitration): COMPLETED & VERIFIED.
+  - Task 106-04 (Self-Healing Pattern Vector Distillation & v0.6.0 Release Verification): COMPLETED & VERIFIED.
+  - Phase 106 Milestone T-033: FULLY CLOSED & CERTIFIED (66/66 Unit Tests PASS, 0 React Doctor warnings, Vite build clean).
+- Current Frontier Ref: LAS-PHASE-106-MILESTONE-T033-CLOSED
+- Coordination Checkpoint: Full Product Cycle and Swarm Architecture Certified (100% Green CI & Clean Working Tree).
 - Working Tree Policy: High-rigor source-grounded verification; zero fake execution evidence; authority unified to SQLite MissionStore.
 
 ## Shared Workspace Registry

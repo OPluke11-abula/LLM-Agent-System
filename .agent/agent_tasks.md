@@ -137,19 +137,19 @@ Goal: Absorb best practices from 5 open-source ecosystems (opencodex, codex-chat
 
 ### Phase 106 - Autonomous Swarm Orchestration & Desktop Interactive Loop
 
-Status: `[ ]` 0/4 complete.
+Status: `[x]` 4/4 complete.
 Goal: Transform the decoupled Phase 105 modules into an integrated, production-grade autonomous swarm workflow connecting desktop controls, dynamic model failover, multi-agent worktrees, and closed-loop experience distillation.
 
-- [ ] **106-01 Desktop Companion Full Interactive Loop**
+- [x] **106-01 Desktop Companion Full Interactive Loop**
   - Connect Ambient Companion to live pipeline streaming, drag-and-drop context injection to `/v1/pipeline/tasks`, and global summoning hotkeys with edge snapping.
-  - Target: `viewer/src/hooks/useAmbientCompanion.ts`, `viewer/src/components/companion/AmbientCompanion.tsx`.
-- [ ] **106-02 Responses API Dynamic Failover & In-Session Self-Healing Integration**
+  - Target: `viewer/src/hooks/useAmbientCompanion.ts`, `viewer/src/components/companion/AmbientCompanion.tsx` (PR #19).
+- [x] **106-02 Responses API Dynamic Failover & In-Session Self-Healing Integration**
   - Integrate transparent `ProtocolRepairManager` self-healing within SSE event streams; support dynamic failover from cloud models (429/exhaustion) to local Ollama / Gemini Flash.
-  - Target: `agent_workspace/routes/responses.py`, `agent_workspace/core/account_manager.py`.
-- [ ] **106-03 Concurrent Multi-Agent Worktree Mutation Sandbox**
-  - Support concurrent worktree mutations across `BackendDev` and `FrontendDev` roles with automated squash merge and `UnifiedPolicyGate` arbitration before review.
-  - Target: `agent_workspace/core/git_worktree.py`, `agent_workspace/core/pipeline/manager.py`.
-- [ ] **106-04 Self-Healing Pattern Vector Distillation & v0.6.0 Release Verification**
+  - Target: `agent_workspace/routes/responses.py`, `agent_workspace/core/account_manager.py`, `agent_workspace/tests/test_responses_api.py`.
+- [x] **106-03 Concurrent Multi-Agent Worktree Mutation Sandbox**
+  - Support concurrent worktree mutations across `BACKEND_INFRA_AGENT` and `UI_UX_AGENT` roles with automated squash merge and `UnifiedPolicyGate` arbitration before review.
+  - Target: `agent_workspace/core/git_worktree.py`, `agent_workspace/core/pipeline/manager.py`, `agent_workspace/tests/test_concurrent_worktrees_p106.py`.
+- [x] **106-04 Self-Healing Pattern Vector Distillation & v0.6.0 Release Verification**
   - Automatically vectorize self-healing repair patterns into `FederatedVectorMemory`; execute full 8-step verification ladder and Golden Benchmark; bump version to `v0.6.0`.
   - Target: `agent_workspace/core/vector_memory.py`, `pyproject.toml`, `viewer/package.json`, `docs/obsidian/`.
 

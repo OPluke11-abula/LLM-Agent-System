@@ -19,12 +19,59 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from agent_workspace.core.account_manager import QuotaExhaustedError
+from agent_workspace.core.protocol_repair import ProtocolRepairManager, RepairStrategy
 from agent_workspace.core.providers import ProviderFactory
 from agent_workspace.routes.dependencies import get_account_manager
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["responses"])
+
+
+def _repair_tool_calls(
+    raw_calls: list[dict[str, Any]],
+    tool_schemas: list[dict[str, Any]],
+    repair_mgr: ProtocolRepairManager,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Applies ProtocolRepairManager to normalize/repair tool call arguments."""
+    repaired_calls = []
+    repair_events = []
+
+    schema_map: dict[str, dict[str, Any]] = {}
+    for t in tool_schemas:
+        if isinstance(t, dict):
+            name = t.get("name") or t.get("function", {}).get("name", "")
+            if name:
+                schema_map[name] = t.get("parameters") or t.get("function", {}).get("parameters", {})
+
+    for call in raw_calls:
+        if not isinstance(call, dict):
+            continue
+        c_name = call.get("name", "")
+        c_args = call.get("arguments", {})
+        target_schema = schema_map.get(c_name)
+
+        repair_res = repair_mgr.validate_and_repair(
+            tool_name=c_name,
+            raw_arguments=c_args,
+            schema=target_schema,
+        )
+
+        final_args = repair_res.repaired_arguments if repair_res.success else c_args
+        repaired_call = dict(call)
+        repaired_call["arguments"] = final_args
+        repaired_calls.append(repaired_call)
+
+        if repair_res.strategy != RepairStrategy.NOOP:
+            repair_events.append({
+                "tool": c_name,
+                "strategy": repair_res.strategy.value,
+                "turns": repair_res.turns_used,
+                "success": repair_res.success,
+                "history": repair_res.repair_history,
+            })
+
+    return repaired_calls, repair_events
 
 
 class ResponsesRequest(BaseModel):
@@ -144,7 +191,9 @@ async def create_response(request: Request, body: ResponsesRequest):
             }
             yield f"event: response.output_item.added\ndata: {json.dumps({'output_item': item_payload})}\n\n"
 
-            # Call provider
+            repair_mgr = ProtocolRepairManager()
+
+            # Call provider with dynamic failover
             try:
                 if await request.is_disconnected():
                     logger.info("Client disconnected before completion: %s", resp_id)
@@ -155,22 +204,52 @@ async def create_response(request: Request, body: ResponsesRequest):
                 raw_text = result[1] if isinstance(result, (tuple, list)) and len(result) > 1 else str(result)
             except Exception as exc:
                 err_msg = str(exc)
-                if "429" in err_msg or "rate limit" in err_msg.lower():
-                    if hasattr(am, "quota_router"):
-                        am.quota_router.mark_rate_limited(account_id)
-                yield f"event: response.error\ndata: {json.dumps({'error': err_msg})}\n\n"
-                return
+                logger.warning("Primary provider '%s' failed in streaming: %s. Attempting failover...", provider_name, err_msg)
+                if hasattr(am, "quota_router"):
+                    am.quota_router.mark_rate_limited(account_id)
+
+                fallback_success = False
+                if hasattr(am, "quota_router"):
+                    fb_acc, fb_prov, fb_model = am.quota_router.get_fallback_account_or_provider(
+                        failed_account_id=account_id, failed_provider=provider_name
+                    )
+                    if fb_prov and fb_prov.lower() != provider_name.lower():
+                        try:
+                            fb_key = am.resolve_api_key(fb_acc) if fb_acc else None
+                            fb_url = fb_acc.get("base_url") if fb_acc else None
+                            fb_provider = ProviderFactory.get_provider(fb_prov, api_key=fb_key, base_url=fb_url)
+                            fb_config = dict(config)
+                            fb_config["model"] = fb_model
+
+                            yield f"event: response.failover\ndata: {json.dumps({'from': provider_name, 'to': fb_prov, 'model': fb_model, 'reason': err_msg})}\n\n"
+
+                            result = await fb_provider.complete(system_prompt, messages, tool_schemas, fb_config)
+                            resp_type = result[0] if isinstance(result, (tuple, list)) and len(result) > 0 else "text"
+                            raw_text = result[1] if isinstance(result, (tuple, list)) and len(result) > 1 else str(result)
+                            fallback_success = True
+                            logger.info("Successfully failed over to '%s' (%s)", fb_prov, fb_model)
+                        except Exception as fb_exc:
+                            logger.error("Fallback provider '%s' failed: %s", fb_prov, fb_exc)
+                            err_msg = f"{err_msg}; fallback error: {fb_exc}"
+
+                if not fallback_success:
+                    yield f"event: response.error\ndata: {json.dumps({'error': err_msg})}\n\n"
+                    return
 
             if await request.is_disconnected():
                 logger.info("Client disconnected during stream delivery: %s", resp_id)
                 return
 
-            # Function call or text content
+            # Function call or text content with ProtocolRepair self-healing
             if resp_type == "tool_calls" and isinstance(raw_text, list):
-                for call in raw_text:
+                repaired_calls, repair_events = _repair_tool_calls(raw_text, tool_schemas, repair_mgr)
+                for r_evt in repair_events:
+                    yield f"event: response.repair\ndata: {json.dumps(r_evt)}\n\n"
+                for call in repaired_calls:
                     call_name = call.get("name", "")
                     call_args = call.get("arguments", {})
                     yield f"event: response.function_call\ndata: {json.dumps({'name': call_name, 'arguments': call_args})}\n\n"
+                raw_text = repaired_calls
             else:
                 text_content = raw_text if isinstance(raw_text, str) else json.dumps(raw_text)
                 part_payload = {
@@ -227,19 +306,45 @@ async def create_response(request: Request, body: ResponsesRequest):
             },
         )
 
-    # Non-streaming mode
+    # Non-streaming mode with dynamic failover
+    repair_mgr = ProtocolRepairManager()
     try:
         result = await provider.complete(system_prompt, messages, tool_schemas, config)
     except Exception as exc:
         err_msg = str(exc)
-        if "429" in err_msg or "rate limit" in err_msg.lower():
-            if hasattr(am, "quota_router"):
-                am.quota_router.mark_rate_limited(account_id)
-            raise HTTPException(status_code=429, detail="Upstream provider rate limited")
-        raise HTTPException(status_code=500, detail=f"Provider completion failed: {err_msg}")
+        logger.warning("Primary provider '%s' failed in non-streaming: %s. Attempting failover...", provider_name, err_msg)
+        if hasattr(am, "quota_router"):
+            am.quota_router.mark_rate_limited(account_id)
+
+        fallback_success = False
+        if hasattr(am, "quota_router"):
+            fb_acc, fb_prov, fb_model = am.quota_router.get_fallback_account_or_provider(
+                failed_account_id=account_id, failed_provider=provider_name
+            )
+            if fb_prov and fb_prov.lower() != provider_name.lower():
+                try:
+                    fb_key = am.resolve_api_key(fb_acc) if fb_acc else None
+                    fb_url = fb_acc.get("base_url") if fb_acc else None
+                    fb_provider = ProviderFactory.get_provider(fb_prov, api_key=fb_key, base_url=fb_url)
+                    fb_config = dict(config)
+                    fb_config["model"] = fb_model
+                    result = await fb_provider.complete(system_prompt, messages, tool_schemas, fb_config)
+                    fallback_success = True
+                    logger.info("Non-streaming successfully failed over to '%s' (%s)", fb_prov, fb_model)
+                except Exception as fb_exc:
+                    logger.error("Non-streaming fallback failed: %s", fb_exc)
+
+        if not fallback_success:
+            if "429" in err_msg or "rate limit" in err_msg.lower():
+                raise HTTPException(status_code=429, detail="Upstream provider rate limited")
+            raise HTTPException(status_code=500, detail=f"Provider completion failed: {err_msg}")
 
     resp_type = result[0] if isinstance(result, (tuple, list)) and len(result) > 0 else "text"
     raw_content = result[1] if isinstance(result, (tuple, list)) and len(result) > 1 else str(result)
+
+    if resp_type == "tool_calls" and isinstance(raw_content, list):
+        repaired_calls, _ = _repair_tool_calls(raw_content, tool_schemas, repair_mgr)
+        raw_content = repaired_calls
 
     usage_info = getattr(result, "usage", None) or {"prompt_tokens": 10, "completion_tokens": 20, "total_tokens": 30}
     if hasattr(am, "quota_router"):

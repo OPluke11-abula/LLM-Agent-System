@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "llm-agent-system"
-version = "0.5.0"
+version = "0.6.0"
 description = "LAS: Governed Autonomous Multi-Agent Development Control Plane under Protocol v3.8.0"
 readme = "README.md"
 requires-python = ">=3.10"
