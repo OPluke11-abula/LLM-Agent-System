@@ -13,12 +13,15 @@
 
 ## Project Frontier
 - Current Phase: Phase 105 - Golden Path Hardening & CI Remediation (HEAD: 858dfdb1b982)
-- Active Milestone: Golden Path Gap Remediation & CI Green Alignment (Tasks B, C, D merged; Task A frozen)
+- Active Milestone: Phase 105 - Task A (Tauri 2 Ambient Companion & 1-Click HITL) + Tasks B, C, D Completed & Verified
 - Slice Status:
-  - Slice 1 (CI Collection Fix + Pipeline Auth/Token Redaction + Worktree Branch Protection): COMPLETED & VERIFIED (22 tests PASS, 965 collected).
-  - Slice 2 (Gaps 1, 2, 4, 6: Real Mutation Execution, Unified Policy Chokepoint, MissionStore Authority, Mandatory Review Gate): COMPLETED & VERIFIED (39 tests PASS, Exit Code 0).
-- Current Frontier Ref: LAS-GOLDEN-PATH-REMEDIATION-858dfdb
-- Coordination Checkpoint: Slice 1 & Slice 2 Fully Completed & Verified (全部驗收通過)
+  - Task B (Protocol Repair Loop): COMPLETED & VERIFIED.
+  - Task C (Delegation Packet): COMPLETED & VERIFIED.
+  - Task D (Responses API Gateway): COMPLETED & VERIFIED.
+  - Slices 1 & 2 (Golden Path Hardening Gaps 1~6): COMPLETED & VERIFIED (PR #16 merged).
+  - Task A (Tauri 2 Ambient Companion & 1-Click HITL Approval): COMPLETED & VERIFIED (companion-window, useAmbientCompanion, AmbientCompanion UI, verify:companion green).
+- Current Frontier Ref: LAS-PHASE-105-TASK-A-COMPLETE
+- Coordination Checkpoint: Task A ~ Task D 全數完成並驗證通過 (100% Green CI & Clean Build)
 - Working Tree Policy: High-rigor source-grounded verification; zero fake execution evidence; authority unified to SQLite MissionStore.
 
 ## Shared Workspace Registry

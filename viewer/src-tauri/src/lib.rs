@@ -211,6 +211,33 @@ fn open_dashboard_window(app_handle: AppHandle, session_id: String, role: String
     Ok(())
 }
 
+#[tauri::command]
+fn toggle_companion_window(app_handle: AppHandle) -> Result<(), String> {
+    use tauri::Manager;
+    if let Some(window) = app_handle.get_webview_window("companion-window") {
+        let is_visible = window.is_visible().map_err(|e| e.to_string())?;
+        if is_visible {
+            window.hide().map_err(|e| e.to_string())?;
+        } else {
+            window.show().map_err(|e| e.to_string())?;
+            window.set_focus().map_err(|e| e.to_string())?;
+        }
+    } else {
+        let url = tauri::WebviewUrl::App("index.html#/companion".into());
+        tauri::WebviewWindowBuilder::new(&app_handle, "companion-window", url)
+            .title("LAS Ambient Companion")
+            .inner_size(400.0, 240.0)
+            .decorations(false)
+            .transparent(true)
+            .always_on_top(true)
+            .resizable(false)
+            .skip_taskbar(true)
+            .build()
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -229,6 +256,7 @@ pub fn run() {
             save_agent_memory_to,
             save_workspace_file,
             open_dashboard_window,
+            toggle_companion_window,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
