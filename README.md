@@ -1,4 +1,6 @@
-# FindAi Studio — LLM Agent System (LAS)
+# <a id="english"></a>FindAi Studio — LLM Agent System (LAS)
+
+[English](#english) | [繁體中文](#繁體中文)
 
 LAS is an enterprise-grade, contract-first multi-agent runtime and topology control plane featuring a FastAPI backend, Portable Agent Protocol (PAP v0.2) contracts, a resilient 7-layer architecture, durable cross-agent memory, and a modern React 19 / Tauri 2 desktop control plane.
 
@@ -94,7 +96,7 @@ flowchart TD
 
 ## What is Included
 
-- **Python Runtime (`agent_workspace/core`)**: Routing, multi-tier memory, cryptographic consensus, sandboxing, provider abstraction, and multi-agent coordination.
+- **Python Runtime (`agent_workspace/core`, `agent_workspace/routes`)**: Routing, multi-tier memory, cryptographic consensus, sandboxing, provider abstraction, in-session protocol self-healing (`ProtocolRepairManager`), structured Advisor delegation (`DelegationPacket`), OpenAI-compatible Responses API streaming gateway (`POST /v1/responses`), Quota-Aware routing with 429 exponential backoff (`QuotaAwareRouter`), and multi-agent coordination.
 - **Contract & Knowledge System (`.agent`)**: PAP contracts, workflows, role definitions, and durable cross-agent project knowledge.
 - **Developer Agent Control Plane**: Canonical mission and autonomous coding pipeline contracts ([`docs/product/developer-agent-control-plane.md`](docs/product/developer-agent-control-plane.md)).
 - **React 19 + Tauri 2 Desktop App (`viewer`)**: Dark glassmorphism interface, Radix UI primitives, Lucide icons, Rolldown code-splitting, real-time topology stream.
@@ -245,3 +247,64 @@ See [`releases/README.md`](releases/README.md) for full release evidence, build 
 - Runtime codebase: **Elastic License 2.0** (`LICENSE`).
 - Standalone viewer package: **MIT License** (`viewer/LICENSE`).
 - Security policy: see [`SECURITY.md`](SECURITY.md) for vulnerability reporting procedures.
+
+---
+
+## <a id="繁體中文"></a>繁體中文說明
+
+[English](#english) | [返回頂部](#english)
+
+### 專案概述 (FindAi Studio — LLM Agent System)
+
+LAS (FindAi Studio) 是一套企業級、合約優先 (Contract-First) 的多智能體運行時與拓撲控制系統。具備 FastAPI 後端、Portable Agent Protocol (PAP v0.2) 規格、強固的七層拓撲架構、持久化跨智能體記憶系統，以及基於 React 19 / Tauri 2 的現代化桌面控制介面。
+
+### 核心特性
+
+1. **七層拓撲架構 (7-Layer Topological Architecture)**：
+   * **展示層 (Layer 1)**：React 19 + Tauri 2 桌面應用程式，採用暗色毛玻璃風格、Radix UI、Lucide 圖標與 Rolldown 程式碼分割。
+   * **協定與閘道層 (Layer 2)**：PAP v0.2 工作區規格、101 個 REST 端點、9 組即時 WebSocket 管道、OpenAPI 整合。
+   * **治理與共識層 (Layer 3)**：加密 Merkle Tree、零知識證明 (ZK-Proof) 驗證、多智能體審批辯論機制。
+   * **認知引擎與動態路由 (Layer 4)**：智慧路由、多模型調度 (Gemini, Claude, GPT, Ollama) 與自動帳號容錯。
+   * **記憶體作業系統 (Layer 5)**：四階記憶體 (臨時、會話、持久、共享 SQLite FTS5) 與上下文壓縮。
+   * **工具執行與沙箱層 (Layer 6)**：嚴格工具清單驗證、進程與容器隔離、Git 破壞性指令攔截防護。
+   * **跨雲與分散式網格 (Layer 7)**：自動 mTLS 憑證輪換、分散式訊息代理、多區域同步。
+
+2. **Phase 105 工具協議自癒修復輪次 (Protocol Repair Loop)**：
+   * **確定性語法修復**：自動清理 Markdown 代碼塊 (` ```json `)、自訂 XML 標籤、修復尾隨逗號與單引號 JSON。
+   * **參數別名自動映射**：自動將 `path`/`target_file` 映射為 `file_path`，`cmd` 映射為 `command`，`text` 映射為 `content`。
+   * **型別安全轉換**：安全轉換字串數值與布林值 (`"10"` ➔ `10`, `"true"` ➔ `True`)。
+   * **會話內有界反思修復**：當參數完全不合規時，發動有界 LLM 反思輪次，嚴格限制上限 `max_turns=2`，防範循環死鎖與提示注入。
+
+3. **Phase 105 Executor vs. Advisor 結構化委派封包 (Delegation Packet)**：
+   * **思考與執行解耦**：本地執行環境專注快速 Shell/檔案改動；高階架構規劃與審查則封裝為脫敏且嚴格小於 2000 tokens 之 `DelegationPacket`。
+   * **Zero-Risk 零外部風險手動模式**：支援一鍵渲染 Markdown 剪貼簿封包供離線手動諮詢，杜絕自動外部雲端數據外洩。
+   * **自動化 MCP 委派與優雅降級**：外部 Advisor 逾時或異常時，自動降級至本地內部模型，保障任務不中斷。
+
+4. **Phase 105 OpenAI Responses API 閘道與配額感知路由 (Quota-Aware Routing)**：
+   * **OpenAI 相容串流閘道**：暴露 `POST /v1/responses` 端點，支援 SSE 串流事件（`response.created`, `output_item.added`, `content_part.added`, `output_item.done`, `response.completed`）與非串流輸出。
+   * **動態配額與 429 指數退避**：內建 `QuotaAwareRouter`，實現 429 冷卻維護池（$5 \times 2^{n-1}$ 秒上限 120 秒）、60 秒滑動視窗 RPM/TPM 即時監控，並於冷卻時自動平滑切換至健康備援帳號。
+   * **客戶端斷線與型別化錯誤防護**：優雅釋放中斷串流資源，當所有可用帳號皆耗盡或冷卻時拋出型別化 `QuotaExhaustedError`（HTTP 429）。
+
+5. **黃金八階驗證階梯 (8-Step Golden Verification Ladder)**：
+   * 執行 `.\scripts\verify.cmd` 進行 Python 編譯、Pytest 矩陣測試、PAP 規格驗證、工具清單檢核、Obsidian 筆記健康檢查、Viewer 生產建置、UI 冒煙測試與 React Doctor 品質審查。
+
+### 快速開始
+
+```powershell
+# 1. 複製儲存庫
+git clone https://github.com/OPluke11-abula/LLM-Agent-System.git
+cd LLM-Agent-System
+
+# 2. 設定 Python 虛擬環境
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+
+# 3. 執行權威驗證階梯
+.\scripts\verify.cmd -SkipViewer
+```
+
+### 授權與安全
+
+- 核心運行時代碼採用 **Elastic License 2.0** (`LICENSE`)。
+- 桌面 Viewer 採用 **MIT License** (`viewer/LICENSE`)。
+- 安全性漏洞通報指引請參閱 [`SECURITY.md`](SECURITY.md)。

@@ -31,6 +31,11 @@ from agent_workspace.core.pipeline.models import (
     WorktreeSessionConfig,
 )
 from agent_workspace.core.policy_gate import ROLE_SCOPE_RESTRICTIONS
+from agent_workspace.core.protocol_repair import (
+    ProtocolRepairManager,
+    RepairResult,
+    RepairStrategy,
+)
 from agent_workspace.core.task_environment import (
     DEFAULT_PROTECTED_PATTERNS,
     MINIMAL_GOVERNED_TOOLS,
@@ -409,11 +414,13 @@ class AgentExecutor(IScopedExecutor):
         tools: GovernedToolRegistry,
         attempt: ExecutionAttempt,
         tool_name: str,
-        args: dict[str, Any],
+        args: Any,
+        schema: Optional[dict[str, Any]] = None,
+        llm_caller: Optional[Any] = None,
     ) -> dict[str, Any]:
         """
         Executes a single tool call through the complete non-bypassable governance chain.
-        Enforces turn limit and captures structured evidence.
+        Integrates In-Session Protocol Repair Loop, enforces turn limit, and captures structured evidence.
         """
         # Enforce turn limit safety gate
         if attempt.turn_count >= attempt.max_turns:
@@ -428,11 +435,53 @@ class AgentExecutor(IScopedExecutor):
                 "error": attempt.error_message,
             }
 
-        attempt.turn_count += 1
         start_time = time.perf_counter()
 
+        # Phase 105 Task B: In-Session Protocol Repair Loop interception
+        repair_mgr = ProtocolRepairManager()
+        repair_res = repair_mgr.validate_and_repair(
+            tool_name=tool_name,
+            raw_arguments=args,
+            schema=schema,
+            session_context={"task_id": attempt.task_id, "role": attempt.role},
+            llm_caller=llm_caller,
+            max_turns=2,
+        )
+
+        if not repair_res.success:
+            exit_code = 1
+            snippet = f"Protocol validation failed: {repair_res.error}"
+            duration_ms = int((time.perf_counter() - start_time) * 1000)
+            record_raw = f"{tool_name}:{exit_code}:{snippet}:{duration_ms}"
+            merkle_hash = hashlib.sha256(record_raw.encode("utf-8")).hexdigest()
+            evidence = ToolCallEvidence(
+                tool_name=tool_name,
+                arguments={"raw_input": str(args)[:200]},
+                exit_code=exit_code,
+                output_snippet=snippet,
+                duration_ms=duration_ms,
+                merkle_hash=merkle_hash,
+            )
+            attempt.evidence_trail.append(evidence)
+            logger.warning("[AgentExecutor] Tool '%s' rejected by protocol repair: %s", tool_name, repair_res.error)
+            return {
+                "status": "FAIL",
+                "error": snippet,
+            }
+
+        actual_args = repair_res.repaired_arguments
+        if repair_res.strategy != RepairStrategy.NOOP:
+            logger.info(
+                "[AgentExecutor] Tool '%s' healed via %s: %s",
+                tool_name,
+                repair_res.strategy.value,
+                actual_args,
+            )
+
+        attempt.turn_count += 1
+
         # Chain: ScopeGuard validation
-        tools.guard.validate_tool_call(tool_name, args)
+        tools.guard.validate_tool_call(tool_name, actual_args)
 
         # Dispatch execution
         result: dict[str, Any] = {}
@@ -442,22 +491,22 @@ class AgentExecutor(IScopedExecutor):
         try:
             if tool_name == "filesystem.read":
                 content = tools.filesystem_read(
-                    args["file_path"],
-                    args.get("start_line"),
-                    args.get("end_line"),
+                    actual_args["file_path"],
+                    actual_args.get("start_line"),
+                    actual_args.get("end_line"),
                 )
                 result = {"content": content, "status": "SUCCESS"}
                 snippet = content[:200]
             elif tool_name == "filesystem.write":
                 res = tools.filesystem_write(
-                    args["file_path"],
-                    args["content"],
-                    args.get("append", False),
+                    actual_args["file_path"],
+                    actual_args["content"],
+                    actual_args.get("append", False),
                 )
                 result = res
-                snippet = f"Wrote {res.get('bytes_written', 0)} bytes to {args['file_path']}"
+                snippet = f"Wrote {res.get('bytes_written', 0)} bytes to {actual_args['file_path']}"
             elif tool_name == "shell.exec":
-                res = tools.shell_exec(args["command"], args.get("timeout_seconds"))
+                res = tools.shell_exec(actual_args["command"], actual_args.get("timeout_seconds"))
                 result = res
                 exit_code = res.get("exit_code", 0)
                 snippet = (res.get("stdout", "") + res.get("stderr", ""))[:200]
@@ -481,7 +530,7 @@ class AgentExecutor(IScopedExecutor):
 
             evidence = ToolCallEvidence(
                 tool_name=tool_name,
-                arguments={k: v for k, v in args.items() if k != "content"},
+                arguments={k: v for k, v in actual_args.items() if k != "content"},
                 exit_code=exit_code,
                 output_snippet=snippet,
                 duration_ms=duration_ms,
@@ -496,10 +545,12 @@ class AgentExecutor(IScopedExecutor):
         tools: GovernedToolRegistry,
         attempt: ExecutionAttempt,
         tool_name: str,
-        args: dict[str, Any],
+        args: Any,
+        schema: Optional[dict[str, Any]] = None,
+        llm_caller: Optional[Any] = None,
     ) -> dict[str, Any]:
         """
         Asynchronously executes a single tool call through the complete non-bypassable governance chain,
         yielding control back to the event loop during I/O and subprocess execution.
         """
-        return await asyncio.to_thread(self.execute_tool, tools, attempt, tool_name, args)
+        return await asyncio.to_thread(self.execute_tool, tools, attempt, tool_name, args, schema, llm_caller)

@@ -21,6 +21,7 @@ from jinja2 import Environment, Template
 
 from agent_workspace.core.engine import AgentEngine
 from agent_workspace.core.account_manager import AccountManager
+from agent_workspace.core.protocol_repair import ProtocolRepairManager
 from agent_workspace.core.providers import ProviderFactory
 from agent_workspace.core.security import safe_workspace_path
 
@@ -421,6 +422,28 @@ class WorkflowEngine:
                 pass
 
         resolved_params = self._resolve_placeholder(raw_params, context)
+
+        # Phase 105 Task B: Pre-flight protocol repair on resolved parameters
+        repair_mgr = ProtocolRepairManager()
+        skill_schema = None
+        try:
+            tools_reg = getattr(self.engine, "tools_registry", None)
+            if isinstance(tools_reg, dict):
+                skill_info = tools_reg.get(skill_id)
+                if isinstance(skill_info, dict):
+                    skill_schema = skill_info.get("schema")
+        except AttributeError:
+            pass
+
+        pre_repair = repair_mgr.validate_and_repair(
+            tool_name=skill_id,
+            raw_arguments=resolved_params,
+            schema=skill_schema,
+            session_context={"session_id": session_id, "step_id": step_id},
+        )
+        if pre_repair.success and pre_repair.repaired_arguments:
+            resolved_params = pre_repair.repaired_arguments
+
         logger.info("Executing step '%s' [Skill: %s] asynchronously", step_id, skill_id)
         
         output = None
@@ -428,8 +451,8 @@ class WorkflowEngine:
         success = False
         step_start_time = time.perf_counter()
         
-        # Self-healing retry loop: original + 3 healing attempts = 4 total attempts
-        healing_attempts = 3
+        # Self-healing retry loop: original + up to 2 healing attempts (max_turns=2 ceiling)
+        healing_attempts = 2
         for attempt in range(1, healing_attempts + 2):
             try:
                 if attempt > 1:
