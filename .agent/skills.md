@@ -15,7 +15,9 @@ skill contracts.
 | Skill | Runtime module | Function | Contract |
 | --- | --- | --- | --- |
 | `delegate_task` | `agent_workspace/skills/delegate_task.py` | `delegate_task` | `.agent/skills/delegate_task.md` |
+| `delegate_to_advisor` | `agent_workspace/skills/delegate_to_advisor.py` | `delegate_to_advisor` | `.agent/skills/delegate_to_advisor.md` |
 | `calculate` | `agent_workspace/skills/example_skill_template.py` | `calculate` | `.agent/skills/calculate.md` |
+| `generative_spec_generator` | `agent_workspace/skills/generative_spec_generator.py` | `generative_spec_generator` | `.agent/skills/generative_spec_generator.md` |
 | `run_tests` | `agent_workspace/skills/system_verification.py` | `run_tests` | `.agent/skills/run_tests.md` |
 | `verify_workspace` | `agent_workspace/skills/system_verification.py` | `verify_workspace` | `.agent/skills/verify_workspace.md` |
 | `code_detect_change_impact` | `agent_workspace/skills/tool_codebase_memory.py` | `code_detect_change_impact` | `.agent/skills/code_detect_change_impact.md` |
@@ -39,7 +41,6 @@ skill contracts.
 | `governed_memory` | `agent_workspace/core/skill_loader.py` | `governed_memory` | `.agent/skills/governed_memory.md` |
 | `structured_log` | `agent_workspace/core/skill_loader.py` | `structured_log` | `.agent/skills/structured_log.md` |
 | `topological_workspace` | `agent_workspace/core/skill_loader.py` | `topological_workspace` | `.agent/skills/topological_workspace.md` |
-| `generative_spec_generator` | `agent_workspace/skills/generative_spec_generator.py` | `generate_spec` | `.agent/skills/generative_spec_generator.md` |
 
 ## Adding New Skills
 

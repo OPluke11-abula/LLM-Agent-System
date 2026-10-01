@@ -65,6 +65,7 @@ class AgentEngine:
 
     PROTOCOL_VERSION = "3.8.0"
     RUNTIME_VERSION = "0.5.0"
+    tools_registry: dict[str, Any] = {}
 
     def __init__(self, workspace_path: str = ".", bypass_onboarding: bool = False, enforce_onboarding: bool | None = None):
         self.workspace_path = os.path.abspath(workspace_path)

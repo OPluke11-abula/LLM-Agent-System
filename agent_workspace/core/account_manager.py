@@ -7,9 +7,112 @@ from __future__ import annotations
 import os
 import json
 import threading
+import time
 from typing import Any
 
 from agent_workspace.core.security import validate_session_id
+
+
+class QuotaExhaustedError(Exception):
+    """Raised when all available LLM accounts are in cooldown or over token budget."""
+    pass
+
+
+class QuotaAwareRouter:
+    """Manages 429 exponential backoff, RPM/TPM sliding windows, and account rotation."""
+
+    def __init__(self, account_manager: AccountManager, base_cooldown: float = 5.0, max_cooldown: float = 120.0):
+        self.account_manager = account_manager
+        self.base_cooldown = base_cooldown
+        self.max_cooldown = max_cooldown
+        self._cooling_accounts: dict[str, float] = {}
+        self._consecutive_429: dict[str, int] = {}
+        self._telemetry_requests: dict[str, list[float]] = {}
+        self._telemetry_tokens: dict[str, list[tuple[float, int]]] = {}
+        self._lock = threading.Lock()
+
+    def mark_rate_limited(self, account_id: str, retry_after: float | None = None) -> float:
+        """Mark an account as rate-limited with exponential backoff or explicit retry_after."""
+        with self._lock:
+            count = self._consecutive_429.get(account_id, 0) + 1
+            self._consecutive_429[account_id] = count
+            if retry_after is not None:
+                cd = float(retry_after)
+            else:
+                cd = min(self.base_cooldown * (2.0 ** (count - 1)), self.max_cooldown)
+            self._cooling_accounts[account_id] = time.time() + cd
+            return cd
+
+    def is_account_cooling(self, account_id: str) -> bool:
+        """Check if an account is currently cooling down. Auto-evicts expired accounts."""
+        with self._lock:
+            cooling_until = self._cooling_accounts.get(account_id)
+            if cooling_until is None:
+                return False
+            if time.time() >= cooling_until:
+                del self._cooling_accounts[account_id]
+                return False
+            return True
+
+    def record_request_telemetry(self, account_id: str, tokens: int = 0) -> None:
+        """Record a request timestamp and token count for RPM/TPM tracking."""
+        with self._lock:
+            now = time.time()
+            self._telemetry_requests.setdefault(account_id, []).append(now)
+            self._telemetry_tokens.setdefault(account_id, []).append((now, tokens))
+
+    def get_rate_metrics(self, account_id: str, window_seconds: float = 60.0) -> tuple[int, int]:
+        """Compute RPM and TPM for the given account over a sliding window."""
+        with self._lock:
+            now = time.time()
+            cutoff = now - window_seconds
+            reqs = [t for t in self._telemetry_requests.get(account_id, []) if t >= cutoff]
+            self._telemetry_requests[account_id] = reqs
+            toks = [(t, cnt) for (t, cnt) in self._telemetry_tokens.get(account_id, []) if t >= cutoff]
+            self._telemetry_tokens[account_id] = toks
+            rpm = len(reqs)
+            tpm = sum(cnt for (_, cnt) in toks)
+            return rpm, tpm
+
+    def get_available_account(self, preferred_provider: str | None = None) -> dict[str, Any]:
+        """Select a healthy account that is neither cooling nor budget-exhausted.
+
+        Raises:
+            QuotaExhaustedError: if no configured account is currently eligible.
+        """
+        accounts = self.account_manager.list_accounts()
+        candidates: list[dict[str, Any]] = []
+
+        for acc in accounts:
+            acc_id = acc.get("id")
+            if not acc_id:
+                continue
+            if self.is_account_cooling(acc_id):
+                continue
+            budget = acc.get("token_budget", -1)
+            used = acc.get("tokens_used", 0)
+            if budget != -1 and used >= budget:
+                continue
+            candidates.append(acc)
+
+        if not candidates:
+            raise QuotaExhaustedError("All available accounts are cooling or over budget.")
+
+        if preferred_provider:
+            pref_candidates = [
+                acc for acc in candidates
+                if acc.get("provider", "").lower() == preferred_provider.lower()
+            ]
+            if pref_candidates:
+                for cand in pref_candidates:
+                    if cand.get("is_active"):
+                        return cand
+                return pref_candidates[0]
+
+        for cand in candidates:
+            if cand.get("is_active"):
+                return cand
+        return candidates[0]
 
 
 class AccountManager:
@@ -48,6 +151,7 @@ class AccountManager:
         self.accounts_path = os.path.join(self.workspace_path, "accounts.json")
         self.config_path = os.path.join(self.workspace_path, "config.yaml")
         self._lock = threading.Lock()
+        self.quota_router = QuotaAwareRouter(self)
         self._ensure_file_exists()
 
     def _ensure_file_exists(self) -> None:

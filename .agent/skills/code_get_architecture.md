@@ -18,7 +18,8 @@ outputs:
 safety_notes:
 - Read-only aggregate query against `.agent/codebase-memory/code_graph.sqlite`.
 - Output is bounded by the `limit` argument and runtime cap.
-- Architecture summaries omit raw config values and require source verification for decisions.
+- Architecture summaries omit raw config values and require source verification for
+  decisions.
 author: LAS Tool Manifest Auto-Sync
 ---
 

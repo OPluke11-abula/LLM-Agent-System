@@ -26,6 +26,8 @@
 | **101** | Autonomous Software Factory Swarm: Decomposition & Routing | `100% Done` | AST dependency & complexity analyzer, refactoring DAG scheduler, heterogeneous mesh task routing (7/7 tests PASS). |
 | **102** | Red/Blue Adversarial Committee & Self-Healing Contract | `100% Done` | Automated red/blue debate gate, Quorum gating, SelfHealingContract binding (6/6 tests PASS). |
 | **103** | Closed-Loop Experience Distillation & Factory Cockpit | `100% Done` | Closed-loop PATTERN/LESSON distillation, Merkle proofs, living architecture, Viewer /factory cockpit (4/4 tests PASS). |
+| **104** | Production Hardening & Release v0.5.0 Certification | `100% Done` | 0 React Doctor warnings, router/discussion decoupling, async file I/O, Obsidian BFS topology. |
+| **105** | Advanced External Ecosystem Fusion (Tasks A ~ D) | `In Progress` | Protocol repair loop (Task B [x]), Delegation packet (Task C [x]), Responses API (Task D [x]), Ambient companion (Task A [ ]). |
 
 ---
 
@@ -107,6 +109,26 @@ Goal: Pure deconstruction of UI surfaces to achieve 0 React Doctor warnings, bac
 - [x] **104-02 Backend Core Monolith Decoupling**: Extracted `agent_workspace/core/routing/` (registry, memory, template_watcher) and `agent_workspace/core/discussion/` (ids, consensus), slashing >860 LOC and CC by ~60 points with 100% backward compatibility.
 - [x] **104-03 Concurrency & Typed Failure Hardening**: Async non-blocking file I/O for credential updates via `asyncio.to_thread`; eliminated all bare `except Exception: pass` swallows in API and memory.
 - [x] **104-04 Knowledge Base & Obsidian Index Topology**: Implemented transitive hierarchical BFS linter in `lint_obsidian_vault.ps1`, eliminating all 249 unindexed skill warnings; confirmed 100% bitwise SHA-256 parity with external vault.
+
+### Phase 105 - External Advanced Ecosystem Fusion (Tasks A ~ D)
+
+Status: `[~]` 3/4 complete (Tasks B, C, D [x]).
+Goal: Absorb best practices from 5 open-source ecosystems (opencodex, codex-chatgpt-bridge, web-bridge, coucou) to upgrade in-session self-healing, cost-effective delegation, OpenAI Responses API streaming, and desktop ambient HITL.
+
+- [x] **105-B In-Session Tool Protocol Repair Loop (`ProtocolRepairManager`)**
+  - Implement deterministic parsing (markdown/XML strip, trailing commas, single-quote json), alias mapping (`path` -> `file_path`), type coercion (`str` -> `int`/`bool`), and bounded LLM reflection loop (strict `max_turns=2`).
+  - Integrated into `agent_workspace/core/agent_executor.py` and `agent_workspace/core/workflow_engine.py`.
+  - Target: `agent_workspace/core/protocol_repair.py`, `agent_workspace/tests/test_protocol_repair.py` (11/11 tests PASS in 0.05s).
+- [x] **105-C Executor vs. Advisor Structured Delegation Packet (`DelegationPacket`)**
+  - Decouple local execution from expensive reasoning models via sanitization and <2000 token delegation packets.
+  - Support Zero-Risk manual copy-paste mode and automated MCP delegation with graceful fallback degradation.
+  - Target: `agent_workspace/core/delegation_packet.py`, `agent_workspace/skills/delegate_to_advisor.py`, `.agent/skills/delegate_to_advisor.md`, `agent_workspace/tests/test_delegation_packet.py` (12/12 tests PASS in 0.27s).
+- [x] **105-D OpenAI Responses API Gateway & Quota-Aware Router (`POST /v1/responses`)**
+  - Exposed OpenAI-compatible Responses API with SSE streaming (`response.created`, `response.output_item.added`, `response.content_part.added`, `response.output_item.done`, `response.completed`) and non-streaming modes.
+  - Implemented `QuotaAwareRouter` in `agent_workspace/core/account_manager.py` with 429 exponential backoff ($5 \times 2^{n-1}$ capped at 120s), sliding window RPM/TPM telemetry tracking, healthy account auto-failover, and `QuotaExhaustedError`.
+  - Target: `agent_workspace/routes/responses.py`, `agent_workspace/core/account_manager.py`, `agent_workspace/tests/test_responses_api.py`, `agent_workspace/tests/test_quota_router.py` (9/9 tests PASS in 0.31s).
+- [ ] **105-A Tauri 2 Ambient Companion & Lightweight 1-Click HITL (`AmbientCompanion`)**
+  - Floating desktop widget for telemetry animation and non-intrusive Allow/Deny approval.
 
 ---
 
