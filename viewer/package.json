@@ -11,6 +11,7 @@
     "doctor:changed": "npx --yes react-doctor@latest . --scope changed --no-telemetry --no-score --blocking none",
     "verify:ui": "node scripts/verify-ui.mjs",
     "verify:ui:missions": "node scripts/verify-mission-ui.mjs",
+    "verify:companion": "node scripts/verify-companion.mjs",
     "test:swarm-ui": "node scripts/verify-swarm-governance-ui.mjs",
     "verify:ui:screenshots": "node scripts/verify-ui.mjs --screenshots",
     "test:e2e:missions": "node scripts/verify-mission-golden-path.mjs",

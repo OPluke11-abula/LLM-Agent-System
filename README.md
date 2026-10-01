@@ -99,7 +99,7 @@ flowchart TD
 - **Python Runtime (`agent_workspace/core`, `agent_workspace/routes`)**: Routing, multi-tier memory, cryptographic consensus, sandboxing, provider abstraction, in-session protocol self-healing (`ProtocolRepairManager`), structured Advisor delegation (`DelegationPacket`), OpenAI-compatible Responses API streaming gateway (`POST /v1/responses`), Quota-Aware routing with 429 exponential backoff (`QuotaAwareRouter`), and multi-agent coordination.
 - **Contract & Knowledge System (`.agent`)**: PAP contracts, workflows, role definitions, and durable cross-agent project knowledge.
 - **Developer Agent Control Plane**: Canonical mission and autonomous coding pipeline contracts ([`docs/product/developer-agent-control-plane.md`](docs/product/developer-agent-control-plane.md)).
-- **React 19 + Tauri 2 Desktop App (`viewer`)**: Dark glassmorphism interface, Radix UI primitives, Lucide icons, Rolldown code-splitting, real-time topology stream.
+- **React 19 + Tauri 2 Desktop App (`viewer`)**: Dark glassmorphism interface, Radix UI primitives, Lucide icons, Rolldown code-splitting, real-time topology stream, and ambient floating companion (`AmbientCompanion`) with 1-click HITL approval and context file drag-and-drop.
 - **Multi-Provider Support**: Pluggable adapters for Google Gemini, Anthropic Claude, OpenAI, and local Ollama.
 
 ## Requirements

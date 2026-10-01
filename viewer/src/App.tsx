@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import {
   ALL_SKILLS,
   DEFAULT_MEMORY,
@@ -11,6 +11,7 @@ import {
 } from "./constants";
 import { Sidebar } from "./components/Sidebar";
 import { CommandPalette } from "./components/CommandPalette";
+import { AmbientCompanion } from "./components/companion/AmbientCompanion";
 import { KnowledgePage } from "./components/mission/KnowledgePage";
 import { MissionDetailPage } from "./components/mission/MissionDetailPage";
 import { MissionListPage } from "./components/mission/MissionListPage";
@@ -80,9 +81,23 @@ export default function App() {
   const [activeSkills, setActiveSkills] = usePersistedState<Record<string, boolean>>("mods_skills", {});
   const [, setHasOnboarded] = usePersistedState("has_onboarded", false);
   const navigate = useNavigate();
+  const location = useLocation();
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [ambientCompanionOpen, setAmbientCompanionOpen] = useState(false);
   const { activityEntries, recordActivity, clearActivityLog } = useActivityLog();
   const { sessionList, lastUpdatedSessionId } = useTopology();
+
+  const handleToggleCompanion = async () => {
+    try {
+      if (typeof window !== "undefined" && "__TAURI_INTERNALS__" in window) {
+        await invoke("toggle_companion_window");
+      } else {
+        setAmbientCompanionOpen((prev) => !prev);
+      }
+    } catch {
+      setAmbientCompanionOpen((prev) => !prev);
+    }
+  };
 
   const fallbackMemory = activeWorkspaceId === DEFAULT_WORKSPACES[0].id ? DEFAULT_MEMORY : EMPTY_MEMORY;
   const {
@@ -152,6 +167,10 @@ export default function App() {
     navigate("/workspace");
   }
 
+  if (location.pathname === "/companion") {
+    return <AmbientCompanion standalone />;
+  }
+
   return (
     <div className="app-frame relative h-screen w-full overflow-hidden font-sans">
       <div className="relative z-10 flex h-full flex-col md:flex-row">
@@ -159,6 +178,7 @@ export default function App() {
           t={t}
           relaunchOnboarding={() => navigate("/workspace/onboarding")}
           onOpenCommandPalette={() => setCommandPaletteOpen(true)}
+          onToggleCompanion={handleToggleCompanion}
         />
         <main className="min-h-0 min-w-0 flex-1 overflow-hidden p-4 md:ml-64 md:h-screen md:p-5">
           <Suspense fallback={<PageFallback />}>
@@ -299,11 +319,18 @@ export default function App() {
                   <SoftwareFactoryView />
                 }
               />
+              <Route
+                path="/companion"
+                element={
+                  <AmbientCompanion standalone />
+                }
+              />
             </Routes>
           </Suspense>
         </main>
       </div>
       <CommandPalette open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen} lang={lang} />
+      {ambientCompanionOpen && <AmbientCompanion onClose={() => setAmbientCompanionOpen(false)} />}
     </div>
   );
 }

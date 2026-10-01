@@ -37,6 +37,18 @@
         "width": 1000,
         "height": 700,
         "visible": false
+      },
+      {
+        "label": "companion-window",
+        "title": "LAS Ambient Companion",
+        "width": 400,
+        "height": 240,
+        "resizable": false,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "visible": false,
+        "skipTaskbar": true
       }
     ],
     "security": {
