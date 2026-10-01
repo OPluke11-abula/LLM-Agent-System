@@ -16,14 +16,16 @@ Implements REST and WebSocket interfaces for the 5-stage product loop:
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import logging
+import sqlite3
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, Header, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, ConfigDict, Field
 
 from agent_workspace.core.agent_executor import AgentExecutor
@@ -50,11 +52,45 @@ from agent_workspace.core.runtime_events import (
     RuntimeEventType,
     RuntimeEventsLedger,
 )
-from agent_workspace.routes.dependencies import get_workspace
+from agent_workspace.routes.dependencies import (
+    _api_key_principal,
+    get_workspace,
+    verify_jwt,
+)
 
 logger = logging.getLogger("api.pipeline")
 
 router = APIRouter(prefix="/v1/pipeline", tags=["pipeline"])
+
+
+def require_pipeline_actor(
+    authorization: str | None = Header(default=None),
+    x_api_key: str | None = Header(default=None),
+) -> dict[str, Any]:
+    """
+    Enforces authentication for critical pipeline control-plane operations (Approve, Execute).
+    Accepts valid API Key or Bearer JWT token.
+    """
+    principal = None
+    if x_api_key:
+        principal = _api_key_principal(x_api_key)
+    elif authorization and authorization.startswith("Bearer "):
+        try:
+            principal = verify_jwt(authorization[7:])
+        except Exception:
+            principal = None
+
+    if principal is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Pipeline authentication required: Missing or invalid API Key or Bearer Token.",
+        )
+
+    actor_value = principal.get("sub", principal.get("tenant_id"))
+    if not isinstance(actor_value, str) or not actor_value:
+        raise HTTPException(status_code=401, detail="Authenticated pipeline actor is invalid.")
+
+    return principal
 
 
 # ---------------------------------------------------------------------------
@@ -155,6 +191,122 @@ _manager_instance: Optional[CodingPipelineManager] = None
 _inspector_instance: Optional[RepositoryInspector] = None
 
 
+def _get_pipeline_db_path() -> Path:
+    db_dir = Path(get_workspace()).resolve() / "memory"
+    db_dir.mkdir(parents=True, exist_ok=True)
+    return db_dir / "pipeline_tasks.db"
+
+
+def _init_pipeline_db() -> None:
+    db_path = _get_pipeline_db_path()
+    with sqlite3.connect(str(db_path), timeout=30.0) as conn:
+        try:
+            conn.execute("PRAGMA journal_mode = WAL")
+            conn.execute("PRAGMA synchronous = NORMAL")
+            conn.execute("PRAGMA busy_timeout = 5000")
+        except sqlite3.OperationalError:
+            pass
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS pipeline_task_records (
+                task_id TEXT PRIMARY KEY,
+                request_json TEXT NOT NULL,
+                plan_json TEXT,
+                result_json TEXT NOT NULL,
+                preservation_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.commit()
+
+
+def _persist_task_record(record: TaskRecord) -> None:
+    try:
+        _init_pipeline_db()
+        db_path = _get_pipeline_db_path()
+        now = datetime.now(timezone.utc).isoformat()
+        with sqlite3.connect(str(db_path), timeout=30.0) as conn:
+            conn.execute(
+                """
+                INSERT INTO pipeline_task_records (task_id, request_json, plan_json, result_json, preservation_json, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(task_id) DO UPDATE SET
+                    plan_json=excluded.plan_json,
+                    result_json=excluded.result_json,
+                    preservation_json=excluded.preservation_json,
+                    updated_at=excluded.updated_at
+                """,
+                (
+                    record.request.task_id,
+                    record.request.model_dump_json(),
+                    record.plan.model_dump_json() if record.plan else None,
+                    record.result.model_dump_json(),
+                    record.preservation_receipt.model_dump_json(),
+                    now,
+                    now,
+                ),
+            )
+            conn.commit()
+    except Exception as exc:
+        logger.warning("[PipelinePersistence] Failed to persist task %s: %s", record.request.task_id, exc)
+
+
+def _load_persisted_task_record(task_id: str) -> Optional[TaskRecord]:
+    try:
+        _init_pipeline_db()
+        db_path = _get_pipeline_db_path()
+        with sqlite3.connect(str(db_path), timeout=30.0) as conn:
+            conn.row_factory = sqlite3.Row
+            row = conn.execute("SELECT * FROM pipeline_task_records WHERE task_id = ?", (task_id,)).fetchone()
+            if not row:
+                return None
+            request = CodingTaskRequest.model_validate_json(row["request_json"])
+            result = CodingPipelineResult.model_validate_json(row["result_json"])
+            preservation = CanonicalPreservationReceipt.model_validate_json(row["preservation_json"])
+            ledger = RuntimeEventsLedger(workspace_path=get_workspace())
+            record = TaskRecord(request, result, preservation, ledger)
+            if row["plan_json"]:
+                record.plan = ScopedMutationPlan.model_validate_json(row["plan_json"])
+            return record
+    except Exception as exc:
+        logger.warning("[PipelinePersistence] Failed to load persisted task %s: %s", task_id, exc)
+        return None
+
+
+def _load_all_persisted_tasks() -> list[TaskRecord]:
+    try:
+        _init_pipeline_db()
+        db_path = _get_pipeline_db_path()
+        with sqlite3.connect(str(db_path), timeout=30.0) as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute("SELECT task_id FROM pipeline_task_records ORDER BY created_at DESC").fetchall()
+            loaded: list[TaskRecord] = []
+            for row in rows:
+                rec = _load_persisted_task_record(row["task_id"])
+                if rec:
+                    loaded.append(rec)
+            return loaded
+    except Exception as exc:
+        logger.warning("[PipelinePersistence] Failed to load all persisted tasks: %s", exc)
+        return []
+
+
+def _get_or_load_task_record(task_id: str) -> Optional[TaskRecord]:
+    with _registry_lock:
+        record = _task_registry.get(task_id)
+        if record:
+            return record
+
+    persisted = _load_persisted_task_record(task_id)
+    if persisted:
+        with _registry_lock:
+            _task_registry[task_id] = persisted
+        return persisted
+    return None
+
+
 def get_pipeline_manager() -> CodingPipelineManager:
     global _manager_instance
     if _manager_instance is None:
@@ -220,6 +372,7 @@ async def create_pipeline_task(request: CodingTaskRequest) -> dict[str, Any]:
 
     with _registry_lock:
         _task_registry[request.task_id] = record
+    _persist_task_record(record)
 
     # Broadcast event
     asyncio.create_task(
@@ -253,8 +406,7 @@ async def submit_mutation_plan(task_id: str, plan: ScopedMutationPlan) -> dict[s
     """
     Submits a ScopedMutationPlan for Stop-and-Wait Architecture Gate review.
     """
-    with _registry_lock:
-        record = _task_registry.get(task_id)
+    record = _get_or_load_task_record(task_id)
 
     if not record:
         raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found.")
@@ -265,6 +417,7 @@ async def submit_mutation_plan(task_id: str, plan: ScopedMutationPlan) -> dict[s
         raise HTTPException(status_code=403, detail=f"Role scope violation: {err_msg}")
 
     record.plan = plan
+    _persist_task_record(record)
     gate_status = "APPROVED" if plan.human_approved else "AWAITING_APPROVAL"
 
     record.ledger.record_event(
@@ -388,12 +541,16 @@ async def trigger_committee_debate(
 
 
 @router.post("/tasks/{task_id}/approve")
-async def approve_mutation_plan(task_id: str, approval: PlanApprovalRequest) -> dict[str, Any]:
+async def approve_mutation_plan(
+    task_id: str,
+    approval: PlanApprovalRequest,
+    principal: dict[str, Any] = Depends(require_pipeline_actor),
+) -> dict[str, Any]:
     """
     Human-in-the-loop (HITL) approval endpoint to unlock the Stop-and-Wait Architecture Gate.
+    Enforces authentication and redacts/fingerprints approval tokens.
     """
-    with _registry_lock:
-        record = _task_registry.get(task_id)
+    record = _get_or_load_task_record(task_id)
 
     if not record:
         raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found.")
@@ -401,9 +558,13 @@ async def approve_mutation_plan(task_id: str, approval: PlanApprovalRequest) -> 
     if not record.plan:
         raise HTTPException(status_code=400, detail=f"No plan has been submitted for task '{task_id}'.")
 
+    masked_token = f"***{approval.approval_token[-4:]}" if len(approval.approval_token) >= 4 else "***"
+    token_fingerprint = hashlib.sha256(approval.approval_token.encode("utf-8")).hexdigest()[:16]
+
     record.plan.human_approved = True
     record.plan.approval_token = approval.approval_token
     record.plan.approval_timestamp = datetime.now(timezone.utc).isoformat()
+    _persist_task_record(record)
 
     record.ledger.record_event(
         task_id=task_id,
@@ -411,8 +572,9 @@ async def approve_mutation_plan(task_id: str, approval: PlanApprovalRequest) -> 
         payload={
             "action": "GATE_APPROVED",
             "approver": approval.approver,
-            "token": approval.approval_token,
+            "token_fingerprint": token_fingerprint,
             "notes": approval.notes,
+            "actor": principal.get("sub", principal.get("tenant_id", "authenticated_user")),
         },
     )
 
@@ -422,7 +584,7 @@ async def approve_mutation_plan(task_id: str, approval: PlanApprovalRequest) -> 
                 "event": "pipeline_gate_approved",
                 "task_id": task_id,
                 "approver": approval.approver,
-                "token": approval.approval_token,
+                "token_masked": masked_token,
             }
         )
     )
@@ -431,18 +593,20 @@ async def approve_mutation_plan(task_id: str, approval: PlanApprovalRequest) -> 
         "status": "success",
         "task_id": task_id,
         "gate_status": "APPROVED",
-        "approval_token": approval.approval_token,
+        "approval_token": masked_token,
     }
 
 
 @router.post("/tasks/{task_id}/execute")
-async def execute_pipeline_task(task_id: str) -> dict[str, Any]:
+async def execute_pipeline_task(
+    task_id: str,
+    principal: dict[str, Any] = Depends(require_pipeline_actor),
+) -> dict[str, Any]:
     """
     Executes Stages 3-5: Isolated Worktree setup, Bounded Mutation, Verification Ladder, and Draft PR export.
     Enforces that the Stop-and-Wait Architecture Gate has been confirmed.
     """
-    with _registry_lock:
-        record = _task_registry.get(task_id)
+    record = _get_or_load_task_record(task_id)
 
     if not record:
         raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found.")
@@ -465,6 +629,7 @@ async def execute_pipeline_task(task_id: str) -> dict[str, Any]:
 
     result = manager.execute_pipeline(task_id, record.request, record.plan)
     record.result = result
+    _persist_task_record(record)
 
     # Record completion in ledger
     record.ledger.record_event(
@@ -498,7 +663,10 @@ async def execute_pipeline_task(task_id: str) -> dict[str, Any]:
 
 
 @router.post("/tasks/run")
-async def run_full_pipeline(payload: FullPipelineRunRequest) -> dict[str, Any]:
+async def run_full_pipeline(
+    payload: FullPipelineRunRequest,
+    principal: dict[str, Any] = Depends(require_pipeline_actor),
+) -> dict[str, Any]:
     """
     Convenience endpoint to execute an autonomous coding task with a pre-approved plan in a single request.
     """
@@ -538,6 +706,7 @@ async def run_full_pipeline(payload: FullPipelineRunRequest) -> dict[str, Any]:
 
     with _registry_lock:
         _task_registry[req.task_id] = record
+    _persist_task_record(record)
 
     verified = inspector.verify_preservation(preservation_receipt)
 
@@ -553,6 +722,9 @@ async def run_full_pipeline(payload: FullPipelineRunRequest) -> dict[str, Any]:
 async def list_pipeline_tasks() -> dict[str, Any]:
     """Lists all active and historical autonomous pipeline tasks."""
     with _registry_lock:
+        if not _task_registry:
+            for rec in _load_all_persisted_tasks():
+                _task_registry[rec.request.task_id] = rec
         tasks = [
             {
                 "task_id": tid,
@@ -576,8 +748,7 @@ async def list_pipeline_tasks() -> dict[str, Any]:
 @router.get("/tasks/{task_id}")
 async def get_pipeline_task(task_id: str) -> dict[str, Any]:
     """Retrieves full details, stage history, and receipts for a task."""
-    with _registry_lock:
-        record = _task_registry.get(task_id)
+    record = _get_or_load_task_record(task_id)
 
     if not record:
         raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found.")
@@ -596,8 +767,7 @@ async def get_pipeline_task(task_id: str) -> dict[str, Any]:
 @router.get("/tasks/{task_id}/events")
 async def get_pipeline_events(task_id: str) -> dict[str, Any]:
     """Retrieves cryptographically chained events and Merkle root for a task."""
-    with _registry_lock:
-        record = _task_registry.get(task_id)
+    record = _get_or_load_task_record(task_id)
 
     if not record:
         raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found.")
@@ -629,8 +799,7 @@ async def get_pipeline_events(task_id: str) -> dict[str, Any]:
 @router.get("/tasks/{task_id}/forensics")
 async def get_pipeline_task_forensics(task_id: str) -> dict[str, Any]:
     """Retrieves unified dual-stream forensic correlation (compliance + runtime) for a task."""
-    with _registry_lock:
-        record = _task_registry.get(task_id)
+    record = _get_or_load_task_record(task_id)
 
     if not record:
         raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found.")
@@ -649,8 +818,7 @@ async def get_pipeline_task_forensics(task_id: str) -> dict[str, Any]:
 @router.get("/tasks/{task_id}/preservation")
 async def get_pipeline_preservation(task_id: str) -> dict[str, Any]:
     """Verifies that the canonical host repository was 100% preserved."""
-    with _registry_lock:
-        record = _task_registry.get(task_id)
+    record = _get_or_load_task_record(task_id)
 
     if not record:
         raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found.")

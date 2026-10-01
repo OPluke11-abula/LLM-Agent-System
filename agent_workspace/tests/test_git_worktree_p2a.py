@@ -135,6 +135,62 @@ class TestGitWorktreeManagerP2A(unittest.TestCase):
         self.assertEqual(final_receipt.final_status_hash, initial_receipt.initial_status_hash)
         self.assertEqual(final_receipt.final_head, initial_receipt.initial_head)
 
+    def test_create_worktree_preserves_existing_divergent_branch(self):
+        # 1. Create a branch with a commit different from main
+        branch_name = "feat/user-precious-work"
+        subprocess.run(["git", "branch", branch_name, "main"], cwd=self.repo_dir, check=True)
+        # Add a commit to feat/user-precious-work
+        subprocess.run(["git", "checkout", branch_name], cwd=self.repo_dir, check=True)
+        precious_file = os.path.join(self.repo_dir, "precious.txt")
+        with open(precious_file, "w", encoding="utf-8") as f:
+            f.write("user valuable work\n")
+        subprocess.run(["git", "add", "precious.txt"], cwd=self.repo_dir, check=True)
+        subprocess.run(["git", "commit", "-m", "feat: save valuable work"], cwd=self.repo_dir, check=True)
+        saved_sha = subprocess.run(
+            ["git", "rev-parse", branch_name],
+            cwd=self.repo_dir,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        # Return repo to main
+        subprocess.run(["git", "checkout", "main"], cwd=self.repo_dir, check=True)
+
+        # 2. Call create_worktree with the same branch_name
+        session = self.manager.create_worktree(
+            repo_path=self.repo_dir,
+            branch_name=branch_name,
+            base_ref="main",
+        )
+
+        # 3. Verify session used an isolated branch and preserved the original branch
+        self.assertTrue(session.is_isolated)
+        self.assertTrue(session.branch_name.startswith(f"{branch_name}_"))
+
+        # Verify the original branch was NOT destroyed (no branch -D)
+        current_sha = subprocess.run(
+            ["git", "rev-parse", branch_name],
+            cwd=self.repo_dir,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        self.assertEqual(current_sha, saved_sha)
+
+        # 4. Clean up worktree
+        cleanup_ok = self.manager.cleanup_worktree(session)
+        self.assertTrue(cleanup_ok)
+
+        # Verify original branch still intact after worktree cleanup
+        after_cleanup_sha = subprocess.run(
+            ["git", "rev-parse", branch_name],
+            cwd=self.repo_dir,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        self.assertEqual(after_cleanup_sha, saved_sha)
+
 
 if __name__ == "__main__":
     unittest.main()

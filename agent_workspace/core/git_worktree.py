@@ -98,27 +98,64 @@ class GitWorktreeManager(IWorktreeManager):
             # Fallback to current HEAD if base_ref does not exist directly
             base_commit = self._run_git(abs_repo, ["rev-parse", "HEAD"]).stdout.strip()
 
-        # Check if target branch already exists; if so, delete it first to ensure clean state
+        # Check if target branch already exists; preserve existing branch without destructive -D
         branch_check = self._run_git(abs_repo, ["branch", "--list", branch_name], check=False)
+        target_branch = branch_name
+        is_new_branch = True
+
         if branch_check.stdout.strip():
-            self._run_git(abs_repo, ["branch", "-D", branch_name], check=False)
+            # Check if existing branch points to base_commit
+            try:
+                branch_sha = self._run_git(abs_repo, ["rev-parse", branch_name]).stdout.strip()
+            except RuntimeError:
+                branch_sha = ""
+
+            # Check if already checked out in any worktree
+            wt_list = self._run_git(abs_repo, ["worktree", "list", "--porcelain"], check=False).stdout
+            branch_checked_out = f"branch refs/heads/{branch_name}" in wt_list
+
+            if branch_sha == base_commit and not branch_checked_out:
+                # Safe to attach existing branch directly without creating a duplicate branch
+                is_new_branch = False
+                target_branch = branch_name
+                logger.info(
+                    "Target branch '%s' already exists at base commit '%s'; attaching to worktree.",
+                    branch_name,
+                    base_commit,
+                )
+            else:
+                # Existing branch has divergent commits or is checked out elsewhere:
+                # PROTECT IT: Never use `branch -D`. Use an isolated session branch suffix.
+                target_branch = f"{branch_name}_{session_id}"
+                is_new_branch = True
+                logger.warning(
+                    "Target branch '%s' exists with divergent commits or is in use; preserving it and creating isolated session branch '%s'",
+                    branch_name,
+                    target_branch,
+                )
 
         # Execute git worktree add
         logger.info(
             "Creating isolated worktree for branch '%s' at '%s' off '%s'",
-            branch_name,
+            target_branch,
             worktree_path,
             base_ref,
         )
-        self._run_git(
-            abs_repo,
-            ["worktree", "add", "-b", branch_name, worktree_path, base_commit],
-        )
+        if is_new_branch:
+            self._run_git(
+                abs_repo,
+                ["worktree", "add", "-b", target_branch, worktree_path, base_commit],
+            )
+        else:
+            self._run_git(
+                abs_repo,
+                ["worktree", "add", worktree_path, target_branch],
+            )
 
         return WorktreeSessionConfig(
             session_id=session_id,
             worktree_path=worktree_path,
-            branch_name=branch_name,
+            branch_name=target_branch,
             base_commit=base_commit,
             is_isolated=True,
         )

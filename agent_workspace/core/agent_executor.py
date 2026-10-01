@@ -119,9 +119,15 @@ class ExecutionAttempt(BaseModel):
 class ScopeGuard:
     """Enforces physical containment boundaries, path validation, and destructive command interception."""
 
-    def __init__(self, task_env: TaskEnvironment, worktree_path: str):
+    def __init__(
+        self,
+        task_env: TaskEnvironment,
+        worktree_path: str,
+        policy_gate: Optional[Any] = None,
+    ):
         self.task_env = task_env
         self.worktree_path = Path(worktree_path).resolve()
+        self.policy_gate = policy_gate
 
     def resolve_and_verify_path(self, relative_path: str) -> tuple[Path, str]:
         """
@@ -147,6 +153,21 @@ class ScopeGuard:
         self, tool_name: str, args: dict[str, Any]
     ) -> tuple[bool, Optional[str]]:
         """Validate tool invocation against governed whitelist, scope boundaries, and safety rules."""
+        # 0. Check UnifiedPolicyGate if configured
+        if self.policy_gate is not None:
+            from agent_workspace.core.policy_gate import PolicyGateRequest
+            req = PolicyGateRequest(
+                action=tool_name,
+                scope="session",
+                session_id=getattr(self.task_env.execution_environment, "session_id", "session-unknown"),
+                tenant_id=getattr(self.task_env, "tenant_id", "default_tenant"),
+                resource=args.get("file_path") or args.get("command") or tool_name,
+                metadata=args,
+            )
+            decision = self.policy_gate.evaluate(req)
+            if not decision.allowed:
+                return False, f"PolicyGate rejection: {decision.reason}"
+
         # 1. Check Tool Whitelist
         if not self.task_env.validate_tool_allowed(tool_name):
             return False, (
@@ -246,7 +267,9 @@ class GovernedToolRegistry:
         self, file_path: str, content: str, append: bool = False
     ) -> dict[str, Any]:
         """Write text to an authorized file within the isolated worktree."""
-        self.guard.validate_tool_call("filesystem.write", {"file_path": file_path, "content": content})
+        is_valid, err_msg = self.guard.validate_tool_call("filesystem.write", {"file_path": file_path, "content": content})
+        if not is_valid:
+            raise SecurityViolationError(err_msg or "filesystem.write rejected by ScopeGuard")
         abs_path, rel_path = self.guard.resolve_and_verify_path(file_path)
         abs_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -266,7 +289,9 @@ class GovernedToolRegistry:
         self, command: str, timeout_seconds: Optional[float] = None
     ) -> dict[str, Any]:
         """Execute a shell command inside the worktree environment."""
-        self.guard.validate_tool_call("shell.exec", {"command": command})
+        is_valid, err_msg = self.guard.validate_tool_call("shell.exec", {"command": command})
+        if not is_valid:
+            raise SecurityViolationError(err_msg or "shell.exec rejected by ScopeGuard")
         timeout = timeout_seconds or self.sandbox_policy.max_execution_seconds
 
         # Windows/POSIX shell invocation
@@ -331,8 +356,13 @@ class AgentExecutor(IScopedExecutor):
     Agent -> ToolCall -> Tool Registry -> Mission Policy -> ScopeGuard -> Approval Policy -> Sandbox -> Executor -> ToolResult -> Evidence.
     """
 
-    def __init__(self, task_env: Optional[TaskEnvironment] = None):
+    def __init__(
+        self,
+        task_env: Optional[TaskEnvironment] = None,
+        policy_gate: Optional[Any] = None,
+    ):
         self.task_env = task_env
+        self.policy_gate = policy_gate
 
     def validate_scope_compliance(
         self, role: str, target_files: list[str]
@@ -383,7 +413,7 @@ class AgentExecutor(IScopedExecutor):
             execution_environment=session,
         )
 
-        guard = ScopeGuard(task_env=env, worktree_path=session.worktree_path)
+        guard = ScopeGuard(task_env=env, worktree_path=session.worktree_path, policy_gate=self.policy_gate)
         tools = GovernedToolRegistry(scope_guard=guard)
         attempt = ExecutionAttempt(
             attempt_id=f"att_{session.session_id[:8]}",
@@ -399,6 +429,21 @@ class AgentExecutor(IScopedExecutor):
             session.worktree_path,
         )
 
+        # 3. Apply structured file mutations if provided in the plan
+        applied_mutations: list[dict[str, Any]] = []
+        for mut in getattr(plan, "file_mutations", []):
+            action = getattr(mut, "action", "write")
+            file_path = getattr(mut, "file_path", "")
+            content = getattr(mut, "content", "")
+            if action in ("write", "append"):
+                write_res = tools.filesystem_write(file_path, content, append=(action == "append"))
+                applied_mutations.append(write_res)
+            elif action == "delete":
+                abs_p, rel_p = guard.resolve_and_verify_path(file_path)
+                if abs_p.exists():
+                    abs_p.unlink()
+                applied_mutations.append({"file_path": rel_p, "status": "DELETED"})
+
         return {
             "status": "SUCCESS",
             "attempt_id": attempt.attempt_id,
@@ -407,6 +452,7 @@ class AgentExecutor(IScopedExecutor):
             "tools": tools,
             "guard": guard,
             "attempt": attempt,
+            "applied_mutations": applied_mutations,
         }
 
     def execute_tool(

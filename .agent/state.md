@@ -12,11 +12,14 @@
 - Realtime Working Coordination: External surface optional; `.agent/` is durable canonical execution authority.
 
 ## Project Frontier
-- Current Phase: Phase 104 - Production Hardening, Architectural Deconstruction & Zero-Debt Release Certification
-- Active Milestone: Release v0.5.0 Certified (Enterprise Autonomous Software Factory Swarm & Zero-Debt Core)
-- Current Frontier Ref: LAS-V0.5.0-RELEASE-CERTIFIED
-- Coordination Checkpoint: Closed (結案)
-- Working Tree Policy: Strict Clean Tree on Release (Verified)
+- Current Phase: Phase 105 - Golden Path Hardening & CI Remediation (HEAD: 858dfdb1b982)
+- Active Milestone: Golden Path Gap Remediation & CI Green Alignment (Tasks B, C, D merged; Task A frozen)
+- Slice Status:
+  - Slice 1 (CI Collection Fix + Pipeline Auth/Token Redaction + Worktree Branch Protection): COMPLETED & VERIFIED (22 tests PASS, 965 collected).
+  - Slice 2 (Gaps 1, 2, 4, 6: Real Mutation Execution, Unified Policy Chokepoint, MissionStore Authority, Mandatory Review Gate): COMPLETED & VERIFIED (39 tests PASS, Exit Code 0).
+- Current Frontier Ref: LAS-GOLDEN-PATH-REMEDIATION-858dfdb
+- Coordination Checkpoint: Slice 1 & Slice 2 Fully Completed & Verified (全部驗收通過)
+- Working Tree Policy: High-rigor source-grounded verification; zero fake execution evidence; authority unified to SQLite MissionStore.
 
 ## Shared Workspace Registry
 - Entry Point: `AGENTS.md`
