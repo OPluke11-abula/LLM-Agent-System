@@ -20,6 +20,7 @@ class PipelineStage(str, Enum):
     PLAN_AND_GATE = "PLAN_AND_GATE"
     ISOLATED_MUTATION = "ISOLATED_MUTATION"
     VERIFY_AND_EVIDENCE = "VERIFY_AND_EVIDENCE"
+    INDEPENDENT_REVIEW = "INDEPENDENT_REVIEW"
     SELF_HEALING = "SELF_HEALING"
     DRAFT_PR_EXPORT = "DRAFT_PR_EXPORT"
     COMPLETED = "COMPLETED"
@@ -113,7 +114,24 @@ class CodingTaskRequest(BaseModel):
         le=5,
         description="Maximum number of self-healing retry iterations before executing auto-rollback"
     )
+    require_mutation_evidence: bool = Field(
+        default=False,
+        description="Enforce that non-empty git diff exists before advancing from ISOLATED_MUTATION"
+    )
+    enable_independent_review: bool = Field(
+        default=False,
+        description="Enforce independent review gate verification before draft PR export"
+    )
     metadata: dict[str, Any] = Field(default_factory=dict, description="Arbitrary extension metadata")
+
+
+class FileMutationSpec(BaseModel):
+    """Specification for a concrete file mutation operation within an isolated worktree."""
+    model_config = ConfigDict(extra="forbid")
+
+    file_path: str = Field(..., description="Target file path relative to repository root")
+    content: str = Field(default="", description="Target file content or patch content")
+    action: str = Field(default="write", description="Action type: write, append, or delete")
 
 
 class WorktreeSessionConfig(BaseModel):
@@ -139,6 +157,10 @@ class ScopedMutationPlan(BaseModel):
     structural_diff_preview: str = ""
     edge_cases: list[str] = Field(default_factory=list)
     test_strategy: list[str] = Field(default_factory=list)
+    file_mutations: list[FileMutationSpec] = Field(
+        default_factory=list,
+        description="Concrete structured file mutations applied during ISOLATED_MUTATION"
+    )
     human_approved: bool = False
     approval_token: Optional[str] = None
     approval_timestamp: Optional[str] = None
@@ -282,6 +304,7 @@ class CodingPipelineResult(BaseModel):
     receipts: list[VerificationReceipt] = Field(default_factory=list)
     self_healing_attempts: list[SelfHealingAttemptReceipt] = Field(default_factory=list, description="Historical self-healing repair attempts")
     rollback_receipt: Optional[RollbackReceipt] = Field(default=None, description="Receipt proving clean rollback if execution failed")
+    independent_review_receipt: Optional[dict[str, Any]] = Field(default=None, description="Verification evidence from independent review gate")
     pr_payload: Optional[DraftPRPayload] = None
     error_message: Optional[str] = None
     audit_events: list[dict[str, Any]] = Field(default_factory=list)

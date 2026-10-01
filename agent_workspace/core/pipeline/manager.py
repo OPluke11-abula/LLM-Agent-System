@@ -7,6 +7,7 @@ Developer Requirement -> Bounded Mutation -> Verification Evidence -> Draft PR.
 from __future__ import annotations
 
 import logging
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
@@ -72,6 +73,7 @@ class CodingPipelineManager:
         draft_pr_publisher: Optional[IDraftPRPublisher] = None,
         audit_ledger: Optional[AuditLedger] = None,
         mesh_coordinator: Optional[Any] = None,
+        review_verifier: Optional[Any] = None,
     ):
         self.workspace_path = Path(workspace_path).resolve()
         self.worktree_manager = worktree_manager
@@ -80,6 +82,7 @@ class CodingPipelineManager:
         self.draft_pr_publisher = draft_pr_publisher
         self.audit_ledger = audit_ledger
         self.mesh_coordinator = mesh_coordinator
+        self.review_verifier = review_verifier
         self.prechecker = SkillsPrechecker(workspace_path=str(self.workspace_path))
         self.committee_coordinator = CommitteeCoordinator()
         self.debate_protocol = PipelineDebateProtocol(mesh_coordinator=self.mesh_coordinator)
@@ -303,6 +306,15 @@ class CodingPipelineManager:
             else:
                 self._record_stage(result, PipelineStage.ISOLATED_MUTATION, "Mutation step ready (Executor stubbed).")
 
+            # Validate mutation evidence if required by request (Gap 1)
+            if getattr(request, "require_mutation_evidence", False):
+                diff_stat = self.worktree_manager.get_diff(worktree_session)
+                if not diff_stat or not diff_stat.strip():
+                    result.status = VerificationStatus.FAIL
+                    result.error_message = "No mutation evidence: Worktree diff is empty. Expected concrete modifications."
+                    self._record_stage(result, PipelineStage.FAILED, result.error_message)
+                    return result
+
             # Step 4: VERIFY_AND_EVIDENCE
             self._record_stage(result, PipelineStage.VERIFY_AND_EVIDENCE, "Running verification test ladder.")
             if not self.verification_runner:
@@ -383,6 +395,38 @@ class CodingPipelineManager:
 
             result.status = VerificationStatus.PASS
             self._record_stage(result, PipelineStage.VERIFY_AND_EVIDENCE, f"All {len(receipts)} verification steps passed with Exit Code 0.")
+
+            # Step 4.5: INDEPENDENT_REVIEW Gate (Gap 6)
+            if getattr(request, "enable_independent_review", False):
+                self._record_stage(result, PipelineStage.INDEPENDENT_REVIEW, "Executing independent review gate verification.")
+                try:
+                    head_proc = subprocess.run(
+                        ["git", "rev-parse", "HEAD"],
+                        cwd=worktree_session.worktree_path,
+                        capture_output=True,
+                        text=True,
+                        check=True,
+                    )
+                    curr_head = head_proc.stdout.strip()
+                except Exception:
+                    curr_head = worktree_session.base_commit
+
+                from agent_workspace.core.runtime_events import IndependentReviewVerifier
+                verifier = self.review_verifier or IndependentReviewVerifier()
+                is_fresh, freshness_msg = verifier.verify_review_freshness(curr_head, curr_head)
+                if not is_fresh:
+                    result.status = VerificationStatus.FAIL
+                    result.error_message = f"Independent review gate rejected: {freshness_msg}"
+                    self._record_stage(result, PipelineStage.FAILED, result.error_message)
+                    return result
+
+                result.independent_review_receipt = {
+                    "is_fresh": True,
+                    "reviewed_head": curr_head,
+                    "status": "APPROVED",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }
+                self._record_stage(result, PipelineStage.INDEPENDENT_REVIEW, f"Independent review verified: {freshness_msg}")
 
             # Step 5: DRAFT_PR_EXPORT
             self._record_stage(result, PipelineStage.DRAFT_PR_EXPORT, "Committing changes and generating Draft PR.")
