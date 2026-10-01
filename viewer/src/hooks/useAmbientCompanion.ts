@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { adminAuthHeaders } from "../services/adminRuntimeAuth";
+import { STAGES } from "../components/pipeline/types";
 
 export type CompanionStatus = "idle" | "thinking" | "awaiting_approval" | "verified" | "error";
 export type CompanionConnectionStatus = "connecting" | "connected" | "disconnected";
@@ -27,6 +28,8 @@ export interface UseAmbientCompanionReturn {
   status: CompanionStatus;
   connectionStatus: CompanionConnectionStatus;
   activeTask: CompanionTask | null;
+  currentStageIndex: number;
+  totalStages: number;
   approvalToken: string;
   setApprovalToken: (token: string) => void;
   actionMessage: string | null;
@@ -34,6 +37,7 @@ export interface UseAmbientCompanionReturn {
   droppedFiles: DroppedFileItem[];
   approve: (customToken?: string, approverName?: string) => Promise<boolean>;
   deny: (reason?: string) => Promise<void>;
+  createTaskFromDrop: (requirementPrompt?: string, targetBranch?: string) => Promise<string | null>;
   handleFileDrop: (files: FileList | File[]) => void;
   clearDroppedFiles: () => void;
   resetStatus: () => void;
@@ -54,131 +58,115 @@ export function useAmbientCompanion(): UseAmbientCompanionReturn {
   const [droppedFiles, setDroppedFiles] = useState<DroppedFileItem[]>([]);
 
   const wsRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<number | null>(null);
-
-  const connectWebSocket = useCallback(() => {
-    try {
-      setConnectionStatus("connecting");
-      const ws = new WebSocket(WS_URL);
-      wsRef.current = ws;
-
-      ws.onopen = () => {
-        setConnectionStatus("connected");
-        setErrorMessage(null);
-        ws.send("ping");
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (!data || !data.event) return;
-
-          switch (data.event) {
-            case "pipeline_task_created": {
-              setActiveTask({
-                taskId: data.task_id,
-                stage: "INTAKE",
-                timestamp: Date.now(),
-              });
-              setStatus("thinking");
-              setActionMessage(`Task ${data.task_id} initialized.`);
-              break;
-            }
-
-            case "pipeline_plan_submitted": {
-              setActiveTask((prev) => ({
-                taskId: data.task_id || prev?.taskId || "UNKNOWN",
-                targetFiles: data.target_files || prev?.targetFiles || [],
-                gateStatus: data.gate_status || "LOCKED",
-                planSummary: data.plan_summary || prev?.planSummary || "Stop-and-Wait Architecture Gate awaiting confirmation.",
-                assignedRole: data.assigned_role || prev?.assignedRole || "ARCHITECT_PLANNER_AGENT",
-                testStrategy: data.test_strategy || prev?.testStrategy || ["Default verification ladder"],
-                stage: "PLAN_AND_GATE",
-                timestamp: Date.now(),
-              }));
-              setStatus("awaiting_approval");
-              setActionMessage(`Stop-and-Wait Gate locked for ${data.task_id}. Human approval required.`);
-              break;
-            }
-
-            case "pipeline_debate_turn": {
-              setStatus("thinking");
-              setActionMessage(
-                data.speaker ? `Deliberation: ${data.speaker} arguing...` : "Multi-agent committee deliberating..."
-              );
-              break;
-            }
-
-            case "pipeline_gate_approved": {
-              setStatus("thinking");
-              setActiveTask((prev) =>
-                prev ? { ...prev, gateStatus: "APPROVED", tokenMasked: data.token_masked } : null
-              );
-              setActionMessage(`Gate approved (${data.token_masked ?? "***"}). Starting worktree mutation...`);
-              break;
-            }
-
-            case "pipeline_stage_changed": {
-              const currentStage = String(data.stage ?? "");
-              setActionMessage(`Stage transition: ${currentStage}`);
-              if (currentStage === "PLAN_AND_GATE") {
-                setStatus("awaiting_approval");
-              } else if (currentStage === "COMPLETED" || currentStage === "DRAFT_PR_EXPORT") {
-                setStatus("verified");
-                setActionMessage(`Pipeline verified & ready! Stage: ${currentStage}`);
-              } else {
-                setStatus("thinking");
-              }
-              break;
-            }
-
-            case "pipeline_completed": {
-              setStatus("verified");
-              setActionMessage(`Task ${data.task_id ?? ""} successfully verified!`);
-              break;
-            }
-
-            case "pipeline_error": {
-              setStatus("error");
-              setErrorMessage(data.error || "Pipeline execution failed.");
-              break;
-            }
-
-            default:
-              break;
-          }
-        } catch {
-          // Non-JSON telemetry or heartbeat ping
-        }
-      };
-
-      ws.onerror = () => {
-        setConnectionStatus("disconnected");
-      };
-
-      ws.onclose = () => {
-        setConnectionStatus("disconnected");
-        // Schedule auto-reconnect
-        reconnectTimeoutRef.current = window.setTimeout(() => {
-          connectWebSocket();
-        }, 3000);
-      };
-    } catch {
-      setConnectionStatus("disconnected");
-    }
-  }, []);
 
   useEffect(() => {
-    connectWebSocket();
-    return () => {
-      if (reconnectTimeoutRef.current) {
-        window.clearTimeout(reconnectTimeoutRef.current);
-      }
-      if (wsRef.current) {
-        wsRef.current.close();
+    setConnectionStatus("connecting");
+    const ws = new WebSocket(WS_URL);
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      setConnectionStatus("connected");
+      setErrorMessage(null);
+      ws.send("ping");
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (!data || !data.event) return;
+
+        switch (data.event) {
+          case "pipeline_task_created": {
+            setActiveTask({
+              taskId: data.task_id,
+              stage: "INTAKE",
+              timestamp: Date.now(),
+            });
+            setStatus("thinking");
+            setActionMessage(`Task ${data.task_id} initialized.`);
+            break;
+          }
+
+          case "pipeline_plan_submitted": {
+            setActiveTask((prev) => ({
+              taskId: data.task_id || prev?.taskId || "UNKNOWN",
+              targetFiles: data.target_files || prev?.targetFiles || [],
+              gateStatus: data.gate_status || "LOCKED",
+              planSummary: data.plan_summary || prev?.planSummary || "Stop-and-Wait Architecture Gate awaiting confirmation.",
+              assignedRole: data.assigned_role || prev?.assignedRole || "ARCHITECT_PLANNER_AGENT",
+              testStrategy: data.test_strategy || prev?.testStrategy || ["Default verification ladder"],
+              stage: "PLAN_AND_GATE",
+              timestamp: Date.now(),
+            }));
+            setStatus("awaiting_approval");
+            setActionMessage(`Stop-and-Wait Gate locked for ${data.task_id}. Human approval required.`);
+            break;
+          }
+
+          case "pipeline_debate_turn": {
+            setStatus("thinking");
+            setActionMessage(
+              data.speaker ? `Deliberation: ${data.speaker} arguing...` : "Multi-agent committee deliberating..."
+            );
+            break;
+          }
+
+          case "pipeline_gate_approved": {
+            setStatus("thinking");
+            setActiveTask((prev) =>
+              prev ? { ...prev, gateStatus: "APPROVED", tokenMasked: data.token_masked } : null
+            );
+            setActionMessage(`Gate approved (${data.token_masked ?? "***"}). Starting worktree mutation...`);
+            break;
+          }
+
+          case "pipeline_stage_changed": {
+            const currentStage = String(data.stage ?? "");
+            setActionMessage(`Stage transition: ${currentStage}`);
+            if (currentStage === "PLAN_AND_GATE") {
+              setStatus("awaiting_approval");
+            } else if (currentStage === "COMPLETED" || currentStage === "DRAFT_PR_EXPORT") {
+              setStatus("verified");
+              setActionMessage(`Pipeline verified & ready! Stage: ${currentStage}`);
+            } else {
+              setStatus("thinking");
+            }
+            break;
+          }
+
+          case "pipeline_completed": {
+            setStatus("verified");
+            setActionMessage(`Task ${data.task_id ?? ""} successfully verified!`);
+            break;
+          }
+
+          case "pipeline_error": {
+            setStatus("error");
+            setErrorMessage(data.error || "Pipeline execution failed.");
+            break;
+          }
+
+          default:
+            break;
+        }
+      } catch {
+        // Non-JSON telemetry or heartbeat ping
       }
     };
-  }, [connectWebSocket]);
+
+    ws.onerror = () => {
+      setConnectionStatus("disconnected");
+    };
+
+    ws.onclose = () => {
+      setConnectionStatus("disconnected");
+    };
+
+    return () => {
+      ws.close();
+      wsRef.current = null;
+    };
+  }, []);
 
   const approve = useCallback(
     async (customToken?: string, approverName?: string): Promise<boolean> => {
@@ -276,6 +264,76 @@ export function useAmbientCompanion(): UseAmbientCompanionReturn {
     setActionMessage(`Injected ${list.length} context file(s): ${list.map((f) => f.name).join(", ")}`);
   }, []);
 
+  const currentStageIndex = activeTask?.stage
+    ? STAGES.findIndex((s) => s.id === activeTask.stage)
+    : -1;
+
+  const createTaskFromDrop = useCallback(
+    async (requirementPrompt?: string, targetBranch?: string): Promise<string | null> => {
+      if (droppedFiles.length === 0) {
+        setErrorMessage("No context files dropped to initiate task.");
+        return null;
+      }
+      const newTaskId = `TASK-COMPANION-${Date.now().toString(36).toUpperCase()}`;
+      const reqPrompt =
+        requirementPrompt?.trim() ||
+        `Context-driven task from dropped files: ${droppedFiles.map((f) => f.name).join(", ")}`;
+      const branch = targetBranch || `feat/companion-${Date.now().toString(36)}`;
+
+      try {
+        setErrorMessage(null);
+        setStatus("thinking");
+        setActionMessage(`Spawning pipeline task ${newTaskId} with dropped context...`);
+
+        const authHeaders = adminAuthHeaders();
+        const headers: Record<string, string> = {
+          "Content-Type": "application/json",
+          ...authHeaders,
+        };
+
+        const payload = {
+          task_id: newTaskId,
+          repository_path: "d:/GitHub/LLM-Agent-System",
+          requirement_prompt: reqPrompt,
+          base_branch: "main",
+          target_branch: branch,
+          inspected_files: droppedFiles.map((f) => f.name),
+          target_files: [],
+          allowed_roles: ["DOMAIN_LOGIC_AGENT", "BACKEND_INFRA_AGENT", "UI_UX_AGENT"],
+        };
+
+        const res = await fetch(`${API_BASE}/tasks`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          const reason = errData.detail || `HTTP ${res.status} task creation failed`;
+          setErrorMessage(reason);
+          setStatus("error");
+          return null;
+        }
+
+        setActiveTask({
+          taskId: newTaskId,
+          stage: "INTAKE",
+          targetFiles: [],
+          timestamp: Date.now(),
+        });
+        setActionMessage(`Task ${newTaskId} initialized. Pipeline intake running...`);
+        return newTaskId;
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        setErrorMessage(`Network error creating task: ${msg}`);
+        setStatus("error");
+        return null;
+      }
+    },
+    [droppedFiles]
+  );
+
   const clearDroppedFiles = useCallback(() => {
     setDroppedFiles([]);
   }, []);
@@ -290,6 +348,8 @@ export function useAmbientCompanion(): UseAmbientCompanionReturn {
     status,
     connectionStatus,
     activeTask,
+    currentStageIndex,
+    totalStages: STAGES.length,
     approvalToken,
     setApprovalToken,
     actionMessage,
@@ -297,6 +357,7 @@ export function useAmbientCompanion(): UseAmbientCompanionReturn {
     droppedFiles,
     approve,
     deny,
+    createTaskFromDrop,
     handleFileDrop,
     clearDroppedFiles,
     resetStatus,

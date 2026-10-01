@@ -34,24 +34,36 @@ if (!existsSync(hookPath)) {
   process.exit(1);
 }
 const hookContent = readFileSync(hookPath, "utf-8");
-if (!hookContent.includes("export function useAmbientCompanion") || !hookContent.includes("approve")) {
-  console.error("FAIL: useAmbientCompanion.ts missing required exports");
+if (
+  !hookContent.includes("export function useAmbientCompanion") ||
+  !hookContent.includes("approve") ||
+  !hookContent.includes("createTaskFromDrop")
+) {
+  console.error("FAIL: useAmbientCompanion.ts missing required exports (approve, createTaskFromDrop)");
   process.exit(1);
 }
-console.log("✓ PASS: useAmbientCompanion.ts exports hook with approval interface");
+console.log("✓ PASS: useAmbientCompanion.ts exports hook with approval and drop-task interface");
 
-// 3. Check AmbientCompanion.tsx component
+// 3. Check AmbientCompanion.tsx and subcomponents
 const compPath = join(viewerRoot, "src", "components", "companion", "AmbientCompanion.tsx");
-if (!existsSync(compPath)) {
-  console.error("FAIL: AmbientCompanion.tsx does not exist");
+const hitlPath = join(viewerRoot, "src", "components", "companion", "CompanionHitlCard.tsx");
+const trackerPath = join(viewerRoot, "src", "components", "companion", "CompanionStageTracker.tsx");
+if (!existsSync(compPath) || !existsSync(hitlPath) || !existsSync(trackerPath)) {
+  console.error("FAIL: Companion components do not exist");
   process.exit(1);
 }
 const compContent = readFileSync(compPath, "utf-8");
-if (!compContent.includes("export function AmbientCompanion") || !compContent.includes("Allow (PO Luke)")) {
-  console.error("FAIL: AmbientCompanion.tsx missing 1-click allow button or component export");
+const hitlContent = readFileSync(hitlPath, "utf-8");
+const trackerContent = readFileSync(trackerPath, "utf-8");
+if (
+  !compContent.includes("export function AmbientCompanion") ||
+  !hitlContent.includes("Allow (PO Luke)") ||
+  !trackerContent.includes("companion-stage-tracker")
+) {
+  console.error("FAIL: Companion missing 1-click allow button, stage tracker, or component export");
   process.exit(1);
 }
-console.log("✓ PASS: AmbientCompanion.tsx component includes micro-animations and 1-Click HITL approval");
+console.log("✓ PASS: AmbientCompanion.tsx and subcomponents include micro-animations, 9-stage tracker, and 1-Click HITL approval");
 
 // 4. Check App.tsx integration
 const appPath = join(viewerRoot, "src", "App.tsx");

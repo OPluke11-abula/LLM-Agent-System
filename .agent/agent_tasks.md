@@ -27,7 +27,8 @@
 | **102** | Red/Blue Adversarial Committee & Self-Healing Contract | `100% Done` | Automated red/blue debate gate, Quorum gating, SelfHealingContract binding (6/6 tests PASS). |
 | **103** | Closed-Loop Experience Distillation & Factory Cockpit | `100% Done` | Closed-loop PATTERN/LESSON distillation, Merkle proofs, living architecture, Viewer /factory cockpit (4/4 tests PASS). |
 | **104** | Production Hardening & Release v0.5.0 Certification | `100% Done` | 0 React Doctor warnings, router/discussion decoupling, async file I/O, Obsidian BFS topology. |
-| **105** | Advanced External Ecosystem Fusion (Tasks A ~ D) | `In Progress` | Protocol repair loop (Task B [x]), Delegation packet (Task C [x]), Responses API (Task D [x]), Ambient companion (Task A [ ]). |
+| **105** | Advanced External Ecosystem Fusion (Tasks A ~ D) | `100% Done` | Protocol repair loop (Task B), Delegation packet (Task C), Responses API (Task D), Ambient companion (Task A), 6 Golden Gaps resolved (PR #15~#18). |
+| **106** | Autonomous Swarm Orchestration & Desktop Interactive Loop | `In Progress` | Desktop companion loop (106-01), Multi-model failover (106-02), Worktree swarm sandbox (106-03), Vector distillation (106-04). |
 
 ---
 
@@ -112,8 +113,8 @@ Goal: Pure deconstruction of UI surfaces to achieve 0 React Doctor warnings, bac
 
 ### Phase 105 - External Advanced Ecosystem Fusion (Tasks A ~ D)
 
-Status: `[~]` 3/4 complete (Tasks B, C, D [x]).
-Goal: Absorb best practices from 5 open-source ecosystems (opencodex, codex-chatgpt-bridge, web-bridge, coucou) to upgrade in-session self-healing, cost-effective delegation, OpenAI Responses API streaming, and desktop ambient HITL.
+Status: `[x]` 4/4 complete.
+Goal: Absorb best practices from 5 open-source ecosystems (opencodex, codex-chatgpt-bridge, web-bridge, coucou) to upgrade in-session self-healing, cost-effective delegation, OpenAI Responses API streaming, desktop ambient HITL, and eliminate 6 Golden Path architectural gaps.
 
 - [x] **105-B In-Session Tool Protocol Repair Loop (`ProtocolRepairManager`)**
   - Implement deterministic parsing (markdown/XML strip, trailing commas, single-quote json), alias mapping (`path` -> `file_path`), type coercion (`str` -> `int`/`bool`), and bounded LLM reflection loop (strict `max_turns=2`).
@@ -127,8 +128,30 @@ Goal: Absorb best practices from 5 open-source ecosystems (opencodex, codex-chat
   - Exposed OpenAI-compatible Responses API with SSE streaming (`response.created`, `response.output_item.added`, `response.content_part.added`, `response.output_item.done`, `response.completed`) and non-streaming modes.
   - Implemented `QuotaAwareRouter` in `agent_workspace/core/account_manager.py` with 429 exponential backoff ($5 \times 2^{n-1}$ capped at 120s), sliding window RPM/TPM telemetry tracking, healthy account auto-failover, and `QuotaExhaustedError`.
   - Target: `agent_workspace/routes/responses.py`, `agent_workspace/core/account_manager.py`, `agent_workspace/tests/test_responses_api.py`, `agent_workspace/tests/test_quota_router.py` (9/9 tests PASS in 0.31s).
-- [ ] **105-A Tauri 2 Ambient Companion & Lightweight 1-Click HITL (`AmbientCompanion`)**
+- [x] **105-A Tauri 2 Ambient Companion & Lightweight 1-Click HITL (`AmbientCompanion`)**
   - Floating desktop widget for telemetry animation and non-intrusive Allow/Deny approval.
+  - Target: `viewer/src-tauri/tauri.conf.json`, `viewer/src/hooks/useAmbientCompanion.ts`, `viewer/src/components/companion/AmbientCompanion.tsx`, `viewer/scripts/verify-companion.mjs` (PASS).
+- [x] **105-GP Golden Path Hardening & Architecture Gap Elimination (Gaps 1~6)**
+  - Branch preservation on worktree creation; HITL token authentication & masking at rest; real mutation execution; unified policy chokepoint; SQLite persistent authority; mandatory independent review gate.
+  - Target: `agent_workspace/core/git_worktree.py`, `agent_workspace/routes/pipeline.py`, `agent_workspace/core/agent_executor.py`, `agent_workspace/core/pipeline/manager.py`, `agent_workspace/tests/test_golden_path_hardening_slice2.py` (PR #16 & #18).
+
+### Phase 106 - Autonomous Swarm Orchestration & Desktop Interactive Loop
+
+Status: `[ ]` 0/4 complete.
+Goal: Transform the decoupled Phase 105 modules into an integrated, production-grade autonomous swarm workflow connecting desktop controls, dynamic model failover, multi-agent worktrees, and closed-loop experience distillation.
+
+- [ ] **106-01 Desktop Companion Full Interactive Loop**
+  - Connect Ambient Companion to live pipeline streaming, drag-and-drop context injection to `/v1/pipeline/tasks`, and global summoning hotkeys with edge snapping.
+  - Target: `viewer/src/hooks/useAmbientCompanion.ts`, `viewer/src/components/companion/AmbientCompanion.tsx`.
+- [ ] **106-02 Responses API Dynamic Failover & In-Session Self-Healing Integration**
+  - Integrate transparent `ProtocolRepairManager` self-healing within SSE event streams; support dynamic failover from cloud models (429/exhaustion) to local Ollama / Gemini Flash.
+  - Target: `agent_workspace/routes/responses.py`, `agent_workspace/core/account_manager.py`.
+- [ ] **106-03 Concurrent Multi-Agent Worktree Mutation Sandbox**
+  - Support concurrent worktree mutations across `BackendDev` and `FrontendDev` roles with automated squash merge and `UnifiedPolicyGate` arbitration before review.
+  - Target: `agent_workspace/core/git_worktree.py`, `agent_workspace/core/pipeline/manager.py`.
+- [ ] **106-04 Self-Healing Pattern Vector Distillation & v0.6.0 Release Verification**
+  - Automatically vectorize self-healing repair patterns into `FederatedVectorMemory`; execute full 8-step verification ladder and Golden Benchmark; bump version to `v0.6.0`.
+  - Target: `agent_workspace/core/vector_memory.py`, `pyproject.toml`, `viewer/package.json`, `docs/obsidian/`.
 
 ---
 

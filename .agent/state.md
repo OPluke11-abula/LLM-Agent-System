@@ -12,16 +12,18 @@
 - Realtime Working Coordination: External surface optional; `.agent/` is durable canonical execution authority.
 
 ## Project Frontier
-- Current Phase: Phase 105 - Golden Path Hardening & CI Remediation (HEAD: 858dfdb1b982)
-- Active Milestone: Phase 105 - Task A (Tauri 2 Ambient Companion & 1-Click HITL) + Tasks B, C, D Completed & Verified
+- Current Phase: Phase 106 - Autonomous Swarm Orchestration & Desktop Interactive Loop (HEAD: 68ba0169f580)
+- Active Milestone: Milestone T-032 (Phase 105 Closure & Ecosystem Fusion Certified) -> Transitioning to Phase 106
 - Slice Status:
-  - Task B (Protocol Repair Loop): COMPLETED & VERIFIED.
-  - Task C (Delegation Packet): COMPLETED & VERIFIED.
-  - Task D (Responses API Gateway): COMPLETED & VERIFIED.
-  - Slices 1 & 2 (Golden Path Hardening Gaps 1~6): COMPLETED & VERIFIED (PR #16 merged).
-  - Task A (Tauri 2 Ambient Companion & 1-Click HITL Approval): COMPLETED & VERIFIED (companion-window, useAmbientCompanion, AmbientCompanion UI, verify:companion green).
-  - Deep Optimization Pack (Pipeline 9-Stage Stepper Sync + Gate Approved Receipt + Responses API Structured Tools + Secret Redaction at Rest): COMPLETED & VERIFIED.
-- Current Frontier Ref: LAS-PHASE-105-DEEP-OPTIMIZATION-COMPLETE
+  - Task A (Tauri 2 Ambient Companion & 1-Click HITL): COMPLETED & VERIFIED (PR #17).
+  - Task B (Protocol Repair Loop): COMPLETED & VERIFIED (PR #15).
+  - Task C (Delegation Packet): COMPLETED & VERIFIED (PR #15).
+  - Task D (Responses API Gateway): COMPLETED & VERIFIED (PR #15).
+  - Slices 1 & 2 (Golden Path Hardening Gaps 1~6): COMPLETED & VERIFIED (PR #16).
+  - Deep Optimization Pack (9-Stage Stepper Sync + Gate Approved Receipt + Responses API Structured Tools + Secret Redaction at Rest): COMPLETED & VERIFIED (PR #18).
+  - Phase 105 Milestone T-032: FULLY CLOSED & CERTIFIED (Remote CI Runs 36855797639, 36855797783 100% PASS).
+  - Phase 106 Task 106-01 (Ambient Companion Full Pipeline Interop): QUEUED.
+- Current Frontier Ref: LAS-PHASE-106-SWARM-DESKTOP-LOOP
 - Coordination Checkpoint: Phase 105 核心與深度優化全數驗證通過 (100% Green CI & Clean Build)
 - Working Tree Policy: High-rigor source-grounded verification; zero fake execution evidence; authority unified to SQLite MissionStore.
 
