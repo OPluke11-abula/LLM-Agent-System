@@ -3,16 +3,16 @@
 > **Protocol Version**: 3.8.0
 > **Source of Truth**: Team Cognitive Relay (Tier 2)
 > **Prerequisite**: Automated tests 100% Green (`PASS`) before updating this document.
-> **Last Synchronized**: 2026-09-19
+> **Last Synchronized**: 2026-10-01
 > **Domain Owner / PO**: Luke
-> **Project State**: Phases 98, 99 & 100 (Host Path Elimination, Frontend Hook Architecture, Async Non-blocking Execution, Multi-Tenant Concurrency Stress Benchmark & Production Air-gap Hardening) Completed & Certified
+> **Project State**: Phase 105 (Tasks A~D External Ecosystem Fusion & Golden Path Hardening) Completed & Certified (Milestone T-032); Transitioning to Phase 106.
 
 ---
 
 ## 1. 3-Line Executive Summary (三行白話摘要)
-1. 前端 Hook 體系抽取與 React Doctor 極限收斂：從龐大的 `CodingPipelineView.tsx` 與 `FederatedMeshView.tsx` 中抽離出獨立業務邏輯 Hook `useCodingPipeline.ts` 與 `useFederatedMesh.ts`，消除所有超大型元件警告，並拆解高複雜度 JSX 分支，使 React Doctor 達成 0 Bugs、0 Performance、0 Giant Components，可維護性警告收斂至僅剩 6 個。
-2. 非同步子行程包裝與事件迴圈無阻塞化：為 `GovernedToolRegistry`、`AgentExecutor` 與 `PipelineSelfHealingEngine` 導入 `asyncio.to_thread` 非同步執行管線（`shell_exec_async`、`git_diff_async`、`execute_tool_async`、`attempt_self_healing_async`、`execute_auto_rollback_async`），徹底消除 Windows 子行程與檔案 I/O 阻塞主事件迴圈的隱患。
-3. 多租戶並行壓力基準測試與生產 Air-gap 容器加固：建立 `scripts/run_concurrency_stress_benchmark.py` 驗證 16 租戶 400 筆高頻並行操作，解決 `AuditLedger` 跨實例類別鎖競爭問題，達成 0% 錯誤率、80 TPS 與 100% SHA-256 鏈路完整性；並加固生產 Air-gap `Dockerfile`（非 root `lasuser`、git 支援、最佳化 Python 旗標）與精確 `.dockerignore`。
+1. 外部生態先進模組融合 (Tasks A~D)：借鑑 coucou 實作 Tauri 2 邊緣懸浮伴侶 (`AmbientCompanion.tsx`, `useAmbientCompanion.ts`) 與 1-Click HITL 審批卡片；借鑑 web-bridge 實裝 `ProtocolRepairManager` 雙輪自癒協議；借鑑 codex-bridge 完成脫敏委派封包 `DelegationPacket` (<2000 tokens) 與 Advisor 降級機制；借鑑 opencodex 建立 `POST /v1/responses` SSE 串流協議與 `QuotaAwareRouter` 429 退避與多帳號切換。
+2. Golden Path 6 大架構缺口根治與深度優化：修正 test collection NameError；加固分支保護機制避免本機分支被誤刪；建立 Token 遮蔽與認證審批關卡；接通真實 Worktree Mutation 執行與不可繞過之 `UnifiedPolicyGate` 管制關口；狀態權威收斂至 SQLite `MissionStore`；將獨立審查納為交付必經門檻；同步前端 9 階段響應式 Stepper 與持久化審批收據。
+3. 雙軌遠端 CI 100% 綠燈驗收 (Milestone T-032 結案)：GitHub Actions Run 36855797639 (`python`, `mission-e2e`, `viewer`) 與 Run 36855797783 (`react-doctor`) 全數通過；本地 48 筆核心單元測試、前端 0 錯誤 0 警告、Companion 驗證 100% PASS，主幹 HEAD `68ba016` 乾淨整潔。
 
 ---
 
@@ -20,20 +20,18 @@
 
 | Check / Metric | Status | Evidence / Receipt |
 |---|---|---|
-| **Active Branch & Sync State** | `PASS` | `main` branch synchronized |
-| **Phases 98-100 Frontend Modularization & Build** | `PASS` | `npm run build` in `viewer/` (Pass in 3.71s, 0 TypeScript errors, 672 modules transformed) |
-| **React Doctor Code Quality Convergence** | `PASS` | `npm run doctor` in `viewer/` (0 Bugs, 0 Performance regressions, 0 Giant Components, warnings reduced to 6) |
-| **Frontend UI Smoke & Swarm Test** | `PASS` | `npm run verify:ui` and `npm run test:swarm-ui` in `viewer/` (100% PASS) |
-| **Multi-Tenant Concurrency Stress Benchmark** | `PASS` | `run_concurrency_stress_benchmark.py` (16 tenants, 400 ops, 0.0% error, 80.06 TPS, SQLite WAL integrity OK, SHA-256 chain verified) |
-| **Async Non-blocking Tool Execution & Self-Healing** | `PASS` | `GovernedToolRegistry`, `AgentExecutor`, and `PipelineSelfHealingEngine` non-blocking async execution |
-| **Production Air-gapped Container Hardening** | `PASS` | `Dockerfile` (non-root user `lasuser` UID 1001, git integration, python flags) & `.dockerignore` |
-| **Python Pytest Test Suite** | `PASS` | `agent_workspace/tests/` (100% PASS, 0 errors, 0 failures, 40 tests passed across core modules) |
-| **Tool Manifest & PAP Contract Validation** | `PASS` | `tool_manifest.py validate` (26/26 tools matching PAP contracts, secrets scan passed) |
-| **Skills Acceptance Matrix** | `PASS` | `tool_manifest.py matrix` (26/26 skills PASS, report in `.agent/skills_acceptance_report.md`) |
-| **LAS Golden Verification Ladder** | `PASS` | `scripts/verify.ps1` (all 8 steps verified including Viewer, Exit Code 0) |
-| **Formatting & Git Check** | `PASS` | `git diff --check` passed with 0 trailing whitespace or format errors |
-| **Obsidian Note & Vault Sync** | `PASS` | 62 notes perfectly synchronized across `docs/obsidian/` and external Vault with 100% SHA-256 bitwise match; T-030~T-031 fully documented |
-| **Zero Host Pollution Invariant** | `PASS` | Isolated git worktrees and auto-rollback engine preserve host repository cleanliness (0 host mutations) |
+| **Active Branch & Sync State** | `PASS` | `main` branch synchronized at HEAD `68ba0169f580` (Clean tree) |
+| **GitHub Actions Remote CI** | `PASS` | Run [36855797639](https://github.com/OPluke11-abula/LLM-Agent-System/actions/runs/36855797639) (`python`: 1m24s, `mission-e2e`: 1m44s, `viewer`: 12s) |
+| **GitHub Actions React Doctor** | `PASS` | Run [36855797783](https://github.com/OPluke11-abula/LLM-Agent-System/actions/runs/36855797783) (`react-doctor`: 19s, 0 issues) |
+| **Phase 105 Core Python Pytest** | `PASS` | `test_protocol_repair.py`, `test_delegation_packet.py`, `test_responses_api.py`, `test_quota_router.py`, `test_golden_path_hardening_slice2.py`, `test_pipeline_api_p3.py` (48/48 PASS in 9.17s) |
+| **Frontend Rolldown/Vite Build** | `PASS` | `npm run build` in `viewer/` (Pass in 778ms, 0 TypeScript errors, 677 modules transformed) |
+| **Frontend Companion Verification** | `PASS` | `npm run verify:companion` in `viewer/` (All 4 checks PASSED successfully) |
+| **React Doctor Code Quality** | `PASS` | `npm run doctor:changed` in `viewer/` (0 Bugs, 0 Performance regressions, 0 Giant Components) |
+| **6 Golden Path Architecture Gaps** | `PASS` | Remediated via PR #16: Branch preservation, HITL auth, worktree mutation, unified policy, SQLite authority, independent review |
+| **Tauri 2 Ambient Companion** | `PASS` | Delivered via PR #17: `companion-window`, `useAmbientCompanion.ts`, `AmbientCompanion.tsx`, 1-Click Allow/Deny card |
+| **Deep Optimization Pack** | `PASS` | Delivered via PR #18: 9-Stage Stepper sync, Gate Approved Receipt, structured function call streaming, token redaction |
+| **Obsidian Note & Vault Sync** | `PASS` | 62 notes synchronized across `docs/obsidian/` and external Vault; T-032 milestone recorded |
+| **Zero Host Pollution Invariant** | `PASS` | Isolated git worktrees preserve host repository cleanliness (0 host mutations) |
 
 ---
 
@@ -135,9 +133,11 @@
 - **Phase 97 (T-029)**: Frontend Modularization, React Doctor Zero-Bug Convergence & SQLite WAL Concurrency (100% Certified)
 - **Phase 98 (T-030)**: Host Path Elimination, Frontend Hook Architecture (`useCodingPipeline`, `useFederatedMesh`), React Doctor Warnings $15 \to 6$ & Tier 3 Forensic Leaf Note (100% Certified)
 - **Phase 99 & 100 (T-031)**: Non-blocking Async Subprocess & Self-Healing Wrappers, 16-Tenant Concurrency Stress Benchmark (80 TPS, 0% errors, 100% SHA-256 chain integrity) & Air-gap Container Hardening (100% Certified)
+- **Phase 101 ~ 104**: Factory Task Decomposition, Red/Blue Adversarial Committee, Closed-Loop Experience Distillation, and Production Hardening v0.5.0 Certification (100% Certified)
+- **Phase 105 (T-032 / PR #15 ~ #18)**: External Advanced Ecosystem Fusion (Ambient Companion, Protocol Repair Loop, Delegation Packet, Responses API Gateway) & 6 Golden Path Architecture Gaps Remediated (100% Certified, Remote CI Green)
 
 **Project Milestone Conclusion**:
-All planned phases (Phase 80 ~ Phase 100), architectural decision records (ADR-001 ~ ADR-007), verification gates, and cognitive relay documentation have been fully delivered, stress-tested, and certified under Universal Protocol v3.8.0.
+Phase 105 (Milestone T-032) has been fully certified and closed under Universal Protocol v3.8.0. The system is transitioning to Phase 106 (Autonomous Swarm Orchestration & Desktop Interactive Loop).
 
 ---
 

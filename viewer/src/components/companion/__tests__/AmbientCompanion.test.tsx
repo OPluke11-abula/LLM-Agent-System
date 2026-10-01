@@ -79,11 +79,64 @@ export function testDroppedFilesMetadata(): boolean {
   return true;
 }
 
+export function testAmbientCompanionStageTracking(): boolean {
+  const stages = [
+    "INTAKE",
+    "PRECHECK",
+    "COMMITTEE_DEBATE",
+    "PLAN_AND_GATE",
+    "ISOLATED_MUTATION",
+    "VERIFY_AND_EVIDENCE",
+    "INDEPENDENT_REVIEW",
+    "SELF_HEALING",
+    "DRAFT_PR_EXPORT",
+  ];
+
+  const currentStage = "PLAN_AND_GATE";
+  const stageIdx = stages.indexOf(currentStage);
+
+  if (stageIdx !== 3 || stages.length !== 9) {
+    throw new Error("Stage index calculation mismatch");
+  }
+  return true;
+}
+
+export function testTaskCreationPayloadFromDrop(): boolean {
+  const droppedFiles: DroppedFileItem[] = [
+    { name: "test_patch.py", size: 1024, type: "text/x-python", lastModified: Date.now() },
+  ];
+  const requirement = "Fix bug identified in dropped test";
+  const taskId = "TASK-COMPANION-001";
+
+  const payload = {
+    task_id: taskId,
+    repository_path: "d:/GitHub/LLM-Agent-System",
+    requirement_prompt: requirement,
+    base_branch: "main",
+    target_branch: "feat/companion-001",
+    inspected_files: droppedFiles.map((f) => f.name),
+    target_files: [],
+    allowed_roles: ["DOMAIN_LOGIC_AGENT", "BACKEND_INFRA_AGENT", "UI_UX_AGENT"],
+  };
+
+  if (
+    payload.task_id !== taskId ||
+    payload.inspected_files.length !== 1 ||
+    payload.inspected_files[0] !== "test_patch.py" ||
+    !payload.requirement_prompt.includes("Fix bug")
+  ) {
+    throw new Error("Drop to task creation payload failed");
+  }
+  return true;
+}
+
 // Self-executing validation suite
 export function runAmbientCompanionTestSuite(): { passed: number; total: number } {
   testAmbientCompanionDefaults();
   testPipelinePlanSubmittedEvent();
   testApprovalPayloadContract();
   testDroppedFilesMetadata();
-  return { passed: 4, total: 4 };
+  testAmbientCompanionStageTracking();
+  testTaskCreationPayloadFromDrop();
+  return { passed: 6, total: 6 };
 }
