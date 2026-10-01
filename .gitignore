@@ -231,6 +231,8 @@ AGENTS.md
 # Runtime memory data (generated at runtime, not part of the template)
 agent_workspace/memory/**/*.json
 agent_workspace/memory/**/*.db
+agent_workspace/memory/**/*.db-shm
+agent_workspace/memory/**/*.db-wal
 agent_workspace/memory/**/*.tmp
 agent_workspace/memory/**/.*.tmp
 agent_workspace/memory/*/

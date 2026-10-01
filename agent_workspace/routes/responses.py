@@ -247,7 +247,28 @@ async def create_response(request: Request, body: ResponsesRequest):
 
     resp_id = f"resp_{uuid.uuid4().hex[:16]}"
     msg_id = f"msg_{uuid.uuid4().hex[:16]}"
-    text_content = raw_content if isinstance(raw_content, str) else json.dumps(raw_content)
+
+    if resp_type == "tool_calls" and isinstance(raw_content, list):
+        message_content = [
+            {
+                "type": "function_call",
+                "name": call.get("name", "") if isinstance(call, dict) else "",
+                "arguments": (
+                    json.dumps(call.get("arguments", {}), ensure_ascii=False)
+                    if isinstance(call, dict) and isinstance(call.get("arguments"), dict)
+                    else str(call.get("arguments", "") if isinstance(call, dict) else call)
+                ),
+            }
+            for call in raw_content
+        ]
+    else:
+        text_content = raw_content if isinstance(raw_content, str) else json.dumps(raw_content, ensure_ascii=False)
+        message_content = [
+            {
+                "type": "output_text",
+                "text": text_content,
+            }
+        ]
 
     return JSONResponse(
         status_code=200,
@@ -263,12 +284,7 @@ async def create_response(request: Request, body: ResponsesRequest):
                     "type": "message",
                     "status": "completed",
                     "role": "assistant",
-                    "content": [
-                        {
-                            "type": "output_text",
-                            "text": text_content,
-                        }
-                    ],
+                    "content": message_content,
                 }
             ],
             "usage": {

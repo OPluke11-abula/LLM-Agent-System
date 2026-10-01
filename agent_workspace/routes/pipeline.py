@@ -562,7 +562,7 @@ async def approve_mutation_plan(
     token_fingerprint = hashlib.sha256(approval.approval_token.encode("utf-8")).hexdigest()[:16]
 
     record.plan.human_approved = True
-    record.plan.approval_token = approval.approval_token
+    record.plan.approval_token = masked_token
     record.plan.approval_timestamp = datetime.now(timezone.utc).isoformat()
     _persist_task_record(record)
 
