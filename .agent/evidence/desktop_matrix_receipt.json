@@ -1,0 +1,54 @@
+{
+  "status": "PASS",
+  "milestone": "T-040 (Phase 113)",
+  "protocol_version": "3.8.0",
+  "app_version": "0.6.0",
+  "four_way_version_parity": {
+    "python": "0.6.0",
+    "frontend": "0.6.0",
+    "tauri_conf": "0.6.0",
+    "cargo_toml": "0.6.0"
+  },
+  "desktop_platforms": [
+    {
+      "os": "Windows",
+      "runner": "windows-latest",
+      "bundle_formats": [
+        "msi (WiX)",
+        "exe (NSIS)"
+      ]
+    },
+    {
+      "os": "macOS",
+      "runner": "macos-latest",
+      "bundle_formats": [
+        "dmg",
+        "app"
+      ],
+      "min_macos_version": "10.13"
+    },
+    {
+      "os": "Linux",
+      "runner": "ubuntu-22.04",
+      "bundle_formats": [
+        "deb",
+        "appimage"
+      ],
+      "deb_dependencies": [
+        "libwebkit2gtk-4.1-0 | libwebkit2gtk-4.0-37",
+        "libxdo3"
+      ]
+    }
+  ],
+  "metadata": {
+    "category": "DeveloperTool",
+    "short_description": "AI Agent Topology Viewer and Control Plane",
+    "copyright": "Copyright (c) 2026 Luke / OPluke11-abula"
+  },
+  "verification_summary": {
+    "version_parity": "PASS",
+    "tauri_bundle_spec": "PASS",
+    "release_ci_matrix": "PASS",
+    "linux_sys_dependencies": "PASS"
+  }
+}

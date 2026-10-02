@@ -89,6 +89,7 @@ def check_evidence_receipts() -> list[tuple[str, bool]]:
         ".agent/evidence/concurrency_stress_receipt.json",
         ".agent/evidence/cross_org_mesh_receipt.json",
         ".agent/evidence/helm_canary_receipt.json",
+        ".agent/evidence/desktop_matrix_receipt.json",
     ]
     results = []
     for rel_path in receipts:

@@ -101,7 +101,8 @@ flowchart TD
 - **Edge SLM & Local Code Optimization (Phase 110)**: Integrated `EdgeSLMEngine` for zero-cloud-token AST static defect inspection, automated test stub synthesis, and complexity-based model routing ($CC \le 10$).
 - **Cross-Organization Encrypted P2P Mesh (Phase 111)**: Zero-trust NAT hole punching (`MeshNATBridge` STUN / DERP relay fallback), zero-knowledge task state verifier (`ZeroKnowledgeTaskVerifier`) with air-gap code protection, and WAN multi-cluster Raft disaster recovery.
 - **Cloud-Native Kubernetes & Argo Rollouts Canary (Phase 112)**: Production Helm v2 Chart (`deploy/helm/llm-agent-system/`), non-root container security context (UID 1001), 4-stage progressive canary delivery (10% -> 25% -> 50% -> 100%), Prometheus SLO gates, and GHCR OCI automated publishing pipeline (`.github/workflows/helm-publish.yml`).
-- **Container & Release Pipeline**: Production rootless container image, GHCR automated multi-arch publishing (`.github/workflows/docker-publish.yml`), and dual-track release pipeline packaging container and Windows Tauri desktop artifacts (`.github/workflows/release.yml`).
+- **Multi-Platform Desktop Packaging & Release Matrix (Phase 113)**: Native cross-platform distribution matrix across Windows (WiX `.msi` / NSIS `.exe`), macOS (`.dmg` / `.app` bundle with macOS 10.13+ compatibility), and Linux (Debian `.deb` with WebKitGTK 4.1 runtime / universal `.AppImage`), automated via multi-runner GitHub Actions CI/CD (`.github/workflows/release.yml`).
+- **Container & Release Pipeline**: Production rootless container image, GHCR automated multi-arch publishing (`.github/workflows/docker-publish.yml`), and dual-track release pipeline packaging container and multi-OS desktop artifacts (`.github/workflows/release.yml`).
 - **Contract & Knowledge System (`.agent`)**: PAP contracts, workflows, role definitions, and durable cross-agent project knowledge.
 - **Developer Agent Control Plane**: Canonical mission and autonomous coding pipeline contracts ([`docs/product/developer-agent-control-plane.md`](docs/product/developer-agent-control-plane.md)).
 - **React 19 + Tauri 2 Desktop App (`viewer`)**: Dark glassmorphism interface, Radix UI primitives, Lucide icons, Rolldown code-splitting, real-time topology stream, and ambient floating companion (`AmbientCompanion`) with 1-click HITL approval and context file drag-and-drop.
@@ -323,7 +324,11 @@ LAS (FindAi Studio) 是一套企業級、合約優先 (Contract-First) 的多智
     * **Argo Rollouts 漸進式金絲雀**：定義 4 階段金絲雀階梯 (10% -> 25% -> 50% -> 100%)，整合 Prometheus SLO 熔斷門檻 (成功率 $\ge 99.9\%$、P99 $<500\text{ms}$、錯誤率 $<0.1\%$)。
     * **GHCR OCI 自動發布管線**：整合 `.github/workflows/helm-publish.yml`，自動 lint、渲染測試並推播至 `oci://ghcr.io/opluke11-abula/charts`。
 
-12. **黃金八階驗證階梯 (8-Step Golden Verification Ladder)**：
+12. **Phase 113 跨平台桌面原生打包與矩陣發布 (Multi-Platform Desktop Packaging)**：
+    * **三大作業系統原生支援**：擴充 `viewer/src-tauri/tauri.conf.json`，支援 Windows (WiX `.msi` 與 NSIS `.exe`)、macOS (`.dmg` 映象檔與 `.app` bundle，支援 10.13+)、Linux (`.deb` 自動相依 WebKitGTK 4.1 與通用 `.AppImage`)。
+    * **多平台併行 CI 發布**：整合 `.github/workflows/release.yml` 多 OS 矩陣 (`windows-latest`, `macos-latest`, `ubuntu-22.04`)，自動編譯並發布多平台資產至 GitHub Releases。
+
+13. **黃金八階驗證階梯 (8-Step Golden Verification Ladder)**：
     * 執行 `.\scripts\verify.cmd` 進行 Python 編譯、Pytest 矩陣測試、PAP 規格驗證、工具清單檢核、Obsidian 筆記健康檢查、Viewer 生產建置、UI 冒煙測試與 React Doctor 品質審查。
 
 

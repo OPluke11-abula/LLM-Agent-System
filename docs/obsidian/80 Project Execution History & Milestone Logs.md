@@ -977,8 +977,27 @@ timeline
 - **Result**:
   - Phase 112 (Milestone T-039) 100% completed and certified.
   - Receipts:
-    - Helm/Canary Tests: `test_helm_canary_p112.py` 7/7 passed (0 failures).
-    - Release Readiness: `scripts/verify_release_readiness.py` PASSED with 9 deployment artifacts and 4 evidence receipts.
+### 2026-10-02 - Phase 113: Multi-Platform Desktop Packaging & Release Matrix
+- **Task ID**: T-040 (Phase 113)
+- **Driver**: Antigravity & PO Luke
+- **Protocol**: Universal Protocol v3.8.0
+- **Summary**:
+  - **Tauri 2.0 Multi-Platform Bundle Configuration (`viewer/src-tauri/tauri.conf.json`)**:
+    - Configured fine-grained platform target specifications for Windows (WiX `.msi` and NSIS `.exe`), macOS (`.dmg` installer with `minimumSystemVersion: "10.13"` and `.app` bundle), and Linux (`.deb` with `libwebkit2gtk-4.1-0` dependencies and `.AppImage`).
+    - Added comprehensive application bundle metadata (DeveloperTool category, description, and copyright).
+  - **GitHub Actions Multi-OS Release Matrix (`.github/workflows/release.yml`)**:
+    - Upgraded `desktop-release` job to 3-runner parallel build matrix across `windows-latest`, `macos-latest`, and `ubuntu-22.04`.
+    - Added automated Linux WebKitGTK system dependencies installation (`libwebkit2gtk-4.1-dev`, `libayatana-appindicator3-dev`, `libxdo-dev`).
+    - Automated asset publishing via `tauri-apps/tauri-action` to GitHub Releases upon `v*.*.*` tag trigger.
+  - **Pre-flight Audit & Verification Matrix**:
+    - Authored `scripts/verify_desktop_matrix.py` ensuring bitwise 4-way version parity (`pyproject.toml`, `package.json`, `tauri.conf.json`, `Cargo.toml` all `0.6.0`) and emitting `.agent/evidence/desktop_matrix_receipt.json`.
+    - Authored unit test suite `agent_workspace/tests/test_desktop_packaging_p113.py` (4/4 PASS in 0.11s).
+- **Result**:
+  - Phase 113 (Milestone T-040) 100% completed and certified.
+  - Receipts:
+    - Desktop Matrix Tests: `test_desktop_packaging_p113.py` 4/4 passed (0 failures).
+    - Packaging Regression: `test_release_pipeline_p109.py` 5/5 passed.
+    - Release Readiness: `scripts/verify_release_readiness.py` PASSED with 9 deployment artifacts and 5 evidence receipts.
     - Tool Manifest: 27 contracts matched, 0 secrets.
 
 
