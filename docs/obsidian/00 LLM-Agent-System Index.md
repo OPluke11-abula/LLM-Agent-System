@@ -149,6 +149,7 @@ graph TD
 - [[core-forensic-correlator]]: Dual-stream cryptographic forensic correlator unifying compliance audit trail and runtime execution telemetry.
 - [[core-edge-slm]]: Edge small language model (SLM) inference engine, zero-cloud-token AST static defect audit, and complexity-aware smart routing.
 - [[core-mesh-tunnel]]: Cross-organization encrypted P2P mesh overlay, STUN/DERP NAT traversal, zero-knowledge airgap task verifier, and multi-cluster Raft.
+- [[core-helm-and-canary]]: Cloud-native Kubernetes Helm chart packaging, production values, and Argo Rollouts canary progressive delivery with Prometheus SLOs.
 
 ### 5.2 Frontend Cockpit & UI Components (`viewer/src/`)
 - [[viewer-app]]: Root shell component, multi-session tab navigation, global shortcut bindings.

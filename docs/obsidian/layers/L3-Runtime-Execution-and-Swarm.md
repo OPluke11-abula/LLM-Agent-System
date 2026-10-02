@@ -54,4 +54,5 @@ graph TD
 - [[core-pipeline-benchmark]]: Autonomous coding golden benchmark engine, 3 canonical scenarios, ADR-006 6 KPIs scorecard (`scripts/run_golden_benchmark.py`).
 - [[core-reasoning-router]]: Heterogeneous reasoning model adapters, dynamic thinking budgets, and air-gapped offline routing (`agent_workspace/core/reasoning_router.py`).
 - [[core-edge-slm]]: Edge small language model (SLM) inference engine, zero-cloud-token AST static defect audit, and complexity-aware smart routing (`agent_workspace/core/slm/`).
+- [[core-helm-and-canary]]: Cloud-native Kubernetes Helm chart packaging, production values, and Argo Rollouts canary progressive delivery with Prometheus SLOs (`deploy/helm/` & `deploy/canary/`).
 

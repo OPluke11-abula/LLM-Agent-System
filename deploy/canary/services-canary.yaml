@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: llm-agent-system-stable
+  labels:
+    app.kubernetes.io/name: llm-agent-system
+    app.kubernetes.io/role: stable
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8000
+      targetPort: 8000
+      name: http
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: llm-agent-system
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: llm-agent-system-canary
+  labels:
+    app.kubernetes.io/name: llm-agent-system
+    app.kubernetes.io/role: canary
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8000
+      targetPort: 8000
+      name: http
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: llm-agent-system

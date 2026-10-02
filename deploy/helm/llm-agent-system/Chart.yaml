@@ -1,0 +1,18 @@
+apiVersion: v2
+name: llm-agent-system
+description: Cloud-native enterprise Helm chart for LLM-Agent-System distributed control plane and P2P mesh
+type: application
+version: 0.6.0
+appVersion: "0.6.0"
+keywords:
+  - ai-agents
+  - llm
+  - p2p-mesh
+  - distributed-systems
+  - argo-rollouts
+home: https://github.com/OPluke11-abula/LLM-Agent-System
+sources:
+  - https://github.com/OPluke11-abula/LLM-Agent-System
+maintainers:
+  - name: Luke
+    email: opluke11@users.noreply.github.com
