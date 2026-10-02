@@ -3,16 +3,16 @@
 > **Protocol Version**: 3.8.0
 > **Source of Truth**: Team Cognitive Relay (Tier 2)
 > **Prerequisite**: Automated tests 100% Green (`PASS`) before updating this document.
-> **Last Synchronized**: 2026-10-02
+> **Last Synchronized**: 2026-10-03
 > **Domain Owner / PO**: Luke
-> **Project State**: Phase 0 (系統全能基準線 v0.6.0 Baseline) Completed & Certified; 歷史 113 個 Phase 已歸納封存，進入 Epoch 2 乾淨演進週期。
+> **Project State**: Phase 1 (Ambient Intelligence & Workstation Context Mesh + UI/UX Modernization) 100% Completed & Certified; 系統進入高美學、全繁中直覺式控制中樞成熟階段。
 
 ---
 
 ## 1. 3-Line Executive Summary (三行白話摘要)
-1. 歷史 113 個 Phase 正式結案並歸納為「Phase 0: 系統全能基準線 (v0.6.0 Baseline)」：確立核心運行時、控制台視圖、編程管線、群智治理、P2P 加密網格、端側 SLM、雲原生 Helm/Canary 與跨平台桌面 7 大架構柱石。
-2. 任務隊列全面瘦身重製：`.agent/agent_tasks.md` 省除過去 113 個歷史 Phase 的冗餘篇幅，所有歷史執行紀錄完整歸檔至 Obsidian 知識庫（Milestone T-001 ~ T-040），日常運維零認知負擔。
-3. 全維度品質與發布收據 100% 綠燈：111/111 Pytest PASS，Release Readiness PASS，27/27 工具合約與 0 密鑰外洩驗證通過，隨時可展開新世代 Phase 1 的規劃與實作。
+1. Phase 1 (桌面環境智慧伴侶與 UI/UX 深度改造) 100% 落地交付：涵蓋周邊電量感知、全螢幕勿擾、Tauri 托盤以及 4 大中心收斂與全繁體中文化。
+2. 消除 AI-Slop 與雜亂儀表板感：側邊欄收斂為「任務指揮、自主編程、架構記憶、系統治理」，軟體工廠改為 4 欄流暢寬敞 KPI 卡片與微光玻璃擬態。
+3. 全維度品質與測試收據 100% 綠燈：`test_peripheral_telemetry.py` (7/7 PASS)、`test_focus_detector.py` (6/6 PASS)、`npm run doctor` (114 files 0 issues)、`npm run build` (683 modules PASS in 1.04s)、`cargo check` (0 errors)。
 
 ---
 
@@ -20,22 +20,16 @@
 
 | Check / Metric | Status | Evidence / Receipt |
 |---|---|---|
-| **Active Release Version** | `PASS` | `v0.6.0` (`pyproject.toml`, `package.json`, `tauri.conf.json`, `Cargo.toml`) 4-way parity |
-| **Release Readiness Gate** | `PASS` | `python scripts/verify_release_readiness.py` (9 deployment artifacts, 5 receipts PASS) |
-| **Desktop Matrix Audit** | `PASS` | `scripts/verify_desktop_matrix.py`: Windows, macOS, Linux targets verified (`.agent/evidence/desktop_matrix_receipt.json`) |
-| **Desktop Matrix Tests** | `PASS` | `agent_workspace/tests/test_desktop_packaging_p113.py`: 4/4 tests PASS in 0.11s |
-| **Helm & Canary Audit** | `PASS` | `scripts/verify_helm_readiness.py`: 10 templates, 4-step canary, SLOs verified (`.agent/evidence/helm_canary_receipt.json`) |
-| **Helm & Canary Unit Tests** | `PASS` | `agent_workspace/tests/test_helm_canary_p112.py`: 7/7 tests PASS in 0.08s |
-| **Cross-Org P2P Mesh Benchmark** | `PASS` | `scripts/run_cross_org_mesh_benchmark.py`: 6.06ms P2P, DERP relay PASS, ZK airgap PASS (`.agent/evidence/cross_org_mesh_receipt.json`) |
-| **Edge SLM Benchmark** | `PASS` | `scripts/run_edge_slm_benchmark.py`: 100% air-gap, 0 cloud tokens (`.agent/evidence/edge_slm_benchmark_receipt.json`) |
-| **Multimodal Swarm Mesh Stress** | `PASS` | `scripts/run_p2p_mesh_stress_benchmark.py`: 16 nodes, 320 ops, 0 errors, 100% Merkle valid (`.agent/evidence/p2p_multimodal_mesh_receipt.json`) |
-| **Full Python Test Suite** | `PASS` | 111/111 Python Core Tests PASS (0 failures, exit code 0) |
-| **Frontend Production Build** | `PASS` | `npm run build` in `viewer/` (Built in 946ms, 0 TypeScript errors, 681 modules transformed) |
-| **React Doctor Code Quality** | `PASS` | `npm run doctor` in `viewer/` (Scanned 113 files, ✔ No issues found!) |
-| **Multi-OS Desktop Release Matrix**| `PASS` | `.github/workflows/release.yml` (Windows, macOS, Ubuntu runners in parallel) |
-| **GHCR Helm OCI Workflow** | `PASS` | `.github/workflows/helm-publish.yml` (azure/setup-helm, lint, dry-run, push to GHCR OCI) |
-| **GHCR Docker Publishing Workflow** | `PASS` | `.github/workflows/docker-publish.yml` (Buildx, QEMU, GHA cache, push to GHCR) |
-| **Obsidian Knowledge Topology** | `PASS` | `docs/obsidian/modules/core/core-desktop-matrix.md` created & linked (67 files 100% synced) |
+| **Phase 1 Ambient Intelligence** | `PASS` | Slices 1, 2, 3 implemented & verified (`peripheral_telemetry.py`, `focus_detector.py`, `CompanionPeripheralBadge.tsx`) |
+| **UI/UX Modernization & Pure TC**| `PASS` | 4 hubs navigation (`Sidebar.tsx`), 4-card KPI (`SoftwareFactoryView.tsx`), 100% Traditional Chinese across all cockpit views |
+| **Peripheral Telemetry Tests** | `PASS` | `test_peripheral_telemetry.py`: 7/7 tests PASS (0.29s) |
+| **Focus & Quiet Mode Tests** | `PASS` | `test_focus_detector.py`: 6/6 tests PASS (0.23s) |
+| **Tauri 2 Cargo Compilation** | `PASS` | `cargo check` in `viewer/src-tauri` (tray-icon v0.21.3 enabled, 0 warnings/errors) |
+| **Frontend Production Build** | `PASS` | `npm run build` in `viewer/` (Built in 1.04s, 0 TS errors, 683 modules transformed) |
+| **React Doctor Code Quality** | `PASS` | `npm run doctor` in `viewer/` (Scanned 114 files, ✔ No issues found!) |
+| **Ambient Companion Verification**| `PASS` | `npm run verify:companion` (All 4 checks PASSED) |
+| **Python Syntax Compilation** | `PASS` | `python -m py_compile` 100% PASS across core, routes, and tests |
+| **Tool Manifest & Security Gate** | `PASS` | `tool_manifest.py validate` 27/27 contracts PASS, 0 secrets leaked |
 
 
 

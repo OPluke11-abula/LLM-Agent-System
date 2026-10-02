@@ -1,10 +1,11 @@
 import { useEffect, useState, type DragEvent } from "react";
-import { AlertTriangle, Sparkles } from "../ui/icons";
+import { AlertTriangle, Sparkles, Moon } from "../ui/icons";
 import { useAmbientCompanion, type CompanionStatus } from "../../hooks/useAmbientCompanion";
 import { CompanionHeader } from "./CompanionHeader";
 import { CompanionStageTracker } from "./CompanionStageTracker";
 import { CompanionHitlCard } from "./CompanionHitlCard";
 import { CompanionDroppedFiles } from "./CompanionDroppedFiles";
+import { CompanionPeripheralBadge } from "./CompanionPeripheralBadge";
 
 interface AmbientCompanionProps {
   standalone?: boolean;
@@ -56,6 +57,9 @@ export function AmbientCompanion({ standalone = false, onClose }: AmbientCompani
     actionMessage,
     errorMessage,
     droppedFiles,
+    peripherals,
+    peripheralAlerts,
+    quietMode,
     approve,
     deny,
     createTaskFromDrop,
@@ -188,6 +192,21 @@ export function AmbientCompanion({ standalone = false, onClose }: AmbientCompani
               droppedFiles={droppedFiles}
               onClear={clearDroppedFiles}
               onLaunch={createTaskFromDrop}
+            />
+
+            {quietMode && (
+              <div
+                data-testid="companion-quiet-mode-banner"
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-950/40 border border-indigo-700/40 text-[10px] text-indigo-300 font-mono"
+              >
+                <Moon className="h-3 w-3 text-indigo-400" />
+                <span>Focus / Quiet Mode Active (Fullscreen Detected)</span>
+              </div>
+            )}
+
+            <CompanionPeripheralBadge
+              devices={peripherals}
+              alerts={peripheralAlerts}
             />
 
             <div

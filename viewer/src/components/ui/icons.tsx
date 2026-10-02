@@ -56,5 +56,6 @@ export {
   Radio,
   Bot,
   FileCheck,
-  Users
+  Users,
+  Moon
 } from "lucide-react";
