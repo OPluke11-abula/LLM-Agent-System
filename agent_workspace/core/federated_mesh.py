@@ -57,6 +57,7 @@ class PeerCapability(str, Enum):
     TEST_RUNNER = "TEST_RUNNER"  # Dedicated verification ladder and test execution
     COCKPIT_LEADER = "COCKPIT_LEADER"  # Developer UI, Human-in-the-loop approval gate
     MULTIMODAL_PERCEPTION = "MULTIMODAL_PERCEPTION"  # Visual diff, UI screenshot and diagram inspection
+    EDGE_SLM = "EDGE_SLM"  # Local quantized small language model for low-latency offline code tasks
 
 
 class AttestationStatus(str, Enum):

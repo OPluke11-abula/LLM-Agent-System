@@ -32,6 +32,8 @@
 | **107** | Advanced Multimodal Swarm Mesh & P2P Stress Drill | `100% Done` | PeerCapability multimodal extension, mesh dispatcher vision routing, 16-node P2P stress benchmark script (320 ops PASS). |
 | **108** | Docker Multi-Arch Buildx & GHCR Registry Pipeline | `100% Done` | .github/workflows/docker-publish.yml, multi-arch buildx, GHCR login/push, .env.production.example. |
 | **109** | Dual-Track Release Pipeline & Desktop Packaging | `100% Done` | .github/workflows/release.yml, Tauri desktop MSI/EXE bundle, CycloneDX SBOM, verify_release_readiness.py. |
+| **110** | Edge SLM & Local Coding Model Optimization | `100% Done` | EdgeSLMEngine, OfflineASTAnalyzer, SmartModelDispatcher, mesh routing (14/14 tests PASS, 0 cloud tokens). |
+
 
 
 ---
@@ -192,6 +194,25 @@ Goal: Establish unified GitHub Release workflow bundling multi-arch Docker and T
 - [x] **109-02 Release Readiness Gate Script & Manifest Triad Parity** (`scripts/verify_release_readiness.py`, `tauri.conf.json`, `Cargo.toml` - PASS).
 - [x] **109-03 Dedicated Release Verification Test Suite** (`agent_workspace/tests/test_release_pipeline_p109.py` - 5/5 PASS).
 - [x] **109-04 Milestone T-036 Closure & Dual-Track Certification** (75/75 unit tests green, React Doctor clean, tool manifest secrets scan pass).
+
+### Phase 110 - Edge SLM & Local Coding Model Optimization
+
+Status: `[x]` 4/4 complete.
+Goal: Integrate low-latency local SLM models (Ollama/vLLM) and offline AST static defect detection, with complexity-aware intelligent dispatching ($CC \le 10 \to$ SLM) and zero cloud data egress.
+
+- [x] **110-01 Edge SLM Inference Engine (`EdgeSLMEngine`)**
+  - Implement low-latency local client for Ollama / vLLM with health probing, latency telemetry, and hermetic mock execution.
+  - Target: `agent_workspace/core/slm/engine.py`.
+- [x] **110-02 Offline AST Static Defect Analyzer & Test Stub Generator (`OfflineASTAnalyzer`)**
+  - Implement zero-cloud-token AST static defect detector enforcing Anti-Corruption #4 (Typed Failures, detecting bare excepts) and synthesizing automated pytest stubs.
+  - Target: `agent_workspace/core/slm/offline_analyzer.py`.
+- [x] **110-03 Complexity-Aware Smart Model Dispatcher (`SmartModelDispatcher`)**
+  - Evaluate AST cyclomatic complexity: route $CC \le 10$ to local Edge SLM; route $CC > 10$ to cloud reasoning engine; graceful fallback on offline.
+  - Target: `agent_workspace/core/slm/dispatcher.py`, `agent_workspace/core/slm/__init__.py`.
+- [x] **110-04 Mesh Factory Capability Routing & Phase 110 Verification Suite**
+  - Add `PeerCapability.EDGE_SLM`, route `SYNTAX_CLEANUP` & `TEST_STUB_GENERATION` tasks in `MeshFactoryDispatcher`, and author benchmark + unit test suite.
+  - Target: `agent_workspace/core/factory/models.py`, `agent_workspace/core/factory/mesh_dispatcher.py`, `agent_workspace/tests/test_edge_slm_p110.py` (14/14 PASS), `scripts/run_edge_slm_benchmark.py` (`.agent/evidence/edge_slm_benchmark_receipt.json`).
+
 
 ---
 

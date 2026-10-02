@@ -40,6 +40,7 @@ class MeshFactoryDispatcher:
                 "node-edge-mutation-02": [PeerCapability.SANDBOX_MUTATION.value],
                 "node-ci-test-runner": [PeerCapability.TEST_RUNNER.value],
                 "node-multimodal-verifier": [PeerCapability.MULTIMODAL_PERCEPTION.value],
+                "node-edge-slm-worker": [PeerCapability.EDGE_SLM.value],
             }
 
 
@@ -61,6 +62,8 @@ class MeshFactoryDispatcher:
             return PeerCapability.TEST_RUNNER
         elif task.task_type == RefactoringTaskType.VISUAL_VERIFICATION:
             return PeerCapability.MULTIMODAL_PERCEPTION
+        elif task.task_type in (RefactoringTaskType.SYNTAX_CLEANUP, RefactoringTaskType.TEST_STUB_GENERATION):
+            return PeerCapability.EDGE_SLM
         else:
             return PeerCapability.SANDBOX_MUTATION
 

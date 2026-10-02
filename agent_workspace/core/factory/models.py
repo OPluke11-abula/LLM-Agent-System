@@ -72,6 +72,8 @@ class RefactoringTaskType(str, Enum):
     DECOUPLING = "DECOUPLING"              # Break circular dependencies and reduce coupling
     TEST_EXPANSION = "TEST_EXPANSION"      # Increase test coverage on high-risk boundaries
     VISUAL_VERIFICATION = "VISUAL_VERIFICATION"  # Multimodal UI and diagram verification
+    SYNTAX_CLEANUP = "SYNTAX_CLEANUP"      # Local edge SLM quick AST syntax & format cleanup
+    TEST_STUB_GENERATION = "TEST_STUB_GENERATION"  # Local edge SLM test stub and mock generation
 
 
 class RefactoringTaskNode(BaseModel):

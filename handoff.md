@@ -5,14 +5,14 @@
 > **Prerequisite**: Automated tests 100% Green (`PASS`) before updating this document.
 > **Last Synchronized**: 2026-10-02
 > **Domain Owner / PO**: Luke
-> **Project State**: Phase 107 (Multimodal Swarm Mesh Drill), Phase 108 (Docker GHCR Pipeline), Phase 109 (Dual-Track Release) Completed & Certified (Milestones T-034 ~ T-036); Production Delivery Ready.
+> **Project State**: Phase 110 (Edge SLM & Local Coding Model Optimization) Completed & Certified (Milestone T-037); 3 ➔ 4 ➔ 2 ➔ 1 Strategic Roadmap Active.
 
 ---
 
 ## 1. 3-Line Executive Summary (三行白話摘要)
-1. Phase 107 ~ 109 完整工作流全線落地：完成 Obsidian 90 號生產級工作流架構、擴充 `PeerCapability.MULTIMODAL_PERCEPTION` 與工廠調度器視覺拓樸路由；成功執行 16 節點異質叢集 P2P Mesh 壓力演練（320 筆操作、0 錯誤、100% Merkle 雜湊驗證與 Raft 日誌複製通過）。
-2. Docker 自動建置與 GHCR 發布工作流補齊：建立 `.github/workflows/docker-publish.yml`，支援 Buildx 多架構 (`linux/amd64`) 與 GHA 快取，推送到 `ghcr.io/opluke11-abula/llm-agent-system`；加固非 root `lasuser` 容器安全並提供 `.env.production.example`。
-3. 建立 GitHub Release + Docker 雙軌發布工作流：建立 `.github/workflows/release.yml` 同步發布容器映像檔與 Tauri Windows 桌面端安裝檔 (`.msi` / `.exe`)；實作 `verify_release_readiness.py` 發布前預檢閘門，達成版本號雙向 100% 一致與全鏈路驗證閉環。
+1. 完成本地輕量模型推論引擎 `EdgeSLMEngine`：支援 Ollama / vLLM 零資料外洩本地推論，內建 hermetic mock handler 確保無 GPU/網路環境 100% 確定性測試與毫秒級延遲遙測。
+2. 實作純本機 AST 靜態分析器 `OfflineASTAnalyzer`：零雲端 Token 檢測 Bare Except 等違反 Anti-Corruption 原則之語法缺陷，並自動合成語法正確且可執行的 pytest 單元測試樁（Stubs）。
+3. 實作複雜度感知模型調度器 `SmartModelDispatcher` 與工廠調度器整合：圈複雜度 $CC \le 10$ 自動分流本地 Edge SLM 節省雲端 Token，超標或離線自動優雅降級雲端；工廠調度器擴充 `SYNTAX_CLEANUP` 與 `TEST_STUB_GENERATION` 直通 `PeerCapability.EDGE_SLM`。
 
 ---
 
@@ -22,15 +22,17 @@
 |---|---|---|
 | **Active Release Version** | `PASS` | `v0.6.0` (`pyproject.toml`, `viewer/package.json`) bitwise parity verified |
 | **Release Readiness Gate** | `PASS` | `python scripts/verify_release_readiness.py` VERDICT: PASS |
+| **Edge SLM Benchmark** | `PASS` | `scripts/run_edge_slm_benchmark.py`: 100% air-gap, 0 cloud tokens (`.agent/evidence/edge_slm_benchmark_receipt.json`) |
 | **Multimodal Swarm Mesh Stress** | `PASS` | `scripts/run_p2p_mesh_stress_benchmark.py`: 16 nodes, 320 ops, 0 errors, 100% Merkle valid (`.agent/evidence/p2p_multimodal_mesh_receipt.json`) |
-| **Full Python Test Suite** | `PASS` | 70/70 Python Core Tests PASS (0 failures, exit code 0) |
-| **Frontend Production Build** | `PASS` | `npm run build` in `viewer/` (Built in 3.98s, 0 TypeScript errors, 681 modules transformed) |
+| **Full Python Test Suite** | `PASS` | 89/89 Python Core Tests PASS (0 failures, exit code 0) |
+| **Frontend Production Build** | `PASS` | `npm run build` in `viewer/` (Built in 1.86s, 0 TypeScript errors, 681 modules transformed) |
 | **React Doctor Code Quality** | `PASS` | `npm run doctor` in `viewer/` (Scanned 113 files, ✔ No issues found!) |
 | **GHCR Docker Publishing Workflow** | `PASS` | `.github/workflows/docker-publish.yml` (Buildx, QEMU, GHA cache, push to GHCR) |
 | **Dual-Track Release Workflow** | `PASS` | `.github/workflows/release.yml` (Container to GHCR + Tauri Desktop to GitHub Release) |
 | **Production Env Template** | `PASS` | `.env.production.example` aligned with rootless container invariants |
-| **Obsidian Knowledge Topology** | `PASS` | `docs/obsidian/90 Production Delivery & Swarm Mesh Drill Workflow.md` created & linked |
+| **Obsidian Knowledge Topology** | `PASS` | `docs/obsidian/modules/core/core-edge-slm.md` created & linked |
 | **Zero Host Pollution Invariant** | `PASS` | Isolated git worktrees preserve host repository cleanliness (0 host mutations) |
+
 
 
 ---
@@ -141,9 +143,11 @@
 - **Phase 107 (T-034)**: Multimodal Swarm Mesh & 16-Node P2P Stress Drill (320 ops, 0 errors, 100% Merkle attestation, Raft replication verified) (100% Certified)
 - **Phase 108 (T-035)**: Docker Multi-Arch Buildx & GHCR Registry Pipeline (`.github/workflows/docker-publish.yml`, `.env.production.example`) (100% Certified)
 - **Phase 109 (T-036)**: Dual-Track Release Pipeline & Desktop Packaging (`.github/workflows/release.yml`, `scripts/verify_release_readiness.py`, `test_release_pipeline_p109.py`) (100% Certified)
+- **Phase 110 (T-037)**: Edge SLM & Local Coding Model Optimization (`agent_workspace/core/slm/`, `scripts/run_edge_slm_benchmark.py`, `test_edge_slm_p110.py`) (100% Certified)
 
 **Project Milestone Conclusion**:
-Phase 107 (Milestone T-034), Phase 108 (Milestone T-035), and Phase 109 (Milestone T-036) have all been fully certified and closed under Universal Protocol v3.8.0. The production dual-track deployment and multimodal swarm mesh are production-ready.
+Phase 107 ~ 110 (Milestones T-034 ~ T-037) have all been fully certified and closed under Universal Protocol v3.8.0. Edge SLM inference, zero-cloud-token AST static defect audit, and intelligent complexity routing are operational and verified.
+
 
 ---
 
