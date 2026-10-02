@@ -12,16 +12,15 @@
 - Realtime Working Coordination: External surface optional; `.agent/` is durable canonical execution authority.
 
 ## Project Frontier
-- Current Phase: Phase 113 - Multi-Platform Desktop Packaging & Release Matrix (COMPLETED & CERTIFIED)
-- Active Milestone: Milestone T-040 (Multi-Platform Desktop Packaging & Release Matrix Certified)
+- Current Phase: Phase 0 - 系統全能基準線 (v0.6.0 Certified Production Baseline)
+- Active Milestone: Baseline Re-index (Epoch 2 Initialization)
 - Release Version: `v0.6.0`
-- Slice Status:
-  - Phase 110 (Edge SLM & Local Coding Model Optimization): COMPLETED & CERTIFIED (EdgeSLMEngine, OfflineASTAnalyzer, SmartModelDispatcher, 14/14 tests PASS, 0 cloud tokens).
-  - Phase 111 (Cross-Org Encrypted P2P Mesh & NAT Traversal): COMPLETED & CERTIFIED (MeshNATBridge, ZeroKnowledgeTaskVerifier, FederatedRaftMultiCluster, 11/11 tests PASS).
-  - Phase 112 (Cloud-Native Kubernetes Helm & Argo Rollouts Canary): COMPLETED & CERTIFIED (Helm v2 Chart, values.yaml HA/Security, Argo Rollouts 4-step Canary, Prometheus SLOs, 7/7 tests PASS).
-  - Phase 113 (Multi-Platform Desktop Packaging & Release Matrix): COMPLETED & CERTIFIED (Tauri 2.0 WiX/NSIS/DMG/DEB/AppImage, 3-runner CI matrix, 4/4 tests PASS).
-- Current Frontier Ref: LAS-PHASE-113-MILESTONE-T040-CLOSED
-- Coordination Checkpoint: Multi-Platform Desktop Packaging Matrix Certified (111/111 Pytest PASS, 0 React Doctor warnings, Vite build clean).
+- Baseline Status:
+  - Phase 0 (系統全能基準線): 100% COMPLETED & CERTIFIED.
+  - 歷史 113 個 Phase 已歸納封存為 7 大核心架構柱石，日常任務隊列已重置精煉。
+  - 待排定: Phase 1 (待 PO Luke 指示新功能需求)
+- Current Frontier Ref: LAS-PHASE-0-BASELINE-CERTIFIED
+- Coordination Checkpoint: 系統全能基準線認證 (111/111 Pytest PASS, 0 React Doctor warnings, Vite build clean, 67 Obsidian notes synced).
 - Working Tree Policy: High-rigor source-grounded verification; zero fake execution evidence; authority unified to SQLite MissionStore.
 
 

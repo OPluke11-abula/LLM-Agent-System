@@ -13,7 +13,8 @@ sync_status: verified
 > **Parent Index**: [[00 LLM-Agent-System Index]]
 > **Protocol Version**: `3.8.0`
 > **Coordination Mode**: `STATIC_DOMAIN_OWNERSHIP`
-> **Current Sprint**: Full-Stack LAS Deep Optimization & Governance Upgrade
+> **Current Epoch**: Epoch 2 (Phase 0 Certified Baseline v0.6.0; Historical T-001 ~ T-040 100% Closed)
+> **Active Status**: Phase 0 (v0.6.0 Certified Production Baseline) ➔ Ready for Phase 1 Planning
 
 ---
 
