@@ -56,3 +56,5 @@ graph TD
 - [[core-p2p-router]]: Peer-to-peer task dispatching and ECDH encrypted communication channel (`agent_workspace/core/p2p_router.py`).
 - [[core-cert-manager]]: Automated mTLS certificate generation, validation, and emergency revocation (`agent_workspace/core/cert_manager.py`).
 - [[core-ws-manager]]: High-throughput WebSocket connection management and token-based authentication (`agent_workspace/core/ws_manager.py`).
+- [[core-mesh-tunnel]]: Cross-organization encrypted P2P mesh overlay, STUN/DERP NAT traversal, zero-knowledge airgap task verifier, and multi-cluster Raft (`agent_workspace/core/mesh_tunnel/`).
+

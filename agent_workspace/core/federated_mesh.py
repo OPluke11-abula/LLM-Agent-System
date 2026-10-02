@@ -58,6 +58,7 @@ class PeerCapability(str, Enum):
     COCKPIT_LEADER = "COCKPIT_LEADER"  # Developer UI, Human-in-the-loop approval gate
     MULTIMODAL_PERCEPTION = "MULTIMODAL_PERCEPTION"  # Visual diff, UI screenshot and diagram inspection
     EDGE_SLM = "EDGE_SLM"  # Local quantized small language model for low-latency offline code tasks
+    CROSS_ORG_GATEWAY = "CROSS_ORG_GATEWAY"  # Cross-organization secure tunnel gateway and NAT traversal
 
 
 class AttestationStatus(str, Enum):

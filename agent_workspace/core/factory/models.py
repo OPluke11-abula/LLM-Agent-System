@@ -74,6 +74,7 @@ class RefactoringTaskType(str, Enum):
     VISUAL_VERIFICATION = "VISUAL_VERIFICATION"  # Multimodal UI and diagram verification
     SYNTAX_CLEANUP = "SYNTAX_CLEANUP"      # Local edge SLM quick AST syntax & format cleanup
     TEST_STUB_GENERATION = "TEST_STUB_GENERATION"  # Local edge SLM test stub and mock generation
+    CROSS_ORG_FEDERATION = "CROSS_ORG_FEDERATION"  # Cross-organization secure tunnel delegation
 
 
 class RefactoringTaskNode(BaseModel):

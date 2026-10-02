@@ -33,6 +33,7 @@
 | **108** | Docker Multi-Arch Buildx & GHCR Registry Pipeline | `100% Done` | .github/workflows/docker-publish.yml, multi-arch buildx, GHCR login/push, .env.production.example. |
 | **109** | Dual-Track Release Pipeline & Desktop Packaging | `100% Done` | .github/workflows/release.yml, Tauri desktop MSI/EXE bundle, CycloneDX SBOM, verify_release_readiness.py. |
 | **110** | Edge SLM & Local Coding Model Optimization | `100% Done` | EdgeSLMEngine, OfflineASTAnalyzer, SmartModelDispatcher, mesh routing (14/14 tests PASS, 0 cloud tokens). |
+| **111** | Cross-Org Encrypted P2P Mesh & Zero-Trust NAT Traversal | `100% Done` | MeshNATBridge, ZeroKnowledgeTaskVerifier, FederatedRaftMultiCluster (11/11 tests PASS). |
 
 
 
@@ -212,6 +213,25 @@ Goal: Integrate low-latency local SLM models (Ollama/vLLM) and offline AST stati
 - [x] **110-04 Mesh Factory Capability Routing & Phase 110 Verification Suite**
   - Add `PeerCapability.EDGE_SLM`, route `SYNTAX_CLEANUP` & `TEST_STUB_GENERATION` tasks in `MeshFactoryDispatcher`, and author benchmark + unit test suite.
   - Target: `agent_workspace/core/factory/models.py`, `agent_workspace/core/factory/mesh_dispatcher.py`, `agent_workspace/tests/test_edge_slm_p110.py` (14/14 PASS), `scripts/run_edge_slm_benchmark.py` (`.agent/evidence/edge_slm_benchmark_receipt.json`).
+
+### Phase 111 - Cross-Organization Encrypted P2P Mesh & Zero-Trust NAT Traversal
+
+Status: `[x]` 4/4 complete.
+Goal: Overcome NAT/firewall network boundaries, establish encrypted P2P tunnels, zero-knowledge airgap task state verification, and multi-region WAN Raft consensus.
+
+- [x] **111-01 P2P NAT Traversal & Encrypted Overlay Tunnels (`MeshNATBridge`)**
+  - Implement STUN direct UDP hole punching (<500ms) and automatic fallback to DERP Relay (`derp-global-east.las.internal`) for symmetric NATs; manage `10.244.0.0/16` virtual IP overlay.
+  - Target: `agent_workspace/core/mesh_tunnel/tunnel.py`.
+- [x] **111-02 Zero-Knowledge Task State Verifier & Airgap Protection (`ZeroKnowledgeTaskVerifier`)**
+  - Prevent raw source code leakage across untrusted organizations; exchange AST shape structural hashes, redacted signatures, and SHA-256 Merkle roots; enforce `SecurityLeakageError`.
+  - Target: `agent_workspace/core/mesh_tunnel/zk_verifier.py`.
+- [x] **111-03 Federated Multi-Cluster WAN Raft Consensus (`FederatedRaftMultiCluster`)**
+  - Coordinate cross-region multi-cluster consensus across `US_EAST`, `EU_CENTRAL`, `AP_EAST`; handle regional disaster recovery and partition failover.
+  - Target: `agent_workspace/core/mesh_tunnel/multi_cluster_raft.py`, `agent_workspace/core/mesh_tunnel/__init__.py`.
+- [x] **111-04 Mesh Factory Gateway Integration & Phase 111 Verification Suite**
+  - Add `PeerCapability.CROSS_ORG_GATEWAY` and `RefactoringTaskType.CROSS_ORG_FEDERATION`, routed via `node-cross-org-gateway`; author unit tests and golden benchmark receipt.
+  - Target: `agent_workspace/core/factory/models.py`, `agent_workspace/core/factory/mesh_dispatcher.py`, `agent_workspace/tests/test_mesh_tunnel_p111.py` (11/11 PASS), `scripts/run_cross_org_mesh_benchmark.py` (`.agent/evidence/cross_org_mesh_receipt.json`).
+
 
 
 ---

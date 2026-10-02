@@ -41,6 +41,7 @@ class MeshFactoryDispatcher:
                 "node-ci-test-runner": [PeerCapability.TEST_RUNNER.value],
                 "node-multimodal-verifier": [PeerCapability.MULTIMODAL_PERCEPTION.value],
                 "node-edge-slm-worker": [PeerCapability.EDGE_SLM.value],
+                "node-cross-org-gateway": [PeerCapability.CROSS_ORG_GATEWAY.value],
             }
 
 
@@ -64,8 +65,11 @@ class MeshFactoryDispatcher:
             return PeerCapability.MULTIMODAL_PERCEPTION
         elif task.task_type in (RefactoringTaskType.SYNTAX_CLEANUP, RefactoringTaskType.TEST_STUB_GENERATION):
             return PeerCapability.EDGE_SLM
+        elif task.task_type == RefactoringTaskType.CROSS_ORG_FEDERATION:
+            return PeerCapability.CROSS_ORG_GATEWAY
         else:
             return PeerCapability.SANDBOX_MUTATION
+
 
 
     def _find_best_peer(self, required_cap: PeerCapability, wave_assigned_peers: Sequence[str]) -> str:

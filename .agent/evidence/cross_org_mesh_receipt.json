@@ -1,0 +1,27 @@
+{
+  "benchmark_id": "cross-org-mesh-receipt-1790930694",
+  "milestone": "T-038",
+  "phase": 111,
+  "protocol_version": "3.8.0",
+  "timestamp": 1790930694.8916454,
+  "elapsed_seconds": 0.12,
+  "metrics": {
+    "p2p_direct_handshake_ms": 20.09,
+    "derp_relay_fallback": true,
+    "airgap_leakage_prevented": true,
+    "zk_merkle_attestation_verified": true,
+    "multi_cluster_regions_active": 3,
+    "cross_region_consensus_latency_ms": 31.96,
+    "failover_surviving_leader": "node-eu-central",
+    "factory_gateway_routed": true
+  },
+  "verifications": {
+    "p2p_nat_hole_punching": "PASS",
+    "derp_relay_fallback": "PASS",
+    "zero_knowledge_protection": "PASS",
+    "cross_region_raft_consensus": "PASS",
+    "regional_partition_recovery": "PASS",
+    "mesh_factory_gateway_routing": "PASS"
+  },
+  "status": "PASS"
+}

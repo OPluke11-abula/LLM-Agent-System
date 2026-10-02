@@ -13,12 +13,11 @@ from __future__ import annotations
 import logging
 from enum import Enum
 from typing import Any, Callable, Dict, Optional
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 
 from agent_workspace.core.factory.complexity_analyzer import CodeComplexityAnalyzer
 from agent_workspace.core.factory.models import CodeComplexityMetrics, RefactoringTaskType
-from agent_workspace.core.federated_mesh import PeerCapability
-from agent_workspace.core.slm.engine import EdgeSLMEngine, EdgeSLMResponse
+from agent_workspace.core.slm.engine import EdgeSLMEngine
 
 logger = logging.getLogger("SmartModelDispatcher")
 

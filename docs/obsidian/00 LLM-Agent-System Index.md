@@ -147,6 +147,8 @@ graph TD
 - [[core-mission]]: Mission domain aggregate root, durable SQLite mission store, lifecycle state machine.
 - [[core-merkle]]: Deterministic binary Merkle tree, leaf pre-hashing, cryptographic state proofs.
 - [[core-forensic-correlator]]: Dual-stream cryptographic forensic correlator unifying compliance audit trail and runtime execution telemetry.
+- [[core-edge-slm]]: Edge small language model (SLM) inference engine, zero-cloud-token AST static defect audit, and complexity-aware smart routing.
+- [[core-mesh-tunnel]]: Cross-organization encrypted P2P mesh overlay, STUN/DERP NAT traversal, zero-knowledge airgap task verifier, and multi-cluster Raft.
 
 ### 5.2 Frontend Cockpit & UI Components (`viewer/src/`)
 - [[viewer-app]]: Root shell component, multi-session tab navigation, global shortcut bindings.

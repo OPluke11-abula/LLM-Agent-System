@@ -11,8 +11,8 @@ from __future__ import annotations
 import logging
 import os
 import time
-from typing import Any, Callable, Dict, Optional
-from pydantic import BaseModel, ConfigDict, Field
+from typing import Callable, Optional
+from pydantic import BaseModel, ConfigDict
 
 logger = logging.getLogger("EdgeSLMEngine")
 
