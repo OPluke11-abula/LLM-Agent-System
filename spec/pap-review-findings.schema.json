@@ -1,0 +1,154 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/OPluke11-abula/Portable-Agent-Protocol/main/spec/review-findings.schema.json",
+  "title": "PAP Review Findings Schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "report_id",
+    "target",
+    "generated_at",
+    "execution_policy",
+    "findings"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "enum": ["1.0"]
+    },
+    "report_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.:-]+$"
+    },
+    "target": {
+      "type": "string",
+      "minLength": 1
+    },
+    "generated_at": {
+      "type": "string",
+      "minLength": 1
+    },
+    "execution_policy": {
+      "$ref": "#/definitions/execution_policy"
+    },
+    "security_triggers": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "auth_or_authorization",
+          "secret_or_token_handling",
+          "database_query_or_migration",
+          "external_api_or_webhook",
+          "file_parsing_or_upload",
+          "command_execution_or_sandbox",
+          "high_impact_policy_gate"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/pap_finding"
+      }
+    }
+  },
+  "definitions": {
+    "execution_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "parallel_audit_agents"],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["report_only"]
+        },
+        "parallel_audit_agents": {
+          "type": "boolean",
+          "const": false
+        }
+      }
+    },
+    "trace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "description"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "symbol": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "code_graph_evidence": {
+      "type": "object"
+    },
+    "pap_finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "severity",
+        "title",
+        "source_trace",
+        "impact",
+        "remediation",
+        "validation_status"
+      ],
+      "properties": {
+        "severity": {
+          "type": "string",
+          "enum": ["info", "low", "medium", "high", "critical"]
+        },
+        "category": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_trace": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/trace"
+          },
+          "minItems": 1
+        },
+        "impact": {
+          "type": "string",
+          "minLength": 1
+        },
+        "exploit_path": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/trace"
+          }
+        },
+        "remediation": {
+          "type": "string",
+          "minLength": 1
+        },
+        "validation_status": {
+          "type": "string",
+          "enum": ["not_started", "reproduced", "not_reproduced", "reasoned", "fixed", "wont_fix"]
+        },
+        "code_graph_evidence": {
+          "$ref": "#/definitions/code_graph_evidence"
+        }
+      }
+    }
+  }
+}

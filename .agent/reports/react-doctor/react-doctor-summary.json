@@ -1,0 +1,252 @@
+{
+  "affected_phase67_surfaces": [
+    "Admin Console",
+    "Governance Cockpit",
+    "Memory Manager",
+    "Task Flow",
+    "Topology"
+  ],
+  "changed_file_regressions": [
+    {
+      "category": "Bugs",
+      "line": 717,
+      "message": "`useEffect` can run with a stale `setLedgerNodes, setLedgerEdges` & show your users old data.",
+      "path": "src/components/AdminDashboardView.tsx",
+      "rule": "exhaustive-deps",
+      "severity": "warning"
+    },
+    {
+      "category": "Bugs",
+      "line": 157,
+      "message": "fetch() inside useEffect can race, double-fire, or leak. Use a data-fetching layer or Server Component instead.",
+      "path": "src/components/LongTermMemoryView.tsx",
+      "rule": "no-fetch-in-effect",
+      "severity": "warning"
+    },
+    {
+      "category": "Bugs",
+      "line": 159,
+      "message": "`useEffect` can run with a stale `fetchRecords` & show your users old data.",
+      "path": "src/components/LongTermMemoryView.tsx",
+      "rule": "exhaustive-deps",
+      "severity": "warning"
+    },
+    {
+      "category": "Performance",
+      "line": 308,
+      "message": "This makes the for…of loop slow because each await runs one after another, so collect the independent calls & run them together with `await Promise.all(items.map(...))`",
+      "path": "src/components/LongTermMemoryView.tsx",
+      "rule": "async-await-in-loop",
+      "severity": "warning"
+    },
+    {
+      "category": "Accessibility",
+      "line": 1058,
+      "message": "`autoFocus` moves focus on load, which can disrupt screen reader and keyboard users. Remove it and let users choose where to focus.",
+      "path": "src/components/LongTermMemoryView.tsx",
+      "rule": "no-autofocus",
+      "severity": "warning"
+    },
+    {
+      "category": "Performance",
+      "line": 93,
+      "message": "This loops over your list twice because .filter().map() makes two passes, so do it in one pass with .reduce() or a for...of loop",
+      "path": "src/components/ModsView.tsx",
+      "rule": "js-combine-iterations",
+      "severity": "warning"
+    },
+    {
+      "category": "Bugs",
+      "line": 635,
+      "message": "Your users can see & submit the wrong data when this list reorders or filters, so use a stable id like `key={item.id}`, not the array index \"index\".",
+      "path": "src/components/PromptCalibrationDashboard.tsx",
+      "rule": "no-array-index-as-key",
+      "severity": "warning"
+    },
+    {
+      "category": "Bugs",
+      "line": 703,
+      "message": "\"PromptCalibrationDashboard\" updates 5 separate useState values in one place — state that changes together is easier to keep consistent as a single useReducer action.",
+      "path": "src/components/PromptCalibrationDashboard.tsx",
+      "rule": "prefer-useReducer",
+      "severity": "warning"
+    },
+    {
+      "category": "Performance",
+      "line": 544,
+      "message": "This loops over your list twice because .map().filter(Boolean) makes two passes, so use .flatMap() to change & drop items in one pass",
+      "path": "src/components/SwarmGovernanceConsole.tsx",
+      "rule": "js-flatmap-filter",
+      "severity": "warning"
+    },
+    {
+      "category": "Performance",
+      "line": 582,
+      "message": "This scales poorly because `array.includes()` inside a loop scans the whole list every time. Use a Set for constant-time lookups.",
+      "path": "src/components/SwarmGovernanceConsole.tsx",
+      "rule": "js-set-map-lookups",
+      "severity": "warning"
+    },
+    {
+      "category": "Performance",
+      "line": 583,
+      "message": "This scales poorly because `array.includes()` inside a loop scans the whole list every time. Use a Set for constant-time lookups.",
+      "path": "src/components/SwarmGovernanceConsole.tsx",
+      "rule": "js-set-map-lookups",
+      "severity": "warning"
+    },
+    {
+      "category": "Performance",
+      "line": 651,
+      "message": "This loops over your list twice because .map().filter() makes two passes, so do it in one pass with .reduce() or a for...of loop",
+      "path": "src/components/SwarmGovernanceConsole.tsx",
+      "rule": "js-combine-iterations",
+      "severity": "warning"
+    }
+  ],
+  "changed_source_report": ".agent\\reports\\react-doctor\\react-doctor-changed.json",
+  "error_findings": [],
+  "generated_at": "2026-07-09T06:22:48.514884+00:00",
+  "next_fix_queue": [
+    {
+      "category": "Bugs",
+      "line": 717,
+      "message": "`useEffect` can run with a stale `setLedgerNodes, setLedgerEdges` & show your users old data.",
+      "path": "src/components/AdminDashboardView.tsx",
+      "rule": "exhaustive-deps",
+      "severity": "warning"
+    },
+    {
+      "category": "Bugs",
+      "line": 154,
+      "message": "Your effect re-subscribes whenever \"onOpenChange\" changes, even though it's only used inside `addEventListener`.",
+      "path": "src/components/CommandPalette.tsx",
+      "rule": "prefer-use-effect-event",
+      "severity": "warning"
+    },
+    {
+      "category": "Bugs",
+      "line": 161,
+      "message": "Your users briefly see stale state on every prop change.",
+      "path": "src/components/CommandPalette.tsx",
+      "rule": "no-derived-state-effect",
+      "severity": "warning"
+    },
+    {
+      "category": "Bugs",
+      "line": 162,
+      "message": "Chaining state updates triggers an extra render each step.",
+      "path": "src/components/CommandPalette.tsx",
+      "rule": "no-chain-state-updates",
+      "severity": "warning"
+    },
+    {
+      "category": "Bugs",
+      "line": 157,
+      "message": "fetch() inside useEffect can race, double-fire, or leak. Use a data-fetching layer or Server Component instead.",
+      "path": "src/components/LongTermMemoryView.tsx",
+      "rule": "no-fetch-in-effect",
+      "severity": "warning"
+    },
+    {
+      "category": "Bugs",
+      "line": 159,
+      "message": "`useEffect` can run with a stale `fetchRecords` & show your users old data.",
+      "path": "src/components/LongTermMemoryView.tsx",
+      "rule": "exhaustive-deps",
+      "severity": "warning"
+    },
+    {
+      "category": "Bugs",
+      "line": 635,
+      "message": "Your users can see & submit the wrong data when this list reorders or filters, so use a stable id like `key={item.id}`, not the array index \"index\".",
+      "path": "src/components/PromptCalibrationDashboard.tsx",
+      "rule": "no-array-index-as-key",
+      "severity": "warning"
+    },
+    {
+      "category": "Bugs",
+      "line": 703,
+      "message": "\"PromptCalibrationDashboard\" updates 5 separate useState values in one place — state that changes together is easier to keep consistent as a single useReducer action.",
+      "path": "src/components/PromptCalibrationDashboard.tsx",
+      "rule": "prefer-useReducer",
+      "severity": "warning"
+    },
+    {
+      "category": "Bugs",
+      "line": 65,
+      "message": "Your users can see & submit the wrong data when this list reorders or filters, so use a stable id like `key={item.id}`, not the array index \"index\".",
+      "path": "src/components/RulesView.tsx",
+      "rule": "no-array-index-as-key",
+      "severity": "warning"
+    },
+    {
+      "category": "Bugs",
+      "line": 1441,
+      "message": "Your users can see & submit the wrong data when this list reorders or filters, so use a stable id like `key={item.id}`, not the array index \"index\".",
+      "path": "src/components/SwarmGovernanceConsole.tsx",
+      "rule": "no-array-index-as-key",
+      "severity": "warning"
+    }
+  ],
+  "schema_version": "1.0.0",
+  "source_report": ".agent\\reports\\react-doctor\\react-doctor-latest.json",
+  "top_files": [
+    {
+      "findings": 12,
+      "path": "src/components/SwarmGovernanceConsole.tsx"
+    },
+    {
+      "findings": 8,
+      "path": "src/components/TopologyView.tsx"
+    },
+    {
+      "findings": 4,
+      "path": "src/components/CommandPalette.tsx"
+    },
+    {
+      "findings": 4,
+      "path": "src/components/LongTermMemoryView.tsx"
+    },
+    {
+      "findings": 4,
+      "path": "src/components/TaskFlowView.tsx"
+    },
+    {
+      "findings": 2,
+      "path": "package.json"
+    },
+    {
+      "findings": 2,
+      "path": "src/components/PromptCalibrationDashboard.tsx"
+    },
+    {
+      "findings": 2,
+      "path": "src/components/settings/SettingsAiGuidePanel.tsx"
+    },
+    {
+      "findings": 2,
+      "path": "src/components/settings/SettingsDocsPanel.tsx"
+    },
+    {
+      "findings": 2,
+      "path": "src/components/ui/primitives.tsx"
+    }
+  ],
+  "totals": {
+    "by_category": {
+      "Accessibility": 2,
+      "Bugs": 20,
+      "Maintainability": 16,
+      "Performance": 11
+    },
+    "by_severity": {
+      "warning": 49
+    },
+    "total_findings": 49
+  },
+  "verification_commands": [
+    "npm.cmd --prefix viewer run doctor:json",
+    "python -m agent_workspace.react_doctor_report <react-doctor-json>"
+  ]
+}

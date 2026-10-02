@@ -1,0 +1,128 @@
+{
+  "task": "73-07",
+  "title": "Dependency, Build, and Artifact Review",
+  "generated_at": "2026-09-08T11:25:56.337282+00:00",
+  "summary": {
+    "total_python_dependencies": 17,
+    "active_dependencies": 16,
+    "retire_candidates": 1,
+    "frontend_dependencies_audited": 6,
+    "frontend_dev_dependencies_audited": 11,
+    "build_reproducibility": "Docker multi-stage build verified (node:20-alpine -> python:3.11-slim)"
+  },
+  "findings": [
+    {
+      "id": "DEP-73-01",
+      "severity": "Low",
+      "category": "Unused Dependency in requirements.txt",
+      "package": "httpx2>=2.4.0",
+      "description": "httpx2 is declared in requirements.txt but has zero import statements or references across the entire repository.",
+      "remediation": "Remove httpx2 from requirements.txt to prevent redundant installation overhead and supply-chain ambiguity.",
+      "status": "Documented for Owner Decision"
+    }
+  ],
+  "python_dependencies": [
+    {
+      "package": "pydantic",
+      "constraint": ">=2.0.0",
+      "status": "Active (Core schemas & validation)",
+      "consumers": "agent_workspace/core, routes/schemas"
+    },
+    {
+      "package": "jinja2",
+      "constraint": ">=3.0.0",
+      "status": "Active (Prompt templates & rendering)",
+      "consumers": "agent_workspace/core/prompt_composer.py"
+    },
+    {
+      "package": "watchdog",
+      "constraint": ">=3.0.0",
+      "status": "Active (Filesystem hot-reloading & events)",
+      "consumers": "agent_workspace/core/engine.py"
+    },
+    {
+      "package": "httpx",
+      "constraint": ">=0.25.0",
+      "status": "Active (Async HTTP client for LLM providers & Stripe)",
+      "consumers": "agent_workspace/core/providers.py, routes/admin.py"
+    },
+    {
+      "package": "httpx2",
+      "constraint": ">=2.4.0",
+      "status": "Retire Candidate (Unused / Redundant)",
+      "consumers": "None (0 imports in codebase)"
+    },
+    {
+      "package": "pyyaml",
+      "constraint": ">=6.0.0",
+      "status": "Active (Configuration parsing)",
+      "consumers": "agent_workspace/routes/dependencies.py"
+    },
+    {
+      "package": "jsonschema",
+      "constraint": ">=4.0.0",
+      "status": "Active (PAP manifest & skill contract validation)",
+      "consumers": "agent_workspace/workflow_lint.py, pap_validate.py"
+    },
+    {
+      "package": "fastapi",
+      "constraint": ">=0.115.0",
+      "status": "Active (REST & WebSocket API framework)",
+      "consumers": "agent_workspace/api.py, routes/"
+    },
+    {
+      "package": "uvicorn",
+      "constraint": ">=0.30.0",
+      "status": "Active (ASGI HTTP server)",
+      "consumers": "agent_workspace/server.py"
+    },
+    {
+      "package": "prometheus_client",
+      "constraint": ">=0.20.0",
+      "status": "Active (Metrics collection)",
+      "consumers": "agent_workspace/observability.py"
+    },
+    {
+      "package": "opentelemetry-api",
+      "constraint": ">=1.20.0",
+      "status": "Active (Distributed tracing)",
+      "consumers": "agent_workspace/observability.py"
+    },
+    {
+      "package": "opentelemetry-sdk",
+      "constraint": ">=1.20.0",
+      "status": "Active (Trace export & spans)",
+      "consumers": "agent_workspace/observability.py"
+    },
+    {
+      "package": "opentelemetry-instrumentation-fastapi",
+      "constraint": ">=0.41b0",
+      "status": "Active (FastAPI auto-instrumentation)",
+      "consumers": "agent_workspace/api.py"
+    },
+    {
+      "package": "python-dotenv",
+      "constraint": ">=1.0.0",
+      "status": "Active (Environment variable loading)",
+      "consumers": "agent_workspace/routes/chat.py"
+    },
+    {
+      "package": "redis",
+      "constraint": ">=5.0.0",
+      "status": "Active (Swarm pubsub & distributed broker)",
+      "consumers": "agent_workspace/core/distributed_broker.py, service.py"
+    },
+    {
+      "package": "cryptography",
+      "constraint": ">=41.0.0",
+      "status": "Active (P2P ECDH, mTLS, and ProofOfConsensus signatures)",
+      "consumers": "agent_workspace/core/p2p_router.py, routes/collaboration.py"
+    },
+    {
+      "package": "tiktoken",
+      "constraint": ">=0.7.0",
+      "status": "Active (Accurate token counting & budget preflight)",
+      "consumers": "agent_workspace/core/token_counter.py"
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "id": "handoff-f1e2d3c4b5a69788",
+  "session_id": "session-12345",
+  "created_at": "2026-05-20T12:20:00Z",
+  "source": "handoff_export",
+  "source_hash": "f1e2d3c4b5a69788abcdef9876543210",
+  "summary": "Handoff context package containing task status of TASK-007 and active checklist states.",
+  "keywords": [
+    "handoff",
+    "context",
+    "task-007"
+  ],
+  "message_count": 0,
+  "payload": {
+    "task_state": {
+      "active_tasks": [
+        "TASK-007"
+      ],
+      "completed_tasks": [
+        "TASK-001",
+        "TASK-002",
+        "TASK-003",
+        "TASK-004",
+        "TASK-005",
+        "TASK-006"
+      ]
+    },
+    "pending_steps": [
+      "Verify overall execution limits in integration test suite."
+    ],
+    "context_summary": "We have completed implementation of the visual DAG control-plane and implemented all delegation limits and cancellation routines.",
+    "memory_snapshot": [
+      {
+        "id": "sem-a1b2c3d4e5f67890",
+        "domain": "semantic",
+        "summary": "SQLiteBackend is working correctly."
+      }
+    ]
+  },
+  "domain": "handoff",
+  "confidence": 1.0,
+  "citations": [
+    "TASK-007"
+  ],
+  "expires_at": "2026-05-27T12:20:00Z",
+  "privacy_level": "project"
+}

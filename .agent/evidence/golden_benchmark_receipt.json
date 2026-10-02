@@ -1,0 +1,58 @@
+{
+  "suite_id": "GBS-1789787549",
+  "timestamp": "2026-09-19T03:12:29.876953+00:00",
+  "total_scenarios": 3,
+  "successful_scenarios": 3,
+  "mission_completion_rate": 1.0,
+  "avg_time_to_verified_completion_ms": 1144.61,
+  "total_scope_violations_blocked": 1,
+  "scope_containment_rate": 1.0,
+  "review_freshness_verified": true,
+  "canonical_host_preservation_pass": true,
+  "context_token_efficiency_kb": 18.5,
+  "scenario_receipts": [
+    {
+      "scenario_id": "SCENARIO_HAPPY_PATH_FEATURE",
+      "name": "Feature Addition with Verified Ladder",
+      "success": true,
+      "stage_reached": "COMPLETED",
+      "duration_ms": 1243.1606999889482,
+      "merkle_root": "2a8b9f928624d5478fca0fc8dd7efa095bc3fb9273f598b19ec2505ebd6d3e6d",
+      "canonical_preserved": true,
+      "scope_violations_blocked": 0,
+      "test_ladder_passed": true,
+      "test_ladder_receipts_count": 1,
+      "draft_pr_generated": true,
+      "error_message": null
+    },
+    {
+      "scenario_id": "SCENARIO_SECURITY_CONTAINMENT",
+      "name": "ScopeGuard Containment of Unauthorized Mutation",
+      "success": true,
+      "stage_reached": "FAILED",
+      "duration_ms": 1082.812600012403,
+      "merkle_root": "9062b145bf5d756571de7ff50bdd6566b5d4f9a898244538e8db720f337af3ba",
+      "canonical_preserved": true,
+      "scope_violations_blocked": 1,
+      "test_ladder_passed": false,
+      "test_ladder_receipts_count": 1,
+      "draft_pr_generated": false,
+      "error_message": null
+    },
+    {
+      "scenario_id": "SCENARIO_FAIL_FAST_DIAGNOSTIC",
+      "name": "Fail-Fast Ladder Halts False Draft PR",
+      "success": true,
+      "stage_reached": "FAILED",
+      "duration_ms": 1107.8643999935593,
+      "merkle_root": "a165d9fef2318f300bf07a641c67caf9087c4ce43edb95bba2a6bc76a3ed9f0b",
+      "canonical_preserved": true,
+      "scope_violations_blocked": 0,
+      "test_ladder_passed": false,
+      "test_ladder_receipts_count": 1,
+      "draft_pr_generated": false,
+      "error_message": null
+    }
+  ],
+  "advisory_verdict": "GOLDEN_FLOW_VERIFIED"
+}

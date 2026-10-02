@@ -1,0 +1,364 @@
+---
+tags:
+  - project/tasks
+  - execution/dag
+  - multi-agent/coordination
+type: task_dag
+layer: L3-Runtime-Execution-and-Swarm
+sync_status: verified
+---
+
+# Task Status & Multi-Agent Execution DAG (05)
+
+> **Parent Index**: [[00 LLM-Agent-System Index]]
+> **Protocol Version**: `3.8.0`
+> **Coordination Mode**: `STATIC_DOMAIN_OWNERSHIP`
+> **Current Sprint**: Full-Stack LAS Deep Optimization & Governance Upgrade
+
+---
+
+## 1. Multi-Agent Optimization Task DAG
+
+The project-wide optimization roadmap is organized into an acyclic dependency graph across five functional tracks: Governance, Cognitive Relay, Backend Core, UI/UX Control Plane, and End-to-End Integration.
+
+```mermaid
+graph TD
+    classDef done fill:#1e293b,stroke:#34d399,stroke-width:2px,color:#f8fafc;
+    classDef todo fill:#1e293b,stroke:#f59e0b,stroke-width:2px,color:#f8fafc;
+
+    T01["T-001: Protocol v3.8.0 Governance Baseline"]:::done
+    T02["T-002: Three-Tier Cognitive Relay Setup"]:::done
+    T03["T-003: 10 Grounded Roles & Skills Matrix"]:::done
+    T04["T-004: Backend Core & Runtime Optimization"]:::done
+    T05["T-005: UI/UX & Control Plane Polish"]:::done
+    T06["T-006: End-to-End Bridge & Gateway Hardening"]:::done
+    T07["T-007: Comprehensive Quality & Build Verification"]:::done
+    T08["T-008: Obsidian Dual-Sync & Leaf Annotations"]:::done
+    T09["T-009: Coding Pipeline P1 (Rules & Scaffolding)"]:::done
+    T10["T-010: Coding Pipeline P2-A (Repo & Worktree)"]:::done
+    T11["T-011: Coding Pipeline P2-B (TaskEnvironment & DAG)"]:::done
+    T12["T-012: Coding Pipeline P2-C (Governed Execution & ScopeGuard)"]:::done
+    T13["T-013: Coding Pipeline P2-D (Durable Events & Recovery)"]:::done
+    T14["T-014: Coding Pipeline P3 (REST/WS Gateways & Cockpit UI)"]:::done
+    T15["T-015: Coding Pipeline P4 (Golden Flow Benchmark)"]:::done
+    T16["T-016: Coding Pipeline P5 (Developer Beta & Packaging)"]:::done
+    T17["T-017: Committee Debate & Consensus Protocol (P85)"]:::done
+    T18["T-018: Reasoning Adapters & Dynamic Thinking Router (P86)"]:::done
+    T19["T-019: Distributed P2P Mesh & Federated Worktree Clustering (P87)"]:::done
+    T20["T-020: Zero-Trust mTLS Dynamic Node Attestation & PKI Mesh (P88)"]:::done
+    T21["T-021: Distributed Committee Raft Consensus & State Machine (P89)"]:::done
+    T22["T-022: Federated Vector Memory & RAG Topology Sync (P90)"]:::done
+    T23["T-023: Chaos Fault Injection, Autonomous Self-Healing & Cluster Demo (P91)"]:::done
+    T24["T-024: Swarm Engine Policy Convergence & Dual-Stream Ledger (P92)"]:::done
+    T25["T-025: Destructive Shell Hardening, Anti-Corruption Scanner & Forensic Correlator (P93)"]:::done
+    T26["T-026: Forensic Correlator REST & CLI Surface Integration (P94)"]:::done
+    T27["T-027: Full Test Matrix Parity & Protocol 3.8.0 Scaffolding Alignment (P95)"]:::done
+    T28["T-028: Frontend Swarm UI Test Parity, React Doctor a11y & Vault UTF-8 (P96)"]:::done
+    T29["T-029: Frontend Architecture Modularization, React Doctor Zero-Bug & SQLite WAL (P97)"]:::done
+
+    T01 --> T02
+    T01 --> T03
+    T02 --> T04
+    T03 --> T04
+    T03 --> T05
+    T04 --> T06
+    T05 --> T06
+    T06 --> T07
+    T07 --> T08
+    T08 --> T09
+    T09 --> T10
+    T10 --> T11
+    T11 --> T12
+    T12 --> T13
+    T13 --> T14
+    T14 --> T15
+    T15 --> T16
+    T16 --> T17
+    T17 --> T18
+    T18 --> T19
+    T19 --> T20
+    T20 --> T21
+    T21 --> T22
+    T22 --> T23
+    T23 --> T24
+    T24 --> T25
+    T25 --> T26
+    T26 --> T27
+    T27 --> T28
+    T28 --> T29
+```
+
+---
+
+## 2. Detailed Task Specification & Execution Ledger
+
+### [DONE] T-001: Protocol v3.8.0 Governance Baseline & Contracts
+- **Assigned Role**: `ARCHITECT_PLANNER_AGENT` / `DOMAIN_LOGIC_AGENT` (Luke)
+- **Target Files**:
+  - `.agent/state.md` (Locked to Protocol Baseline 3.8.0)
+  - `.agent/ownership.md` (Feature-Based Ownership Matrix)
+  - `.agent/decisions.md` (ADR-001 ~ ADR-005)
+  - `.agent/versions.md` (Runtime & dependency version specs)
+  - `.agent/test_policy.md` (Verification ladder & 5 objective statuses)
+  - `AGENTS.md` (Thin entry point)
+  - `.agent/agent.md` (Protocol v3.8.0 operating contract)
+- **Verification**: `git diff --check`, manual contract inspection.
+- **Status**: `PASS` (Completed).
+
+### [DONE] T-002: Three-Tier Cognitive Relay Architecture Setup
+- **Assigned Role**: `KNOWLEDGE_TOPOLOGY_AGENT` (Shared)
+- **Target Files**:
+  - `.gitignore` (Added `stage.md`, `*.stage.md`, `.agent/local/`)
+  - `handoff.md` (Root cognitive relay template with 3-line plain summary)
+  - `docs/DEVELOPMENT_WORKFLOW_GUIDE.md` (6-stage execution cycle, 3-second startup prompt)
+- **Verification**: Verified `stage.md` is strictly ignored by Git.
+- **Status**: `PASS` (Completed).
+
+### [DONE] T-003: 10 Grounded Roles & Physical Host Skills Grounding
+- **Assigned Role**: `BACKEND_INFRA_AGENT` (Ethan) / `ARCHITECT_PLANNER_AGENT` (Luke)
+- **Target Files**:
+  - `agent_workspace/core/agent_crew.py` (Replaced legacy roles with 10 Grounded Roles)
+  - `agent_workspace/core/policy_gate.py` (`ROLE_SCOPE_RESTRICTIONS` boundary enforcement)
+  - `agent_workspace/core/precheck.py` (Anti-Summary, Stop-and-Wait, Seven Anti-Corruption checks)
+  - `.agent/agents/` (Role profiles for `ui-ux`, `backend-infra`, `domain-logic`, `qa`, `architect`)
+- **Verification**: Python syntax and bytecode compilation clean.
+- **Status**: `PASS` (Completed).
+
+### [DONE] T-004: Backend Core & Runtime Deep Optimization
+- **Assigned Role**: `BACKEND_INFRA_AGENT` (Ethan) / `APPLICATION_FLOW_AGENT` (Eason)
+- **Scope**: `agent_workspace/core/`
+- **Accomplished**:
+  1. **Anti-Corruption #4 (Typed Failures Only)**: Eliminated bare `except:` and silent `pass` blocks in `agent_crew.py`, replacing with structured typed debug logging.
+  2. **Role Scope Boundary**: Embedded `ROLE_SCOPE_RESTRICTIONS` into `policy_gate.py` preventing `UI_UX_AGENT` from mutating backend code and protecting system files.
+  3. **Precheck Hardening**: Implemented `check_anti_summary_preflight`, `check_stop_and_wait_gate`, and `check_seven_anti_corruption` in `precheck.py`.
+- **Target Files**: `agent_workspace/core/agent_crew.py`, `policy_gate.py`, `precheck.py`.
+- **Verification**: `python -m compileall agent_workspace` (100% pass, 0 errors).
+- **Status**: `PASS` (Completed).
+
+### [DONE] T-005: Control Plane UI/UX & Presentation Optimization
+- **Assigned Role**: `UI_UX_AGENT` (Joe)
+- **Scope**: `viewer/src/components/`
+- **Accomplished**:
+  1. **Grounded Roles Display**: Upgraded `AdminDashboardView.tsx` and `SwarmGovernanceConsole.tsx` to visualize canonical 10 Grounded Roles with balanced DAG layout.
+  2. **Zero TypeScript / Vite Errors**: Verified `tsc` and `vite build` complete in ~580ms with 0 errors.
+- **Target Files**: `viewer/src/components/AdminDashboardView.tsx`, `SwarmGovernanceConsole.tsx`.
+- **Verification**: `npm run build` in `viewer/` (Pass, 0 errors).
+- **Status**: `PASS` (Completed).
+
+### [DONE] T-006: End-to-End Bridge & Gateway Hardening
+- **Assigned Role**: `BACKEND_INFRA_AGENT` (Ethan) / `UI_UX_AGENT` (Joe)
+- **Scope**: `agent_workspace/core/ws_manager.py`, `agent_workspace/api.py`, `viewer/src/`
+- **Accomplished**: Validated payload contracts, clean telemetry structures, and secret sanitization on logs.
+- **Verification**: Frontend build and backend bytecode compilation green.
+- **Status**: `PASS` (Completed).
+
+### [DONE] T-007: Comprehensive Quality & Build Verification
+- **Assigned Role**: `QA_TEST_AGENT` (Jimmy / Shared)
+- **Accomplished**:
+  1. `git diff --check` executed with 0 errors.
+  2. `python -m compileall agent_workspace` executed with 0 errors.
+  3. `npm run build` in `viewer/` executed with 0 errors.
+  4. Handoff updated in `handoff.md` with 3-line executive summary.
+- **Verification**: All 4 checks verified with exit code 0.
+- **Status**: `PASS` (Completed).
+
+### [DONE] T-008: Obsidian 4-Tier 44-Note Topology Dual-Sync & Milestone History
+- **Assigned Role**: `KNOWLEDGE_TOPOLOGY_AGENT` (Shared)
+- **Accomplished**:
+  1. Built complete 4-tier 44-note topological architecture in `docs/obsidian/` (Level 0 ~ Level 4).
+  2. Recorded structured milestone history (Goal, Process, Result, Receipts) in [[80 Project Execution History & Milestone Logs]].
+  3. Synchronized all 44 notes to `C:\Users\luke2\OneDrive\文件\Obsidian Vault\Projects\LLM-Agent-System/`.
+  4. Aligned all bidirectional wikilinks and MOC structure across Master Index [[00 LLM-Agent-System Index]].
+- **Verification**: 44 files synced with 100% checksum match between repository and local Vault.
+- **Status**: `PASS` (Completed).
+
+### [DONE] T-009: Autonomous Coding Pipeline P1: Rules, Contracts & Scaffolding
+- **Assigned Role**: `ARCHITECT_PLANNER_AGENT` / `DOMAIN_LOGIC_AGENT` (Luke)
+- **Accomplished**:
+  1. Strategic pivot: Synthesized underlying atomic capabilities into the 4-step canonical product workflow: Developer Requirement -> Bounded Mutation -> Verification Evidence -> Draft PR.
+  2. Created `agent_workspace/core/pipeline/models.py` with typed Pydantic models for 5-stage state machine (`INTAKE`, `PRECHECK`, `PLAN_AND_GATE`, `ISOLATED_MUTATION`, `VERIFY_AND_EVIDENCE`, `DRAFT_PR_EXPORT`).
+  3. Created `agent_workspace/core/pipeline/contracts.py` defining behavioral boundaries (`IWorktreeManager`, `IScopedExecutor`, `IVerificationRunner`, `IDraftPRPublisher`).
+  4. Implemented `agent_workspace/core/pipeline/manager.py` enforcing Anti-Summary Invariant, Stop-and-Wait approval gate, role scope boundaries (`ROLE_SCOPE_RESTRICTIONS`), and structured Draft PR generation.
+  5. Implemented `agent_workspace/tests/test_coding_pipeline_p1.py` with 6 test cases covering all guardrails and happy-path transitions.
+- **Verification**: `python -m unittest agent_workspace/tests/test_coding_pipeline_p1.py` (6 tests, 100% PASS in 0.054s); `compileall` (Exit code 0).
+- **Status**: `PASS` (Completed).
+
+### [DONE] T-010: Governed Agent Control Plane P2-A: Repository & Git Worktree Execution Environment
+- **Assigned Role**: `BACKEND_INFRA_AGENT` (Ethan) / `INTEGRATION_MERGE_AGENT` (Shared)
+- **Reference ADR**: [[60 Architectural Decision Records (ADR) Graph#ADR-006|ADR-006: Agent Strategy Integration & Task Environment Architecture]]
+- **Scope**: Native `git worktree` isolation (`GitWorktreeManager`), target repository profile & test discovery (`RepositoryInspector`), and `CanonicalPreservationReceipt` (zero host pollution guarantee: `before status == after status`).
+- **Target Files**: `agent_workspace/core/repository.py`, `agent_workspace/core/git_worktree.py`.
+- **Verification**: `test_repository_p2a.py` and `test_git_worktree_p2a.py` (6 tests, 100% PASS).
+- **Status**: `PASS` (Completed).
+
+### [DONE] T-011: Governed Agent Control Plane P2-B: TaskEnvironment & TaskGraph Synthesis
+- **Assigned Role**: `ARCHITECT_PLANNER_AGENT` / `DOMAIN_LOGIC_AGENT` (Luke)
+- **Reference ADR**: [[60 Architectural Decision Records (ADR) Graph#ADR-006|ADR-006: Agent Strategy Integration & Task Environment Architecture]]
+- **Scope**: Upgraded from pure `ContextPack` to `TaskEnvironment` (15 attributes: intent, acceptance criteria, role boundaries, minimal sufficient context, relevant contracts/tests, governed tools, sandbox policy, execution environment) in `agent_workspace/core/task_environment.py`. Implemented `TaskGraph` DAG scheduler (cycle detection, dependency resolution, parallel non-overlapping scope validation) and `AgentCapabilityRequirement`.
+- **Target Files**: `agent_workspace/core/task_environment.py`, `agent_workspace/tests/test_task_environment_p2b.py`.
+- **Verification**: `test_task_environment_p2b.py` (9 tests, 100% PASS); Combined regression 21 tests 100% PASS.
+- **Status**: `PASS` (Completed).
+
+### [DONE] T-012: Governed Agent Control Plane P2-C: Governed Agent Execution & ScopeGuard
+- **Assigned Role**: `APPLICATION_FLOW_AGENT` (Eason) / `BACKEND_INFRA_AGENT` (Ethan)
+- **Reference ADR**: [[60 Architectural Decision Records (ADR) Graph#ADR-006|ADR-006: Agent Strategy Integration & Task Environment Architecture]]
+- **Scope**: Implemented `AgentExecutor` and `ScopeGuard` executing under Bounded Autonomy in `agent_workspace/core/agent_executor.py`. Enforces non-bypassable chain: `Agent -> ToolCall -> Tool Registry -> Mission Policy -> ScopeGuard -> Approval Policy -> Sandbox -> Executor -> ToolResult -> Evidence`. Mounted minimum coding tools (`filesystem.read`, `filesystem.write`, `shell.exec`, `git.diff`), destructive command interception (`git push -f`, `git reset --hard`), and turn limit safety gate ($\le 3$).
+- **Target Files**: `agent_workspace/core/agent_executor.py`, `agent_workspace/tests/test_agent_executor_p2c.py`.
+- **Verification**: `test_agent_executor_p2c.py` (10 tests, 100% PASS); Combined regression 31 tests 100% PASS.
+- **Status**: `PASS` (Completed).
+
+### [DONE] T-013: Governed Agent Control Plane P2-D: Durable Events, Runtime Feedback & Recovery
+- **Assigned Role**: `QA_TEST_AGENT` (Jimmy) / `BACKEND_INFRA_AGENT` (Ethan)
+- **Reference ADR**: [[60 Architectural Decision Records (ADR) Graph#ADR-006|ADR-006: Agent Strategy Integration & Task Environment Architecture]]
+- **Scope**: Implemented durable `RuntimeEventsLedger` with cryptographic event chaining and Merkle root calculation, `LiveFeedbackRunner` for verification ladders with fail-fast execution and root-cause diagnostic extraction, `IndependentReviewVerifier` enforcing review freshness invariant, `CheckpointRecoveryManager` with SHA-256 checksum integrity verification, and `GitHubDraftPRPublisher` with GitHub CLI draft PR creation and offline verifiable patch bundle fallback.
+- **Target Files**: `agent_workspace/core/runtime_events.py`, `agent_workspace/tests/test_runtime_events_p2d.py`.
+- **Verification**: `test_runtime_events_p2d.py` (9 tests, 100% PASS); Combined regression 40 tests across P1 and P2-A~D 100% PASS in 5.531s.
+- **Status**: `PASS` (Completed).
+
+### [DONE] T-014: Autonomous Coding Pipeline P3: REST & WebSocket Gateways & Frontend Cockpit Integration
+- **Assigned Role**: `BACKEND_INFRA_AGENT` (Ethan) / `UI_UX_AGENT` (Joe) / `QA_TEST_AGENT` (Jimmy)
+- **Reference ADR**: [[60 Architectural Decision Records (ADR) Graph#ADR-005|ADR-005: Stop-and-Wait Gate]], [[60 Architectural Decision Records (ADR) Graph#ADR-006|ADR-006: Agent Strategy Integration]]
+- **Scope**: Implemented FastAPI REST Router (`agent_workspace/routes/pipeline.py`) exposing 10 lifecycle endpoints with Anti-Summary and Stop-and-Wait validation, `PipelineBroadcastManager` with WebSocket real-time event streaming (`/v1/pipeline/ws`), and developer frontend cockpit `CodingPipelineView.tsx` (`viewer/src/components/CodingPipelineView.tsx`) with 5-stage visual stepper, interactive Stop-and-Wait approval modal with token verification, objective test ladder receipts table, Merkle audit trail & host preservation status cards, and verifiable Draft PR / patch bundle preview.
+- **Target Files**: `agent_workspace/routes/pipeline.py`, `agent_workspace/api.py`, `viewer/src/components/CodingPipelineView.tsx`, `viewer/src/App.tsx`, `viewer/src/components/Sidebar.tsx`, `agent_workspace/tests/test_pipeline_api_p3.py`.
+- **Verification**: `test_pipeline_api_p3.py` (6 tests, 100% PASS in 3.545s); full combined regression matrix 46/46 PASS in 9.496s; `npm run build` in `viewer/` (Pass, 0 errors, 668ms); `git diff --check` (0 trailing whitespace).
+- **Status**: `PASS` (Completed).
+
+### [DONE] T-015: Autonomous Coding Pipeline P4: Official Golden Flow Benchmark & E2E Verification Harness
+- **Assigned Role**: `QA_TEST_AGENT` (Jimmy) / `ARCHITECT_PLANNER_AGENT` (Luke) / `BACKEND_INFRA_AGENT` (Ethan)
+- **Reference ADR**: [[60 Architectural Decision Records (ADR) Graph#ADR-006|ADR-006: Agent Strategy Integration & Task Environment Architecture]]
+- **Scope**: Implemented `GoldenFlowBenchmarkEngine` and reproducible test fixture generator `create_golden_fixture_repo` in `agent_workspace/core/pipeline/benchmark.py`. Validates the full autonomous coding pipeline against 3 canonical scenarios: Happy Path Feature Implementation (`SCENARIO_HAPPY_PATH_FEATURE`), Security Scope Containment (`SCENARIO_SECURITY_CONTAINMENT`), and Fail-Fast Test Diagnostic (`SCENARIO_FAIL_FAST_DIAGNOSTIC`). Computes 6 ADR-006 engineering KPIs (Mission Completion Rate 100%, Avg Latency ~607ms, Containment 100%, Review Freshness Verified, Canonical Preservation 100% Clean, Context Token Efficiency ~18.5 KB). Delivered CLI runner (`scripts/run_golden_benchmark.py` & `.ps1`), FastAPI endpoints (`POST /v1/pipeline/benchmark/run`, `GET /v1/pipeline/benchmark/latest`), and Frontend Cockpit integration (`BenchmarkModal` in `CodingPipelineView.tsx`).
+- **Target Files**: `agent_workspace/core/pipeline/benchmark.py`, `agent_workspace/routes/pipeline.py`, `scripts/run_golden_benchmark.py`, `scripts/run_golden_benchmark.ps1`, `viewer/src/components/CodingPipelineView.tsx`, `agent_workspace/tests/test_pipeline_benchmark_p4.py`, `docs/obsidian/modules/core/core-pipeline-benchmark.md`.
+- **Verification**: `test_pipeline_benchmark_p4.py` (6 tests, 100% PASS in 3.328s); Full combined 52-test regression matrix across P1~P4 (100% PASS in 19.511s); `scripts/run_golden_benchmark.py` execution (Exit code 0, 3/3 scenarios PASS); `npm run build` in `viewer/` (Pass, 0 errors, 789ms); `git diff --check` (0 trailing whitespace).
+- **Status**: `PASS` (Completed).
+
+### [DONE] T-016: Autonomous Coding Pipeline P5: Developer Beta & Packaging
+- **Assigned Role**: `BACKEND_INFRA_AGENT` (Ethan) / `APPLICATION_FLOW_AGENT` (Eason) / `ARCHITECT_PLANNER_AGENT` (Luke)
+- **Reference ADR**: [[60 Architectural Decision Records (ADR) Graph#ADR-006|ADR-006: Agent Strategy Integration & Task Environment Architecture]]
+- **Scope**: Elevated LAS to an installable standalone developer toolbelt. Configured standard PEP 517/621 packaging metadata in `pyproject.toml` with console scripts (`las`, `las-server`, `las-benchmark`). Refactored `agent_workspace/cli.py` with unified subcommands (`init`, `onboard`, `benchmark`, `pipeline run`, `serve`, `status`) while maintaining 100% backward compatibility for legacy flags (`--list-skills`, `--chat`, etc.). Implemented `TargetRepoOnboarder` in `agent_workspace/core/onboarding.py` for automated multi-language ecosystem sensing (Python, Node/TS, Rust, Go) and `TaskEnvironment` scaffolding. Delivered local cross-platform daemon launcher `scripts/start_las.py` and `scripts/start_las.ps1`. Authored publication-grade `docs/DEVELOPER_QUICKSTART_GUIDE.md` and `docs/obsidian/modules/core/core-cli-and-packaging.md`.
+- **Target Files**: `pyproject.toml`, `agent_workspace/cli.py`, `agent_workspace/core/onboarding.py`, `scripts/start_las.py`, `scripts/start_las.ps1`, `docs/DEVELOPER_QUICKSTART_GUIDE.md`, `agent_workspace/tests/test_developer_beta_p5.py`, `docs/obsidian/modules/core/core-cli-and-packaging.md`.
+- **Verification**: `test_developer_beta_p5.py` (8 tests, 100% PASS in 1.754s); Full combined 60-test regression matrix across P1~P5 (100% PASS in 20.465s); `python -m compileall agent_workspace scripts` (Pass, 0 errors); `npm run build` in `viewer/` (Pass, 0 errors, 3.79s); `git diff --check` (0 trailing whitespace).
+- **Status**: `PASS` (Completed).
+
+### [DONE] T-017: Multi-Agent Consensus Debate & Committee Coding Protocol (Phase 85)
+- **Assigned Role**: `ARCHITECT_PLANNER_AGENT` (Luke) / `SECURITY_AUDIT_AGENT` (Victor) / `QA_TEST_AGENT` (Jimmy) / `UI_UX_AGENT` (Joe)
+- **Reference ADR**: [[60 Architectural Decision Records (ADR) Graph#ADR-005|ADR-005: Stop-and-Wait Gate]], [[60 Architectural Decision Records (ADR) Graph#ADR-006|ADR-006: Agent Strategy Integration]]
+- **Scope**: Implemented multi-agent committee debate and consensus scoring protocol integrated into the autonomous coding pipeline. Authored `agent_workspace/core/pipeline/committee.py` providing `CommitteeCoordinator` with keyword and path-based risk heuristics for dynamic role selection (`ARCHITECT_PLANNER_AGENT`, `SECURITY_AUDIT_AGENT`, `QA_TEST_AGENT`, `UI_UX_AGENT`). Authored `agent_workspace/core/pipeline/debate_protocol.py` executing sequential critique rounds, composite consensus scoring ($0.35 \times \text{Arch} + 0.40 \times \text{Sec} + 0.25 \times \text{QA}$), security veto threshold (`security_assurance < 0.70`), and plan enrichment. Integrated `COMMITTEE_DEBATE` stage into `CodingPipelineManager` and Draft PR body export. Exposed `POST /v1/pipeline/tasks/{task_id}/debate` with WebSocket turn broadcast in `agent_workspace/routes/pipeline.py`. Added CLI `--committee` and `--debate-rounds` in `agent_workspace/cli.py`. Added 7-stage visual stepper, debate speeches stream, consensus meter, and modal triggers in `viewer/src/components/CodingPipelineView.tsx`.
+- **Target Files**: `agent_workspace/core/pipeline/models.py`, `agent_workspace/core/pipeline/committee.py`, `agent_workspace/core/pipeline/debate_protocol.py`, `agent_workspace/core/pipeline/manager.py`, `agent_workspace/routes/pipeline.py`, `agent_workspace/cli.py`, `viewer/src/components/CodingPipelineView.tsx`, `agent_workspace/tests/test_pipeline_committee_p85.py`, `docs/obsidian/modules/core/core-pipeline-committee.md`.
+- **Verification**: `test_pipeline_committee_p85.py` (6 tests, 100% PASS in 0.30s); full regression matrix 48 tests PASS in 17.20s; `npm run build` in `viewer/` (Pass, 0 errors, 658ms); `git diff --check` (0 trailing whitespace).
+- **Status**: `PASS` (Completed).
+
+### [DONE] T-018: Heterogeneous Reasoning Model Adapters & Dynamic Thinking Router (Phase 86)
+- **Assigned Role**: `ARCHITECT_PLANNER_AGENT` (Luke) / `BACKEND_INFRA_AGENT` (Ethan) / `APPLICATION_FLOW_AGENT` (Eason) / `UI_UX_AGENT` (Joe)
+- **Reference ADR**: [[60 Architectural Decision Records (ADR) Graph#ADR-005|ADR-005: Stop-and-Wait Gate]], [[60 Architectural Decision Records (ADR) Graph#ADR-006|ADR-006: Agent Strategy Integration]]
+- **Scope**: Extended core LLM providers with first-class reasoning/thinking awareness (`ProviderResponse.reasoning_content` and `reasoning_tokens`) across DeepSeek-R1, OpenAI `completion_tokens_details.reasoning_tokens` / `reasoning_effort`, Anthropic Claude 3.7 Sonnet Extended Thinking (`budget_tokens`, `type: thinking`), and Ollama local `<think>...</think>` regex extraction and text sanitization. Authored `agent_workspace/core/reasoning_router.py` providing `DynamicThinkingRouter` with 4 `ModelTier` levels (`REASONING`, `STANDARD_CODING`, `FAST_PRECHECK`, `LOCAL_OFFLINE`), role-specific budget mapping (`ARCHITECT_PLANNER_AGENT`: 8192, `SECURITY_AUDIT_AGENT`: 4096, others: 0), and air-gapped `offline_mode` fallback to local Ollama models (`deepseek-r1:8b`, `qwen2.5-coder:7b`). Connected reasoning tokens and content to `DebateSpeechTurn`, `CommitteeConsensusScorecard`, and `CodingTaskRequest`. Added Prometheus metrics `REASONING_TOKENS_COUNT` and `THINKING_LATENCY` to `agent_workspace/observability.py`. Added CLI flags `--offline`, `--local`, `--thinking-budget`, and `--reasoning-effort` in `agent_workspace/cli.py`. Upgraded frontend cockpit in `viewer/src/components/CodingPipelineView.tsx` with collapsible Thinking Process inspection in deliberation speeches, total reasoning tokens badge in scorecard, and air-gapped offline & thinking budget controls in task creation modal.
+- **Target Files**: `agent_workspace/core/providers.py`, `agent_workspace/core/reasoning_router.py`, `agent_workspace/core/pipeline/models.py`, `agent_workspace/core/pipeline/committee.py`, `agent_workspace/core/pipeline/debate_protocol.py`, `agent_workspace/cli.py`, `agent_workspace/observability.py`, `viewer/src/components/CodingPipelineView.tsx`, `agent_workspace/tests/test_reasoning_router_p86.py`, `docs/obsidian/modules/core/core-reasoning-router.md`.
+- **Verification**: `test_reasoning_router_p86.py` (7 tests, 100% PASS in 0.07s); full regression matrix 55 tests PASS in 21.19s; `npm run build` in `viewer/` (Pass, 0 errors, 756ms); `git diff --check` (0 trailing whitespace).
+- **Status**: `PASS` (Completed).
+
+### [DONE] T-019: Distributed P2P Mesh & Federated Worktree Clustering (Phase 87)
+- **Assigned Role**: `ARCHITECT_PLANNER_AGENT` (Luke) / `BACKEND_INFRA_AGENT` (Ethan) / `QA_TEST_AGENT` (Jimmy) / `UI_UX_AGENT` (Joe)
+- **Reference ADR**: [[60 Architectural Decision Records (ADR) Graph#ADR-005|ADR-005: Stop-and-Wait Gate]], [[60 Architectural Decision Records (ADR) Graph#ADR-006|ADR-006: Agent Strategy Integration]]
+- **Scope**: Implemented distributed peer-to-peer mesh clustering and federated worktree offloading across decentralized worker nodes. Authored `agent_workspace/core/federated_mesh.py` providing `PeerCapability` (`REASONING_ENGINE`, `SANDBOX_MUTATION`, `TEST_RUNNER`, `COCKPIT_LEADER`), `FederatedPeerProfile` with load and latency scoring, `FederatedPatchBundle` with SHA-256 Merkle root integrity verification, and `FederatedMeshCoordinator` supporting peer discovery, registration, and stage delegation. Integrated peer delegation into `PipelineDebateProtocol` (offloading speech turns to reasoning nodes) and `CodingPipelineManager`. Exposed REST API endpoints (`/v1/mesh/status`, `/v1/mesh/peers`, `/v1/mesh/join`, `/v1/mesh/delegate/turn`, `/v1/mesh/delegate/verify`, `/v1/mesh/sync/patch`) in `agent_workspace/routes/mesh.py`. Added unified CLI commands (`las mesh status`, `las mesh join <seed>`, `--mesh`, `--mesh-peers`) in `agent_workspace/cli.py`. Authored frontend cockpit in `viewer/src/components/FederatedMeshView.tsx` with live topology graph, cluster health badges, seed join modal, and peer load/latency monitors.
+- **Target Files**: `agent_workspace/core/federated_mesh.py`, `agent_workspace/core/pipeline/models.py`, `agent_workspace/core/pipeline/debate_protocol.py`, `agent_workspace/core/pipeline/manager.py`, `agent_workspace/routes/mesh.py`, `agent_workspace/api.py`, `agent_workspace/cli.py`, `viewer/src/components/FederatedMeshView.tsx`, `viewer/src/App.tsx`, `viewer/src/components/Sidebar.tsx`, `viewer/src/components/CodingPipelineView.tsx`, `agent_workspace/tests/test_federated_mesh_p87.py`, `docs/obsidian/modules/core/core-federated-mesh.md`.
+- **Verification**: `test_federated_mesh_p87.py` (8 tests, 100% PASS in 0.29s); full combined regression matrix across 10 suites (63 tests, 100% PASS in 18.60s); `npm run build` in `viewer/` (Pass, 0 errors, 787ms); `git diff --check` (0 trailing whitespace).
+- **Status**: `PASS` (Completed).
+
+### [DONE] T-020: Zero-Trust mTLS Dynamic Node Attestation & Mutual TLS PKI Mesh (Phase 88)
+- **Assigned Role**: `SECURITY_AUDIT_AGENT` (Victor) / `ARCHITECT_PLANNER_AGENT` (Luke) / `BACKEND_INFRA_AGENT` (Ethan) / `UI_UX_AGENT` (Joe)
+- **Reference ADR**: [[60 Architectural Decision Records (ADR) Graph#ADR-005|ADR-005: Stop-and-Wait Gate]], [[60 Architectural Decision Records (ADR) Graph#ADR-006|ADR-006: Agent Strategy Integration]]
+- **Scope**: Implemented dynamic Zero-Trust node attestation and mutual TLS PKI mesh. Authored `agent_workspace/core/cert_manager.py` with `SwarmCertManager` (ephemeral X.509 cert generation, RSA signature signing/verification, cert validity checks, and auto-rotation thresholds). Enhanced `FederatedMeshCoordinator` in `agent_workspace/core/federated_mesh.py` with automatic cert rotation (`rotate_cert`, `check_and_auto_rotate_cert`), mutual challenge-response attestation (`generate_attestation_challenge`, `create_attestation_proof`, `verify_attestation_proof`) with single-use nonce replay protection, and cryptographically signed stage delegations (`sign_delegation_request`, `verify_delegation_request`) with strict Zero-Trust enforcement. Exposed REST API endpoints (`/v1/mesh/pki/cert`, `/v1/mesh/pki/rotate`, `/v1/mesh/attest/challenge`, `/v1/mesh/attest/verify`) in `agent_workspace/routes/mesh.py`. Added CLI subcommands (`las mesh pki`, `las mesh rotate --validity <sec>`, `las mesh attest <seed>`) in `agent_workspace/cli.py`. Upgraded frontend cockpit in `viewer/src/components/FederatedMeshView.tsx` with Zero-Trust PKI Bento status card, mTLS live rotation countdown banner, and peer attestation shield badges with on-demand challenge solving.
+- **Target Files**: `agent_workspace/core/cert_manager.py`, `agent_workspace/core/federated_mesh.py`, `agent_workspace/routes/mesh.py`, `agent_workspace/cli.py`, `viewer/src/components/FederatedMeshView.tsx`, `agent_workspace/tests/test_mesh_pki_p88.py`, `docs/obsidian/modules/core/core-mesh-pki.md`.
+- **Verification**: `test_mesh_pki_p88.py` (9 tests, 100% PASS in 3.77s); Full combined 11-suite regression matrix across P1~P88 (72/72 tests, 100% PASS in 19.31s); `npm run build` in `viewer/` (Pass, 0 errors, 657ms); `git diff --check` (0 trailing whitespace).
+- **Status**: `PASS` (Completed).
+
+### [DONE] T-021: Distributed Committee Raft Consensus & Replicated State Machine (Phase 89)
+- **Assigned Role**: `ARCHITECT_PLANNER_AGENT` (Luke) / `SECURITY_AUDIT_AGENT` (Victor) / `BACKEND_INFRA_AGENT` (Ethan) / `QA_TEST_AGENT` (Jimmy) / `UI_UX_AGENT` (Joe)
+- **Reference ADR**: [[60 Architectural Decision Records (ADR) Graph#ADR-005|ADR-005: Stop-and-Wait Gate]], [[60 Architectural Decision Records (ADR) Graph#ADR-006|ADR-006: Agent Strategy Integration]]
+- **Scope**: Implemented distributed committee Raft consensus engine and deterministic replicated state machine. Authored `agent_workspace/core/raft_consensus.py` with `CommitteeRaftNode` (FOLLOWER/CANDIDATE/LEADER roles, randomized election timeouts, log matching, conflict truncation, quorum commits), `CommitteeStateMachine` (sequential debate log application, status tracking, patch Merkle root commitments), and cryptographic `CommitteeLogEntry` signing. Integrated Raft node into `FederatedMeshCoordinator` in `agent_workspace/core/federated_mesh.py` with Phase 88 Zero-Trust attestation checks on candidate votes and entry append requests. Integrated Raft replicated logging into `PipelineDebateProtocol` in `agent_workspace/core/pipeline/debate_protocol.py` when `use_raft_consensus=True`. Exposed REST API endpoints (`/v1/mesh/raft/status`, `/v1/mesh/raft/log`, `/v1/mesh/raft/elect`, `/v1/mesh/raft/vote`, `/v1/mesh/raft/append_entries`, `/v1/mesh/raft/propose`) in `agent_workspace/routes/mesh.py`. Added CLI subcommands (`las mesh raft status`, `las mesh raft elect`, `las mesh raft log [--limit N]`) in `agent_workspace/cli.py`. Upgraded frontend cockpit in `viewer/src/components/FederatedMeshView.tsx` with Raft consensus Bento status card, quorum metrics, manual election trigger, and real-time replicated debate ledger table.
+- **Target Files**: `agent_workspace/core/raft_consensus.py`, `agent_workspace/core/pipeline/models.py`, `agent_workspace/core/federated_mesh.py`, `agent_workspace/core/pipeline/debate_protocol.py`, `agent_workspace/routes/mesh.py`, `agent_workspace/cli.py`, `viewer/src/components/FederatedMeshView.tsx`, `agent_workspace/tests/test_committee_raft_p89.py`, `docs/obsidian/modules/core/core-raft-consensus.md`.
+- **Verification**: `test_committee_raft_p89.py` (9 tests, 100% PASS in 0.17s); Full combined 12-suite regression matrix across P1~P89 (81/81 tests, 100% PASS in 20.30s); `npm run build` in `viewer/` (Pass, 0 errors, 3.27s); `git diff --check` (0 trailing whitespace).
+- **Status**: `PASS` (Completed).
+
+### [DONE] T-022: Federated Vector Memory & RAG Knowledge Topology Sync (Phase 90)
+- **Assigned Role**: `ARCHITECT_PLANNER_AGENT` (Luke) / `KNOWLEDGE_TOPOLOGY_AGENT` (Shared) / `BACKEND_INFRA_AGENT` (Ethan) / `QA_TEST_AGENT` (Jimmy) / `UI_UX_AGENT` (Joe)
+- **Reference ADR**: [[60 Architectural Decision Records (ADR) Graph#ADR-005|ADR-005: Stop-and-Wait Gate]], [[60 Architectural Decision Records (ADR) Graph#ADR-006|ADR-006: Agent Strategy Integration]]
+- **Scope**: Implemented distributed federated vector memory and RAG knowledge topology sync across P2P mesh nodes. Authored `agent_workspace/core/vector_memory.py` with `VectorCategory` (`DECISION`, `LESSON`, `PATTERN`, `ERROR`, `CODE_SNIPPET`), `VectorMemoryEntry` with SHA-256 content hashes, `FederatedVectorMemory` supporting deterministic binary Merkle tree root calculation for $O(1)$ knowledge divergence detection, cosine similarity search, bilateral delta reconciliation (`reconcile_delta`, `merge_entries`) with last-write-wins timestamp collision resolution. Upgraded `generate_mock_embedding` in `agent_workspace/core/embeddings.py` with token-based semantic affinity while remaining 100% deterministic, zero-network, and L2-normalized. Integrated Raft replicated checkpoints with `CommitteeEntryType.VECTOR_CHECKPOINT` in `agent_workspace/core/raft_consensus.py`. Embedded `FederatedVectorMemory` in `FederatedMeshCoordinator` in `agent_workspace/core/federated_mesh.py` with Phase 88 Zero-Trust attestation gating on vector synchronization. Integrated automated RAG into `PipelineDebateProtocol` in `agent_workspace/core/pipeline/debate_protocol.py` (pre-debate context injection and post-debate consensus learning). Mounted REST API endpoints (`/v1/mesh/memory/stats`, `/v1/mesh/memory/entries`, `/v1/mesh/memory/query`, `/v1/mesh/memory/store`, `/v1/mesh/memory/sync`) in `agent_workspace/routes/mesh.py`. Added CLI commands (`las mesh memory stats`, `las mesh memory query`, `las mesh memory sync`) in `agent_workspace/cli.py`. Upgraded frontend cockpit in `viewer/src/components/FederatedMeshView.tsx` with Federated Vector Memory Bento Card, Cosine Search Bar, and Replicated Knowledge Ledger table.
+- **Target Files**: `agent_workspace/core/vector_memory.py`, `agent_workspace/core/embeddings.py`, `agent_workspace/core/raft_consensus.py`, `agent_workspace/core/federated_mesh.py`, `agent_workspace/core/pipeline/debate_protocol.py`, `agent_workspace/routes/mesh.py`, `agent_workspace/cli.py`, `viewer/src/components/FederatedMeshView.tsx`, `agent_workspace/tests/test_federated_memory_p90.py`, `docs/obsidian/modules/core/core-vector-memory.md`.
+- **Verification**: `test_federated_memory_p90.py` (8 tests, 100% PASS in 0.24s); Full combined 13-suite regression matrix across P1~P90 (89/89 tests, 100% PASS in 19.79s); `npm run build` in `viewer/` (Pass, 0 errors, 651ms); `git diff --check` (0 trailing whitespace).
+- **Status**: `PASS` (Completed).
+
+### [DONE] T-023: Chaos Fault Injection, Autonomous Self-Healing Loop & Multi-Worker Cluster Demo (Phase 91)
+- **Assigned Role**: `ARCHITECT_PLANNER_AGENT` (Luke) / `SECURITY_AUDIT_AGENT` (Victor) / `QA_TEST_AGENT` (Jimmy) / `BACKEND_INFRA_AGENT` (Ethan) / `UI_UX_AGENT` (Joe)
+- **Reference ADR**: [[60 Architectural Decision Records (ADR) Graph#ADR-005|ADR-005: Stop-and-Wait Gate]], [[60 Architectural Decision Records (ADR) Graph#ADR-006|ADR-006: Agent Strategy Integration]], [[60 Architectural Decision Records (ADR) Graph#ADR-007|ADR-007: Chaos Engineering and Resiliency]]
+- **Scope**: Implemented federated chaos fault injection, autonomous self-healing loop with vector memory RAG precedents, and production E2E multi-worker cluster demonstration. Authored `agent_workspace/core/chaos.py` with `MeshChaosManager`, `ChaosFaultRule`, and `ChaosFaultType` (`NETWORK_PARTITION`, `LATENCY_SPIKE`, `PACKET_DROP`, `NODE_ISOLATION`, `BYZANTINE_TAMPER`) intercepting Raft consensus and mesh RPC traffic. Authored `agent_workspace/core/pipeline/self_healing.py` with `PipelineSelfHealingEngine` providing diagnostic extraction from failed verification steps, RAG precedent lookup in vector memory, bounded corrective mutations, and atomic rollback with strict primary repo protection guard (`PRIMARY_REPO_PROTECTED`). Authored `agent_workspace/core/cluster_demo.py` orchestrating a reproducible 7-stage 3-node cluster demonstration in under 1 second. Extended pipeline models with `PipelineStage.SELF_HEALING`, `SelfHealingAttemptReceipt`, and `RollbackReceipt`. Mounted REST API endpoints (`/v1/mesh/chaos/faults`, `/v1/mesh/chaos/inject`, `/v1/mesh/chaos/clear`, `/v1/mesh/cluster/demo`) in `agent_workspace/routes/mesh.py`. Added CLI commands (`las chaos [list|inject|partition|isolate|clear]`, `las cluster demo`, `las pipeline run --self-healing`) in `agent_workspace/cli.py`. Upgraded frontend cockpit in `viewer/src/components/FederatedMeshView.tsx` with Chaos Fault Injection Console Bento card and Cluster Demo scorecard, and `viewer/src/components/CodingPipelineView.tsx` with Self-Healing stage badge and status card.
+- **Target Files**: `agent_workspace/core/chaos.py`, `agent_workspace/core/pipeline/self_healing.py`, `agent_workspace/core/cluster_demo.py`, `agent_workspace/core/pipeline/models.py`, `agent_workspace/core/pipeline/manager.py`, `agent_workspace/core/federated_mesh.py`, `agent_workspace/core/raft_consensus.py`, `agent_workspace/core/vector_memory.py`, `agent_workspace/routes/mesh.py`, `agent_workspace/cli.py`, `viewer/src/components/FederatedMeshView.tsx`, `viewer/src/components/CodingPipelineView.tsx`, `scripts/run_cluster_demo.py`, `agent_workspace/tests/test_chaos_selfhealing_p91.py`, `docs/obsidian/modules/core/core-chaos-and-self-healing.md`.
+- **Verification**: `test_chaos_selfhealing_p91.py` (10 tests, 100% PASS in 1.92s); Full combined 16-suite regression matrix across P1~P91 (117/117 tests, 100% PASS in 25.30s); `npm run build` in `viewer/` (Pass, 0 errors, 3.83s); `git diff --check` (0 trailing whitespace).
+- **Status**: `PASS` (Completed).
+
+### [DONE] T-024: Architecture Audit, Swarm Engine Policy Convergence & Dual-Stream Ledger (Phase 92)
+- **Assigned Role**: `ARCHITECT_PLANNER_AGENT` (Luke) / `SECURITY_AUDIT_AGENT` (Victor) / `QA_TEST_AGENT` (Jimmy) / `BACKEND_INFRA_AGENT` (Ethan)
+- **Reference ADR**: [[60 Architectural Decision Records (ADR) Graph#ADR-001|ADR-001: Protocol Baseline]], [[60 Architectural Decision Records (ADR) Graph#ADR-005|ADR-005: Stop-and-Wait Gate]], [[60 Architectural Decision Records (ADR) Graph#ADR-006|ADR-006: Agent Strategy Integration]]
+- **Scope**: Executed exhaustive Architecture Optimization & Validation cycle resolving GAP-01 through GAP-09 across the codebase. Completed full audit certification across Gates 0 through 7, producing 17 primary audit artifacts in `docs/audit/`. Hardened `AgentEngine` tool execution pipeline by integrating `UnifiedPolicyGate` directly into `execute_tool`, enforcing `ROLE_SCOPE_RESTRICTIONS` (`UI_UX_AGENT` forbidden path access, `QA_TEST_AGENT` read-only mutation blocking), workspace containment, and recording all policy decisions directly to `AuditLedger` with unbroken SHA-256 Merkle chaining. Authored 5 new targeted test suites (`test_engine_policy_integration.py`, `test_adversarial_replanning.py`, `test_adversarial_governance.py`, `test_governance_negative.py`, `test_state_recovery.py`, `test_e2e_north_star.py`). Validated Golden Benchmark (3/3 PASS, 100% KPI achievement) and repository verification ladder.
+- **Target Files**: `agent_workspace/core/engine.py`, `agent_workspace/core/policy_gate.py`, `agent_workspace/tests/test_engine_policy_integration.py`, `agent_workspace/tests/test_adversarial_replanning.py`, `agent_workspace/tests/test_e2e_north_star.py`, `agent_workspace/tests/test_adversarial_governance.py`, `agent_workspace/tests/test_governance_negative.py`, `agent_workspace/tests/test_state_recovery.py`, `docs/audit/*`.
+- **Verification**: `test_engine_policy_integration.py` (5/5 PASS in 0.15s); Combined regression suite across 6 test modules (36/36 PASS in 7.74s); `scripts/run_golden_benchmark.py` (3/3 PASS, `GOLDEN_FLOW_VERIFIED`); `scripts/verify.ps1 -SkipViewer` (Exit code 0, PASS).
+- **Status**: `PASS` (Completed).
+
+### [DONE] T-025: Destructive Shell Hardening, Anti-Corruption Scanner & Dual-Stream Forensic Correlator (Phase 93)
+- **Assigned Role**: `SECURITY_AUDIT_AGENT` (Victor) / `ARCHITECT_PLANNER_AGENT` (Luke) / `QA_TEST_AGENT` (Jimmy) / `BACKEND_INFRA_AGENT` (Ethan)
+- **Reference ADR**: [[60 Architectural Decision Records (ADR) Graph#ADR-001|ADR-001: Protocol Baseline]], [[60 Architectural Decision Records (ADR) Graph#ADR-005|ADR-005: Stop-and-Wait Gate]], [[60 Architectural Decision Records (ADR) Graph#ADR-006|ADR-006: Agent Strategy Integration]]
+- **Scope**: Implemented advanced security hardening and evidence plane forensic correlation. Expanded `DESTRUCTIVE_COMMAND_PATTERNS` in `agent_workspace/core/agent_executor.py` to intercept Windows PowerShell cmdlets (`Remove-Item -Recurse -Force`, `del /f /s /q`), dangerous Git branch commands (`git branch -D`, `git checkout -f`), and remote pipe-to-shell injections (`curl | bash`, `Invoke-Expression`). Embedded destructive command inspection directly into `UnifiedPolicyGate._validate_scope` in `agent_workspace/core/policy_gate.py`. Wired `check_seven_anti_corruption` into `ScopeGuard.validate_tool_call` and `UnifiedPolicyGate._validate_scope` to block bare `except:` and swallowed `except Exception: pass` violations upon file mutations (Principle #4: Typed Failures Only). Authored `agent_workspace/core/forensic_correlator.py` providing `ForensicCorrelator` and `ForensicSessionTimeline`, correlating compliance audit trails (`audit_ledger.db`) and runtime execution streams (`runtime_events.db`) with cryptographic dual-Merkle proof verification and JSON receipt export (resolving GAP-07).
+- **Target Files**: `agent_workspace/core/agent_executor.py`, `agent_workspace/core/policy_gate.py`, `agent_workspace/core/engine.py`, `agent_workspace/core/forensic_correlator.py`, `agent_workspace/tests/test_forensic_correlator_and_anti_corruption.py`.
+- **Verification**: `test_forensic_correlator_and_anti_corruption.py` (6/6 PASS in 0.14s); Combined regression suite across 11 test modules (70/70 PASS in 7.71s); `scripts/run_golden_benchmark.py` (3/3 PASS, `GOLDEN_FLOW_VERIFIED` in 717.5ms); `scripts/verify.ps1 -SkipViewer` (Exit code 0, PASS).
+- **Status**: `PASS` (Completed).
+
+### [DONE] T-026: Dual-Stream Forensic Correlator API & CLI Surface Integration (Phase 94)
+- **Assigned Role**: `BACKEND_INFRA_AGENT` (Ethan) / `ARCHITECT_PLANNER_AGENT` (Luke) / `QA_TEST_AGENT` (Jimmy)
+- **Reference ADR**: [[60 Architectural Decision Records (ADR) Graph#ADR-001|ADR-001: Protocol Baseline]], [[60 Architectural Decision Records (ADR) Graph#ADR-005|ADR-005: Stop-and-Wait Gate]], [[60 Architectural Decision Records (ADR) Graph#ADR-006|ADR-006: Agent Strategy Integration]]
+- **Scope**: Surface the dual-stream `ForensicCorrelator` engine (GAP-07) across all primary developer control planes. Mounted REST endpoints `GET /v1/audit/forensics/{session_id}` and `POST /v1/audit/forensics/{session_id}/export` in `agent_workspace/routes/audit.py`. Mounted `GET /v1/pipeline/tasks/{task_id}/forensics` in `agent_workspace/routes/pipeline.py`. Added unified CLI subcommand `las forensics <session_id> [--export] [--output PATH] [--json]` in `agent_workspace/cli.py` with ANSI table rendering and JSON export. Enhanced `ForensicCorrelator.correlate_session` with multi-tenant event reconciliation across `default_tenant` and isolated tenant namespaces. Synchronized `agent_workspace/tests/test_route_inventory.py` expected route inventory. Delivered comprehensive automated integration test suite in `agent_workspace/tests/test_forensic_api_and_cli.py`.
+- **Target Files**: `agent_workspace/routes/audit.py`, `agent_workspace/routes/pipeline.py`, `agent_workspace/cli.py`, `agent_workspace/core/forensic_correlator.py`, `agent_workspace/tests/test_route_inventory.py`, `agent_workspace/tests/test_cli.py`, `agent_workspace/tests/test_forensic_api_and_cli.py`.
+- **Verification**: `test_forensic_api_and_cli.py` (8/8 PASS in 0.42s); `test_route_inventory.py` (1/1 PASS in 0.04s); full governance regression matrix (78/78 PASS across 12 test modules in 7.97s); `scripts/run_golden_benchmark.py` (`GOLDEN_FLOW_VERIFIED`, 3/3 PASS in 671.4ms); `scripts/verify.ps1 -SkipViewer -SkipTests` (Exit code 0, PASS); `git diff --check` (0 trailing whitespace).
+- **Status**: `PASS` (Completed).
+
+### [DONE] T-027: Full Test Matrix Parity & Protocol 3.8.0 Scaffolding Alignment (Phase 95)
+- **Assigned Role**: `BACKEND_INFRA_AGENT` (Ethan) / `DOMAIN_LOGIC_AGENT` (Luke) / `QA_TEST_AGENT` (Jimmy)
+- **Reference ADR**: [[60 Architectural Decision Records (ADR) Graph#ADR-001|ADR-001: Protocol Baseline]], [[60 Architectural Decision Records (ADR) Graph#ADR-006|ADR-006: Agent Strategy Integration]]
+- **Scope**: Resolved all legacy test discrepancies and harmonized workspace initialization with Protocol v3.8.0. Upgraded `TargetRepoOnboarder.analyze` and `onboard` in `agent_workspace/core/onboarding.py` with graceful non-git directory fallback and standard `.agent/agent.md`, `.agent/skills/`, and `.agent/workflows/` scaffolding. Updated `las init --dry-run` in `agent_workspace/cli.py`. Aligned route inventory in `agent_workspace/routes/chat.py` with `/health`, `/api/version`, and `/v1/version` aliases. Enhanced `WorkspaceManager` with `add_task` helper and `TopologyEmitter` with `record_event`. Hardened test mode detection in `agent_workspace/routes/collaboration.py`. Purged redundant `generate_spec.md` draft contract and registered `generative_spec_generator` in `.agent/agent.md`.
+- **Target Files**: `agent_workspace/core/onboarding.py`, `agent_workspace/cli.py`, `agent_workspace/routes/chat.py`, `agent_workspace/skills/tool_workspace.py`, `agent_workspace/topology_bridge.py`, `agent_workspace/routes/collaboration.py`, `agent_workspace/core/engine.py`, `.agent/agent.md`, `agent_workspace/tests/test_cli_init.py`, `agent_workspace/tests/test_cli_lint.py`, `agent_workspace/tests/test_route_chat_direct.py`, `agent_workspace/tests/test_route_inventory.py`, `agent_workspace/tests/test_tool_log_direct.py`, `agent_workspace/tests/test_topology_bridge_direct.py`, `agent_workspace/tests/test_tenant_channels.py`, `agent_workspace/tests/test_pap_v020.py`, `agent_workspace/tests/test_pap_conformance.py`, `agent_workspace/tests/test_skill_contracts.py`, `agent_workspace/tests/test_version_compat.py`.
+- **Verification**: Full test suite across all 143 test files in `agent_workspace/tests/` (100% PASS, 0 failures, 0 errors); 12-suite governance matrix (78/78 PASS in 8.32s); `scripts/run_golden_benchmark.py` (`GOLDEN_FLOW_VERIFIED`, 3/3 PASS in 676.9ms, 0 host mutations); `git diff --check` (0 trailing whitespace).
+- **Status**: `PASS` (Completed).
+
+### [DONE] T-028: Frontend Swarm UI Test Parity, React Doctor a11y, Obsidian Vault UTF-8 & Pytest Cleanliness (Phase 96)
+- **Assigned Role**: `UI_UX_AGENT` (Elena) / `QA_TEST_AGENT` (Jimmy) / `BACKEND_INFRA_AGENT` (Ethan) / `KNOWLEDGE_TOPOLOGY_AGENT` (Nora)
+- **Reference ADR**: [[60 Architectural Decision Records (ADR) Graph#ADR-001|ADR-001: Protocol Baseline]], [[60 Architectural Decision Records (ADR) Graph#ADR-002|ADR-002: Dual Knowledge Mirror]], [[60 Architectural Decision Records (ADR) Graph#ADR-006|ADR-006: Agent Strategy Integration]]
+- **Scope**: Perfected the 5 cross-stack optimization frontiers identified during comprehensive validation. Aligned `viewer/scripts/verify-swarm-governance-ui.mjs` with grounded Protocol 3.8.0 role `local-domain-01` (`DOMAIN_LOGIC_AGENT`). Optimized evidence compatibility in `ReviewPage.tsx` with `new Set` for $O(1)$ lookups. Refactored `CodingPipelineView.tsx` and `FederatedMeshView.tsx` with accessible `aria-label`/`<label>` bindings, keyboard event handlers, re-entry guards on mutating async handlers, and stable composite keys, completely eliminating all 23 accessibility and performance warnings in React Doctor. Fixed Windows ANSI mojibake in `lint_obsidian_vault.ps1` and `lint_knowledge_base.ps1` by forcing UTF-8 encoding, and established `.agent/knowledge_base/raw/.gitkeep` (0 findings). Added warning filters to `pyproject.toml` eliminating all upstream third-party deprecation warnings in Pytest. Closed strategic questions in `09 Open Questions & Strategic Horizons.md` with verified code references. Verified the full 8-step verification ladder with active Viewer checks (Exit Code 0).
+- **Target Files**: `viewer/scripts/verify-swarm-governance-ui.mjs`, `viewer/src/components/mission/ReviewPage.tsx`, `viewer/src/components/CodingPipelineView.tsx`, `viewer/src/components/FederatedMeshView.tsx`, `.agent/knowledge_base/tools/lint_obsidian_vault.ps1`, `.agent/knowledge_base/tools/lint_knowledge_base.ps1`, `.agent/knowledge_base/raw/.gitkeep`, `pyproject.toml`, `docs/obsidian/09 Open Questions & Strategic Horizons.md`, `handoff.md`.
+- **Verification**: `scripts/verify.ps1` (all 8 steps verified including Viewer build, UI smoke tests, and React Doctor, Exit Code 0); `npm run build` in `viewer/` (Pass in 646ms, 0 errors); `npm run test:swarm-ui` (Pass, Exit Code 0); `npm run verify:ui` (Pass, Exit Code 0); `npm run doctor` (37 issues, 0 accessibility, 0 performance warnings); `lint_knowledge_base.ps1` (85 notes, 0 findings); `scripts/run_golden_benchmark.py` (`GOLDEN_FLOW_VERIFIED`, 3/3 PASS in 716ms, 0 host mutations); `git diff --check` (0 trailing whitespace).
+- **Status**: `PASS` (Completed).
+
+### [DONE] T-029: Frontend Architecture Modularization, React Doctor Zero-Bug Convergence & SQLite WAL Concurrency Hardening (Phase 97)
+- **Assigned Role**: `UI_UX_AGENT` (Elena) / `BACKEND_INFRA_AGENT` (Ethan) / `QA_TEST_AGENT` (Jimmy)
+- **Reference ADR**: [[60 Architectural Decision Records (ADR) Graph#ADR-001|ADR-001: Protocol Baseline]], [[60 Architectural Decision Records (ADR) Graph#ADR-003|ADR-003: Three-Tier Cognitive Relay]], [[60 Architectural Decision Records (ADR) Graph#ADR-006|ADR-006: Agent Strategy Integration]]
+- **Scope**: Resolved technical debt across frontend architecture and backend persistence. Decomposed giant React views (`CodingPipelineView.tsx` 1,539 -> 388 lines, `FederatedMeshView.tsx` 1,394 -> 420 lines, `SettingsGeneralPanel.tsx` 370 -> 180 lines) into dedicated subcomponent folders (`viewer/src/components/pipeline/`, `viewer/src/components/mesh/`, `viewer/src/components/settings/`). Isolated shared utility helpers to `viewer/src/components/ui/utils.ts` and pruned non-component exports from `ui/primitives.tsx` for fast refresh HMR compliance. Eliminated async mutation race conditions using synchronous `useRef` locks (`electingRef`, `rotatingCertRef`, `clusterDemoRunningRef`, `joiningRef`) and added `AbortController`/`isSubscribed` unmount guards across `ReviewPage.tsx`, `SettingsGeneralPanel.tsx`, `SwarmGovernanceConsole.tsx`, and `FederatedMeshView.tsx`. Hardened all 5 core SQLite database modules (`audit_ledger.py`, `runtime_events.py`, `mission_store.py`, `ledger.py`, `replay_logger.py`) with `threading.RLock()`, `PRAGMA journal_mode = WAL`, `PRAGMA busy_timeout = 5000`, and `PRAGMA synchronous = NORMAL`.
+- **Target Files**: `agent_workspace/core/audit_ledger.py`, `agent_workspace/core/runtime_events.py`, `agent_workspace/core/mission_store.py`, `agent_workspace/core/ledger.py`, `agent_workspace/core/replay_logger.py`, `viewer/src/components/CodingPipelineView.tsx`, `viewer/src/components/FederatedMeshView.tsx`, `viewer/src/components/SettingsGeneralPanel.tsx`, `viewer/src/components/ui/utils.ts`, `viewer/src/components/ui/primitives.tsx`, `viewer/src/components/pipeline/*`, `viewer/src/components/mesh/*`, `viewer/src/components/settings/*`, `viewer/src/components/mission/ReviewPage.tsx`, `viewer/src/components/SwarmGovernanceConsole.tsx`.
+- **Verification**: React Doctor scorecard: 0 bugs, 0 performance regressions, total issues down from 37 to 15; Frontend build `npm run build` in `viewer/` (PASS, 0 errors in 785ms); `npm run verify:ui` and `npm run test:swarm-ui` (PASS); full 8-step golden ladder `scripts/verify.ps1` (Exit Code 0); `git diff --check` (0 errors).
+- **Status**: `PASS` (Completed).
+
+### [DONE] T-030: Zero Hardcoded Host Paths, Custom Hook Extraction, React Doctor Complexity Reduction & Forensic Knowledge Topology (Phase 98)
+- **Assigned Role**: `ARCHITECT_PLANNER_AGENT` (Luke) / `UI_UX_AGENT` (Elena) / `BACKEND_INFRA_AGENT` (Ethan) / `KNOWLEDGE_TOPOLOGY_AGENT` (Nora)
+- **Reference ADR**: [[60 Architectural Decision Records (ADR) Graph#ADR-001|ADR-001: Protocol Baseline]], [[60 Architectural Decision Records (ADR) Graph#ADR-003|ADR-003: Three-Tier Cognitive Relay]], [[60 Architectural Decision Records (ADR) Graph#ADR-006|ADR-006: Agent Strategy Integration]]
+- **Scope**: Executed Phase 98 optimizations eliminating all hardcoded host environment paths, extracting heavy React view states into dedicated custom hooks, and dropping control-flow maintainability warnings.
+  1. **Phase 98-A (Zero Hardcoded Host Paths)**: Dynamically resolved `python_exe = sys.executable or shutil.which("python") or "python"` in `agent_workspace/core/engine.py:938` eliminating developer absolute paths. Replaced hardcoded repo path in `viewer/src/components/CodingPipelineView.tsx:36` with dynamic `activeWorkspacePath`.
+  2. **Phase 98-B (Frontend Hook Extraction & Complexity Reduction)**: Authored custom hooks `viewer/src/hooks/useCodingPipeline.ts` (encapsulating task fetching, websocket telemetry, committee debate, and benchmark execution) and `viewer/src/hooks/useFederatedMesh.ts` (encapsulating mesh status, attestation, raft elections, cert rotation, and chaos simulation). Refactored `CodingPipelineView.tsx` (386 -> 147 lines) and `FederatedMeshView.tsx` (596 -> 160 lines), eliminating React Doctor giant component warnings. Decomposed high-complexity components (`BenchmarkModal.tsx`, `CommitteeDebateCard.tsx`, `ReviewPage.tsx`, `MissionDetailPage.tsx`, `TokenModePanel.tsx`, `TopologyNodeBase.tsx`), slashing React Doctor maintainability warnings from 15 down to 6 and 0 bugs.
+  3. **Phase 98-C (Tier 3 Forensic Knowledge Topology)**: Authored Tier 3 leaf note `docs/obsidian/modules/core/core-forensic-correlator.md` for `agent_workspace/core/forensic_correlator.py` with 3-line annotation, symbol table, and Mermaid correlation topology. Updated `00 LLM-Agent-System Index.md`, `layers/L5-Security-Sandbox-and-Merkle.md`, `05 Task Status DAG.md`, and `80 Milestone Logs.md`. Synchronized 100% byte-for-byte to external Obsidian Vault.
+- **Target Files**: `agent_workspace/core/engine.py`, `viewer/src/hooks/useCodingPipeline.ts`, `viewer/src/hooks/useFederatedMesh.ts`, `viewer/src/components/CodingPipelineView.tsx`, `viewer/src/components/FederatedMeshView.tsx`, `viewer/src/components/mesh/MeshHeader.tsx`, `viewer/src/components/mesh/MeshKpiGrid.tsx`, `viewer/src/components/pipeline/BenchmarkModal.tsx`, `viewer/src/components/pipeline/CommitteeDebateCard.tsx`, `viewer/src/components/TokenModePanel.tsx`, `viewer/src/components/mission/ReviewPage.tsx`, `viewer/src/components/mission/MissionDetailPage.tsx`, `viewer/src/components/nodes/TopologyNodeBase.tsx`, `docs/obsidian/modules/core/core-forensic-correlator.md`, `docs/obsidian/00 LLM-Agent-System Index.md`, `docs/obsidian/layers/L5-Security-Sandbox-and-Merkle.md`.
+- **Verification**: `npm run build` in `viewer/` (Exit Code 0, 0 errors); `npm run doctor` (102 files scanned, 0 bugs, giant components 0, issues down from 15 to 6); `lint_knowledge_base.ps1` (0 findings); SHA-256 dual sync verified.
+- **Status**: `PASS` (Completed).
+### T-031: Asynchronous Non-blocking Execution, Concurrency Stress Benchmark & Air-gap Container Hardening (Phases 99 & 100)
+- **Assignee**: `Antigravity`
+- **Protocol**: `v3.8.0`
+- **Scope**:
+  1. **Phase 99 (Asynchronous Subprocess & Non-blocking I/O)**: Added non-blocking execution methods (`shell_exec_async`, `git_diff_async`, `filesystem_read_async`, `filesystem_write_async`, and `execute_tool_async`) in `GovernedToolRegistry` and `AgentExecutor` (`agent_workspace/core/agent_executor.py`). Added `attempt_self_healing_async` and `execute_auto_rollback_async` in `PipelineSelfHealingEngine` (`agent_workspace/core/pipeline/self_healing.py`). Verified with `test_agent_executor_p2c.py` (13 passed) and `test_chaos_selfhealing_p91.py` (11 passed).
+  2. **Phase 100 (Multi-Tenant Concurrency Stress Benchmark & Docker Air-gap)**: Created `scripts/run_concurrency_stress_benchmark.py` testing 16 concurrent agents running 400 transactions against SQLite WAL and vector memory. Identified and eliminated class-level lock contention in `AuditLedger` (`agent_workspace/core/audit_ledger.py`), achieving 100% SHA-256 hash chaining pass, 0 lock errors, and 80.06 TPS. Hardened production air-gapped `Dockerfile` (non-root `lasuser`, git integration, python bytecode and unbuffered env flags) and comprehensive `.dockerignore`.
+- **Target Files**: `agent_workspace/core/agent_executor.py`, `agent_workspace/core/pipeline/self_healing.py`, `agent_workspace/core/audit_ledger.py`, `agent_workspace/tests/test_agent_executor_p2c.py`, `agent_workspace/tests/test_chaos_selfhealing_p91.py`, `scripts/run_concurrency_stress_benchmark.py`, `Dockerfile`, `.dockerignore`, `docs/obsidian/05 Task Status & Multi-Agent Execution DAG.md`, `docs/obsidian/80 Project Execution History & Milestone Logs.md`.
+- **Verification**: `test_agent_executor_p2c.py` (13 passed); `test_chaos_selfhealing_p91.py` (11 passed); `run_concurrency_stress_benchmark.py` (16 tenants, 400 ops, 0.0% errors, 80.06 TPS, chain verified, SQLite WAL integrity OK); `npm run build` (0 errors); `npm run doctor` (0 bugs, 0 giant components); `lint_knowledge_base.ps1` (0 findings).
+- **Status**: `PASS` (Completed).

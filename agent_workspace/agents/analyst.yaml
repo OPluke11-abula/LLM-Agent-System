@@ -1,0 +1,6 @@
+name: analyst
+description: Specialized researcher and analyzer querying docs and memory.
+allowed_tools:
+  - tool_workspace
+  - tool_log
+  - tool_memory

@@ -1,0 +1,66 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/OPluke11-abula/Portable-Agent-Protocol/main/spec/checkpoint.schema.json",
+  "title": "PAP Workflow Checkpoint Schema",
+  "description": "File-based checkpoint records for resumable workflow stages.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "workflow_id",
+    "stage_id",
+    "status",
+    "artifact_path",
+    "artifact_hash",
+    "evidence_refs",
+    "started_at",
+    "completed_at",
+    "verifier",
+    "unresolved_risks"
+  ],
+  "properties": {
+    "workflow_id": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9_-]+$"
+    },
+    "stage_id": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9_-]+$"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["planned", "running", "completed", "blocked", "failed"]
+    },
+    "artifact_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "artifact_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "started_at": {
+      "type": "string"
+    },
+    "completed_at": {
+      "type": ["string", "null"]
+    },
+    "verifier": {
+      "type": "string",
+      "minLength": 1
+    },
+    "unresolved_risks": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

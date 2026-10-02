@@ -1,0 +1,102 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/OPluke11-abula/Portable-Agent-Protocol/main/spec/workflow.schema.json",
+  "title": "Portable Agent Protocol Workflow Schema",
+  "description": "JSON Schema for validating the YAML front-matter of .agent/workflows/*.md",
+  "type": "object",
+  "required": [
+    "name",
+    "steps"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique, machine-readable identifier of this workflow.",
+      "pattern": "^[a-zA-Z0-9_-]+$"
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-readable or machine-readable name of this workflow."
+    },
+    "description": {
+      "type": "string",
+      "description": "High-level summary of what this workflow executes."
+    },
+    "version": {
+      "type": "string",
+      "description": "Semantic version of the workflow manifest."
+    },
+    "steps": {
+      "type": "array",
+      "description": "List of execution steps forming the Directed Acyclic Graph (DAG).",
+      "items": {
+        "$ref": "#/$defs/workflow_step"
+      },
+      "minItems": 1
+    }
+  },
+  "$defs": {
+    "workflow_step": {
+      "type": "object",
+      "anyOf": [
+        { "required": ["id"] },
+        { "required": ["step_id"] }
+      ],
+      "oneOf": [
+        {
+          "required": ["tool"],
+          "not": { "anyOf": [{ "required": ["action"] }, { "required": ["skill_id"] }] }
+        },
+        {
+          "required": ["action"],
+          "not": { "anyOf": [{ "required": ["tool"] }, { "required": ["skill_id"] }] }
+        },
+        {
+          "required": ["skill_id"],
+          "not": { "anyOf": [{ "required": ["tool"] }, { "required": ["action"] }] }
+        }
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique, machine-readable identifier of this workflow step.",
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "step_id": {
+          "type": "string",
+          "description": "Alias for step id.",
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "tool": {
+          "type": "string",
+          "description": "The name of the PAP skill/tool to execute for this step."
+        },
+        "skill_id": {
+          "type": "string",
+          "description": "Alias for tool name."
+        },
+        "action": {
+          "type": "string",
+          "description": "The name of the built-in runtime action to execute (e.g., 'remember', 'respond').",
+          "enum": ["remember", "respond"]
+        },
+        "depends_on": {
+          "type": "array",
+          "description": "Step IDs that this step directly depends on and must wait for.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "next_step": {
+          "type": ["string", "null"],
+          "description": "Identifier of the next step or null if terminal."
+        },
+        "params": {
+          "type": "object",
+          "description": "Arbitrary key-value parameters passed to the tool or action. Supports jinja-like string interpolation.",
+          "additionalProperties": true
+        }
+      }
+    }
+  }
+}

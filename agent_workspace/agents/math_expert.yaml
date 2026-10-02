@@ -1,0 +1,4 @@
+name: math_expert
+description: Specialized worker for complex mathematical operations.
+allowed_tools:
+  - calculate

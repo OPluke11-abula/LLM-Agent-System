@@ -1,0 +1,41 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/OPluke11-abula/Portable-Agent-Protocol/main/spec/knowledge.schema.json",
+  "title": "Portable Agent Protocol Knowledge Entry Schema",
+  "description": "JSON Schema for validating the YAML front-matter of .agent/knowledge_base/*.md",
+  "type": "object",
+  "required": [
+    "id",
+    "title",
+    "tags",
+    "created",
+    "updated"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique, machine-readable identifier of the knowledge entry.",
+      "pattern": "^[a-zA-Z0-9_-]+$"
+    },
+    "title": {
+      "type": "string",
+      "description": "Human-readable title of the knowledge entry."
+    },
+    "tags": {
+      "type": "array",
+      "description": "Metadata tags categorizing this knowledge entry.",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "created": {
+      "type": "string",
+      "description": "Creation date of the entry (e.g., YYYY-MM-DD)."
+    },
+    "updated": {
+      "type": "string",
+      "description": "Last updated date of the entry (e.g., YYYY-MM-DD)."
+    }
+  }
+}

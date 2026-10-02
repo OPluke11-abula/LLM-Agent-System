@@ -1,0 +1,39 @@
+id: knowledge-base-report
+version: 0.1.0
+description: Report-only LAS knowledge-base workflow using compact memory and explicit verification evidence.
+default_checkpoint_policy: guided
+stages:
+  - id: orient
+    requires: []
+    produces: .agent/knowledge_base/exports/agent-report-<task>-draft.md
+    director_doc: .agent/knowledge_base/workflows/query-memory.md
+    human_approval_required: false
+    allowed_actions:
+      - read_files
+      - query_memory
+    checkpoint_policy: guided
+    risk_level: low
+  - id: verify
+    requires:
+      - orient
+    produces: .agent/knowledge_base/evidence/<task>-verification.md
+    director_doc: .agent/knowledge_base/workflows/evidence-capture.md
+    human_approval_required: false
+    allowed_actions:
+      - read_files
+      - run_existing_checks
+      - write_docs
+    checkpoint_policy: guided
+    risk_level: low
+    condition: live_verification_needed
+  - id: report
+    requires:
+      - orient
+    produces: .agent/knowledge_base/exports/agent-report-<task>.md
+    director_doc: .agent/knowledge_base/workflows/agent-report-contract.md
+    human_approval_required: false
+    allowed_actions:
+      - read_files
+      - write_docs
+    checkpoint_policy: guided
+    risk_level: low

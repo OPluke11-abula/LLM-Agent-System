@@ -1,0 +1,309 @@
+import { lazy, Suspense, useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
+import {
+  ALL_SKILLS,
+  DEFAULT_MEMORY,
+  DEFAULT_RULES,
+  DEFAULT_WORKSPACES,
+  EMPTY_MEMORY,
+  T,
+} from "./constants";
+import { Sidebar } from "./components/Sidebar";
+import { CommandPalette } from "./components/CommandPalette";
+import { KnowledgePage } from "./components/mission/KnowledgePage";
+import { MissionDetailPage } from "./components/mission/MissionDetailPage";
+import { MissionListPage } from "./components/mission/MissionListPage";
+import { MissionNewPage } from "./components/mission/MissionNewPage";
+import { ReviewPage } from "./components/mission/ReviewPage";
+import { ReviewIndexPage } from "./components/mission/ReviewIndexPage";
+import { SystemCheckPage } from "./components/mission/SystemCheckPage";
+import { useActivityLog } from "./hooks/useActivityLog";
+import { usePersistedState } from "./hooks/usePersistedState";
+import { useTopology } from "./hooks/useTopology";
+import { useWorkspace } from "./hooks/useWorkspace";
+import { missionAuth } from "./services/missionAuth";
+import type { AgentMemory, Lang, ThemeId, Workspace } from "./types";
+
+const AdminDashboardView = lazy(() =>
+  import("./components/AdminDashboardView").then((module) => ({ default: module.AdminDashboardView })),
+);
+const ModsView = lazy(() => import("./components/ModsView").then((module) => ({ default: module.ModsView })));
+const OnboardingWizard = lazy(() =>
+  import("./components/OnboardingWizard").then((module) => ({ default: module.OnboardingWizard })),
+);
+const RulesView = lazy(() => import("./components/RulesView").then((module) => ({ default: module.RulesView })));
+const LongTermMemoryView = lazy(() =>
+  import("./components/LongTermMemoryView").then((module) => ({ default: module.LongTermMemoryView })),
+);
+const IntelligenceMapView = lazy(() =>
+  import("./components/IntelligenceMapView").then((module) => ({ default: module.IntelligenceMapView })),
+);
+const SettingsView = lazy(() =>
+  import("./components/SettingsView").then((module) => ({ default: module.SettingsView })),
+);
+const TaskFlowView = lazy(() =>
+  import("./components/TaskFlowView").then((module) => ({ default: module.TaskFlowView })),
+);
+const TopologyView = lazy(() =>
+  import("./components/TopologyView").then((module) => ({ default: module.TopologyView })),
+);
+const MissionControlView = lazy(() =>
+  import("./components/MissionControlView").then((module) => ({ default: module.MissionControlView })),
+);
+const CodingPipelineView = lazy(() =>
+  import("./components/CodingPipelineView").then((module) => ({ default: module.CodingPipelineView })),
+);
+const FederatedMeshView = lazy(() =>
+  import("./components/FederatedMeshView").then((module) => ({ default: module.FederatedMeshView })),
+);
+const SoftwareFactoryView = lazy(() =>
+  import("./components/SoftwareFactoryView").then((module) => ({ default: module.SoftwareFactoryView })),
+);
+
+function PageFallback() {
+  return (
+    <div className="flex h-full items-center justify-center">
+      <div className="control-surface px-4 py-3 text-xs font-semibold t2">Loading control plane...</div>
+    </div>
+  );
+}
+
+export default function App() {
+  const [lang, setLang] = usePersistedState<Lang>("app_lang", "zh");
+  const [theme, setTheme] = usePersistedState<ThemeId>("app_theme", "dark");
+  const [workspaces, setWorkspaces] = usePersistedState<Workspace[]>("workspaces", DEFAULT_WORKSPACES);
+  const [activeWorkspaceId, setActiveWorkspaceId] = usePersistedState("active_ws_id", DEFAULT_WORKSPACES[0].id);
+  const [memoryMap, setMemoryMap] = usePersistedState<Record<string, AgentMemory>>("memory_map", {});
+  const [rules, setRules] = usePersistedState<string[]>("ai_rules_arr", DEFAULT_RULES);
+  const [agentsEnabled, setAgentsEnabled] = usePersistedState("mods_agents_enabled", false);
+  const [activeSkills, setActiveSkills] = usePersistedState<Record<string, boolean>>("mods_skills", {});
+  const [, setHasOnboarded] = usePersistedState("has_onboarded", false);
+  const navigate = useNavigate();
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const { activityEntries, recordActivity, clearActivityLog } = useActivityLog();
+  const { sessionList, lastUpdatedSessionId } = useTopology();
+
+  const fallbackMemory = activeWorkspaceId === DEFAULT_WORKSPACES[0].id ? DEFAULT_MEMORY : EMPTY_MEMORY;
+  const {
+    activeMemory,
+    handleStatusChange,
+    handleDescriptionChange,
+    handleAddSubtask,
+    handleDeleteTask,
+  } = useWorkspace({
+    activeWorkspaceId,
+    fallbackMemory,
+    memoryMap,
+    setMemoryMap,
+    workspaces,
+    onActivity: recordActivity,
+  });
+  const t = T[lang];
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+  }, [theme]);
+
+  useEffect(() => {
+    if (!workspaces.some((workspace) => workspace.id === activeWorkspaceId) && workspaces[0]) {
+      setActiveWorkspaceId(workspaces[0].id);
+    }
+  }, [activeWorkspaceId, setActiveWorkspaceId, workspaces]);
+
+  useEffect(() => {
+    const activeWorkspace = workspaces.find((workspace) => workspace.id === activeWorkspaceId);
+    if (!activeWorkspace?.path || !agentsEnabled) {
+      return;
+    }
+
+    const enabledSkills = ALL_SKILLS.filter((skill) => activeSkills[skill.id]);
+    let markdown = "# AGENTS.md\n\n> This file is auto-generated by the AI Agent Topology Viewer.\n\n";
+    markdown += "## Global Rules\n\n";
+    rules.forEach((rule, index) => {
+      markdown += `${index + 1}. ${rule}\n`;
+    });
+
+    if (enabledSkills.length > 0) {
+      markdown += "\n## Active Skills\n\nThe following skills must be applied strictly:\n\n";
+      enabledSkills.forEach((skill) => {
+        markdown += `- **${skill.en}**: ${skill.zh}\n`;
+      });
+    }
+
+    invoke("save_workspace_file", {
+      path: activeWorkspace.path,
+      filename: "AGENTS.md",
+      content: markdown,
+    }).catch(() => undefined);
+  }, [activeSkills, activeWorkspaceId, agentsEnabled, rules, workspaces]);
+
+  function finishLegacyOnboarding({ name, path }: { readonly name: string; readonly path: string }): void {
+    const workspaceId = `ws-${Date.now()}`;
+    const workspace = { id: workspaceId, name, lang: "TypeScript", path };
+    setWorkspaces((prev) => {
+      const filtered = prev.filter((workspaceItem) => workspaceItem.path !== "");
+      if (filtered.some((workspaceItem) => workspaceItem.path === path && workspaceItem.name === name)) return prev;
+      return filtered.length === 0 ? [workspace] : [...filtered, workspace];
+    });
+    setActiveWorkspaceId(workspaceId);
+    setMemoryMap((prev) => ({ ...prev, [workspaceId]: EMPTY_MEMORY }));
+    setHasOnboarded(true);
+    navigate("/workspace");
+  }
+
+  return (
+    <div className="app-frame relative h-screen w-full overflow-hidden font-sans">
+      <div className="relative z-10 flex h-full flex-col md:flex-row">
+        <Sidebar
+          t={t}
+          relaunchOnboarding={() => navigate("/workspace/onboarding")}
+          onOpenCommandPalette={() => setCommandPaletteOpen(true)}
+        />
+        <main className="min-h-0 min-w-0 flex-1 overflow-hidden p-4 md:ml-64 md:h-screen md:p-5">
+          <Suspense fallback={<PageFallback />}>
+            <Routes>
+              <Route path="/missions" element={<MissionListPage />} />
+              <Route path="/missions/new" element={<MissionNewPage />} />
+              <Route path="/missions/:missionId" element={<MissionDetailPage />} />
+              <Route path="/review" element={<ReviewIndexPage />} />
+              <Route path="/review/:missionId" element={<ReviewPage />} />
+              <Route path="/knowledge" element={<KnowledgePage />} />
+              <Route path="/system" element={<SystemCheckPage />} />
+              <Route path="/" element={<Navigate to={missionAuth.configured ? "/missions" : "/system"} replace />} />
+              <Route
+                path="/workspace"
+                element={
+                  <MissionControlView
+                    memory={activeMemory}
+                    workspaces={workspaces}
+                    activeWorkspaceId={activeWorkspaceId}
+                    sessions={sessionList}
+                    lastUpdatedSessionId={lastUpdatedSessionId}
+                    activityEntries={activityEntries}
+                    onClearActivityLog={clearActivityLog}
+                    lang={lang}
+                  />
+                }
+              />
+              <Route path="/workspace/onboarding" element={<OnboardingWizard lang={lang} onFinish={finishLegacyOnboarding} />} />
+              <Route
+                path="/topology"
+                element={
+                  <TopologyView
+                    sessions={sessionList}
+                    lastUpdatedSessionId={lastUpdatedSessionId}
+                    activityEntries={activityEntries}
+                    onClearActivityLog={clearActivityLog}
+                    lang={lang}
+                  />
+                }
+              />
+              <Route
+                path="/tasks"
+                element={
+                  <TaskFlowView
+                    memory={activeMemory}
+                    workspaces={workspaces}
+                    activeWorkspaceId={activeWorkspaceId}
+                    setActiveWorkspaceId={setActiveWorkspaceId}
+                    onStatusChange={handleStatusChange}
+                    onDescriptionChange={handleDescriptionChange}
+                    onAddSubtask={handleAddSubtask}
+                    onDeleteTask={handleDeleteTask}
+                    activityEntries={activityEntries}
+                    onClearActivityLog={clearActivityLog}
+                    t={t}
+                    lang={lang}
+                  />
+                }
+              />
+              <Route path="/rules" element={<RulesView t={t} rules={rules} setRules={setRules} />} />
+              <Route
+                path="/mods"
+                element={
+                  <ModsView
+                    t={t}
+                    lang={lang}
+                    agentsEnabled={agentsEnabled}
+                    setAgentsEnabled={setAgentsEnabled}
+                    activeSkills={activeSkills}
+                    setActiveSkills={setActiveSkills}
+                  />
+                }
+              />
+              <Route
+                path="/settings"
+                element={
+                  <SettingsView
+                    lang={lang}
+                    setLang={setLang}
+                    theme={theme}
+                    setTheme={setTheme}
+                    workspaces={workspaces}
+                    setWorkspaces={setWorkspaces}
+                    t={t}
+                    relaunchOnboarding={() => navigate("/workspace/onboarding")}
+                  />
+                }
+              />
+              <Route
+                path="/admin"
+                element={
+                  <AdminDashboardView
+                    t={t}
+                    lang={lang}
+                  />
+                }
+              />
+              <Route
+                path="/memory"
+                element={
+                  <LongTermMemoryView
+                    t={t}
+                    lang={lang}
+                  />
+                }
+              />
+              <Route
+                path="/intelligence"
+                element={
+                  <IntelligenceMapView
+                    memory={activeMemory}
+                    sessions={sessionList}
+                    lastUpdatedSessionId={lastUpdatedSessionId}
+                    lang={lang}
+                  />
+                }
+              />
+              <Route
+                path="/pipeline"
+                element={
+                  <CodingPipelineView
+                    lang={lang}
+                    activeWorkspacePath={workspaces.find((w) => w.id === activeWorkspaceId)?.path}
+                  />
+                }
+              />
+              <Route
+                path="/mesh"
+                element={
+                  <FederatedMeshView
+                    lang={lang}
+                  />
+                }
+              />
+              <Route
+                path="/factory"
+                element={
+                  <SoftwareFactoryView />
+                }
+              />
+            </Routes>
+          </Suspense>
+        </main>
+      </div>
+      <CommandPalette open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen} lang={lang} />
+    </div>
+  );
+}

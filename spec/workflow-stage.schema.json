@@ -1,0 +1,94 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/OPluke11-abula/Portable-Agent-Protocol/main/spec/workflow-stage.schema.json",
+  "title": "PAP Workflow Manifest Schema",
+  "description": "Opt-in workflow manifest for stage-based LAS/PAP execution governance.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "version", "stages"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9_-]+$"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "description": {
+      "type": "string"
+    },
+    "default_checkpoint_policy": {
+      "type": "string",
+      "enum": ["none", "guided", "required"]
+    },
+    "stages": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/stage"
+      }
+    }
+  },
+  "$defs": {
+    "stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "requires",
+        "produces",
+        "director_doc",
+        "human_approval_required",
+        "allowed_actions",
+        "checkpoint_policy",
+        "risk_level"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "requires": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]+$"
+          },
+          "uniqueItems": true
+        },
+        "produces": {
+          "type": "string",
+          "minLength": 1
+        },
+        "director_doc": {
+          "type": "string",
+          "minLength": 1
+        },
+        "human_approval_required": {
+          "type": "boolean"
+        },
+        "allowed_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]+$"
+          },
+          "uniqueItems": true
+        },
+        "checkpoint_policy": {
+          "type": "string",
+          "enum": ["none", "guided", "required"]
+        },
+        "risk_level": {
+          "type": "string",
+          "enum": ["low", "medium", "high"]
+        },
+        "condition": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

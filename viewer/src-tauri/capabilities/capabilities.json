@@ -1,0 +1,24 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Deny-by-default desktop capability with scoped file access.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "opener:default",
+    {
+      "identifier": "fs:allow-read-text-file",
+      "allow": [
+        {
+          "path": "$HOME/ai-agent-topology-viewer/logs/*.log"
+        },
+        {
+          "path": "$HOME/ai-agent-topology-viewer/logs/**/*.log"
+        },
+        {
+          "path": "$HOME/ai-agent-topology-viewer/workspace/agent_memory.json"
+        }
+      ]
+    }
+  ]
+}

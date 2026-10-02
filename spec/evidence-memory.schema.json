@@ -1,0 +1,194 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/OPluke11-abula/Portable-Agent-Protocol/main/spec/evidence-memory.schema.json",
+  "title": "PAP Evidence Memory Schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "l0_raw_evidence_refs",
+    "canonical_artifacts",
+    "l1_atoms",
+    "l2_scenarios",
+    "l3_profile_claims",
+    "mermaid_canvas_refs"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "enum": ["1.0"]
+    },
+    "l0_raw_evidence_refs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/raw_evidence_ref"
+      }
+    },
+    "canonical_artifacts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/canonical_artifact"
+      }
+    },
+    "l1_atoms": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/l1_atom"
+      }
+    },
+    "l2_scenarios": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/l2_scenario"
+      }
+    },
+    "l3_profile_claims": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/l3_profile_claim"
+      }
+    },
+    "mermaid_canvas_refs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/mermaid_canvas_ref"
+      }
+    }
+  },
+  "definitions": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.:-]+$"
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ref_list": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/id"
+      },
+      "minItems": 1
+    },
+    "raw_evidence_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "path", "sha256"],
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/id"
+        },
+        "path": {
+          "$ref": "#/definitions/path"
+        },
+        "source_path": {
+          "type": "string"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-fA-F0-9]{64}$"
+        }
+      }
+    },
+    "canonical_artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "path", "artifact_type", "evidence_refs"],
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/id"
+        },
+        "path": {
+          "$ref": "#/definitions/path"
+        },
+        "artifact_type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence_refs": {
+          "$ref": "#/definitions/ref_list"
+        }
+      }
+    },
+    "l1_atom": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "fact", "evidence_refs"],
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/id"
+        },
+        "fact": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence_refs": {
+          "$ref": "#/definitions/ref_list"
+        },
+        "canonical_artifact_refs": {
+          "$ref": "#/definitions/ref_list"
+        }
+      }
+    },
+    "l2_scenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "summary", "atom_refs", "evidence_refs"],
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/id"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "atom_refs": {
+          "$ref": "#/definitions/ref_list"
+        },
+        "evidence_refs": {
+          "$ref": "#/definitions/ref_list"
+        }
+      }
+    },
+    "l3_profile_claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "claim", "evidence_refs"],
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/id"
+        },
+        "claim": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence_refs": {
+          "$ref": "#/definitions/ref_list"
+        },
+        "atom_refs": {
+          "$ref": "#/definitions/ref_list"
+        }
+      }
+    },
+    "mermaid_canvas_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "path", "atom_refs", "evidence_refs"],
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/id"
+        },
+        "path": {
+          "$ref": "#/definitions/path"
+        },
+        "atom_refs": {
+          "$ref": "#/definitions/ref_list"
+        },
+        "evidence_refs": {
+          "$ref": "#/definitions/ref_list"
+        }
+      }
+    }
+  }
+}

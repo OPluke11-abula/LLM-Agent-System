@@ -1,0 +1,109 @@
+id: codex-development
+version: 0.1.0
+description: PRD-to-handoff LAS/PAP engineering workflow
+default_checkpoint_policy: guided
+stages:
+  - id: repo_audit
+    requires: []
+    produces: docs/project/REPO_AUDIT.md
+    director_doc: docs/workflow/SOURCE_OF_TRUTH.md
+    human_approval_required: true
+    allowed_actions:
+      - read_files
+      - git_status
+      - run_existing_checks
+    checkpoint_policy: guided
+    risk_level: low
+  - id: prd
+    requires:
+      - repo_audit
+    produces: docs/product/PRD.md
+    director_doc: docs/workflow/SOURCE_OF_TRUTH.md
+    human_approval_required: true
+    allowed_actions:
+      - read_files
+      - write_docs
+    checkpoint_policy: guided
+    risk_level: medium
+  - id: sdd
+    requires:
+      - prd
+    produces: docs/architecture/SDD.md
+    director_doc: docs/workflow/RISK_POLICY.md
+    human_approval_required: true
+    allowed_actions:
+      - read_files
+      - write_docs
+    checkpoint_policy: guided
+    risk_level: medium
+  - id: spec
+    requires:
+      - sdd
+    produces: docs/specs/SPEC-0001.md
+    director_doc: docs/workflow/SOURCE_OF_TRUTH.md
+    human_approval_required: true
+    allowed_actions:
+      - read_files
+      - write_docs
+      - validate_schema
+    checkpoint_policy: guided
+    risk_level: medium
+  - id: task_inventory
+    requires:
+      - spec
+    produces: docs/tasks/TASK_INVENTORY.md
+    director_doc: docs/workflow/SOURCE_OF_TRUTH.md
+    human_approval_required: true
+    allowed_actions:
+      - read_files
+      - write_docs
+    checkpoint_policy: guided
+    risk_level: medium
+  - id: atomic_task
+    requires:
+      - task_inventory
+    produces: docs/handoffs/TASK-0001-HANDOFF.md
+    director_doc: docs/workflow/RISK_POLICY.md
+    human_approval_required: false
+    allowed_actions:
+      - read_files
+      - edit_files
+      - run_existing_checks
+    checkpoint_policy: required
+    risk_level: medium
+  - id: review
+    requires:
+      - atomic_task
+    produces: docs/reviews/TASK-0001-REVIEW.md
+    director_doc: docs/workflow/REVIEW_PROTOCOL.md
+    human_approval_required: false
+    allowed_actions:
+      - read_files
+      - run_existing_checks
+      - write_docs
+    checkpoint_policy: required
+    risk_level: medium
+  - id: security_gate
+    requires:
+      - atomic_task
+    produces: docs/reviews/TASK-0001-SECURITY.md
+    director_doc: docs/workflow/REVIEW_PROTOCOL.md
+    human_approval_required: false
+    allowed_actions:
+      - read_files
+      - run_existing_checks
+      - write_docs
+    checkpoint_policy: required
+    risk_level: high
+    condition: high_risk_or_security_relevant
+  - id: handoff
+    requires:
+      - review
+    produces: docs/handoffs/TASK-0001-HANDOFF.md
+    director_doc: docs/workflow/HANDOFF_SCHEMA.md
+    human_approval_required: false
+    allowed_actions:
+      - read_files
+      - write_docs
+    checkpoint_policy: guided
+    risk_level: low

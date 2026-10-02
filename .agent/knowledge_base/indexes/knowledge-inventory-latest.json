@@ -1,0 +1,2160 @@
+{
+    "generated":  "2026-09-19",
+    "root":  "D:/GitHub/LLM-Agent-System/.agent/knowledge_base",
+    "purpose":  "Token-saving local inventory for ranking LAS knowledge notes before reading them.",
+    "contains_full_text":  false,
+    "excluded_segments":  [
+                              "/indexes/",
+                              "/tools/"
+                          ],
+    "ranking_order":  [
+                          "exact_title",
+                          "path_segment",
+                          "heading",
+                          "wikilink",
+                          "search_cue",
+                          "body_search_fallback"
+                      ],
+    "entries":  [
+                    {
+                        "path":  "decisions/local-markdown-agent-os.md",
+                        "type":  "decision",
+                        "title":  "Decision - Local Markdown Agent OS",
+                        "headings":  [
+                                         "Decision - Local Markdown Agent OS",
+                                         "Decision",
+                                         "Context",
+                                         "Reasoning",
+                                         "Consequences",
+                                         "Revisit When",
+                                         "Related Notes"
+                                     ],
+                        "links":  [
+                                      "../index",
+                                      "../workflows/query-memory",
+                                      "../known-issues/memory-must-not-replace-verification"
+                                  ],
+                        "cues":  [
+                                     "decisions",
+                                     "local-markdown-agent-os",
+                                     "decision",
+                                     "local",
+                                     "markdown",
+                                     "agent",
+                                     "context"
+                                 ]
+                    },
+                    {
+                        "path":  "evidence/2026-07-03-git-status-knowledge-base-sync.md",
+                        "type":  "evidence",
+                        "title":  "Evidence - Git Status For Knowledge Base Sync - 2026-07-03",
+                        "headings":  [
+                                         "Evidence - Git Status For Knowledge Base Sync - 2026-07-03",
+                                         "Command",
+                                         "Working Directory",
+                                         "Exit Code",
+                                         "Captured Output",
+                                         "Interpretation",
+                                         "Caveats",
+                                         "Related Notes"
+                                     ],
+                        "links":  [
+                                      "../workflows/evidence-capture",
+                                      "../index",
+                                      "../known-issues/memory-must-not-replace-verification"
+                                  ],
+                        "cues":  [
+                                     "evidence",
+                                     "2026-07-03-git-status-knowledge-base-sync",
+                                     "git",
+                                     "status",
+                                     "knowledge",
+                                     "base",
+                                     "sync",
+                                     "2026-07-03"
+                                 ]
+                    },
+                    {
+                        "path":  "exports/agent-start-preflight-flow-report-2026-07-03.md",
+                        "type":  "export",
+                        "title":  "Agent Start Preflight Flow Report - 2026-07-03",
+                        "headings":  [
+                                         "Agent Start Preflight Flow Report - 2026-07-03",
+                                         "Summary",
+                                         "LAS Files Created",
+                                         "LAS Files Updated",
+                                         "Obsidian Mirror",
+                                         "Not Changed",
+                                         "Verification",
+                                         "Related Notes"
+                                     ],
+                        "links":  [
+                                      "../workflows/agent-start-preflight",
+                                      "../workflows/context-pack-builder",
+                                      "../workflows/context-pack-validation",
+                                      "../known-issues/memory-must-not-replace-verification"
+                                  ],
+                        "cues":  [
+                                     "exports",
+                                     "agent-start-preflight-flow-report-2026-07-03",
+                                     "agent",
+                                     "start",
+                                     "preflight",
+                                     "flow",
+                                     "report",
+                                     "2026-07-03"
+                                 ]
+                    },
+                    {
+                        "path":  "exports/context-pack-builder-flow-report-2026-07-03.md",
+                        "type":  "export",
+                        "title":  "Context Pack Builder Flow Report - 2026-07-03",
+                        "headings":  [
+                                         "Context Pack Builder Flow Report - 2026-07-03",
+                                         "Summary",
+                                         "LAS Files Created",
+                                         "LAS Files Updated",
+                                         "Obsidian Mirror",
+                                         "Not Changed",
+                                         "Verification",
+                                         "Related Notes"
+                                     ],
+                        "links":  [
+                                      "../workflows/context-pack-builder",
+                                      "../workflows/inventory-backed-query",
+                                      "../workflows/knowledge-inventory-refresh",
+                                      "../known-issues/memory-must-not-replace-verification"
+                                  ],
+                        "cues":  [
+                                     "exports",
+                                     "context-pack-builder-flow-report-2026-07-03",
+                                     "context",
+                                     "pack",
+                                     "builder",
+                                     "flow",
+                                     "report",
+                                     "2026-07-03"
+                                 ]
+                    },
+                    {
+                        "path":  "exports/context-pack-validation-flow-report-2026-07-03.md",
+                        "type":  "export",
+                        "title":  "Context Pack Validation Flow Report - 2026-07-03",
+                        "headings":  [
+                                         "Context Pack Validation Flow Report - 2026-07-03",
+                                         "Summary",
+                                         "LAS Files Created",
+                                         "LAS Files Updated",
+                                         "Obsidian Mirror",
+                                         "Not Changed",
+                                         "Verification",
+                                         "Related Notes"
+                                     ],
+                        "links":  [
+                                      "../workflows/context-pack-validation",
+                                      "../workflows/context-pack-builder",
+                                      "../handoffs/context-pack-latest-inventory-refresh",
+                                      "../known-issues/memory-must-not-replace-verification"
+                                  ],
+                        "cues":  [
+                                     "exports",
+                                     "context-pack-validation-flow-report-2026-07-03",
+                                     "context",
+                                     "pack",
+                                     "validation",
+                                     "flow",
+                                     "report",
+                                     "2026-07-03"
+                                 ]
+                    },
+                    {
+                        "path":  "exports/explicit-kb-commit-package-dry-run-report-2026-07-04.md",
+                        "type":  "export",
+                        "title":  "Explicit KB Commit Package Dry Run Report - 2026-07-04",
+                        "headings":  [
+                                         "Explicit KB Commit Package Dry Run Report - 2026-07-04",
+                                         "Scope",
+                                         "Status",
+                                         "Package Boundary",
+                                         "Verification"
+                                     ],
+                        "links":  [
+
+                                  ],
+                        "cues":  [
+                                     "exports",
+                                     "explicit-kb-commit-package-dry-run-report-2026-07-04",
+                                     "explicit",
+                                     "commit",
+                                     "package",
+                                     "dry",
+                                     "run",
+                                     "report",
+                                     "2026-07-04"
+                                 ]
+                    },
+                    {
+                        "path":  "exports/inventory-backed-query-flow-report-2026-07-03.md",
+                        "type":  "export",
+                        "title":  "Inventory-Backed Query Flow Report - 2026-07-03",
+                        "headings":  [
+                                         "Inventory-Backed Query Flow Report - 2026-07-03",
+                                         "Summary",
+                                         "LAS Files Created",
+                                         "LAS Files Updated",
+                                         "Obsidian Mirror",
+                                         "Not Changed",
+                                         "Verification",
+                                         "Related Notes"
+                                     ],
+                        "links":  [
+                                      "../workflows/inventory-backed-query",
+                                      "../workflows/knowledge-inventory-refresh",
+                                      "../indexes/knowledge-inventory-latest",
+                                      "../known-issues/memory-must-not-replace-verification"
+                                  ],
+                        "cues":  [
+                                     "exports",
+                                     "inventory-backed-query-flow-report-2026-07-03",
+                                     "inventory-backed",
+                                     "query",
+                                     "flow",
+                                     "report",
+                                     "2026-07-03"
+                                 ]
+                    },
+                    {
+                        "path":  "exports/inventory-ranking-tuning-flow-report-2026-07-03.md",
+                        "type":  "export",
+                        "title":  "Inventory Ranking Tuning Flow Report - 2026-07-03",
+                        "headings":  [
+                                         "Inventory Ranking Tuning Flow Report - 2026-07-03",
+                                         "Goal",
+                                         "Changed On Disk",
+                                         "Ranking Change",
+                                         "Verification",
+                                         "Remaining Limits",
+                                         "Final Checks"
+                                     ],
+                        "links":  [
+
+                                  ],
+                        "cues":  [
+                                     "exports",
+                                     "inventory-ranking-tuning-flow-report-2026-07-03",
+                                     "inventory",
+                                     "ranking",
+                                     "tuning",
+                                     "flow",
+                                     "report",
+                                     "2026-07-03"
+                                 ]
+                    },
+                    {
+                        "path":  "exports/knowledge-base-git-hygiene-flow-report-2026-07-04.md",
+                        "type":  "export",
+                        "title":  "Knowledge Base Git Hygiene Flow Report - 2026-07-04",
+                        "headings":  [
+                                         "Knowledge Base Git Hygiene Flow Report - 2026-07-04",
+                                         "Scope",
+                                         "Current Findings",
+                                         "Recommended Package Boundary",
+                                         "Why indexes/ Is Included For Now",
+                                         "Verification",
+                                         "Decision"
+                                     ],
+                        "links":  [
+
+                                  ],
+                        "cues":  [
+                                     "exports",
+                                     "knowledge-base-git-hygiene-flow-report-2026-07-04",
+                                     "knowledge",
+                                     "base",
+                                     "git",
+                                     "hygiene",
+                                     "flow",
+                                     "report",
+                                     "2026-07-04"
+                                 ]
+                    },
+                    {
+                        "path":  "exports/knowledge-base-health-audit-flow-report-2026-07-03.md",
+                        "type":  "export",
+                        "title":  "Knowledge Base Health Audit Flow Report - 2026-07-03",
+                        "headings":  [
+                                         "Knowledge Base Health Audit Flow Report - 2026-07-03",
+                                         "Goal",
+                                         "Changed On Disk",
+                                         "Tool Behavior",
+                                         "Implementation Corrections During Verification",
+                                         "Verification",
+                                         "Current Findings",
+                                         "Remaining Limits",
+                                         "Final Checks"
+                                     ],
+                        "links":  [
+
+                                  ],
+                        "cues":  [
+                                     "exports",
+                                     "knowledge-base-health-audit-flow-report-2026-07-03",
+                                     "knowledge",
+                                     "base",
+                                     "health",
+                                     "audit",
+                                     "flow",
+                                     "report",
+                                     "2026-07-03"
+                                 ]
+                    },
+                    {
+                        "path":  "exports/knowledge-index-repair-flow-report-2026-07-03.md",
+                        "type":  "export",
+                        "title":  "Knowledge Index Repair Flow Report - 2026-07-03",
+                        "headings":  [
+                                         "Knowledge Index Repair Flow Report - 2026-07-03",
+                                         "Goal",
+                                         "Changed On Disk",
+                                         "Before",
+                                         "Verification",
+                                         "Notes",
+                                         "Final Checks"
+                                     ],
+                        "links":  [
+
+                                  ],
+                        "cues":  [
+                                     "exports",
+                                     "knowledge-index-repair-flow-report-2026-07-03",
+                                     "knowledge",
+                                     "index",
+                                     "repair",
+                                     "flow",
+                                     "report",
+                                     "2026-07-03"
+                                 ]
+                    },
+                    {
+                        "path":  "exports/notebooklm-source-manifest.md",
+                        "type":  "export",
+                        "title":  "NotebookLM Source Manifest",
+                        "headings":  [
+                                         "NotebookLM Source Manifest",
+                                         "Purpose",
+                                         "Approved Starting Sources",
+                                         "Do Not Import",
+                                         "Notebook Blueprint",
+                                         "Import Verification"
+                                     ],
+                        "links":  [
+
+                                  ],
+                        "cues":  [
+                                     "exports",
+                                     "notebooklm-source-manifest",
+                                     "notebooklm",
+                                     "source",
+                                     "manifest",
+                                     "purpose",
+                                     "approved",
+                                     "starting",
+                                     "sources"
+                                 ]
+                    },
+                    {
+                        "path":  "exports/obsidian-log-link-repair-flow-report-2026-07-03.md",
+                        "type":  "export",
+                        "title":  "Obsidian Log Link Repair Flow Report - 2026-07-03",
+                        "headings":  [
+                                         "Obsidian Log Link Repair Flow Report - 2026-07-03",
+                                         "Goal",
+                                         "Changed On Disk",
+                                         "Before",
+                                         "After",
+                                         "Verification",
+                                         "Notes",
+                                         "Final Checks"
+                                     ],
+                        "links":  [
+
+                                  ],
+                        "cues":  [
+                                     "exports",
+                                     "obsidian-log-link-repair-flow-report-2026-07-03",
+                                     "obsidian",
+                                     "log",
+                                     "link",
+                                     "repair",
+                                     "flow",
+                                     "report",
+                                     "2026-07-03"
+                                 ]
+                    },
+                    {
+                        "path":  "exports/obsidian-mirror-index-repair-flow-report-2026-07-03.md",
+                        "type":  "export",
+                        "title":  "Obsidian Mirror Index Repair Flow Report - 2026-07-03",
+                        "headings":  [
+                                         "Obsidian Mirror Index Repair Flow Report - 2026-07-03",
+                                         "Goal",
+                                         "Changed On Disk",
+                                         "Verification",
+                                         "Notes",
+                                         "Final Checks"
+                                     ],
+                        "links":  [
+
+                                  ],
+                        "cues":  [
+                                     "exports",
+                                     "obsidian-mirror-index-repair-flow-report-2026-07-03",
+                                     "obsidian",
+                                     "mirror",
+                                     "index",
+                                     "repair",
+                                     "flow",
+                                     "report",
+                                     "2026-07-03"
+                                 ]
+                    },
+                    {
+                        "path":  "exports/obsidian-root-scratch-triage-flow-report-2026-07-04.md",
+                        "type":  "export",
+                        "title":  "Obsidian Root Scratch Triage Flow Report - 2026-07-04",
+                        "headings":  [
+                                         "Obsidian Root Scratch Triage Flow Report - 2026-07-04",
+                                         "Scope",
+                                         "What Changed",
+                                         "Verification",
+                                         "Result",
+                                         "Changed Files",
+                                         "Notes"
+                                     ],
+                        "links":  [
+
+                                  ],
+                        "cues":  [
+                                     "exports",
+                                     "obsidian-root-scratch-triage-flow-report-2026-07-04",
+                                     "obsidian",
+                                     "root",
+                                     "scratch",
+                                     "triage",
+                                     "flow",
+                                     "report",
+                                     "2026-07-04"
+                                 ]
+                    },
+                    {
+                        "path":  "exports/obsidian-vault-health-audit-flow-report-2026-07-03.md",
+                        "type":  "export",
+                        "title":  "Obsidian Vault Health Audit Flow Report - 2026-07-03",
+                        "headings":  [
+                                         "Obsidian Vault Health Audit Flow Report - 2026-07-03",
+                                         "Goal",
+                                         "Changed On Disk",
+                                         "Tool Behavior",
+                                         "Verification",
+                                         "Current Obsidian Vault Findings",
+                                         "Notes",
+                                         "Final Checks"
+                                     ],
+                        "links":  [
+
+                                  ],
+                        "cues":  [
+                                     "exports",
+                                     "obsidian-vault-health-audit-flow-report-2026-07-03",
+                                     "obsidian",
+                                     "vault",
+                                     "health",
+                                     "audit",
+                                     "flow",
+                                     "report",
+                                     "2026-07-03"
+                                 ]
+                    },
+                    {
+                        "path":  "exports/obsidian-vault-os-brief-for-las.md",
+                        "type":  "export",
+                        "title":  "Obsidian Vault OS Brief For LAS",
+                        "headings":  [
+                                         "Obsidian Vault OS Brief For LAS",
+                                         "Summary",
+                                         "Transferable Pattern",
+                                         "Initial LAS Sync",
+                                         "Next Implementation Step",
+                                         "Source"
+                                     ],
+                        "links":  [
+
+                                  ],
+                        "cues":  [
+                                     "exports",
+                                     "obsidian-vault-os-brief-for-las",
+                                     "obsidian",
+                                     "vault",
+                                     "brief",
+                                     "las",
+                                     "summary",
+                                     "transferable"
+                                 ]
+                    },
+                    {
+                        "path":  "exports/phase-67-design-critique-flow-report-2026-07-07.md",
+                        "type":  "export",
+                        "title":  "Phase 67 Design Critique",
+                        "headings":  [
+                                         "Phase 67 Design Critique",
+                                         "Scope",
+                                         "Art Direction",
+                                         "What Feels Vibe-Coded",
+                                         "Composition Fixes",
+                                         "Design Packet Needed",
+                                         "Implementation Risks",
+                                         "Next Design-First Tasks",
+                                         "Changed On Disk",
+                                         "Verification Notes"
+                                     ],
+                        "links":  [
+
+                                  ],
+                        "cues":  [
+                                     "exports",
+                                     "phase-67-design-critique-flow-report-2026-07-07",
+                                     "phase",
+                                     "design",
+                                     "critique",
+                                     "scope",
+                                     "art",
+                                     "direction",
+                                     "what"
+                                 ]
+                    },
+                    {
+                        "path":  "exports/phase-71-las-viewer-art-direction-packet-2026-07-07.md",
+                        "type":  "export",
+                        "title":  "Phase 71 LAS Viewer Art Direction Packet",
+                        "headings":  [
+                                         "Phase 71 LAS Viewer Art Direction Packet",
+                                         "Purpose",
+                                         "Audience",
+                                         "Emotional Target",
+                                         "Product Metaphor",
+                                         "Visual Personality",
+                                         "Typography Posture",
+                                         "Color Story",
+                                         "Material Language",
+                                         "Density Model"
+                                     ],
+                        "links":  [
+
+                                  ],
+                        "cues":  [
+                                     "exports",
+                                     "phase-71-las-viewer-art-direction-packet-2026-07-07",
+                                     "phase",
+                                     "las",
+                                     "viewer",
+                                     "art",
+                                     "direction",
+                                     "packet"
+                                 ]
+                    },
+                    {
+                        "path":  "exports/phase-71-screen-composition-studies-2026-07-07.md",
+                        "type":  "export",
+                        "title":  "Phase 71 Screen-by-Screen Composition Studies",
+                        "headings":  [
+                                         "Phase 71 Screen-by-Screen Composition Studies",
+                                         "Purpose",
+                                         "Evidence Reviewed",
+                                         "Global Composition System",
+                                         "Mission Control",
+                                         "Role",
+                                         "First-Viewport Hierarchy",
+                                         "Focal Object",
+                                         "Scan Path",
+                                         "Information Density"
+                                     ],
+                        "links":  [
+
+                                  ],
+                        "cues":  [
+                                     "exports",
+                                     "phase-71-screen-composition-studies-2026-07-07",
+                                     "phase",
+                                     "screen-by-screen",
+                                     "composition",
+                                     "studies",
+                                     "purpose",
+                                     "evidence"
+                                 ]
+                    },
+                    {
+                        "path":  "exports/preflight-adoption-guide-flow-report-2026-07-03.md",
+                        "type":  "export",
+                        "title":  "Preflight Adoption Guide Flow Report - 2026-07-03",
+                        "headings":  [
+                                         "Preflight Adoption Guide Flow Report - 2026-07-03",
+                                         "Summary",
+                                         "LAS Files Created",
+                                         "LAS Files Updated",
+                                         "Obsidian Mirror",
+                                         "Not Changed",
+                                         "Verification",
+                                         "Related Notes"
+                                     ],
+                        "links":  [
+                                      "../workflows/preflight-adoption-guide",
+                                      "../workflows/agent-start-preflight",
+                                      "../workflows/context-pack-validation",
+                                      "../known-issues/memory-must-not-replace-verification"
+                                  ],
+                        "cues":  [
+                                     "exports",
+                                     "preflight-adoption-guide-flow-report-2026-07-03",
+                                     "preflight",
+                                     "adoption",
+                                     "guide",
+                                     "flow",
+                                     "report",
+                                     "2026-07-03"
+                                 ]
+                    },
+                    {
+                        "path":  "exports/release-0.1.1-five-core-rules-review-2026-07-12.md",
+                        "type":  "export",
+                        "title":  "Release 0.1.1 Five Core Rules Review",
+                        "headings":  [
+                                         "Release 0.1.1 Five Core Rules Review",
+                                         "Result",
+                                         "Rule 1: Keep Runtime Core Separate",
+                                         "Rule 2: Keep Runtime Skills and PAP Contracts in Parity",
+                                         "Rule 3: Prefer Structural Lookup",
+                                         "Rule 4: Keep Context Compact",
+                                         "Rule 5: Verify Before Claiming Success",
+                                         "Deferred and Local-Only Items"
+                                     ],
+                        "links":  [
+
+                                  ],
+                        "cues":  [
+                                     "exports",
+                                     "release-0",
+                                     "1-five-core-rules-review-2026-07-12",
+                                     "release",
+                                     "five",
+                                     "core",
+                                     "rules",
+                                     "review"
+                                 ]
+                    },
+                    {
+                        "path":  "exports/semantic-retrieval-pilot-plan.md",
+                        "type":  "export",
+                        "title":  "Semantic Retrieval Pilot Plan - 2026-07-03",
+                        "headings":  [
+                                         "Semantic Retrieval Pilot Plan - 2026-07-03",
+                                         "Summary",
+                                         "Why This Matters",
+                                         "Proposed Flow",
+                                         "Stage Gates",
+                                         "Retrieval Result Contract",
+                                         "Pilot Queries",
+                                         "Guardrails",
+                                         "Related Notes"
+                                     ],
+                        "links":  [
+                                      "../workflows/semantic-retrieval-pilot",
+                                      "../workflows/query-memory",
+                                      "../workflows/evidence-capture",
+                                      "../known-issues/memory-must-not-replace-verification"
+                                  ],
+                        "cues":  [
+                                     "exports",
+                                     "semantic-retrieval-pilot-plan",
+                                     "semantic",
+                                     "retrieval",
+                                     "pilot",
+                                     "plan",
+                                     "2026-07-03"
+                                 ]
+                    },
+                    {
+                        "path":  "exports/session-journal-flow-report-2026-07-03.md",
+                        "type":  "export",
+                        "title":  "Session Journal Flow Report - 2026-07-03",
+                        "headings":  [
+                                         "Session Journal Flow Report - 2026-07-03",
+                                         "Summary",
+                                         "LAS Files Created",
+                                         "LAS Files Updated",
+                                         "Obsidian Mirror",
+                                         "Not Changed",
+                                         "Verification",
+                                         "Related Notes"
+                                     ],
+                        "links":  [
+                                      "../workflows/session-journal",
+                                      "../handoffs/session-journal-2026-07-03-obsidian-las-workflows",
+                                      "../workflows/handoff",
+                                      "../workflows/evidence-capture"
+                                  ],
+                        "cues":  [
+                                     "exports",
+                                     "session-journal-flow-report-2026-07-03",
+                                     "session",
+                                     "journal",
+                                     "flow",
+                                     "report",
+                                     "2026-07-03"
+                                 ]
+                    },
+                    {
+                        "path":  "handoffs/context-pack-latest-inventory-refresh.md",
+                        "type":  "handoff",
+                        "title":  "Context Pack - inventory refresh",
+                        "headings":  [
+                                         "Context Pack - inventory refresh",
+                                         "Query",
+                                         "Inventory",
+                                         "Read Order",
+                                         "Candidate Details",
+                                         "workflows/knowledge-inventory-refresh.md",
+                                         "workflows/local-knowledge-inventory.md",
+                                         "exports/inventory-backed-query-flow-report-2026-07-03.md",
+                                         "workflows/inventory-backed-query.md",
+                                         "Verification Needed"
+                                     ],
+                        "links":  [
+
+                                  ],
+                        "cues":  [
+                                     "handoffs",
+                                     "context-pack-latest-inventory-refresh",
+                                     "context",
+                                     "pack",
+                                     "inventory",
+                                     "refresh",
+                                     "query"
+                                 ]
+                    },
+                    {
+                        "path":  "handoffs/session-journal-2026-07-03-obsidian-las-workflows.md",
+                        "type":  "handoff",
+                        "title":  "Session Journal - Obsidian LAS Workflows - 2026-07-03",
+                        "headings":  [
+                                         "Session Journal - Obsidian LAS Workflows - 2026-07-03",
+                                         "Session Goal",
+                                         "Changed On Disk",
+                                         "Evidence And Reports",
+                                         "Verified Now",
+                                         "Not Verified",
+                                         "Decisions",
+                                         "Next Agent Start Here"
+                                     ],
+                        "links":  [
+                                      "../exports/session-journal-flow-report-2026-07-03"
+                                  ],
+                        "cues":  [
+                                     "handoffs",
+                                     "session-journal-2026-07-03-obsidian-las-workflows",
+                                     "session",
+                                     "journal",
+                                     "obsidian",
+                                     "las",
+                                     "workflows",
+                                     "2026-07-03"
+                                 ]
+                    },
+                    {
+                        "path":  "index.md",
+                        "type":  "router",
+                        "title":  "LAS Agent Knowledge Index",
+                        "headings":  [
+                                         "LAS Agent Knowledge Index",
+                                         "Purpose",
+                                         "Start Here",
+                                         "Project Intakes",
+                                         "Workflows",
+                                         "Wiki",
+                                         "Templates",
+                                         "Decisions",
+                                         "Known Issues",
+                                         "Handoffs"
+                                     ],
+                        "links":  [
+                                      "projects/LLM-Agent-System",
+                                      "known-issues/memory-must-not-replace-verification",
+                                      "workflows/project-intake",
+                                      "workflows/query-memory",
+                                      "workflows/handoff",
+                                      "workflows/maintenance",
+                                      "workflows/semantic-retrieval-pilot",
+                                      "workflows/session-journal",
+                                      "workflows/local-knowledge-inventory",
+                                      "workflows/knowledge-inventory-refresh",
+                                      "workflows/inventory-backed-query",
+                                      "workflows/context-pack-builder"
+                                  ],
+                        "cues":  [
+                                     "index",
+                                     "las",
+                                     "agent",
+                                     "knowledge",
+                                     "purpose",
+                                     "start",
+                                     "here"
+                                 ]
+                    },
+                    {
+                        "path":  "known-issues/memory-must-not-replace-verification.md",
+                        "type":  "known_issue",
+                        "title":  "Known Issue - Memory Must Not Replace Verification",
+                        "headings":  [
+                                         "Known Issue - Memory Must Not Replace Verification",
+                                         "Symptom",
+                                         "Cause",
+                                         "Fix Or Workaround",
+                                         "Verification",
+                                         "Related Notes"
+                                     ],
+                        "links":  [
+                                      "../index",
+                                      "../workflows/query-memory",
+                                      "../workflows/handoff"
+                                  ],
+                        "cues":  [
+                                     "known-issues",
+                                     "memory-must-not-replace-verification",
+                                     "known",
+                                     "issue",
+                                     "memory",
+                                     "must",
+                                     "not",
+                                     "replace",
+                                     "verification"
+                                 ]
+                    },
+                    {
+                        "path":  "lessons_learned.md",
+                        "type":  "note",
+                        "title":  "?? FindAi Studio LAS Self-Learning Experience \u0026 Lessons Learned Registry",
+                        "headings":  [
+                                         "?? FindAi Studio LAS Self-Learning Experience \u0026 Lessons Learned Registry",
+                                         "??1. Active Resolution Directory (Lessons Database)",
+                                         "Lesson ID: L-20260528-001 (Task Mocking Deadlocks)",
+                                         "Lesson ID: L-20260528-002 (SQLite Concurrency Locks)",
+                                         "Lesson ID: L-20260528-003 (React Flow Resize Loop Warning)",
+                                         "Lesson ID: L-20260531-001 (Dynamic Swarm Workspace Path Resolution)",
+                                         "Lesson ID: L-20260531-002 (Context Bloat \u0026 File-Based Hallucination Prevention)",
+                                         "Lesson ID: L-20260601-001 (Dynamic Concurrency Balancer Queue Race)"
+                                     ],
+                        "links":  [
+
+                                  ],
+                        "cues":  [
+                                     "lessons_learned",
+                                     "findai",
+                                     "studio",
+                                     "las",
+                                     "self-learning",
+                                     "experience",
+                                     "lessons",
+                                     "learned",
+                                     "registry"
+                                 ]
+                    },
+                    {
+                        "path":  "log.md",
+                        "type":  "audit_log",
+                        "title":  "LAS Agent Knowledge Log",
+                        "headings":  [
+                                         "LAS Agent Knowledge Log",
+                                         "2026-09-08",
+                                         "2026-07-12",
+                                         "2026-07-11",
+                                         "2026-07-11",
+                                         "2026-07-10",
+                                         "2026-07-09",
+                                         "2026-07-04",
+                                         "2026-07-03"
+                                     ],
+                        "links":  [
+                                      "exports/release-0.1.1-five-core-rules-review-2026-07-12",
+                                      "workflows/token-efficient-rollout",
+                                      "workflows/independent-design-review-gate",
+                                      "templates/design-review-report",
+                                      "workflows/visual-asset-illustration-pipeline",
+                                      "workflows/handoff-first-long-session",
+                                      "workflows/verification-profiles",
+                                      "workflows/structural-lookup-first",
+                                      "workflows/token-efficient-work-mode",
+                                      "workflows/agent-report-contract",
+                                      "templates/agent-report",
+                                      "workflows/code-graph-bridge"
+                                  ],
+                        "cues":  [
+                                     "log",
+                                     "las",
+                                     "agent",
+                                     "knowledge",
+                                     "2026-09-08",
+                                     "2026-07-12",
+                                     "2026-07-11"
+                                 ]
+                    },
+                    {
+                        "path":  "projects/LLM-Agent-System.md",
+                        "type":  "project",
+                        "title":  "LLM Agent System",
+                        "headings":  [
+                                         "LLM Agent System",
+                                         "Summary",
+                                         "Live Intake Snapshot",
+                                         "Start Here",
+                                         "Runtime Snapshot",
+                                         "Main Source Areas",
+                                         "Runtime Entrypoints",
+                                         "Architecture Pointers",
+                                         "High-Value Symbols",
+                                         "Code Graph Bridge"
+                                     ],
+                        "links":  [
+                                      "../workflows/code-graph-bridge",
+                                      "../index",
+                                      "../known-issues/memory-must-not-replace-verification",
+                                      "../workflows/project-intake"
+                                  ],
+                        "cues":  [
+                                     "projects",
+                                     "llm-agent-system",
+                                     "llm",
+                                     "agent",
+                                     "system",
+                                     "summary",
+                                     "live",
+                                     "intake",
+                                     "snapshot"
+                                 ]
+                    },
+                    {
+                        "path":  "templates/agent-report.md",
+                        "type":  "template",
+                        "title":  "Agent Report Template",
+                        "headings":  [
+                                         "Agent Report Template",
+                                         "Changed On Disk",
+                                         "Verified",
+                                         "Not Verified",
+                                         "Memory Used",
+                                         "Decisions",
+                                         "Next"
+                                     ],
+                        "links":  [
+
+                                  ],
+                        "cues":  [
+                                     "templates",
+                                     "agent-report",
+                                     "agent",
+                                     "report",
+                                     "template",
+                                     "changed",
+                                     "disk",
+                                     "verified",
+                                     "not"
+                                 ]
+                    },
+                    {
+                        "path":  "templates/design-review-report.md",
+                        "type":  "template",
+                        "title":  "Independent Design Review Report",
+                        "headings":  [
+                                         "Independent Design Review Report",
+                                         "Review Identity",
+                                         "Evidence Reviewed",
+                                         "Rubric",
+                                         "Gate Decision",
+                                         "Findings Converted to Tasks",
+                                         "Changed On Disk",
+                                         "Verified",
+                                         "Not Verified",
+                                         "Decisions"
+                                     ],
+                        "links":  [
+
+                                  ],
+                        "cues":  [
+                                     "templates",
+                                     "design-review-report",
+                                     "independent",
+                                     "design",
+                                     "review",
+                                     "report",
+                                     "identity"
+                                 ]
+                    },
+                    {
+                        "path":  "templates/evidence-memory-summary.md",
+                        "type":  "template",
+                        "title":  "Evidence Memory Summary Template",
+                        "headings":  [
+                                         "Evidence Memory Summary Template",
+                                         "Claim",
+                                         "Canonical Evidence",
+                                         "Compact Summary",
+                                         "Citation Map",
+                                         "Verified Now",
+                                         "Caveats",
+                                         "Related Notes"
+                                     ],
+                        "links":  [
+
+                                  ],
+                        "cues":  [
+                                     "templates",
+                                     "evidence-memory-summary",
+                                     "evidence",
+                                     "memory",
+                                     "summary",
+                                     "template",
+                                     "claim",
+                                     "canonical"
+                                 ]
+                    },
+                    {
+                        "path":  "templates/handoff-report.md",
+                        "type":  "template",
+                        "title":  "Handoff Report Template",
+                        "headings":  [
+                                         "Handoff Report Template",
+                                         "Goal and Scope",
+                                         "Current State",
+                                         "Changed On Disk",
+                                         "Verified",
+                                         "Not Verified",
+                                         "Memory Notes",
+                                         "Decisions",
+                                         "Unresolved Risks",
+                                         "Next Agent Should Read"
+                                     ],
+                        "links":  [
+
+                                  ],
+                        "cues":  [
+                                     "templates",
+                                     "handoff-report",
+                                     "handoff",
+                                     "report",
+                                     "template",
+                                     "goal",
+                                     "scope",
+                                     "current",
+                                     "state"
+                                 ]
+                    },
+                    {
+                        "path":  "templates/query-memory-report.md",
+                        "type":  "template",
+                        "title":  "Query Memory Report Template",
+                        "headings":  [
+                                         "Query Memory Report Template",
+                                         "Query",
+                                         "Memory-Derived",
+                                         "Verified Now",
+                                         "Not Verified",
+                                         "Next Checks",
+                                         "Answer Draft"
+                                     ],
+                        "links":  [
+
+                                  ],
+                        "cues":  [
+                                     "templates",
+                                     "query-memory-report",
+                                     "query",
+                                     "memory",
+                                     "report",
+                                     "template",
+                                     "memory-derived"
+                                 ]
+                    },
+                    {
+                        "path":  "workflows/agent-report-contract.md",
+                        "type":  "workflow",
+                        "title":  "Agent Report Contract",
+                        "headings":  [
+                                         "Agent Report Contract",
+                                         "Purpose",
+                                         "PAP Workflow Manifest",
+                                         "Required Sections",
+                                         "Section Rules",
+                                         "Related Notes"
+                                     ],
+                        "links":  [
+                                      "../templates/agent-report",
+                                      "query-memory",
+                                      "evidence-capture",
+                                      "handoff"
+                                  ],
+                        "cues":  [
+                                     "workflows",
+                                     "agent-report-contract",
+                                     "agent",
+                                     "report",
+                                     "contract",
+                                     "purpose",
+                                     "pap",
+                                     "manifest",
+                                     "required"
+                                 ]
+                    },
+                    {
+                        "path":  "workflows/agent-start-preflight.md",
+                        "type":  "workflow",
+                        "title":  "Agent Start Preflight Workflow",
+                        "headings":  [
+                                         "Agent Start Preflight Workflow",
+                                         "Purpose",
+                                         "Script",
+                                         "Procedure",
+                                         "Output Contract",
+                                         "Safety",
+                                         "Related Notes"
+                                     ],
+                        "links":  [
+                                      "../index",
+                                      "context-pack-builder",
+                                      "context-pack-validation",
+                                      "inventory-backed-query",
+                                      "../known-issues/memory-must-not-replace-verification"
+                                  ],
+                        "cues":  [
+                                     "workflows",
+                                     "agent-start-preflight",
+                                     "agent",
+                                     "start",
+                                     "preflight",
+                                     "purpose",
+                                     "script",
+                                     "procedure",
+                                     "output"
+                                 ]
+                    },
+                    {
+                        "path":  "workflows/code-graph-bridge.md",
+                        "type":  "workflow",
+                        "title":  "Code Graph Bridge Workflow",
+                        "headings":  [
+                                         "Code Graph Bridge Workflow",
+                                         "Purpose",
+                                         "Bounded Pointers",
+                                         "Before Editing",
+                                         "Refresh Rule",
+                                         "Related Notes"
+                                     ],
+                        "links":  [
+                                      "../projects/LLM-Agent-System",
+                                      "project-intake",
+                                      "query-memory",
+                                      "maintenance"
+                                  ],
+                        "cues":  [
+                                     "workflows",
+                                     "code-graph-bridge",
+                                     "code",
+                                     "graph",
+                                     "bridge",
+                                     "purpose",
+                                     "bounded",
+                                     "pointers",
+                                     "before"
+                                 ]
+                    },
+                    {
+                        "path":  "workflows/context-budget-preflight.md",
+                        "type":  "workflow",
+                        "title":  "Context Budget Preflight Workflow",
+                        "headings":  [
+                                         "Context Budget Preflight Workflow",
+                                         "Purpose",
+                                         "API",
+                                         "Interpretation",
+                                         "Verification",
+                                         "Related Notes"
+                                     ],
+                        "links":  [
+                                      "../templates/agent-report",
+                                      "token-efficient-work-mode",
+                                      "evidence-memory-bridge",
+                                      "code-graph-bridge",
+                                      "agent-report-contract"
+                                  ],
+                        "cues":  [
+                                     "workflows",
+                                     "context-budget-preflight",
+                                     "context",
+                                     "budget",
+                                     "preflight",
+                                     "purpose",
+                                     "api",
+                                     "interpretation",
+                                     "verification"
+                                 ]
+                    },
+                    {
+                        "path":  "workflows/context-pack-builder.md",
+                        "type":  "workflow",
+                        "title":  "Context Pack Builder Workflow",
+                        "headings":  [
+                                         "Context Pack Builder Workflow",
+                                         "Purpose",
+                                         "Script",
+                                         "Procedure",
+                                         "Output Contract",
+                                         "Safety",
+                                         "Related Notes"
+                                     ],
+                        "links":  [
+                                      "../index",
+                                      "inventory-backed-query",
+                                      "knowledge-inventory-refresh",
+                                      "session-journal",
+                                      "../known-issues/memory-must-not-replace-verification"
+                                  ],
+                        "cues":  [
+                                     "workflows",
+                                     "context-pack-builder",
+                                     "context",
+                                     "pack",
+                                     "builder",
+                                     "purpose",
+                                     "script",
+                                     "procedure",
+                                     "output"
+                                 ]
+                    },
+                    {
+                        "path":  "workflows/context-pack-validation.md",
+                        "type":  "workflow",
+                        "title":  "Context Pack Validation Workflow",
+                        "headings":  [
+                                         "Context Pack Validation Workflow",
+                                         "Purpose",
+                                         "Script",
+                                         "Procedure",
+                                         "Checks",
+                                         "Safety",
+                                         "Related Notes"
+                                     ],
+                        "links":  [
+                                      "../index",
+                                      "context-pack-builder",
+                                      "inventory-backed-query",
+                                      "../handoffs/context-pack-latest-inventory-refresh",
+                                      "../known-issues/memory-must-not-replace-verification"
+                                  ],
+                        "cues":  [
+                                     "workflows",
+                                     "context-pack-validation",
+                                     "context",
+                                     "pack",
+                                     "validation",
+                                     "purpose",
+                                     "script",
+                                     "procedure",
+                                     "checks"
+                                 ]
+                    },
+                    {
+                        "path":  "workflows/evidence-capture.md",
+                        "type":  "workflow",
+                        "title":  "Evidence Capture Workflow",
+                        "headings":  [
+                                         "Evidence Capture Workflow",
+                                         "Purpose",
+                                         "Core Rule",
+                                         "Output Shape",
+                                         "Evidence - \u003cTopic\u003e - YYYY-MM-DD",
+                                         "Command",
+                                         "Working Directory",
+                                         "Exit Code",
+                                         "Captured Output",
+                                         "Interpretation"
+                                     ],
+                        "links":  [
+                                      "../index",
+                                      "query-memory",
+                                      "handoff",
+                                      "../known-issues/memory-must-not-replace-verification"
+                                  ],
+                        "cues":  [
+                                     "workflows",
+                                     "evidence-capture",
+                                     "evidence",
+                                     "capture",
+                                     "purpose",
+                                     "core",
+                                     "rule",
+                                     "output",
+                                     "shape"
+                                 ]
+                    },
+                    {
+                        "path":  "workflows/evidence-memory-bridge.md",
+                        "type":  "workflow",
+                        "title":  "Evidence Memory Bridge Workflow",
+                        "headings":  [
+                                         "Evidence Memory Bridge Workflow",
+                                         "Purpose",
+                                         "Boundary",
+                                         "When To Use",
+                                         "Procedure",
+                                         "Citation Rules",
+                                         "Related Notes"
+                                     ],
+                        "links":  [
+                                      "evidence-capture",
+                                      "../templates/evidence-memory-summary",
+                                      "query-memory",
+                                      "maintenance"
+                                  ],
+                        "cues":  [
+                                     "workflows",
+                                     "evidence-memory-bridge",
+                                     "evidence",
+                                     "memory",
+                                     "bridge",
+                                     "purpose",
+                                     "boundary",
+                                     "when",
+                                     "use"
+                                 ]
+                    },
+                    {
+                        "path":  "workflows/explicit-kb-commit-package-dry-run.md",
+                        "type":  "workflow",
+                        "title":  "Explicit KB Commit Package Dry Run",
+                        "headings":  [
+                                         "Explicit KB Commit Package Dry Run",
+                                         "Purpose",
+                                         "Mode",
+                                         "Package Command",
+                                         "Exclusions",
+                                         "Verification",
+                                         "Related Notes"
+                                     ],
+                        "links":  [
+                                      "workflows/knowledge-base-git-hygiene",
+                                      "workflows/agent-start-preflight"
+                                  ],
+                        "cues":  [
+                                     "workflows",
+                                     "explicit-kb-commit-package-dry-run",
+                                     "explicit",
+                                     "commit",
+                                     "package",
+                                     "dry",
+                                     "run"
+                                 ]
+                    },
+                    {
+                        "path":  "workflows/handoff.md",
+                        "type":  "workflow",
+                        "title":  "Handoff Workflow",
+                        "headings":  [
+                                         "Handoff Workflow",
+                                         "Purpose",
+                                         "Required Sections",
+                                         "Procedure",
+                                         "Report Template",
+                                         "Section Rules",
+                                         "Quality Bar",
+                                         "Related Notes"
+                                     ],
+                        "links":  [
+                                      "query-memory",
+                                      "../templates/handoff-report",
+                                      "maintenance"
+                                  ],
+                        "cues":  [
+                                     "workflows",
+                                     "handoff",
+                                     "purpose",
+                                     "required",
+                                     "sections",
+                                     "procedure",
+                                     "report",
+                                     "template",
+                                     "section",
+                                     "rules"
+                                 ]
+                    },
+                    {
+                        "path":  "workflows/handoff-first-long-session.md",
+                        "type":  "workflow",
+                        "title":  "Handoff-First Long Session Gate",
+                        "headings":  [
+                                         "Handoff-First Long Session Gate",
+                                         "Purpose",
+                                         "Signals",
+                                         "Procedure",
+                                         "Evidence Contract",
+                                         "Related Notes"
+                                     ],
+                        "links":  [
+                                      "handoff",
+                                      "../templates/handoff-report",
+                                      "context-budget-preflight",
+                                      "token-efficient-work-mode",
+                                      "verification-profiles"
+                                  ],
+                        "cues":  [
+                                     "workflows",
+                                     "handoff-first-long-session",
+                                     "handoff-first",
+                                     "long",
+                                     "session",
+                                     "gate",
+                                     "purpose",
+                                     "signals"
+                                 ]
+                    },
+                    {
+                        "path":  "workflows/independent-design-review-gate.md",
+                        "type":  "workflow",
+                        "title":  "Independent Design Review Gate",
+                        "headings":  [
+                                         "Independent Design Review Gate",
+                                         "Purpose",
+                                         "Independence Rule",
+                                         "Required Evidence",
+                                         "Scoring Scale",
+                                         "Weighted Rubric",
+                                         "Gate Decision",
+                                         "Finding-to-Task Contract",
+                                         "Procedure",
+                                         "Review Boundaries"
+                                     ],
+                        "links":  [
+                                      "../templates/design-review-report",
+                                      "visual-reference-moodboard",
+                                      "visual-asset-illustration-pipeline",
+                                      "../exports/phase-71-las-viewer-art-direction-packet-2026-07-07",
+                                      "../exports/phase-71-screen-composition-studies-2026-07-07"
+                                  ],
+                        "cues":  [
+                                     "workflows",
+                                     "independent-design-review-gate",
+                                     "independent",
+                                     "design",
+                                     "review",
+                                     "gate",
+                                     "purpose",
+                                     "independence"
+                                 ]
+                    },
+                    {
+                        "path":  "workflows/inventory-backed-query.md",
+                        "type":  "workflow",
+                        "title":  "Inventory-Backed Query Workflow",
+                        "headings":  [
+                                         "Inventory-Backed Query Workflow",
+                                         "Purpose",
+                                         "Script",
+                                         "Procedure",
+                                         "Ranking Model",
+                                         "Output Contract",
+                                         "Safety",
+                                         "Related Notes"
+                                     ],
+                        "links":  [
+                                      "../index",
+                                      "knowledge-inventory-refresh",
+                                      "local-knowledge-inventory",
+                                      "query-memory",
+                                      "../indexes/knowledge-inventory-latest",
+                                      "../known-issues/memory-must-not-replace-verification"
+                                  ],
+                        "cues":  [
+                                     "workflows",
+                                     "inventory-backed-query",
+                                     "inventory-backed",
+                                     "query",
+                                     "purpose",
+                                     "script",
+                                     "procedure",
+                                     "ranking",
+                                     "model",
+                                     "output"
+                                 ]
+                    },
+                    {
+                        "path":  "workflows/inventory-ranking-tuning.md",
+                        "type":  "workflow",
+                        "title":  "Inventory Ranking Tuning Workflow",
+                        "headings":  [
+                                         "Inventory Ranking Tuning Workflow",
+                                         "Purpose",
+                                         "Trigger",
+                                         "Current Ranking Rules",
+                                         "Procedure",
+                                         "Acceptance Checks",
+                                         "Safety"
+                                     ],
+                        "links":  [
+
+                                  ],
+                        "cues":  [
+                                     "workflows",
+                                     "inventory-ranking-tuning",
+                                     "inventory",
+                                     "ranking",
+                                     "tuning",
+                                     "purpose",
+                                     "trigger",
+                                     "current"
+                                 ]
+                    },
+                    {
+                        "path":  "workflows/knowledge-base-git-hygiene.md",
+                        "type":  "workflow",
+                        "title":  "Knowledge Base Git Hygiene",
+                        "headings":  [
+                                         "Knowledge Base Git Hygiene",
+                                         "Purpose",
+                                         "Mode",
+                                         "Trigger",
+                                         "Durable Knowledge Package",
+                                         "Exclude From This Package",
+                                         "Procedure",
+                                         "Notes",
+                                         "Related Notes"
+                                     ],
+                        "links":  [
+                                      "workflows/knowledge-base-health-audit",
+                                      "workflows/knowledge-index-repair",
+                                      "workflows/agent-start-preflight"
+                                  ],
+                        "cues":  [
+                                     "workflows",
+                                     "knowledge-base-git-hygiene",
+                                     "knowledge",
+                                     "base",
+                                     "git",
+                                     "hygiene",
+                                     "purpose",
+                                     "mode"
+                                 ]
+                    },
+                    {
+                        "path":  "workflows/knowledge-base-health-audit.md",
+                        "type":  "workflow",
+                        "title":  "Knowledge Base Health Audit Workflow",
+                        "headings":  [
+                                         "Knowledge Base Health Audit Workflow",
+                                         "Purpose",
+                                         "Trigger",
+                                         "Tool",
+                                         "Checks",
+                                         "Expected Use",
+                                         "Safety"
+                                     ],
+                        "links":  [
+
+                                  ],
+                        "cues":  [
+                                     "workflows",
+                                     "knowledge-base-health-audit",
+                                     "knowledge",
+                                     "base",
+                                     "health",
+                                     "audit",
+                                     "purpose",
+                                     "trigger"
+                                 ]
+                    },
+                    {
+                        "path":  "workflows/knowledge-index-repair.md",
+                        "type":  "workflow",
+                        "title":  "Knowledge Index Repair Workflow",
+                        "headings":  [
+                                         "Knowledge Index Repair Workflow",
+                                         "Purpose",
+                                         "Trigger",
+                                         "Procedure",
+                                         "Acceptance Checks",
+                                         "Safety"
+                                     ],
+                        "links":  [
+
+                                  ],
+                        "cues":  [
+                                     "workflows",
+                                     "knowledge-index-repair",
+                                     "knowledge",
+                                     "index",
+                                     "repair",
+                                     "purpose",
+                                     "trigger",
+                                     "procedure",
+                                     "acceptance"
+                                 ]
+                    },
+                    {
+                        "path":  "workflows/knowledge-inventory-refresh.md",
+                        "type":  "workflow",
+                        "title":  "Knowledge Inventory Refresh Workflow",
+                        "headings":  [
+                                         "Knowledge Inventory Refresh Workflow",
+                                         "Purpose",
+                                         "Script",
+                                         "Procedure",
+                                         "Refresh Rules",
+                                         "Safety",
+                                         "Related Notes"
+                                     ],
+                        "links":  [
+                                      "../index",
+                                      "local-knowledge-inventory",
+                                      "semantic-retrieval-pilot",
+                                      "../indexes/knowledge-inventory-latest",
+                                      "../known-issues/memory-must-not-replace-verification"
+                                  ],
+                        "cues":  [
+                                     "workflows",
+                                     "knowledge-inventory-refresh",
+                                     "knowledge",
+                                     "inventory",
+                                     "refresh",
+                                     "purpose",
+                                     "script",
+                                     "procedure"
+                                 ]
+                    },
+                    {
+                        "path":  "workflows/local-knowledge-inventory.md",
+                        "type":  "workflow",
+                        "title":  "Local Knowledge Inventory Workflow",
+                        "headings":  [
+                                         "Local Knowledge Inventory Workflow",
+                                         "Purpose",
+                                         "Scope",
+                                         "Procedure",
+                                         "Ranking Rules",
+                                         "Query Output Contract",
+                                         "Query",
+                                         "Ranked Candidates",
+                                         "Verification Needed",
+                                         "Refresh Triggers"
+                                     ],
+                        "links":  [
+                                      "../index",
+                                      "semantic-retrieval-pilot",
+                                      "query-memory",
+                                      "../indexes/knowledge-inventory-2026-07-03",
+                                      "../known-issues/memory-must-not-replace-verification"
+                                  ],
+                        "cues":  [
+                                     "workflows",
+                                     "local-knowledge-inventory",
+                                     "local",
+                                     "knowledge",
+                                     "inventory",
+                                     "purpose",
+                                     "scope",
+                                     "procedure",
+                                     "ranking"
+                                 ]
+                    },
+                    {
+                        "path":  "workflows/maintenance.md",
+                        "type":  "workflow",
+                        "title":  "Maintenance Workflow",
+                        "headings":  [
+                                         "Maintenance Workflow",
+                                         "Purpose",
+                                         "Checks",
+                                         "Command",
+                                         "Modification Policy",
+                                         "Related Notes"
+                                     ],
+                        "links":  [
+                                      "../index",
+                                      "../known-issues/memory-must-not-replace-verification"
+                                  ],
+                        "cues":  [
+                                     "workflows",
+                                     "maintenance",
+                                     "purpose",
+                                     "checks",
+                                     "command",
+                                     "modification",
+                                     "policy",
+                                     "related",
+                                     "index",
+                                     "known-issues"
+                                 ]
+                    },
+                    {
+                        "path":  "workflows/obsidian-log-link-repair.md",
+                        "type":  "workflow",
+                        "title":  "Obsidian Log Link Repair Workflow",
+                        "headings":  [
+                                         "Obsidian Log Link Repair Workflow",
+                                         "Purpose",
+                                         "Trigger",
+                                         "Procedure",
+                                         "Acceptance Checks",
+                                         "Safety"
+                                     ],
+                        "links":  [
+
+                                  ],
+                        "cues":  [
+                                     "workflows",
+                                     "obsidian-log-link-repair",
+                                     "obsidian",
+                                     "log",
+                                     "link",
+                                     "repair",
+                                     "purpose",
+                                     "trigger"
+                                 ]
+                    },
+                    {
+                        "path":  "workflows/obsidian-mirror-index-repair.md",
+                        "type":  "workflow",
+                        "title":  "Obsidian Mirror Index Repair Workflow",
+                        "headings":  [
+                                         "Obsidian Mirror Index Repair Workflow",
+                                         "Purpose",
+                                         "Trigger",
+                                         "Procedure",
+                                         "Acceptance Checks",
+                                         "Safety"
+                                     ],
+                        "links":  [
+
+                                  ],
+                        "cues":  [
+                                     "workflows",
+                                     "obsidian-mirror-index-repair",
+                                     "obsidian",
+                                     "mirror",
+                                     "index",
+                                     "repair",
+                                     "purpose",
+                                     "trigger"
+                                 ]
+                    },
+                    {
+                        "path":  "workflows/obsidian-root-scratch-triage.md",
+                        "type":  "workflow",
+                        "title":  "Obsidian Root Scratch Triage",
+                        "headings":  [
+                                         "Obsidian Root Scratch Triage",
+                                         "Purpose",
+                                         "Trigger",
+                                         "Inputs",
+                                         "Procedure",
+                                         "Safety",
+                                         "Verification Commands",
+                                         "Related Notes"
+                                     ],
+                        "links":  [
+                                      "workflows/obsidian-vault-health-audit",
+                                      "workflows/obsidian-log-link-repair"
+                                  ],
+                        "cues":  [
+                                     "workflows",
+                                     "obsidian-root-scratch-triage",
+                                     "obsidian",
+                                     "root",
+                                     "scratch",
+                                     "triage",
+                                     "purpose",
+                                     "trigger"
+                                 ]
+                    },
+                    {
+                        "path":  "workflows/obsidian-vault-health-audit.md",
+                        "type":  "workflow",
+                        "title":  "Obsidian Vault Health Audit Workflow",
+                        "headings":  [
+                                         "Obsidian Vault Health Audit Workflow",
+                                         "Purpose",
+                                         "Trigger",
+                                         "Tool",
+                                         "Checks",
+                                         "Scope",
+                                         "Acceptance Checks",
+                                         "Safety"
+                                     ],
+                        "links":  [
+
+                                  ],
+                        "cues":  [
+                                     "workflows",
+                                     "obsidian-vault-health-audit",
+                                     "obsidian",
+                                     "vault",
+                                     "health",
+                                     "audit",
+                                     "purpose",
+                                     "trigger"
+                                 ]
+                    },
+                    {
+                        "path":  "workflows/preflight-adoption-guide.md",
+                        "type":  "workflow",
+                        "title":  "Preflight Adoption Guide Workflow",
+                        "headings":  [
+                                         "Preflight Adoption Guide Workflow",
+                                         "Purpose",
+                                         "When To Use",
+                                         "Command",
+                                         "Adoption Contract",
+                                         "Required Agent Response Behavior",
+                                         "Safety",
+                                         "Related Notes"
+                                     ],
+                        "links":  [
+                                      "../index",
+                                      "agent-start-preflight",
+                                      "context-pack-validation",
+                                      "context-pack-builder",
+                                      "session-journal",
+                                      "../known-issues/memory-must-not-replace-verification"
+                                  ],
+                        "cues":  [
+                                     "workflows",
+                                     "preflight-adoption-guide",
+                                     "preflight",
+                                     "adoption",
+                                     "guide",
+                                     "purpose",
+                                     "when",
+                                     "use",
+                                     "command"
+                                 ]
+                    },
+                    {
+                        "path":  "workflows/project-intake.md",
+                        "type":  "workflow",
+                        "title":  "Project Intake Workflow",
+                        "headings":  [
+                                         "Project Intake Workflow",
+                                         "Purpose",
+                                         "Procedure",
+                                         "Required Fields",
+                                         "Related Notes"
+                                     ],
+                        "links":  [
+                                      "../projects/LLM-Agent-System",
+                                      "query-memory",
+                                      "handoff"
+                                  ],
+                        "cues":  [
+                                     "workflows",
+                                     "project-intake",
+                                     "project",
+                                     "intake",
+                                     "purpose",
+                                     "procedure",
+                                     "required",
+                                     "fields",
+                                     "related",
+                                     "projects"
+                                 ]
+                    },
+                    {
+                        "path":  "workflows/query-memory.md",
+                        "type":  "workflow",
+                        "title":  "Query Memory Workflow",
+                        "headings":  [
+                                         "Query Memory Workflow",
+                                         "Purpose",
+                                         "Procedure",
+                                         "Answer Contract",
+                                         "Memory-Derived",
+                                         "Verified Now",
+                                         "Not Verified",
+                                         "Next Checks",
+                                         "Report Template",
+                                         "Live Verification Triggers"
+                                     ],
+                        "links":  [
+                                      "../templates/query-memory-report",
+                                      "../known-issues/memory-must-not-replace-verification",
+                                      "project-intake"
+                                  ],
+                        "cues":  [
+                                     "workflows",
+                                     "query-memory",
+                                     "query",
+                                     "memory",
+                                     "purpose",
+                                     "procedure",
+                                     "answer",
+                                     "contract",
+                                     "memory-derived",
+                                     "verified"
+                                 ]
+                    },
+                    {
+                        "path":  "workflows/semantic-retrieval-pilot.md",
+                        "type":  "workflow",
+                        "title":  "Semantic Retrieval Pilot Workflow",
+                        "headings":  [
+                                         "Semantic Retrieval Pilot Workflow",
+                                         "Purpose",
+                                         "Scope",
+                                         "Stages",
+                                         "Stage 0 - Markdown Baseline",
+                                         "Stage 1 - Local Text Inventory",
+                                         "Stage 2 - Embedding Pilot",
+                                         "Stage 3 - Obsidian Plugin Pilot",
+                                         "Exclusions",
+                                         "Query Contract"
+                                     ],
+                        "links":  [
+                                      "../index",
+                                      "query-memory",
+                                      "evidence-capture",
+                                      "../known-issues/memory-must-not-replace-verification",
+                                      "../exports/semantic-retrieval-pilot-plan"
+                                  ],
+                        "cues":  [
+                                     "workflows",
+                                     "semantic-retrieval-pilot",
+                                     "semantic",
+                                     "retrieval",
+                                     "pilot",
+                                     "purpose",
+                                     "scope",
+                                     "stages",
+                                     "stage"
+                                 ]
+                    },
+                    {
+                        "path":  "workflows/session-journal.md",
+                        "type":  "workflow",
+                        "title":  "Session Journal Workflow",
+                        "headings":  [
+                                         "Session Journal Workflow",
+                                         "Purpose",
+                                         "Relationship To Handoffs",
+                                         "Output Shape",
+                                         "Required Sections",
+                                         "Procedure",
+                                         "Quality Bar",
+                                         "Related Notes"
+                                     ],
+                        "links":  [
+                                      "../index",
+                                      "handoff",
+                                      "evidence-capture",
+                                      "semantic-retrieval-pilot",
+                                      "../known-issues/memory-must-not-replace-verification"
+                                  ],
+                        "cues":  [
+                                     "workflows",
+                                     "session-journal",
+                                     "session",
+                                     "journal",
+                                     "purpose",
+                                     "relationship",
+                                     "handoffs",
+                                     "output",
+                                     "shape",
+                                     "required"
+                                 ]
+                    },
+                    {
+                        "path":  "workflows/structural-lookup-first.md",
+                        "type":  "workflow",
+                        "title":  "Structural Lookup First Workflow",
+                        "headings":  [
+                                         "Structural Lookup First Workflow",
+                                         "Purpose",
+                                         "Lookup Order",
+                                         "Broad-Read Justification",
+                                         "Evidence Contract",
+                                         "Verification",
+                                         "Related Notes"
+                                     ],
+                        "links":  [
+                                      "../projects/LLM-Agent-System",
+                                      "maintenance",
+                                      "code-graph-bridge",
+                                      "query-memory"
+                                  ],
+                        "cues":  [
+                                     "workflows",
+                                     "structural-lookup-first",
+                                     "structural",
+                                     "lookup",
+                                     "first",
+                                     "purpose",
+                                     "order",
+                                     "broad-read"
+                                 ]
+                    },
+                    {
+                        "path":  "workflows/token-efficient-rollout.md",
+                        "type":  "workflow",
+                        "title":  "Token-Efficient Mode Advisory Rollout",
+                        "headings":  [
+                                         "Token-Efficient Mode Advisory Rollout",
+                                         "Purpose",
+                                         "Governance Matrix",
+                                         "Rollout Controls",
+                                         "Verification",
+                                         "Related Notes"
+                                     ],
+                        "links":  [
+                                      "structural-lookup-first",
+                                      "verification-profiles",
+                                      "handoff-first-long-session",
+                                      "token-efficient-work-mode",
+                                      "context-budget-preflight"
+                                  ],
+                        "cues":  [
+                                     "workflows",
+                                     "token-efficient-rollout",
+                                     "token-efficient",
+                                     "mode",
+                                     "advisory",
+                                     "rollout",
+                                     "purpose",
+                                     "governance"
+                                 ]
+                    },
+                    {
+                        "path":  "workflows/token-efficient-work-mode.md",
+                        "type":  "workflow",
+                        "title":  "Token-Efficient Work Mode Policy",
+                        "headings":  [
+                                         "Token-Efficient Work Mode Policy",
+                                         "Purpose",
+                                         "Mode Selection",
+                                         "Retrieval Rules",
+                                         "Verification Ladder",
+                                         "Screenshot Policy",
+                                         "Escalation Rules",
+                                         "Related Notes"
+                                     ],
+                        "links":  [
+                                      "agent-report-contract",
+                                      "query-memory",
+                                      "code-graph-bridge",
+                                      "../known-issues/memory-must-not-replace-verification"
+                                  ],
+                        "cues":  [
+                                     "workflows",
+                                     "token-efficient-work-mode",
+                                     "token-efficient",
+                                     "work",
+                                     "mode",
+                                     "policy",
+                                     "purpose"
+                                 ]
+                    },
+                    {
+                        "path":  "workflows/verification-profiles.md",
+                        "type":  "workflow",
+                        "title":  "Layered Verification Profiles",
+                        "headings":  [
+                                         "Layered Verification Profiles",
+                                         "Purpose",
+                                         "Profiles",
+                                         "Selection Rules",
+                                         "Evidence Contract",
+                                         "Related Notes"
+                                     ],
+                        "links":  [
+                                      "agent-report-contract",
+                                      "token-efficient-work-mode",
+                                      "maintenance"
+                                  ],
+                        "cues":  [
+                                     "workflows",
+                                     "verification-profiles",
+                                     "layered",
+                                     "verification",
+                                     "profiles",
+                                     "purpose",
+                                     "selection",
+                                     "rules"
+                                 ]
+                    },
+                    {
+                        "path":  "workflows/visual-asset-illustration-pipeline.md",
+                        "type":  "workflow",
+                        "title":  "Visual Asset and Illustration Pipeline",
+                        "headings":  [
+                                         "Visual Asset and Illustration Pipeline",
+                                         "Purpose",
+                                         "Asset Choice Gate",
+                                         "Production Record",
+                                         "Local Storage and Naming",
+                                         "Accessibility Contract",
+                                         "Responsive Framing and Cropping",
+                                         "Optimization Gate",
+                                         "Screenshot Verification Gate",
+                                         "Handoff Checklist"
+                                     ],
+                        "links":  [
+                                      "visual-reference-moodboard",
+                                      "../exports/phase-71-las-viewer-art-direction-packet-2026-07-07",
+                                      "../exports/phase-71-screen-composition-studies-2026-07-07"
+                                  ],
+                        "cues":  [
+                                     "workflows",
+                                     "visual-asset-illustration-pipeline",
+                                     "visual",
+                                     "asset",
+                                     "illustration",
+                                     "pipeline",
+                                     "purpose"
+                                 ]
+                    },
+                    {
+                        "path":  "workflows/visual-reference-moodboard.md",
+                        "type":  "workflow",
+                        "title":  "Visual Reference and Moodboard Workflow",
+                        "headings":  [
+                                         "Visual Reference and Moodboard Workflow",
+                                         "Purpose",
+                                         "Inputs",
+                                         "Procedure",
+                                         "Required Direction Card",
+                                         "Source and License Rules",
+                                         "Candidate Directions for LAS Viewer",
+                                         "Direction A: Forensic Atlas",
+                                         "Direction B: Instrument Panel",
+                                         "Direction C: Editorial Intelligence"
+                                     ],
+                        "links":  [
+                                      "../exports/phase-67-design-critique-flow-report-2026-07-07",
+                                      "../exports/phase-71-las-viewer-art-direction-packet-2026-07-07",
+                                      "../../prompts/roles/professional_design_agent"
+                                  ],
+                        "cues":  [
+                                     "workflows",
+                                     "visual-reference-moodboard",
+                                     "visual",
+                                     "reference",
+                                     "moodboard",
+                                     "purpose",
+                                     "inputs",
+                                     "procedure",
+                                     "required"
+                                 ]
+                    }
+                ]
+}

@@ -1,0 +1,5 @@
+name: developer
+description: Specialized software engineering agent implementing code.
+allowed_tools:
+  - tool_workspace
+  - tool_log

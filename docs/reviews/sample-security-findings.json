@@ -1,0 +1,49 @@
+{
+  "schema_version": "1.0",
+  "review_id": "sample-security-review",
+  "target": "sample",
+  "review_type": "security_review",
+  "generated_at": "2026-06-29T00:00:00Z",
+  "verdict": "pass",
+  "risk_level": "medium",
+  "changed_paths": [
+    "docs/workflow/SECURITY_REVIEW_GATE.md"
+  ],
+  "security_triggers": [],
+  "findings": [
+    {
+      "verdict": "not_applicable",
+      "severity": "info",
+      "category": "governance",
+      "title": "Sample finding demonstrates traceable review schema",
+      "entrypoint_trace": [
+        {
+          "path": "docs/workflow/SECURITY_REVIEW_GATE.md",
+          "line": 1,
+          "symbol": "Security Review Gate",
+          "description": "The governance document defines when structured security review is required."
+        }
+      ],
+      "propagation_trace": [],
+      "sink_trace": [
+        {
+          "path": "docs/workflow/SECURITY_REVIEW_GATE.md",
+          "line": 14,
+          "symbol": "Required Artifact",
+          "description": "The validator command is the sink that accepts or rejects the report."
+        }
+      ],
+      "impact": "Sample only; no runtime behavior or security control is changed by this record.",
+      "evidence": [
+        {
+          "path": "docs/workflow/SECURITY_REVIEW_GATE.md",
+          "line": 14,
+          "symbol": "Required Artifact",
+          "description": "The documented command points to the JSON schema validator."
+        }
+      ],
+      "remediation": "Replace this sample with task-specific findings during real reviews.",
+      "validation_status": "reasoned"
+    }
+  ]
+}

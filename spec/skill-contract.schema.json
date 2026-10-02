@@ -1,0 +1,74 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/OPluke11-abula/Portable-Agent-Protocol/main/spec/skill-contract.schema.json",
+  "title": "Portable Agent Protocol Skill Contract Schema",
+  "description": "JSON Schema for validating the YAML front-matter of .agent/skills/*.md",
+  "type": "object",
+  "required": [
+    "id",
+    "name",
+    "description",
+    "version",
+    "inputs",
+    "outputs",
+    "safety_notes"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique, machine-readable identifier of the skill.",
+      "pattern": "^[a-zA-Z0-9_-]+$"
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-friendly or backward-compatible name of the skill.",
+      "pattern": "^[a-zA-Z0-9_-]+$"
+    },
+    "description": {
+      "type": "string",
+      "description": "A clear, concise summary of the skill's capabilities and trigger conditions."
+    },
+    "version": {
+      "type": "string",
+      "description": "The version of this skill contract (semver).",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "default": "1.0.0"
+    },
+    "inputs": {
+      "type": "object",
+      "description": "Definition of inputs/parameters required by the skill.",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["type", "description"],
+        "properties": {
+          "type": { "type": "string" },
+          "description": { "type": "string" },
+          "required": { "type": "boolean" },
+          "default": {}
+        }
+      }
+    },
+    "outputs": {
+      "type": "object",
+      "description": "Definition of outputs returned by the skill.",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["type", "description"],
+        "properties": {
+          "type": { "type": "string" },
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "safety_notes": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Important safety and operational constraints."
+    },
+    "author": {
+      "type": "string",
+      "description": "The author or generator of this skill contract.",
+      "default": "pap"
+    }
+  }
+}

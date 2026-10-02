@@ -1,0 +1,1359 @@
+{
+  "task": "73-02",
+  "title": "Runtime and Provider Boundary Review",
+  "generated_at": "2026-09-08T11:14:26.140833+00:00",
+  "total_modules_audited": 79,
+  "summary": {
+    "Keep (Package Marker)": 4,
+    "Keep (Active & Tested)": 43,
+    "Keep (Live Entrypoint)": 4,
+    "Consolidate (Test-Only / Candidate for Ingestion)": 19,
+    "Refactor (Active but Missing Direct Test)": 7,
+    "Retire Candidate (Unreferenced)": 2
+  },
+  "modules": [
+    {
+      "file": "agent_workspace/__init__.py",
+      "module": "__init__",
+      "lines": 3,
+      "prod_caller_count": 0,
+      "test_caller_count": 0,
+      "classification": "Keep (Package Marker)",
+      "prod_callers": [],
+      "test_callers": []
+    },
+    {
+      "file": "agent_workspace/api.py",
+      "module": "api",
+      "lines": 336,
+      "prod_caller_count": 2,
+      "test_caller_count": 31,
+      "classification": "Keep (Active & Tested)",
+      "prod_callers": [
+        "agent_workspace/routes/audit.py",
+        "agent_workspace/routes/dependencies.py"
+      ],
+      "test_callers": [
+        "agent_workspace/tests/conftest.py",
+        "agent_workspace/tests/test_admin_console.py",
+        "agent_workspace/tests/test_agent_crew.py",
+        "agent_workspace/tests/test_api.py",
+        "agent_workspace/tests/test_cost_ledger.py",
+        "agent_workspace/tests/test_cross_cloud.py",
+        "agent_workspace/tests/test_cryptographic_consensus.py",
+        "agent_workspace/tests/test_defragmentation.py",
+        "agent_workspace/tests/test_distributed_broker.py",
+        "agent_workspace/tests/test_federated_exchange.py",
+        "agent_workspace/tests/test_handoff_turns.py",
+        "agent_workspace/tests/test_live_collaboration.py",
+        "agent_workspace/tests/test_memory_reranking.py",
+        "agent_workspace/tests/test_mtls_rotation.py",
+        "agent_workspace/tests/test_p2p_encryption.py",
+        "agent_workspace/tests/test_p2p_swarm.py",
+        "agent_workspace/tests/test_route_inventory.py",
+        "agent_workspace/tests/test_router_optimization.py",
+        "agent_workspace/tests/test_saas_builder.py",
+        "agent_workspace/tests/test_saas_integration.py",
+        "agent_workspace/tests/test_sandbox_audit.py",
+        "agent_workspace/tests/test_subscription_lifecycle.py",
+        "agent_workspace/tests/test_swarm_adaptive_billing.py",
+        "agent_workspace/tests/test_swarm_coordinator.py",
+        "agent_workspace/tests/test_swarm_governance.py",
+        "agent_workspace/tests/test_swarm_replays.py",
+        "agent_workspace/tests/test_swarm_replication.py",
+        "agent_workspace/tests/test_telemetry_router.py",
+        "agent_workspace/tests/test_tenant_channels.py",
+        "agent_workspace/tests/test_ws_quota_security.py",
+        "agent_workspace/tests/test_zk_ledger.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/cli.py",
+      "module": "cli",
+      "lines": 677,
+      "prod_caller_count": 0,
+      "test_caller_count": 4,
+      "classification": "Keep (Live Entrypoint)",
+      "prod_callers": [],
+      "test_callers": [
+        "agent_workspace/tests/test_cli.py",
+        "agent_workspace/tests/test_cli_init.py",
+        "agent_workspace/tests/test_cli_lint.py",
+        "agent_workspace/tests/test_pap_v020.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/codebase_index.py",
+      "module": "codebase_index",
+      "lines": 507,
+      "prod_caller_count": 1,
+      "test_caller_count": 2,
+      "classification": "Keep (Active & Tested)",
+      "prod_callers": [
+        "agent_workspace/skills/tool_codebase_memory.py"
+      ],
+      "test_callers": [
+        "agent_workspace/tests/test_codebase_index.py",
+        "agent_workspace/tests/test_codebase_memory_tools.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/core/__init__.py",
+      "module": "core.__init__",
+      "lines": 1,
+      "prod_caller_count": 0,
+      "test_caller_count": 0,
+      "classification": "Keep (Package Marker)",
+      "prod_callers": [],
+      "test_callers": []
+    },
+    {
+      "file": "agent_workspace/core/account_manager.py",
+      "module": "core.account_manager",
+      "lines": 344,
+      "prod_caller_count": 10,
+      "test_caller_count": 9,
+      "classification": "Keep (Active & Tested)",
+      "prod_callers": [
+        "agent_workspace/api.py",
+        "agent_workspace/core/agent_crew.py",
+        "agent_workspace/core/discussion_room.py",
+        "agent_workspace/core/providers.py",
+        "agent_workspace/core/router.py",
+        "agent_workspace/core/workflow_engine.py",
+        "agent_workspace/routes/chat.py",
+        "agent_workspace/routes/collaboration.py",
+        "agent_workspace/routes/dependencies.py",
+        "agent_workspace/service.py"
+      ],
+      "test_callers": [
+        "agent_workspace/tests/test_account_failover.py",
+        "agent_workspace/tests/test_account_manager.py",
+        "agent_workspace/tests/test_cost_ledger.py",
+        "agent_workspace/tests/test_cross_cloud.py",
+        "agent_workspace/tests/test_provider_lifecycle.py",
+        "agent_workspace/tests/test_saas_integration.py",
+        "agent_workspace/tests/test_session_security.py",
+        "agent_workspace/tests/test_subscription_lifecycle.py",
+        "agent_workspace/tests/test_swarm_adaptive_billing.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/core/agent_crew.py",
+      "module": "core.agent_crew",
+      "lines": 528,
+      "prod_caller_count": 3,
+      "test_caller_count": 5,
+      "classification": "Keep (Active & Tested)",
+      "prod_callers": [
+        "agent_workspace/routes/collaboration.py",
+        "agent_workspace/service.py",
+        "agent_workspace/skills/delegate_task.py"
+      ],
+      "test_callers": [
+        "agent_workspace/tests/test_agent_crew.py",
+        "agent_workspace/tests/test_distributed_broker.py",
+        "agent_workspace/tests/test_p2p_swarm.py",
+        "agent_workspace/tests/test_swarm_coordinator.py",
+        "agent_workspace/tests/test_swarm_replication.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/core/audit_ledger.py",
+      "module": "core.audit_ledger",
+      "lines": 681,
+      "prod_caller_count": 9,
+      "test_caller_count": 10,
+      "classification": "Keep (Active & Tested)",
+      "prod_callers": [
+        "agent_workspace/api.py",
+        "agent_workspace/core/billing.py",
+        "agent_workspace/core/cross_cloud_gateway.py",
+        "agent_workspace/core/discussion_room.py",
+        "agent_workspace/core/governance.py",
+        "agent_workspace/core/providers.py",
+        "agent_workspace/core/sandbox.py",
+        "agent_workspace/routes/admin.py",
+        "agent_workspace/routes/audit.py"
+      ],
+      "test_callers": [
+        "agent_workspace/tests/test_admin_console.py",
+        "agent_workspace/tests/test_cryptographic_consensus.py",
+        "agent_workspace/tests/test_policy_gate.py",
+        "agent_workspace/tests/test_saas_integration.py",
+        "agent_workspace/tests/test_sandbox_audit.py",
+        "agent_workspace/tests/test_secret_hardening.py",
+        "agent_workspace/tests/test_subscription_lifecycle.py",
+        "agent_workspace/tests/test_swarm_governance.py",
+        "agent_workspace/tests/test_tenant_channels.py",
+        "agent_workspace/tests/test_zk_ledger.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/core/billing.py",
+      "module": "core.billing",
+      "lines": 228,
+      "prod_caller_count": 5,
+      "test_caller_count": 4,
+      "classification": "Keep (Active & Tested)",
+      "prod_callers": [
+        "agent_workspace/api.py",
+        "agent_workspace/core/providers.py",
+        "agent_workspace/core/swarm_coordinator.py",
+        "agent_workspace/routes/admin.py",
+        "agent_workspace/routes/dependencies.py"
+      ],
+      "test_callers": [
+        "agent_workspace/tests/test_saas_builder.py",
+        "agent_workspace/tests/test_saas_integration.py",
+        "agent_workspace/tests/test_subscription_lifecycle.py",
+        "agent_workspace/tests/test_swarm_adaptive_billing.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/core/broker.py",
+      "module": "core.broker",
+      "lines": 249,
+      "prod_caller_count": 6,
+      "test_caller_count": 6,
+      "classification": "Keep (Active & Tested)",
+      "prod_callers": [
+        "agent_workspace/api.py",
+        "agent_workspace/core/agent_crew.py",
+        "agent_workspace/core/audit_ledger.py",
+        "agent_workspace/core/discussion_room.py",
+        "agent_workspace/routes/collaboration.py",
+        "agent_workspace/routes/swarm.py"
+      ],
+      "test_callers": [
+        "agent_workspace/tests/test_cryptographic_consensus.py",
+        "agent_workspace/tests/test_discussion_room_characterization.py",
+        "agent_workspace/tests/test_distributed_broker.py",
+        "agent_workspace/tests/test_p2p_swarm.py",
+        "agent_workspace/tests/test_swarm_coordinator.py",
+        "agent_workspace/tests/test_swarm_replication.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/core/builder.py",
+      "module": "core.builder",
+      "lines": 92,
+      "prod_caller_count": 1,
+      "test_caller_count": 1,
+      "classification": "Keep (Active & Tested)",
+      "prod_callers": [
+        "agent_workspace/routes/chat.py"
+      ],
+      "test_callers": [
+        "agent_workspace/tests/test_saas_builder.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/core/cert_manager.py",
+      "module": "core.cert_manager",
+      "lines": 115,
+      "prod_caller_count": 1,
+      "test_caller_count": 1,
+      "classification": "Keep (Active & Tested)",
+      "prod_callers": [
+        "agent_workspace/core/cross_cloud_gateway.py"
+      ],
+      "test_callers": [
+        "agent_workspace/tests/test_mtls_rotation.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/core/conductor.py",
+      "module": "core.conductor",
+      "lines": 390,
+      "prod_caller_count": 0,
+      "test_caller_count": 2,
+      "classification": "Consolidate (Test-Only / Candidate for Ingestion)",
+      "prod_callers": [],
+      "test_callers": [
+        "agent_workspace/tests/test_conductor_plan.py",
+        "agent_workspace/tests/test_memory_backend.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/core/context_budget_preflight.py",
+      "module": "core.context_budget_preflight",
+      "lines": 91,
+      "prod_caller_count": 0,
+      "test_caller_count": 1,
+      "classification": "Consolidate (Test-Only / Candidate for Ingestion)",
+      "prod_callers": [],
+      "test_callers": [
+        "agent_workspace/tests/test_context_budget_preflight.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/core/cross_cloud_gateway.py",
+      "module": "core.cross_cloud_gateway",
+      "lines": 208,
+      "prod_caller_count": 1,
+      "test_caller_count": 2,
+      "classification": "Keep (Active & Tested)",
+      "prod_callers": [
+        "agent_workspace/routes/cross_cloud.py"
+      ],
+      "test_callers": [
+        "agent_workspace/tests/test_cross_cloud.py",
+        "agent_workspace/tests/test_mtls_rotation.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/core/debate_budget.py",
+      "module": "core.debate_budget",
+      "lines": 264,
+      "prod_caller_count": 1,
+      "test_caller_count": 1,
+      "classification": "Keep (Active & Tested)",
+      "prod_callers": [
+        "agent_workspace/core/discussion_room.py"
+      ],
+      "test_callers": [
+        "agent_workspace/tests/test_discussion_room_characterization.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/core/discussion_room.py",
+      "module": "core.discussion_room",
+      "lines": 1680,
+      "prod_caller_count": 9,
+      "test_caller_count": 22,
+      "classification": "Keep (Active & Tested)",
+      "prod_callers": [
+        "agent_workspace/cli.py",
+        "agent_workspace/core/agent_crew.py",
+        "agent_workspace/core/governance.py",
+        "agent_workspace/core/log_compactor.py",
+        "agent_workspace/core/p2p_router.py",
+        "agent_workspace/core/sandbox.py",
+        "agent_workspace/core/skill_loader.py",
+        "agent_workspace/long_term_memory.py",
+        "agent_workspace/routes/collaboration.py"
+      ],
+      "test_callers": [
+        "agent_workspace/tests/test_account_failover.py",
+        "agent_workspace/tests/test_concurrency_auditor.py",
+        "agent_workspace/tests/test_consensus.py",
+        "agent_workspace/tests/test_discussion_compaction.py",
+        "agent_workspace/tests/test_discussion_roles.py",
+        "agent_workspace/tests/test_discussion_room.py",
+        "agent_workspace/tests/test_discussion_room_characterization.py",
+        "agent_workspace/tests/test_elastic_billing.py",
+        "agent_workspace/tests/test_live_collaboration.py",
+        "agent_workspace/tests/test_milestone_reflection.py",
+        "agent_workspace/tests/test_multi_swarm.py",
+        "agent_workspace/tests/test_p2p_encryption.py",
+        "agent_workspace/tests/test_p2p_swarm.py",
+        "agent_workspace/tests/test_policy_gate.py",
+        "agent_workspace/tests/test_sandbox.py",
+        "agent_workspace/tests/test_sandbox_audit.py",
+        "agent_workspace/tests/test_sandbox_defense.py",
+        "agent_workspace/tests/test_secret_hardening.py",
+        "agent_workspace/tests/test_skill_synthesis.py",
+        "agent_workspace/tests/test_swarm_governance.py",
+        "agent_workspace/tests/test_swarm_replication.py",
+        "agent_workspace/tests/test_tenant_channels.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/core/embeddings.py",
+      "module": "core.embeddings",
+      "lines": 164,
+      "prod_caller_count": 2,
+      "test_caller_count": 1,
+      "classification": "Keep (Active & Tested)",
+      "prod_callers": [
+        "agent_workspace/long_term_memory.py",
+        "agent_workspace/memory_backends.py"
+      ],
+      "test_callers": [
+        "agent_workspace/tests/test_vector_memory.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/core/engine.py",
+      "module": "core.engine",
+      "lines": 926,
+      "prod_caller_count": 6,
+      "test_caller_count": 21,
+      "classification": "Keep (Active & Tested)",
+      "prod_callers": [
+        "agent_workspace/cli.py",
+        "agent_workspace/core/workflow_engine.py",
+        "agent_workspace/routes/dependencies.py",
+        "agent_workspace/run.py",
+        "agent_workspace/tool_manifest.py",
+        "agent_workspace/topology_stream.py"
+      ],
+      "test_callers": [
+        "agent_workspace/tests/test_account_manager.py",
+        "agent_workspace/tests/test_agent_engine.py",
+        "agent_workspace/tests/test_bottleneck_profiler.py",
+        "agent_workspace/tests/test_code_generation.py",
+        "agent_workspace/tests/test_codebase_memory_tools.py",
+        "agent_workspace/tests/test_evolution.py",
+        "agent_workspace/tests/test_handoff.py",
+        "agent_workspace/tests/test_handoff_turns.py",
+        "agent_workspace/tests/test_hitl.py",
+        "agent_workspace/tests/test_pap_v020.py",
+        "agent_workspace/tests/test_precheck.py",
+        "agent_workspace/tests/test_rbac.py",
+        "agent_workspace/tests/test_router_allowlist.py",
+        "agent_workspace/tests/test_router_conductor.py",
+        "agent_workspace/tests/test_router_optimization.py",
+        "agent_workspace/tests/test_router_validation.py",
+        "agent_workspace/tests/test_self_healing.py",
+        "agent_workspace/tests/test_skill_discovery.py",
+        "agent_workspace/tests/test_telemetry.py",
+        "agent_workspace/tests/test_version_compat.py",
+        "agent_workspace/tests/test_workflow_engine.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/core/federated_sync.py",
+      "module": "core.federated_sync",
+      "lines": 371,
+      "prod_caller_count": 1,
+      "test_caller_count": 2,
+      "classification": "Keep (Active & Tested)",
+      "prod_callers": [
+        "agent_workspace/routes/collaboration.py"
+      ],
+      "test_callers": [
+        "agent_workspace/tests/test_federated_exchange.py",
+        "agent_workspace/tests/test_federated_sync.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/core/governance.py",
+      "module": "core.governance",
+      "lines": 189,
+      "prod_caller_count": 2,
+      "test_caller_count": 1,
+      "classification": "Keep (Active & Tested)",
+      "prod_callers": [
+        "agent_workspace/core/prompt_composer.py",
+        "agent_workspace/routes/swarm.py"
+      ],
+      "test_callers": [
+        "agent_workspace/tests/test_swarm_governance.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/core/knowledge.py",
+      "module": "core.knowledge",
+      "lines": 242,
+      "prod_caller_count": 0,
+      "test_caller_count": 1,
+      "classification": "Consolidate (Test-Only / Candidate for Ingestion)",
+      "prod_callers": [],
+      "test_callers": [
+        "agent_workspace/tests/test_knowledge_base.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/core/ledger.py",
+      "module": "core.ledger",
+      "lines": 279,
+      "prod_caller_count": 9,
+      "test_caller_count": 8,
+      "classification": "Keep (Active & Tested)",
+      "prod_callers": [
+        "agent_workspace/core/account_manager.py",
+        "agent_workspace/core/billing.py",
+        "agent_workspace/core/providers.py",
+        "agent_workspace/core/swarm_coordinator.py",
+        "agent_workspace/observability.py",
+        "agent_workspace/routes/admin.py",
+        "agent_workspace/routes/chat.py",
+        "agent_workspace/routes/dependencies.py",
+        "agent_workspace/routes/swarm.py"
+      ],
+      "test_callers": [
+        "agent_workspace/tests/test_admin_console.py",
+        "agent_workspace/tests/test_cost_ledger.py",
+        "agent_workspace/tests/test_distributed_broker.py",
+        "agent_workspace/tests/test_saas_builder.py",
+        "agent_workspace/tests/test_saas_integration.py",
+        "agent_workspace/tests/test_subscription_lifecycle.py",
+        "agent_workspace/tests/test_swarm_adaptive_billing.py",
+        "agent_workspace/tests/test_telemetry_router.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/core/log_compactor.py",
+      "module": "core.log_compactor",
+      "lines": 321,
+      "prod_caller_count": 2,
+      "test_caller_count": 4,
+      "classification": "Keep (Active & Tested)",
+      "prod_callers": [
+        "agent_workspace/core/workflow_engine.py",
+        "agent_workspace/skills/tool_workspace.py"
+      ],
+      "test_callers": [
+        "agent_workspace/tests/test_context_minimizer.py",
+        "agent_workspace/tests/test_evolution.py",
+        "agent_workspace/tests/test_milestone_reflection.py",
+        "agent_workspace/tests/test_task_compaction.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/core/memory.py",
+      "module": "core.memory",
+      "lines": 386,
+      "prod_caller_count": 1,
+      "test_caller_count": 4,
+      "classification": "Keep (Active & Tested)",
+      "prod_callers": [
+        "agent_workspace/routes/chat.py"
+      ],
+      "test_callers": [
+        "agent_workspace/tests/test_defragmentation.py",
+        "agent_workspace/tests/test_live_collaboration.py",
+        "agent_workspace/tests/test_p2p_and_mirroring.py",
+        "agent_workspace/tests/test_session_security.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/core/merkle.py",
+      "module": "core.merkle",
+      "lines": 34,
+      "prod_caller_count": 1,
+      "test_caller_count": 1,
+      "classification": "Keep (Active & Tested)",
+      "prod_callers": [
+        "agent_workspace/core/audit_ledger.py"
+      ],
+      "test_callers": [
+        "agent_workspace/tests/test_cryptographic_consensus.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/core/p2p_router.py",
+      "module": "core.p2p_router",
+      "lines": 475,
+      "prod_caller_count": 5,
+      "test_caller_count": 2,
+      "classification": "Keep (Active & Tested)",
+      "prod_callers": [
+        "agent_workspace/api.py",
+        "agent_workspace/core/agent_crew.py",
+        "agent_workspace/core/ws_manager.py",
+        "agent_workspace/routes/collaboration.py",
+        "agent_workspace/routes/swarm.py"
+      ],
+      "test_callers": [
+        "agent_workspace/tests/test_agent_crew.py",
+        "agent_workspace/tests/test_p2p_swarm.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/core/p2p_storage.py",
+      "module": "core.p2p_storage",
+      "lines": 100,
+      "prod_caller_count": 0,
+      "test_caller_count": 1,
+      "classification": "Consolidate (Test-Only / Candidate for Ingestion)",
+      "prod_callers": [],
+      "test_callers": [
+        "agent_workspace/tests/test_p2p_and_mirroring.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/core/policy_gate.py",
+      "module": "core.policy_gate",
+      "lines": 169,
+      "prod_caller_count": 0,
+      "test_caller_count": 1,
+      "classification": "Consolidate (Test-Only / Candidate for Ingestion)",
+      "prod_callers": [],
+      "test_callers": [
+        "agent_workspace/tests/test_policy_gate.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/core/precheck.py",
+      "module": "core.precheck",
+      "lines": 90,
+      "prod_caller_count": 2,
+      "test_caller_count": 1,
+      "classification": "Keep (Active & Tested)",
+      "prod_callers": [
+        "agent_workspace/core/engine.py",
+        "agent_workspace/tool_manifest.py"
+      ],
+      "test_callers": [
+        "agent_workspace/tests/test_precheck.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/core/prompt_composer.py",
+      "module": "core.prompt_composer",
+      "lines": 429,
+      "prod_caller_count": 2,
+      "test_caller_count": 6,
+      "classification": "Keep (Active & Tested)",
+      "prod_callers": [
+        "agent_workspace/core/discussion_room.py",
+        "agent_workspace/service.py"
+      ],
+      "test_callers": [
+        "agent_workspace/tests/test_evolution.py",
+        "agent_workspace/tests/test_prompt_composer.py",
+        "agent_workspace/tests/test_prompt_evolution.py",
+        "agent_workspace/tests/test_prompt_minimizer.py",
+        "agent_workspace/tests/test_swarm_governance.py",
+        "agent_workspace/tests/test_vector_memory.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/core/providers.py",
+      "module": "core.providers",
+      "lines": 870,
+      "prod_caller_count": 4,
+      "test_caller_count": 13,
+      "classification": "Keep (Active & Tested)",
+      "prod_callers": [
+        "agent_workspace/core/debate_budget.py",
+        "agent_workspace/core/discussion_room.py",
+        "agent_workspace/core/workflow_engine.py",
+        "agent_workspace/service.py"
+      ],
+      "test_callers": [
+        "agent_workspace/tests/test_account_failover.py",
+        "agent_workspace/tests/test_cross_cloud.py",
+        "agent_workspace/tests/test_delegation_limits.py",
+        "agent_workspace/tests/test_discussion_room.py",
+        "agent_workspace/tests/test_elastic_billing.py",
+        "agent_workspace/tests/test_milestone_reflection.py",
+        "agent_workspace/tests/test_multi_swarm.py",
+        "agent_workspace/tests/test_provider_lifecycle.py",
+        "agent_workspace/tests/test_provider_security.py",
+        "agent_workspace/tests/test_router_optimization.py",
+        "agent_workspace/tests/test_saas_integration.py",
+        "agent_workspace/tests/test_self_healing.py",
+        "agent_workspace/tests/test_subscription_lifecycle.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/core/rate_limit.py",
+      "module": "core.rate_limit",
+      "lines": 53,
+      "prod_caller_count": 2,
+      "test_caller_count": 1,
+      "classification": "Keep (Active & Tested)",
+      "prod_callers": [
+        "agent_workspace/api.py",
+        "agent_workspace/routes/dependencies.py"
+      ],
+      "test_callers": [
+        "agent_workspace/tests/test_ws_quota_security.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/core/replay_logger.py",
+      "module": "core.replay_logger",
+      "lines": 135,
+      "prod_caller_count": 4,
+      "test_caller_count": 2,
+      "classification": "Keep (Active & Tested)",
+      "prod_callers": [
+        "agent_workspace/core/ws_manager.py",
+        "agent_workspace/routes/collaboration.py",
+        "agent_workspace/routes/swarm.py",
+        "agent_workspace/topology_bridge.py"
+      ],
+      "test_callers": [
+        "agent_workspace/tests/test_session_security.py",
+        "agent_workspace/tests/test_swarm_replays.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/core/router.py",
+      "module": "core.router",
+      "lines": 1715,
+      "prod_caller_count": 7,
+      "test_caller_count": 15,
+      "classification": "Keep (Active & Tested)",
+      "prod_callers": [
+        "agent_workspace/cli.py",
+        "agent_workspace/routes/admin.py",
+        "agent_workspace/routes/chat.py",
+        "agent_workspace/routes/dependencies.py",
+        "agent_workspace/run.py",
+        "agent_workspace/skills/delegate_task.py",
+        "agent_workspace/topology_stream.py"
+      ],
+      "test_callers": [
+        "agent_workspace/tests/test_account_manager.py",
+        "agent_workspace/tests/test_admin_console.py",
+        "agent_workspace/tests/test_cross_cloud.py",
+        "agent_workspace/tests/test_delegation_limits.py",
+        "agent_workspace/tests/test_handoff_turns.py",
+        "agent_workspace/tests/test_hitl.py",
+        "agent_workspace/tests/test_precheck.py",
+        "agent_workspace/tests/test_rbac.py",
+        "agent_workspace/tests/test_router_allowlist.py",
+        "agent_workspace/tests/test_router_conductor.py",
+        "agent_workspace/tests/test_router_optimization.py",
+        "agent_workspace/tests/test_router_validation.py",
+        "agent_workspace/tests/test_session_security.py",
+        "agent_workspace/tests/test_skill_discovery.py",
+        "agent_workspace/tests/test_swarm_adaptive_billing.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/core/runtime_config.py",
+      "module": "core.runtime_config",
+      "lines": 52,
+      "prod_caller_count": 3,
+      "test_caller_count": 1,
+      "classification": "Keep (Active & Tested)",
+      "prod_callers": [
+        "agent_workspace/api.py",
+        "agent_workspace/core/broker.py",
+        "agent_workspace/service.py"
+      ],
+      "test_callers": [
+        "agent_workspace/tests/test_runtime_features.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/core/sandbox.py",
+      "module": "core.sandbox",
+      "lines": 422,
+      "prod_caller_count": 4,
+      "test_caller_count": 5,
+      "classification": "Keep (Active & Tested)",
+      "prod_callers": [
+        "agent_workspace/core/agent_crew.py",
+        "agent_workspace/core/engine.py",
+        "agent_workspace/core/skill_loader.py",
+        "agent_workspace/routes/chat.py"
+      ],
+      "test_callers": [
+        "agent_workspace/tests/test_distributed_broker.py",
+        "agent_workspace/tests/test_sandbox.py",
+        "agent_workspace/tests/test_sandbox_audit.py",
+        "agent_workspace/tests/test_sandbox_defense.py",
+        "agent_workspace/tests/test_telemetry_router.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/core/security.py",
+      "module": "core.security",
+      "lines": 208,
+      "prod_caller_count": 14,
+      "test_caller_count": 2,
+      "classification": "Keep (Active & Tested)",
+      "prod_callers": [
+        "agent_workspace/core/account_manager.py",
+        "agent_workspace/core/audit_ledger.py",
+        "agent_workspace/core/discussion_room.py",
+        "agent_workspace/core/engine.py",
+        "agent_workspace/core/memory.py",
+        "agent_workspace/core/providers.py",
+        "agent_workspace/core/replay_logger.py",
+        "agent_workspace/core/router.py",
+        "agent_workspace/core/workflow_engine.py",
+        "agent_workspace/memory_backends.py",
+        "agent_workspace/routes/chat.py",
+        "agent_workspace/routes/dependencies.py",
+        "agent_workspace/server.py",
+        "agent_workspace/skills/delegate_task.py"
+      ],
+      "test_callers": [
+        "agent_workspace/tests/test_session_security.py",
+        "agent_workspace/tests/test_startup_security.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/core/skill_loader.py",
+      "module": "core.skill_loader",
+      "lines": 238,
+      "prod_caller_count": 1,
+      "test_caller_count": 3,
+      "classification": "Keep (Active & Tested)",
+      "prod_callers": [
+        "agent_workspace/core/engine.py"
+      ],
+      "test_callers": [
+        "agent_workspace/tests/test_consensus.py",
+        "agent_workspace/tests/test_skill_loader.py",
+        "agent_workspace/tests/test_skill_synthesis.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/core/swarm_coordinator.py",
+      "module": "core.swarm_coordinator",
+      "lines": 221,
+      "prod_caller_count": 7,
+      "test_caller_count": 3,
+      "classification": "Keep (Active & Tested)",
+      "prod_callers": [
+        "agent_workspace/api.py",
+        "agent_workspace/core/agent_crew.py",
+        "agent_workspace/core/discussion_room.py",
+        "agent_workspace/core/router.py",
+        "agent_workspace/routes/dependencies.py",
+        "agent_workspace/routes/swarm.py",
+        "agent_workspace/service.py"
+      ],
+      "test_callers": [
+        "agent_workspace/tests/test_swarm_adaptive_billing.py",
+        "agent_workspace/tests/test_swarm_coordinator.py",
+        "agent_workspace/tests/test_swarm_replication.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/core/token_counter.py",
+      "module": "core.token_counter",
+      "lines": 225,
+      "prod_caller_count": 3,
+      "test_caller_count": 1,
+      "classification": "Keep (Active & Tested)",
+      "prod_callers": [
+        "agent_workspace/core/discussion_room.py",
+        "agent_workspace/core/log_compactor.py",
+        "agent_workspace/core/router.py"
+      ],
+      "test_callers": [
+        "agent_workspace/tests/test_token_counter.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/core/token_efficient_profile.py",
+      "module": "core.token_efficient_profile",
+      "lines": 25,
+      "prod_caller_count": 0,
+      "test_caller_count": 3,
+      "classification": "Consolidate (Test-Only / Candidate for Ingestion)",
+      "prod_callers": [],
+      "test_callers": [
+        "agent_workspace/tests/test_conductor_plan.py",
+        "agent_workspace/tests/test_context_budget_preflight.py",
+        "agent_workspace/tests/test_token_efficient_governance.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/core/workflow_engine.py",
+      "module": "core.workflow_engine",
+      "lines": 806,
+      "prod_caller_count": 1,
+      "test_caller_count": 7,
+      "classification": "Keep (Active & Tested)",
+      "prod_callers": [
+        "agent_workspace/cli.py"
+      ],
+      "test_callers": [
+        "agent_workspace/tests/test_bottleneck_profiler.py",
+        "agent_workspace/tests/test_cli.py",
+        "agent_workspace/tests/test_evolution.py",
+        "agent_workspace/tests/test_self_healing.py",
+        "agent_workspace/tests/test_session_security.py",
+        "agent_workspace/tests/test_telemetry.py",
+        "agent_workspace/tests/test_workflow_engine.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/core/ws_manager.py",
+      "module": "core.ws_manager",
+      "lines": 60,
+      "prod_caller_count": 2,
+      "test_caller_count": 0,
+      "classification": "Refactor (Active but Missing Direct Test)",
+      "prod_callers": [
+        "agent_workspace/api.py",
+        "agent_workspace/routes/collaboration.py"
+      ],
+      "test_callers": []
+    },
+    {
+      "file": "agent_workspace/evidence_memory_validate.py",
+      "module": "evidence_memory_validate",
+      "lines": 233,
+      "prod_caller_count": 2,
+      "test_caller_count": 1,
+      "classification": "Keep (Active & Tested)",
+      "prod_callers": [
+        "agent_workspace/long_term_memory.py",
+        "agent_workspace/memory_pack.py"
+      ],
+      "test_callers": [
+        "agent_workspace/tests/test_memory_pack.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/long_term_memory.py",
+      "module": "long_term_memory",
+      "lines": 1181,
+      "prod_caller_count": 7,
+      "test_caller_count": 7,
+      "classification": "Keep (Active & Tested)",
+      "prod_callers": [
+        "agent_workspace/cli.py",
+        "agent_workspace/core/prompt_composer.py",
+        "agent_workspace/core/router.py",
+        "agent_workspace/memory_pack.py",
+        "agent_workspace/routes/chat.py",
+        "agent_workspace/routes/dependencies.py",
+        "agent_workspace/skills/tool_memory.py"
+      ],
+      "test_callers": [
+        "agent_workspace/tests/test_concurrency_auditor.py",
+        "agent_workspace/tests/test_episodic_summarizer.py",
+        "agent_workspace/tests/test_memory_backend.py",
+        "agent_workspace/tests/test_memory_fts5.py",
+        "agent_workspace/tests/test_memory_pack.py",
+        "agent_workspace/tests/test_memory_reranking.py",
+        "agent_workspace/tests/test_vector_memory.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/memory_backends.py",
+      "module": "memory_backends",
+      "lines": 1011,
+      "prod_caller_count": 1,
+      "test_caller_count": 5,
+      "classification": "Keep (Active & Tested)",
+      "prod_callers": [
+        "agent_workspace/long_term_memory.py"
+      ],
+      "test_callers": [
+        "agent_workspace/tests/test_memory_backend.py",
+        "agent_workspace/tests/test_memory_concurrency.py",
+        "agent_workspace/tests/test_memory_fts5.py",
+        "agent_workspace/tests/test_session_security.py",
+        "agent_workspace/tests/test_vector_memory.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/memory_pack.py",
+      "module": "memory_pack",
+      "lines": 251,
+      "prod_caller_count": 0,
+      "test_caller_count": 1,
+      "classification": "Consolidate (Test-Only / Candidate for Ingestion)",
+      "prod_callers": [],
+      "test_callers": [
+        "agent_workspace/tests/test_memory_pack.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/observability.py",
+      "module": "observability",
+      "lines": 699,
+      "prod_caller_count": 12,
+      "test_caller_count": 5,
+      "classification": "Keep (Active & Tested)",
+      "prod_callers": [
+        "agent_workspace/api.py",
+        "agent_workspace/core/account_manager.py",
+        "agent_workspace/core/engine.py",
+        "agent_workspace/core/ledger.py",
+        "agent_workspace/core/providers.py",
+        "agent_workspace/core/router.py",
+        "agent_workspace/core/sandbox.py",
+        "agent_workspace/core/workflow_engine.py",
+        "agent_workspace/routes/chat.py",
+        "agent_workspace/routes/swarm.py",
+        "agent_workspace/run.py",
+        "agent_workspace/topology_stream.py"
+      ],
+      "test_callers": [
+        "agent_workspace/tests/test_bottleneck_profiler.py",
+        "agent_workspace/tests/test_cross_cloud.py",
+        "agent_workspace/tests/test_distributed_broker.py",
+        "agent_workspace/tests/test_telemetry_router.py",
+        "agent_workspace/tests/test_thread_balancer.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/pap_conformance.py",
+      "module": "pap_conformance",
+      "lines": 280,
+      "prod_caller_count": 0,
+      "test_caller_count": 1,
+      "classification": "Consolidate (Test-Only / Candidate for Ingestion)",
+      "prod_callers": [],
+      "test_callers": [
+        "agent_workspace/tests/test_pap_conformance.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/pap_registry.py",
+      "module": "pap_registry",
+      "lines": 201,
+      "prod_caller_count": 0,
+      "test_caller_count": 1,
+      "classification": "Consolidate (Test-Only / Candidate for Ingestion)",
+      "prod_callers": [],
+      "test_callers": [
+        "agent_workspace/tests/test_pap_registry.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/pap_validate.py",
+      "module": "pap_validate",
+      "lines": 241,
+      "prod_caller_count": 2,
+      "test_caller_count": 1,
+      "classification": "Keep (Active & Tested)",
+      "prod_callers": [
+        "agent_workspace/cli.py",
+        "agent_workspace/pap_conformance.py"
+      ],
+      "test_callers": [
+        "agent_workspace/tests/test_pap_v020.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/react_doctor_report.py",
+      "module": "react_doctor_report",
+      "lines": 294,
+      "prod_caller_count": 0,
+      "test_caller_count": 1,
+      "classification": "Consolidate (Test-Only / Candidate for Ingestion)",
+      "prod_callers": [],
+      "test_callers": [
+        "agent_workspace/tests/test_react_doctor_report.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/review_findings_validate.py",
+      "module": "review_findings_validate",
+      "lines": 301,
+      "prod_caller_count": 0,
+      "test_caller_count": 2,
+      "classification": "Consolidate (Test-Only / Candidate for Ingestion)",
+      "prod_callers": [],
+      "test_callers": [
+        "agent_workspace/tests/test_pap_review_findings_validate.py",
+        "agent_workspace/tests/test_review_findings_validate.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/routes/__init__.py",
+      "module": "routes.__init__",
+      "lines": 3,
+      "prod_caller_count": 0,
+      "test_caller_count": 0,
+      "classification": "Keep (Package Marker)",
+      "prod_callers": [],
+      "test_callers": []
+    },
+    {
+      "file": "agent_workspace/routes/admin.py",
+      "module": "routes.admin",
+      "lines": 512,
+      "prod_caller_count": 1,
+      "test_caller_count": 1,
+      "classification": "Keep (Active & Tested)",
+      "prod_callers": [
+        "agent_workspace/api.py"
+      ],
+      "test_callers": [
+        "agent_workspace/tests/test_saas_integration.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/routes/audit.py",
+      "module": "routes.audit",
+      "lines": 88,
+      "prod_caller_count": 1,
+      "test_caller_count": 0,
+      "classification": "Refactor (Active but Missing Direct Test)",
+      "prod_callers": [
+        "agent_workspace/api.py"
+      ],
+      "test_callers": []
+    },
+    {
+      "file": "agent_workspace/routes/chat.py",
+      "module": "routes.chat",
+      "lines": 912,
+      "prod_caller_count": 1,
+      "test_caller_count": 0,
+      "classification": "Refactor (Active but Missing Direct Test)",
+      "prod_callers": [
+        "agent_workspace/api.py"
+      ],
+      "test_callers": []
+    },
+    {
+      "file": "agent_workspace/routes/collaboration.py",
+      "module": "routes.collaboration",
+      "lines": 874,
+      "prod_caller_count": 1,
+      "test_caller_count": 1,
+      "classification": "Keep (Active & Tested)",
+      "prod_callers": [
+        "agent_workspace/api.py"
+      ],
+      "test_callers": [
+        "agent_workspace/tests/test_live_collaboration.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/routes/cross_cloud.py",
+      "module": "routes.cross_cloud",
+      "lines": 161,
+      "prod_caller_count": 1,
+      "test_caller_count": 0,
+      "classification": "Refactor (Active but Missing Direct Test)",
+      "prod_callers": [
+        "agent_workspace/api.py"
+      ],
+      "test_callers": []
+    },
+    {
+      "file": "agent_workspace/routes/dependencies.py",
+      "module": "routes.dependencies",
+      "lines": 448,
+      "prod_caller_count": 7,
+      "test_caller_count": 1,
+      "classification": "Keep (Active & Tested)",
+      "prod_callers": [
+        "agent_workspace/api.py",
+        "agent_workspace/routes/admin.py",
+        "agent_workspace/routes/audit.py",
+        "agent_workspace/routes/chat.py",
+        "agent_workspace/routes/collaboration.py",
+        "agent_workspace/routes/cross_cloud.py",
+        "agent_workspace/routes/swarm.py"
+      ],
+      "test_callers": [
+        "agent_workspace/tests/test_ws_quota_security.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/routes/schemas.py",
+      "module": "routes.schemas",
+      "lines": 170,
+      "prod_caller_count": 6,
+      "test_caller_count": 2,
+      "classification": "Keep (Active & Tested)",
+      "prod_callers": [
+        "agent_workspace/routes/admin.py",
+        "agent_workspace/routes/audit.py",
+        "agent_workspace/routes/chat.py",
+        "agent_workspace/routes/collaboration.py",
+        "agent_workspace/routes/cross_cloud.py",
+        "agent_workspace/routes/swarm.py"
+      ],
+      "test_callers": [
+        "agent_workspace/tests/test_memory_backend.py",
+        "agent_workspace/tests/test_task_execution_limits.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/routes/swarm.py",
+      "module": "routes.swarm",
+      "lines": 387,
+      "prod_caller_count": 1,
+      "test_caller_count": 0,
+      "classification": "Refactor (Active but Missing Direct Test)",
+      "prod_callers": [
+        "agent_workspace/api.py"
+      ],
+      "test_callers": []
+    },
+    {
+      "file": "agent_workspace/run.py",
+      "module": "run",
+      "lines": 180,
+      "prod_caller_count": 0,
+      "test_caller_count": 0,
+      "classification": "Keep (Live Entrypoint)",
+      "prod_callers": [],
+      "test_callers": []
+    },
+    {
+      "file": "agent_workspace/server.py",
+      "module": "server",
+      "lines": 39,
+      "prod_caller_count": 0,
+      "test_caller_count": 1,
+      "classification": "Consolidate (Test-Only / Candidate for Ingestion)",
+      "prod_callers": [],
+      "test_callers": [
+        "agent_workspace/tests/test_startup_security.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/service.py",
+      "module": "service",
+      "lines": 421,
+      "prod_caller_count": 0,
+      "test_caller_count": 1,
+      "classification": "Keep (Live Entrypoint)",
+      "prod_callers": [],
+      "test_callers": [
+        "agent_workspace/tests/test_service_smoke.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/skills/__init__.py",
+      "module": "skills.__init__",
+      "lines": 1,
+      "prod_caller_count": 0,
+      "test_caller_count": 0,
+      "classification": "Keep (Package Marker)",
+      "prod_callers": [],
+      "test_callers": []
+    },
+    {
+      "file": "agent_workspace/skills/delegate_task.py",
+      "module": "skills.delegate_task",
+      "lines": 195,
+      "prod_caller_count": 0,
+      "test_caller_count": 2,
+      "classification": "Consolidate (Test-Only / Candidate for Ingestion)",
+      "prod_callers": [],
+      "test_callers": [
+        "agent_workspace/tests/test_agent_crew.py",
+        "agent_workspace/tests/test_delegation_limits.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/skills/example_skill_template.py",
+      "module": "skills.example_skill_template",
+      "lines": 44,
+      "prod_caller_count": 0,
+      "test_caller_count": 0,
+      "classification": "Retire Candidate (Unreferenced)",
+      "prod_callers": [],
+      "test_callers": []
+    },
+    {
+      "file": "agent_workspace/skills/system_verification.py",
+      "module": "skills.system_verification",
+      "lines": 68,
+      "prod_caller_count": 0,
+      "test_caller_count": 1,
+      "classification": "Consolidate (Test-Only / Candidate for Ingestion)",
+      "prod_callers": [],
+      "test_callers": [
+        "agent_workspace/tests/test_system_verification.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/skills/tool_codebase_memory.py",
+      "module": "skills.tool_codebase_memory",
+      "lines": 341,
+      "prod_caller_count": 0,
+      "test_caller_count": 1,
+      "classification": "Consolidate (Test-Only / Candidate for Ingestion)",
+      "prod_callers": [],
+      "test_callers": [
+        "agent_workspace/tests/test_codebase_memory_tools.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/skills/tool_log.py",
+      "module": "skills.tool_log",
+      "lines": 157,
+      "prod_caller_count": 1,
+      "test_caller_count": 0,
+      "classification": "Refactor (Active but Missing Direct Test)",
+      "prod_callers": [
+        "agent_workspace/run.py"
+      ],
+      "test_callers": []
+    },
+    {
+      "file": "agent_workspace/skills/tool_memory.py",
+      "module": "skills.tool_memory",
+      "lines": 94,
+      "prod_caller_count": 0,
+      "test_caller_count": 1,
+      "classification": "Consolidate (Test-Only / Candidate for Ingestion)",
+      "prod_callers": [],
+      "test_callers": [
+        "agent_workspace/tests/test_memory_skill.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/skills/tool_workspace.py",
+      "module": "skills.tool_workspace",
+      "lines": 415,
+      "prod_caller_count": 0,
+      "test_caller_count": 2,
+      "classification": "Consolidate (Test-Only / Candidate for Ingestion)",
+      "prod_callers": [],
+      "test_callers": [
+        "agent_workspace/tests/test_delegation_limits.py",
+        "agent_workspace/tests/test_evolution.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/skills/transfer_agent.py",
+      "module": "skills.transfer_agent",
+      "lines": 20,
+      "prod_caller_count": 0,
+      "test_caller_count": 0,
+      "classification": "Retire Candidate (Unreferenced)",
+      "prod_callers": [],
+      "test_callers": []
+    },
+    {
+      "file": "agent_workspace/tool_manifest.py",
+      "module": "tool_manifest",
+      "lines": 971,
+      "prod_caller_count": 3,
+      "test_caller_count": 2,
+      "classification": "Keep (Live Entrypoint)",
+      "prod_callers": [
+        "agent_workspace/cli.py",
+        "agent_workspace/core/skill_loader.py",
+        "agent_workspace/routes/chat.py"
+      ],
+      "test_callers": [
+        "agent_workspace/tests/test_license_audit.py",
+        "agent_workspace/tests/test_precheck.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/topology_bridge.py",
+      "module": "topology_bridge",
+      "lines": 333,
+      "prod_caller_count": 2,
+      "test_caller_count": 0,
+      "classification": "Refactor (Active but Missing Direct Test)",
+      "prod_callers": [
+        "agent_workspace/core/router.py",
+        "agent_workspace/topology_stream.py"
+      ],
+      "test_callers": []
+    },
+    {
+      "file": "agent_workspace/topology_stream.py",
+      "module": "topology_stream",
+      "lines": 420,
+      "prod_caller_count": 0,
+      "test_caller_count": 1,
+      "classification": "Consolidate (Test-Only / Candidate for Ingestion)",
+      "prod_callers": [],
+      "test_callers": [
+        "agent_workspace/tests/test_api.py"
+      ]
+    },
+    {
+      "file": "agent_workspace/workflow_lint.py",
+      "module": "workflow_lint",
+      "lines": 197,
+      "prod_caller_count": 0,
+      "test_caller_count": 1,
+      "classification": "Consolidate (Test-Only / Candidate for Ingestion)",
+      "prod_callers": [],
+      "test_callers": [
+        "agent_workspace/tests/test_workflow_lint.py"
+      ]
+    }
+  ]
+}
