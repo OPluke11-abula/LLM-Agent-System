@@ -5,14 +5,14 @@
 > **Prerequisite**: Automated tests 100% Green (`PASS`) before updating this document.
 > **Last Synchronized**: 2026-10-02
 > **Domain Owner / PO**: Luke
-> **Project State**: Phase 113 (Multi-Platform Desktop Packaging & Release Matrix) Completed & Certified (Milestone T-040); 3 ➔ 4 ➔ 2 ➔ 1 Strategic Roadmap 100% Fully Accomplished!
+> **Project State**: Phase 0 (系統全能基準線 v0.6.0 Baseline) Completed & Certified; 歷史 113 個 Phase 已歸納封存，進入 Epoch 2 乾淨演進週期。
 
 ---
 
 ## 1. 3-Line Executive Summary (三行白話摘要)
-1. 擴充 Tauri 2.0 跨平台打包規格 (`viewer/src-tauri/tauri.conf.json`)：支援 Windows (WiX `.msi` 企業部署 / NSIS `.exe` 免權限安裝)、macOS (`.dmg` 映象檔與 `.app` bundle，相容 macOS 10.13+) 以及 Linux (`.deb` 自動相依 WebKitGTK 4.1 與 `.AppImage` 通用執行檔)。
-2. 升級 GitHub Actions 跨平台發布矩陣 (`.github/workflows/release.yml`)：配置 `windows-latest`、`macos-latest`、`ubuntu-22.04` 三平台併行建置，包含 Linux 依賴項自動安裝與 `tauri-action` 多資產自動發布至 GitHub Releases。
-3. 實作 4 軌版本一致性檢驗與收據審計 (`scripts/verify_desktop_matrix.py`)：驗證 Python、前端、Tauri、Cargo 四軌版本號位元級一致 (`0.6.0`)，測試套件 4/4 PASS，產出 `.agent/evidence/desktop_matrix_receipt.json`。
+1. 歷史 113 個 Phase 正式結案並歸納為「Phase 0: 系統全能基準線 (v0.6.0 Baseline)」：確立核心運行時、控制台視圖、編程管線、群智治理、P2P 加密網格、端側 SLM、雲原生 Helm/Canary 與跨平台桌面 7 大架構柱石。
+2. 任務隊列全面瘦身重製：`.agent/agent_tasks.md` 省除過去 113 個歷史 Phase 的冗餘篇幅，所有歷史執行紀錄完整歸檔至 Obsidian 知識庫（Milestone T-001 ~ T-040），日常運維零認知負擔。
+3. 全維度品質與發布收據 100% 綠燈：111/111 Pytest PASS，Release Readiness PASS，27/27 工具合約與 0 密鑰外洩驗證通過，隨時可展開新世代 Phase 1 的規劃與實作。
 
 ---
 
