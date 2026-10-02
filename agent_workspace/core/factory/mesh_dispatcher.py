@@ -39,7 +39,9 @@ class MeshFactoryDispatcher:
                 "node-edge-mutation-01": [PeerCapability.SANDBOX_MUTATION.value],
                 "node-edge-mutation-02": [PeerCapability.SANDBOX_MUTATION.value],
                 "node-ci-test-runner": [PeerCapability.TEST_RUNNER.value],
+                "node-multimodal-verifier": [PeerCapability.MULTIMODAL_PERCEPTION.value],
             }
+
 
         self.dispatch_history: List[FactoryDispatchPlan] = []
 
@@ -57,8 +59,11 @@ class MeshFactoryDispatcher:
             return PeerCapability.REASONING_ENGINE
         elif task.task_type == RefactoringTaskType.TEST_EXPANSION:
             return PeerCapability.TEST_RUNNER
+        elif task.task_type == RefactoringTaskType.VISUAL_VERIFICATION:
+            return PeerCapability.MULTIMODAL_PERCEPTION
         else:
             return PeerCapability.SANDBOX_MUTATION
+
 
     def _find_best_peer(self, required_cap: PeerCapability, wave_assigned_peers: Sequence[str]) -> str:
         """Finds the least-loaded peer matching the required capability."""

@@ -36,7 +36,7 @@ BANNER = r"""
  | |      / \   / ___|
  | |     / _ \  \___ \
  | |___ / ___ \  ___) |
- |_____/_/   \_\|____/  Developer Control Plane (v0.5.0)
+ |_____/_/   \_\|____/  Developer Control Plane (v0.6.0)
  Universal Coding Agent Development Protocol v3.8.0
 """
 

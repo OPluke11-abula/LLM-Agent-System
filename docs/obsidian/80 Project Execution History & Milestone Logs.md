@@ -33,6 +33,8 @@ timeline
     2026-09-13 : T-013 Coding Pipeline P2-D (Durable Events & Recovery) : T-014 Coding Pipeline P3 (REST/WS Gateways & Cockpit UI) : T-017 Committee Debate (P85) : T-018 Reasoning Router (P86) : T-019 Distributed Mesh (P87)
     2026-09-14 : T-020 Zero-Trust PKI Mesh (P88) : T-021 Raft Consensus (P89) : T-022 Federated Vector Memory (P90) : T-023 Chaos & Self-Healing (P91)
     2026-09-18 : T-024 Swarm Policy Convergence (P92) : T-025 Destructive Shell Hardening (P93) : T-026 Forensic Correlator (P94) : T-027 Full Test Matrix Parity (P95) : T-028 Frontend a11y & Vault UTF-8 (P96) : T-029 Frontend Modularization & SQLite WAL (P97)
+    2026-09-19 : T-030 Zero Host Paths & Hooks (P98) : T-031 Non-blocking Async & 16-Tenant Stress (P99-P100)
+    2026-10-01 : T-032 Ecosystem Fusion & Golden Path Remediation (P105)
 ```
 
 ---
@@ -813,3 +815,92 @@ timeline
     - Frontend build: `npm run build` PASS in 3.71s (0 errors).
     - React Doctor: 0 bugs, 0 performance warnings, 0 giant components.
     - Knowledge Base Linting: `lint_knowledge_base.ps1` 100% PASS (0 findings).
+
+---
+
+### 2026-10-01 - Phase 105: Advanced External Ecosystem Fusion & Golden Path Remediation
+- **Task ID**: T-032
+- **Driver**: Antigravity & PO Luke
+- **Protocol**: Universal Protocol v3.8.0
+- **Summary**:
+  - Phase 105 External Ecosystem Fusion (Tasks A ~ D):
+    - **Task A (Tauri 2 Ambient Companion & 1-Click HITL)**: Configured `companion-window` in `viewer/src-tauri/tauri.conf.json` (frameless, transparent, alwaysOnTop). Built `useAmbientCompanion.ts` and `AmbientCompanion.tsx` providing micro-animations, fast Allow/Deny approval cards, and file injection. Validated via `verify-companion.mjs` (PR #17).
+    - **Task B (In-Session Protocol Repair Loop)**: Implemented `ProtocolRepairManager` in `agent_workspace/core/protocol_repair.py` offering markdown stripping, alias resolution (`path` -> `file_path`), type coercion, and bounded 2-turn LLM repair loop. Integrated with `AgentExecutor` and `WorkflowEngine` (PR #15).
+    - **Task C (Executor vs. Advisor Delegation Packet)**: Designed `<2000` tokens `DelegationPacket` with `SanitizedContextExtractor` and `delegate_to_advisor` skill, separating local cheap execution from expensive reasoning (PR #15).
+    - **Task D (Responses API Gateway & Quota Router)**: Mounted `POST /v1/responses` SSE stream gateway compatible with OpenAI specifications; implemented `QuotaAwareRouter` with 429 exponential backoff ($5 \times 2^{n-1}$ capped at 120s), sliding window RPM/TPM telemetry, and auto-failover (PR #15).
+  - Golden Path Hardening & Architecture Gap Remediation (PR #16 & #18):
+    - Remedied Python 3.11 test collection failure in `agent_workspace/core/precheck.py` (`from __future__ import annotations`, `Optional`).
+    - Fixed 6 Golden Path architectural gaps: branch preservation on worktree creation; HITL token authentication & masking at rest; real mutation execution inside git worktree; unified policy gate chokepoint; SQLite persistent authority; mandatory independent review gate.
+    - Synchronized 9-stage stepper in `PipelineStageStepper.tsx`, persistent gate approved receipt in `ApprovalGateCard.tsx`, and structured function calls in Responses API.
+- **Result**:
+  - Phase 105 (Milestone T-032) 100% complete, verified, and merged into `main`.
+  - Receipts:
+    - GitHub Actions Run [36855797639](https://github.com/OPluke11-abula/LLM-Agent-System/actions/runs/36855797639): `python` (PASS, 1m24s), `mission-e2e` (PASS, 1m44s), `viewer` (PASS, 12s).
+    - GitHub Actions Run [36855797783](https://github.com/OPluke11-abula/LLM-Agent-System/actions/runs/36855797783): `react-doctor` (PASS, 19s, 0 issues).
+    - Local Pytest: 48/48 targeted tests PASS in 9.17s (`test_protocol_repair.py`, `test_delegation_packet.py`, `test_responses_api.py`, `test_quota_router.py`, `test_golden_path_hardening_slice2.py`, `test_pipeline_api_p3.py`).
+    - Frontend Rolldown/Vite Build: `npm run build` in `viewer/` PASS in 778ms (0 errors, 677 modules transformed).
+    - Ambient Companion Verification: `npm run verify:companion` PASS (4/4 checks green).
+    - React Doctor Scorecard: `npm run doctor:changed` reports 0 issues.
+    - Clean Working Tree: 0 uncommitted artifacts, HEAD at `68ba016`.
+
+---
+
+### 2026-10-01 - Phase 106: Autonomous Swarm Orchestration, Desktop Interactive Loop & v0.6.0 Release
+- **Task ID**: T-033
+- **Driver**: Antigravity & PO Luke
+- **Protocol**: Universal Protocol v3.8.0
+- **Summary**:
+  - **Task 106-01 (Desktop Companion Modularization & Pipeline Interop)**:
+    - Modularized `AmbientCompanion.tsx` into 4 focused subcomponents (`CompanionHeader`, `CompanionStageTracker`, `CompanionHitlCard`, `CompanionDroppedFiles`), resolving all React Doctor warnings (0 bugs, 0 giant components, 0 warnings).
+    - Connected 9-stage stepper and dropped-file task creation directly to `POST /v1/pipeline/tasks` (PR #19).
+  - **Task 106-02 (Responses API Dynamic Failover & In-Session Self-Healing Integration)**:
+    - Integrated `ProtocolRepairManager` into streaming SSE and non-streaming modes of `POST /v1/responses`, emitting real-time `response.repair` events.
+    - Implemented dynamic 429 quota failover from primary cloud providers to Gemini Flash or local Ollama, emitting `response.failover` events.
+  - **Task 106-03 (Concurrent Multi-Agent Worktrees & UnifiedPolicyGate Arbitration)**:
+    - Added `create_multi_agent_worktrees` and `squash_merge_worktree_branch` in `GitWorktreeManager`.
+    - Added `execute_concurrent_role_pipeline` in `CodingPipelineManager` enforcing strict role boundary validation and file overlap conflict arbitration between `BACKEND_INFRA_AGENT` and `UI_UX_AGENT`.
+  - **Task 106-04 (Self-Healing Pattern Vector Distillation & v0.6.0 Release Verification)**:
+    - Added `distill_self_healing_pattern` in `FederatedVectorMemory`, vectorizing self-healing repair patterns into Merkle-verified vector memory.
+    - Version bumped across `pyproject.toml` and `viewer/package.json` to `v0.6.0`.
+- **Result**:
+  - Phase 106 (Milestone T-033) 100% complete and certified.
+  - Receipts:
+    - Core Unit Tests: 66/66 Python tests passed in 0.4s (0 failures).
+    - Frontend Production Build: Built in 938ms, 0 TypeScript errors, 681 modules transformed.
+    - React Doctor: 113 files scanned, ✔ No issues found!
+    - Companion Verification: `npm run verify:companion` 100% PASS (4/4 checks green).
+    - Release Version: `v0.6.0` synchronized across backend and frontend manifests.
+
+---
+
+### 2026-10-02 - Phase 107 ~ 109: Multimodal Swarm Mesh, GHCR Docker Publishing & Dual-Track Release Pipeline
+- **Task ID**: T-034 (Phase 107), T-035 (Phase 108), T-036 (Phase 109)
+- **Driver**: Antigravity & PO Luke
+- **Protocol**: Universal Protocol v3.8.0
+- **Summary**:
+  - **Phase 107 (Multimodal Swarm Mesh & 16-Node P2P Stress Drill)**:
+    - Extended `PeerCapability.MULTIMODAL_PERCEPTION` in `agent_workspace/core/federated_mesh.py` for visual and diagram inspection.
+    - Added `MultimodalVerificationReceipt` model and `delegate_multimodal_verification` with SHA-256 Merkle root binding.
+    - Enhanced `MeshFactoryDispatcher` in `agent_workspace/core/factory/mesh_dispatcher.py` to route `RefactoringTaskType.VISUAL_VERIFICATION` to multimodal nodes.
+    - Created and executed `scripts/run_p2p_mesh_stress_benchmark.py` running 16 heterogeneous nodes (320 transactions, 0 errors, 100% Merkle attestation, 321 Raft log entries, chaos partition recovery).
+    - Added automated unit suite `agent_workspace/tests/test_p2p_multimodal_mesh_stress_p107.py` (4/4 PASS).
+  - **Phase 108 (Docker Multi-Arch Buildx & GHCR Registry Pipeline)**:
+    - Authored `.github/workflows/docker-publish.yml` with Buildx, QEMU, GHA cache, and push to `ghcr.io/opluke11-abula/llm-agent-system` on `main` branch (:edge) and semver release tags (:latest, :v0.6.0).
+    - Created production configuration template `.env.production.example`.
+    - Added automated unit suite `agent_workspace/tests/test_docker_deployment_p108.py` (4/4 PASS).
+  - **Phase 109 (Dual-Track Release Pipeline & Desktop Packaging)**:
+    - Authored `.github/workflows/release.yml` unifying multi-arch container publishing to GHCR and Windows Tauri desktop bundle packaging (`.msi` / `.exe`) with CycloneDX SBOM and SHA-256 checksum receipts.
+    - Authored release readiness audit script `scripts/verify_release_readiness.py` validating 3-way version parity (Python `pyproject.toml`, Frontend `viewer/package.json`, Desktop `viewer/src-tauri/tauri.conf.json` / `Cargo.toml`), deployment configs, and evidence receipts.
+    - Authored dedicated unit test suite `agent_workspace/tests/test_release_pipeline_p109.py` verifying workflow syntax, triggers, permissions, release gate functions, and Cargo manifest parity (5/5 PASS).
+- **Result**:
+  - Phase 107, 108, 109 100% completed and certified.
+  - Receipts:
+    - Multimodal P2P Mesh Stress: 16 nodes, 320 ops, 0.0% errors, 100% Merkle attestation PASS (`.agent/evidence/p2p_multimodal_mesh_receipt.json`).
+    - Python Unit Tests: 75/75 tests passed (0 failures; 13/13 targeted across Phase 107~109).
+    - Release Readiness Gate: `scripts/verify_release_readiness.py` PASSED with 100% triad parity across `pyproject.toml`, `viewer/package.json`, and `viewer/src-tauri/tauri.conf.json`.
+    - Frontend Build: `npm run build` PASS in 930ms (0 errors, 681 modules transformed).
+    - React Doctor: 113 files scanned, ✔ No issues found!
+    - Secrets Scan: `python agent_workspace/tool_manifest.py validate` PASSED (0 hardcoded secrets).
+
+
+

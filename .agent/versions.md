@@ -8,9 +8,10 @@ This file specifies the official declared runtime and toolchain versions for LLM
 - **Universal Coding Protocol**: `3.8.0`
 - **Universal Chat Agent Protocol**: `2.7.0`
 - **Portable Agent Protocol (PAP)**: `0.2.0`
+- **LAS Release Version**: `v0.6.0`
 
 ## 2. Core Python Runtime
-- **Python**: `>= 3.11, < 3.13`
+- **Python**: `>= 3.10` (Python 3.11, 3.12, 3.13, 3.14 supported)
 - **FastAPI**: `>= 0.110.0`
 - **Pydantic**: `>= 2.6.0`
 - **Uvicorn**: `>= 0.28.0`

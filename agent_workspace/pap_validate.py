@@ -11,7 +11,7 @@ import jsonschema
 
 # Reference protocol and runtime version defaults
 PROTOCOL_VERSION = "3.8.0"
-RUNTIME_VERSION = "0.5.0"
+RUNTIME_VERSION = "0.6.0"
 MEMORY_TIER_BACKENDS: Final[dict[str, frozenset[str]]] = {
     "ephemeral": frozenset({"in_memory", "none"}),
     "session": frozenset({"in_memory", "local", "redis"}),

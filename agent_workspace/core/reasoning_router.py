@@ -33,6 +33,7 @@ class ModelTier(str, Enum):
     STANDARD_CODING = "STANDARD_CODING"      # Precision coding & AST compliance (Claude 3.5 Sonnet, GPT-4o, Qwen 2.5 Coder)
     FAST_PRECHECK = "FAST_PRECHECK"          # Sub-second latency, cheap preflight verification (Gemini 2.5 Flash, Haiku 3.5)
     LOCAL_OFFLINE = "LOCAL_OFFLINE"          # 100% air-gapped local inference via Ollama (deepseek-r1:8b, qwen2.5-coder)
+    ADVISOR_DELEGATION = "ADVISOR_DELEGATION"# External structured advisory delegation (codex-bridge / Zero-Risk)
 
 
 class ReasoningConfig(BaseModel):

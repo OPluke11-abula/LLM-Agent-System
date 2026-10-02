@@ -10,6 +10,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from agent_workspace.api import app
+from agent_workspace.routes.dependencies import API_KEYS
 from agent_workspace.core.pipeline.models import (
     CodingTaskRequest,
     PipelineStage,
@@ -24,6 +25,20 @@ class TestPipelineApiP3(unittest.TestCase):
     def setUp(self):
         self.client = TestClient(app)
         self.temp_repo = tempfile.mkdtemp(prefix="las_test_api_repo_")
+        os.environ["LAS_WORKSPACE"] = self.temp_repo
+
+        import agent_workspace.routes.pipeline as pipe_mod
+        pipe_mod._manager_instance = None
+        pipe_mod._inspector_instance = None
+        with pipe_mod._registry_lock:
+            pipe_mod._task_registry.clear()
+
+        API_KEYS["pipeline-test-key"] = {
+            "tenant": "tenant-1",
+            "sub": "luke-actor",
+            "role": "tenant",
+        }
+        self.auth_headers = {"x-api-key": "pipeline-test-key"}
 
         # 1. Initialize git repo
         subprocess.run(["git", "init", "-b", "main"], cwd=self.temp_repo, check=True, capture_output=True)
@@ -44,6 +59,14 @@ class TestPipelineApiP3(unittest.TestCase):
         subprocess.run(["git", "commit", "-m", "Initial commit"], cwd=self.temp_repo, check=True)
 
     def tearDown(self):
+        os.environ.pop("LAS_WORKSPACE", None)
+        import agent_workspace.routes.pipeline as pipe_mod
+        pipe_mod._manager_instance = None
+        pipe_mod._inspector_instance = None
+        with pipe_mod._registry_lock:
+            pipe_mod._task_registry.clear()
+
+        API_KEYS.pop("pipeline-test-key", None)
         if os.path.exists(self.temp_repo):
             shutil.rmtree(self.temp_repo, ignore_errors=True)
 
@@ -120,36 +143,50 @@ class TestPipelineApiP3(unittest.TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["gate_status"], "AWAITING_APPROVAL")
 
-        # 4. Attempt to execute without approval -> 403 STOP_AND_WAIT_GATE_LOCKED
+        # 4a. Attempt to execute without authentication -> 401 Unauthorized
         res = self.client.post(f"/v1/pipeline/tasks/{task_id}/execute")
+        self.assertEqual(res.status_code, 401)
+
+        # 4b. Attempt to execute with auth but without approval -> 403 STOP_AND_WAIT_GATE_LOCKED
+        res = self.client.post(f"/v1/pipeline/tasks/{task_id}/execute", headers=self.auth_headers)
         self.assertEqual(res.status_code, 403)
         self.assertIn("STOP_AND_WAIT_GATE_LOCKED", res.json()["detail"])
 
-        # 5. Human-in-the-loop (HITL) approval
+        # 5a. Human-in-the-loop (HITL) approval without auth -> 401 Unauthorized
         approve_payload = {
             "approval_token": "LUKE_TOKEN_999",
             "approver": "Luke (Domain Owner)",
             "notes": "Architecture plan verified.",
         }
         res = self.client.post(f"/v1/pipeline/tasks/{task_id}/approve", json=approve_payload)
+        self.assertEqual(res.status_code, 401)
+
+        # 5b. Authenticated HITL approval -> 200 with masked token
+        res = self.client.post(f"/v1/pipeline/tasks/{task_id}/approve", json=approve_payload, headers=self.auth_headers)
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["gate_status"], "APPROVED")
+        self.assertTrue(res.json()["approval_token"].startswith("***"))
 
-        # 6. Execute pipeline
-        res = self.client.post(f"/v1/pipeline/tasks/{task_id}/execute")
+        # 6. Authenticated execute pipeline -> 200
+        res = self.client.post(f"/v1/pipeline/tasks/{task_id}/execute", headers=self.auth_headers)
         self.assertEqual(res.status_code, 200)
         exec_data = res.json()["result"]
         self.assertEqual(exec_data["status"], VerificationStatus.PASS.value)
         self.assertEqual(exec_data["current_stage"], PipelineStage.COMPLETED.value)
         self.assertIsNotNone(exec_data["pr_payload"])
 
-        # 7. Check events ledger and Merkle root
+        # 7. Check events ledger and Merkle root (verify token not leaked in plaintext)
         res = self.client.get(f"/v1/pipeline/tasks/{task_id}/events")
         self.assertEqual(res.status_code, 200)
         events_data = res.json()
         self.assertEqual(events_data["chain_integrity"], True)
         self.assertEqual(len(events_data["merkle_root"]), 64)
         self.assertGreaterEqual(events_data["event_count"], 3)
+        events_list = events_data.get("events", [])
+        approve_events = [e for e in events_list if e.get("payload", {}).get("action") == "GATE_APPROVED"]
+        if approve_events:
+            self.assertNotIn("token", approve_events[0]["payload"])
+            self.assertIn("token_fingerprint", approve_events[0]["payload"])
 
         # 8. Check Canonical Preservation Receipt
         res = self.client.get(f"/v1/pipeline/tasks/{task_id}/preservation")
@@ -179,7 +216,12 @@ class TestPipelineApiP3(unittest.TestCase):
             "test_strategy": ['python -c "exit(0)"'],
         }
 
+        # 1. Unauthenticated -> 401
         res = self.client.post("/v1/pipeline/tasks/run", json={"request": req, "plan": plan})
+        self.assertEqual(res.status_code, 401)
+
+        # 2. Authenticated -> 200
+        res = self.client.post("/v1/pipeline/tasks/run", json={"request": req, "plan": plan}, headers=self.auth_headers)
         self.assertEqual(res.status_code, 200)
         data = res.json()
         self.assertTrue(data["is_preserved"])

@@ -55,6 +55,17 @@ graph TD
     T27["T-027: Full Test Matrix Parity & Protocol 3.8.0 Scaffolding Alignment (P95)"]:::done
     T28["T-028: Frontend Swarm UI Test Parity, React Doctor a11y & Vault UTF-8 (P96)"]:::done
     T29["T-029: Frontend Architecture Modularization, React Doctor Zero-Bug & SQLite WAL (P97)"]:::done
+    T30["T-030: Zero Hardcoded Host Paths & Custom Hooks (P98)"]:::done
+    T31["T-031: Non-blocking Async & Concurrency Benchmark (P99-P100)"]:::done
+    T32["T-032: Ecosystem Fusion & Golden Path Remediation (P105)"]:::done
+    T106_1["106-01: Ambient Companion Full Interactive Loop"]:::done
+    T106_2["106-02: Responses API Dynamic Failover & Self-Healing"]:::done
+    T106_3["106-03: Concurrent Multi-Agent Worktree Sandbox"]:::done
+    T106_4["106-04: Pattern Distillation & v0.6.0 Release"]:::done
+    T107["T-034: Multimodal Swarm Mesh & P2P Stress Drill (P107)"]:::done
+    T108["T-035: Docker Buildx & GHCR Registry Pipeline (P108)"]:::done
+    T109["T-036: Dual-Track Release & Desktop Packaging (P109)"]:::done
+
 
     T01 --> T02
     T01 --> T03
@@ -86,6 +97,17 @@ graph TD
     T26 --> T27
     T27 --> T28
     T28 --> T29
+    T29 --> T30
+    T30 --> T31
+    T31 --> T32
+    T32 --> T106_1
+    T32 --> T106_2
+    T106_1 --> T106_3
+    T106_2 --> T106_3
+    T106_3 --> T106_4
+    T106_4 --> T107
+    T107 --> T108
+    T108 --> T109
 ```
 
 ---
@@ -362,3 +384,61 @@ graph TD
 - **Target Files**: `agent_workspace/core/agent_executor.py`, `agent_workspace/core/pipeline/self_healing.py`, `agent_workspace/core/audit_ledger.py`, `agent_workspace/tests/test_agent_executor_p2c.py`, `agent_workspace/tests/test_chaos_selfhealing_p91.py`, `scripts/run_concurrency_stress_benchmark.py`, `Dockerfile`, `.dockerignore`, `docs/obsidian/05 Task Status & Multi-Agent Execution DAG.md`, `docs/obsidian/80 Project Execution History & Milestone Logs.md`.
 - **Verification**: `test_agent_executor_p2c.py` (13 passed); `test_chaos_selfhealing_p91.py` (11 passed); `run_concurrency_stress_benchmark.py` (16 tenants, 400 ops, 0.0% errors, 80.06 TPS, chain verified, SQLite WAL integrity OK); `npm run build` (0 errors); `npm run doctor` (0 bugs, 0 giant components); `lint_knowledge_base.ps1` (0 findings).
 - **Status**: `PASS` (Completed).
+
+### [DONE] T-032: Advanced External Ecosystem Fusion & Golden Path Remediation (Phase 105)
+- **Assigned Role**: `ARCHITECT_PLANNER_AGENT` (Luke) / `UI_UX_AGENT` (Joe) / `BACKEND_INFRA_AGENT` (Ethan) / `QA_TEST_AGENT` (Jimmy)
+- **Reference ADR**: [[60 Architectural Decision Records (ADR) Graph#ADR-001|ADR-001: Protocol Baseline]], [[60 Architectural Decision Records (ADR) Graph#ADR-005|ADR-005: Stop-and-Wait Gate]], [[60 Architectural Decision Records (ADR) Graph#ADR-006|ADR-006: Agent Strategy Integration]]
+- **Scope**:
+  1. **External Ecosystem Fusion (Tasks A~D)**:
+     - Task A: Configured `companion-window` in `viewer/src-tauri/tauri.conf.json` and built `useAmbientCompanion.ts` & `AmbientCompanion.tsx` with 1-click HITL approval and file injection (PR #17).
+     - Task B: Authored `ProtocolRepairManager` in `agent_workspace/core/protocol_repair.py` providing in-session 2-turn deterministic parameter self-healing (PR #15).
+     - Task C: Built sanitized `<2000` tokens `DelegationPacket` and `delegate_to_advisor` skill for cost-effective reasoning delegation (PR #15).
+     - Task D: Exposed OpenAI-compatible `POST /v1/responses` SSE stream gateway and implemented `QuotaAwareRouter` with 429 exponential backoff and sliding window RPM/TPM telemetry (PR #15).
+  2. **Golden Path Remediation & Deep Optimization (PR #16 & #18)**:
+     - Fixed `NameError: name 'Optional' is not defined` in `precheck.py` eliminating 83 test collection errors.
+     - Resolved all 6 architecture gaps: worktree branch preservation, masked approval tokens, real worktree mutation, unified policy gate enforcement, SQLite persistent authority, and mandatory independent review.
+     - Synchronized 9-stage stepper in `PipelineStageStepper.tsx`, persistent gate approval receipt card in `ApprovalGateCard.tsx`, and structured responses tool calling.
+- **Target Files**: `agent_workspace/core/precheck.py`, `agent_workspace/core/protocol_repair.py`, `agent_workspace/core/delegation_packet.py`, `agent_workspace/routes/responses.py`, `agent_workspace/core/account_manager.py`, `agent_workspace/core/git_worktree.py`, `agent_workspace/routes/pipeline.py`, `agent_workspace/core/agent_executor.py`, `viewer/src/components/companion/*`, `viewer/src/hooks/useAmbientCompanion.ts`, `viewer/src/components/pipeline/*`.
+- **Verification**: GitHub Actions Run 36855797639 (CI: `python`, `mission-e2e`, `viewer` all `PASS`) & Run 36855797783 (`react-doctor` `PASS`); Pytest 48 targeted tests `PASS`; Vite build `PASS` (778ms); `verify:companion` `PASS`.
+- **Status**: `PASS` (Completed).
+
+### [DONE] T-033: Autonomous Swarm Orchestration, Desktop Interactive Loop & v0.6.0 Release (Phase 106)
+- **Assigned Role**: `ARCHITECT_PLANNER_AGENT` (Luke) / `UI_UX_AGENT` (Joe) / `BACKEND_INFRA_AGENT` (Ethan) / `QA_TEST_AGENT` (Jimmy)
+- **Reference**: [[90 Production Delivery & Swarm Mesh Drill Workflow]]
+- **Scope**:
+  1. **Task 106-01**: Desktop companion full interactive loop decomposed into 4 single-responsibility components with 9-stage stepper sync (PR #19).
+  2. **Task 106-02**: Responses API in-session self-healing integration via `ProtocolRepairManager` and 429 dynamic failover to Gemini Flash or local Ollama.
+  3. **Task 106-03**: Concurrent multi-agent worktree sandbox (`BACKEND_INFRA_AGENT` & `UI_UX_AGENT`) with automated squash merge and policy gate arbitration.
+  4. **Task 106-04**: Merkle-attested vector pattern distillation (`distill_self_healing_pattern`) and official `v0.6.0` release verification.
+- **Target Files**: `viewer/src/components/companion/*`, `agent_workspace/routes/responses.py`, `agent_workspace/core/account_manager.py`, `agent_workspace/core/git_worktree.py`, `agent_workspace/core/pipeline/manager.py`, `agent_workspace/core/vector_memory.py`.
+- **Verification**: 66/66 unit tests PASS; 0 React Doctor issues; 4/4 companion verification checks PASS.
+- **Status**: `PASS` (Completed).
+
+### [DONE] T-034: Advanced Multimodal Swarm Mesh & P2P Stress Drill (Phase 107)
+- **Assigned Role**: `BACKEND_INFRA_AGENT` (Ethan) / `ARCHITECT_PLANNER_AGENT` (Luke) / `QA_TEST_AGENT` (Jimmy)
+- **Scope**:
+  1. Extend `PeerCapability` with `MULTIMODAL_PERCEPTION` in `agent_workspace/core/federated_mesh.py`.
+  2. Implement capability-aware routing in `agent_workspace/core/factory/mesh_dispatcher.py` for visual/diagram verification tasks.
+  3. Author `scripts/run_p2p_mesh_stress_benchmark.py` testing 16 heterogeneous nodes with mTLS challenge-response attestation, Raft multimodal log synchronization, and chaos fault resilience.
+  4. Author automated unit tests `agent_workspace/tests/test_p2p_multimodal_mesh_stress_p107.py`.
+- **Target Files**: `agent_workspace/core/federated_mesh.py`, `agent_workspace/core/factory/mesh_dispatcher.py`, `scripts/run_p2p_mesh_stress_benchmark.py`, `agent_workspace/tests/test_p2p_multimodal_mesh_stress_p107.py`, `docs/obsidian/90 Production Delivery & Swarm Mesh Drill Workflow.md`.
+- **Status**: `PASS` (Completed).
+
+### [DONE] T-035: Docker Multi-Arch Buildx & GHCR Registry Pipeline (Phase 108)
+- **Assigned Role**: `BACKEND_INFRA_AGENT` (Ethan) / `ARCHITECT_PLANNER_AGENT` (Luke)
+- **Scope**:
+  1. Author `.github/workflows/docker-publish.yml` with Buildx, QEMU, GHA cache, and push to `ghcr.io/opluke11-abula/llm-agent-system`.
+  2. Create production configuration template `.env.production.example`.
+  3. Add automated test suite `agent_workspace/tests/test_docker_deployment_p108.py` (4/4 PASS).
+- **Target Files**: `.github/workflows/docker-publish.yml`, `.env.production.example`, `agent_workspace/tests/test_docker_deployment_p108.py`.
+- **Status**: `PASS` (Completed).
+
+### [DONE] T-036: Dual-Track Release Pipeline & Desktop Packaging (Phase 109)
+- **Assigned Role**: `ARCHITECT_PLANNER_AGENT` (Luke) / `QA_TEST_AGENT` (Jimmy)
+- **Scope**:
+  1. Author `.github/workflows/release.yml` with dual-track release (Docker to GHCR + Tauri desktop MSI/EXE to GitHub Release).
+  2. Pre-release readiness audit script `scripts/verify_release_readiness.py`.
+- **Target Files**: `.github/workflows/release.yml`, `scripts/verify_release_readiness.py`.
+- **Status**: `PASS` (Completed).
+
+

@@ -24,7 +24,9 @@ use_case_tags:
   - grounded-roles
 tools:
   - delegate_task
+  - delegate_to_advisor
   - calculate
+  - generative_spec_generator
   - run_tests
   - verify_workspace
   - code_detect_change_impact
@@ -48,7 +50,6 @@ tools:
   - governed_memory
   - structured_log
   - topological_workspace
-  - generative_spec_generator
 schema_evolution:
   allow_self_evolution: false
   strict_forward_compatibility: true

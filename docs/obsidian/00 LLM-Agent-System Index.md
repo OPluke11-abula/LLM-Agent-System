@@ -43,6 +43,8 @@ graph TD
     N60["60 ADR Knowledge Graph"]:::proto
     N70["70 Multi-Agent Protocol v3.8.0 Matrix"]:::proto
     N71["71 Engineering Retrospective & 5-Whys"]:::retro
+    N80["80 Project Execution History"]:::task
+    N90["90 Production Delivery & Mesh Drill"]:::arch
 
     N00 --> N01
     N01 --> N10
@@ -56,6 +58,8 @@ graph TD
     N00 --> N60
     N00 --> N70
     N70 --> N71
+    N00 --> N80
+    N00 --> N90
 ```
 
 ---
@@ -77,6 +81,7 @@ graph TD
 | **70** | Multi-Agent Protocol v3.8.0 | Protocol v3.8.0 bootstrap, 10 Grounded Roles, host skill bindings | [[70 Multi-Agent Protocol v3.8.0 & 10 Grounded Roles Matrix]] |
 | **71** | Engineering Retrospective | 5-Whys incident root causes, 4 highest invariants, anti-corruption | [[71 Engineering Retrospective & 5-Whys Post-Mortem]] |
 | **80** | Project Milestone History | Structured milestone history (Goal, Process, Result, receipts) | [[80 Project Execution History & Milestone Logs]] |
+| **90** | Production Delivery & Swarm Mesh | 3-Stage Workflow, Multimodal P2P Mesh, Docker/GHCR, Dual Release | [[90 Production Delivery & Swarm Mesh Drill Workflow]] |
 
 ---
 

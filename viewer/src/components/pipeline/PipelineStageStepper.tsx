@@ -29,7 +29,7 @@ export function PipelineStageStepper({ taskDetail }: PipelineStageStepperProps) 
         </div>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-2 md:grid-cols-7 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 xl:grid-cols-9 gap-2">
           {STAGES.map((s, idx) => {
             const isPast = curIdx > idx || taskDetail.result.current_stage === "COMPLETED";
             const isCurrent = curIdx === idx && taskDetail.result.current_stage !== "COMPLETED";

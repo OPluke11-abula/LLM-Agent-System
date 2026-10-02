@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.6.0 - 2026-10-02
+
+### Dual-Track Release, Container Delivery & Multimodal Swarm Mesh (Phases 105 ~ 109)
+
+- **Dual-Track Release Pipeline & Desktop Packaging (Phase 109)**:
+  - Added `.github/workflows/release.yml` automating dual-track release: multi-arch Docker publishing to GHCR and Windows Tauri desktop packaging (`.msi` / `.exe`) to GitHub Releases.
+  - Added `scripts/verify_release_readiness.py` pre-flight gate ensuring triad manifest parity across Python, React, and Tauri.
+  - Added `agent_workspace/tests/test_release_pipeline_p109.py` dedicated verification test suite.
+- **Docker Multi-Arch Buildx & GHCR Registry Pipeline (Phase 108)**:
+  - Added `.github/workflows/docker-publish.yml` with Buildx, QEMU multi-arch support, and GitHub Actions cache.
+  - Hardened rootless container configuration (`lasuser:lasgroup` UID 1001) and added `.env.production.example`.
+- **Multimodal Swarm Mesh & 16-Node P2P Stress Drill (Phase 107)**:
+  - Extended `PeerCapability.MULTIMODAL_PERCEPTION` and visual verification workload dispatching in `MeshFactoryDispatcher`.
+  - Added `scripts/run_p2p_mesh_stress_benchmark.py` validating 16 heterogeneous nodes (320 ops, 0 errors, 100% Merkle valid).
+- **Autonomous Swarm Orchestration & Desktop Interactive Loop (Phase 106)**:
+  - Modularized `AmbientCompanion.tsx` into 4 focused subcomponents, connecting 9-stage stepper and dropped-file task creation.
+  - Integrated `ProtocolRepairManager` into streaming SSE and dynamic 429 failover to Gemini Flash / local Ollama.
+  - Added concurrent multi-agent worktrees (`create_multi_agent_worktrees`) with `UnifiedPolicyGate` arbitration.
+- **External Advanced Ecosystem Fusion & Golden Path Remediation (Phase 105)**:
+  - Added `ProtocolRepairManager` in-session tool call repair loop with deterministic parsing and type coercion.
+  - Added `DelegationPacket` cost-effective advisor delegation under 2000 tokens.
+  - Added OpenAI-compatible Responses API (`POST /v1/responses`) and `QuotaAwareRouter`.
+
 ## 0.5.0 - 2026-09-19
 
 ### Autonomous Software Factory Swarm (Phases 101 ~ 103)

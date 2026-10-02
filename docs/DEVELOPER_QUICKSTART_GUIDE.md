@@ -1,7 +1,7 @@
 # LAS Developer Quickstart & Beta Operations Guide
 
 > **Protocol Version**: `3.8.0` (`Universal_Coding_Agent_Development_Protocol.md`)
-> **Tool Version**: `v0.5.0` (Developer Beta)
+> **Tool Version**: `v0.6.0` (Production Release)
 > **Architectural Reference**: [[01 Agent Strategy Integration & TaskEnvironment Architecture]], [[60 Architectural Decision Records (ADR) Graph#ADR-006|ADR-006: Agent Strategy Integration]]
 
 ---
@@ -200,4 +200,4 @@ For graphical real-time monitoring:
 
 ---
 
-*Generated for LLM-Agent-System (LAS) v0.5.0 Developer Beta.*
+*Generated for LLM-Agent-System (LAS) v0.6.0 Production Release.*

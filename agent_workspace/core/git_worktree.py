@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -98,27 +99,64 @@ class GitWorktreeManager(IWorktreeManager):
             # Fallback to current HEAD if base_ref does not exist directly
             base_commit = self._run_git(abs_repo, ["rev-parse", "HEAD"]).stdout.strip()
 
-        # Check if target branch already exists; if so, delete it first to ensure clean state
+        # Check if target branch already exists; preserve existing branch without destructive -D
         branch_check = self._run_git(abs_repo, ["branch", "--list", branch_name], check=False)
+        target_branch = branch_name
+        is_new_branch = True
+
         if branch_check.stdout.strip():
-            self._run_git(abs_repo, ["branch", "-D", branch_name], check=False)
+            # Check if existing branch points to base_commit
+            try:
+                branch_sha = self._run_git(abs_repo, ["rev-parse", branch_name]).stdout.strip()
+            except RuntimeError:
+                branch_sha = ""
+
+            # Check if already checked out in any worktree
+            wt_list = self._run_git(abs_repo, ["worktree", "list", "--porcelain"], check=False).stdout
+            branch_checked_out = f"branch refs/heads/{branch_name}" in wt_list
+
+            if branch_sha == base_commit and not branch_checked_out:
+                # Safe to attach existing branch directly without creating a duplicate branch
+                is_new_branch = False
+                target_branch = branch_name
+                logger.info(
+                    "Target branch '%s' already exists at base commit '%s'; attaching to worktree.",
+                    branch_name,
+                    base_commit,
+                )
+            else:
+                # Existing branch has divergent commits or is checked out elsewhere:
+                # PROTECT IT: Never use `branch -D`. Use an isolated session branch suffix.
+                target_branch = f"{branch_name}_{session_id}"
+                is_new_branch = True
+                logger.warning(
+                    "Target branch '%s' exists with divergent commits or is in use; preserving it and creating isolated session branch '%s'",
+                    branch_name,
+                    target_branch,
+                )
 
         # Execute git worktree add
         logger.info(
             "Creating isolated worktree for branch '%s' at '%s' off '%s'",
-            branch_name,
+            target_branch,
             worktree_path,
             base_ref,
         )
-        self._run_git(
-            abs_repo,
-            ["worktree", "add", "-b", branch_name, worktree_path, base_commit],
-        )
+        if is_new_branch:
+            self._run_git(
+                abs_repo,
+                ["worktree", "add", "-b", target_branch, worktree_path, base_commit],
+            )
+        else:
+            self._run_git(
+                abs_repo,
+                ["worktree", "add", worktree_path, target_branch],
+            )
 
         return WorktreeSessionConfig(
             session_id=session_id,
             worktree_path=worktree_path,
-            branch_name=branch_name,
+            branch_name=target_branch,
             base_commit=base_commit,
             is_isolated=True,
         )
@@ -211,3 +249,59 @@ class GitWorktreeManager(IWorktreeManager):
         # Return new HEAD SHA
         new_commit = self._run_git(wt_path, ["rev-parse", "HEAD"]).stdout.strip()
         return new_commit
+
+    def create_multi_agent_worktrees(
+        self,
+        repo_path: str,
+        roles: list[str],
+        base_ref: str = "main",
+    ) -> dict[str, WorktreeSessionConfig]:
+        """
+        Creates isolated concurrent worktrees for multiple roles (e.g. BackendDev, FrontendDev).
+        Returns a dict mapping role -> WorktreeSessionConfig.
+        """
+        sessions: dict[str, WorktreeSessionConfig] = {}
+        for role in roles:
+            sanitized_role = re.sub(r"[^a-zA-Z0-9_\-]", "_", role.lower())
+            branch_name = f"task_{sanitized_role}_{uuid.uuid4().hex[:6]}"
+            session = self.create_worktree(repo_path, branch_name=branch_name, base_ref=base_ref)
+            sessions[role] = session
+        return sessions
+
+    def squash_merge_worktree_branch(
+        self,
+        repo_path: str,
+        source_branch: str,
+        target_branch: str = "main",
+        commit_message: Optional[str] = None,
+    ) -> tuple[bool, str]:
+        """
+        Squash merges a completed worktree branch into the target branch.
+        Returns (success: bool, commit_or_error: str).
+        """
+        abs_repo = os.path.abspath(repo_path)
+        msg = commit_message or f"chore(worktree): squash merge {source_branch} into {target_branch}"
+
+        try:
+            curr_branch = self._run_git(abs_repo, ["rev-parse", "--abbrev-ref", "HEAD"]).stdout.strip()
+
+            if curr_branch != target_branch:
+                self._run_git(abs_repo, ["checkout", target_branch])
+
+            merge_res = self._run_git(abs_repo, ["merge", "--squash", source_branch], check=False)
+            if merge_res.returncode != 0:
+                self._run_git(abs_repo, ["reset", "--hard", "HEAD"], check=False)
+                return False, f"Squash merge conflict or failure: {merge_res.stderr.strip()}"
+
+            diff_cached = self._run_git(abs_repo, ["diff", "--cached", "--quiet"], check=False)
+            if diff_cached.returncode != 0:
+                self._run_git(abs_repo, ["commit", "-m", msg])
+                new_sha = self._run_git(abs_repo, ["rev-parse", "HEAD"]).stdout.strip()
+                return True, new_sha
+            else:
+                return True, "NOOP_NO_CHANGES"
+
+        except Exception as exc:
+            logger.error("Error squash merging branch '%s': %s", source_branch, exc)
+            return False, str(exc)
+

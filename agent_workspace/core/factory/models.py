@@ -71,6 +71,7 @@ class RefactoringTaskType(str, Enum):
     TYPE_HARDENING = "TYPE_HARDENING"      # Strict type annotations and contract enforcement
     DECOUPLING = "DECOUPLING"              # Break circular dependencies and reduce coupling
     TEST_EXPANSION = "TEST_EXPANSION"      # Increase test coverage on high-risk boundaries
+    VISUAL_VERIFICATION = "VISUAL_VERIFICATION"  # Multimodal UI and diagram verification
 
 
 class RefactoringTaskNode(BaseModel):

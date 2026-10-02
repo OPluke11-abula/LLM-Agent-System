@@ -1,4 +1,4 @@
-﻿export type VerificationReceiptItem = {
+export type VerificationReceiptItem = {
   step_name: string;
   command: string;
   exit_code: number;
@@ -143,6 +143,7 @@ export const STAGES = [
   { id: "PLAN_AND_GATE", label: "Architecture Gate", desc: "Stop-and-Wait Human Approval" },
   { id: "ISOLATED_MUTATION", label: "Worktree Mutation", desc: "Native Git Isolation & ScopeGuard" },
   { id: "VERIFY_AND_EVIDENCE", label: "Verification Ladder", desc: "Multi-Tier Objective Tests" },
+  { id: "INDEPENDENT_REVIEW", label: "Independent Review", desc: "Quality & Freshness Gate" },
   { id: "SELF_HEALING", label: "Self-Healing", desc: "Autonomous Diagnostic Loop & Auto-Rollback" },
   { id: "DRAFT_PR_EXPORT", label: "Draft PR Export", desc: "Merkle Root & Signed Patch" },
 ];

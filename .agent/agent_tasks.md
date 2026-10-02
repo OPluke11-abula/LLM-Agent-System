@@ -26,6 +26,13 @@
 | **101** | Autonomous Software Factory Swarm: Decomposition & Routing | `100% Done` | AST dependency & complexity analyzer, refactoring DAG scheduler, heterogeneous mesh task routing (7/7 tests PASS). |
 | **102** | Red/Blue Adversarial Committee & Self-Healing Contract | `100% Done` | Automated red/blue debate gate, Quorum gating, SelfHealingContract binding (6/6 tests PASS). |
 | **103** | Closed-Loop Experience Distillation & Factory Cockpit | `100% Done` | Closed-loop PATTERN/LESSON distillation, Merkle proofs, living architecture, Viewer /factory cockpit (4/4 tests PASS). |
+| **104** | Production Hardening & Release v0.5.0 Certification | `100% Done` | 0 React Doctor warnings, router/discussion decoupling, async file I/O, Obsidian BFS topology. |
+| **105** | Advanced External Ecosystem Fusion (Tasks A ~ D) | `100% Done` | Protocol repair loop (Task B), Delegation packet (Task C), Responses API (Task D), Ambient companion (Task A), 6 Golden Gaps resolved (PR #15~#18). |
+| **106** | Autonomous Swarm Orchestration & Desktop Interactive Loop | `100% Done` | Desktop companion loop (106-01), Multi-model failover (106-02), Worktree swarm sandbox (106-03), Vector distillation (106-04). |
+| **107** | Advanced Multimodal Swarm Mesh & P2P Stress Drill | `100% Done` | PeerCapability multimodal extension, mesh dispatcher vision routing, 16-node P2P stress benchmark script (320 ops PASS). |
+| **108** | Docker Multi-Arch Buildx & GHCR Registry Pipeline | `100% Done` | .github/workflows/docker-publish.yml, multi-arch buildx, GHCR login/push, .env.production.example. |
+| **109** | Dual-Track Release Pipeline & Desktop Packaging | `100% Done` | .github/workflows/release.yml, Tauri desktop MSI/EXE bundle, CycloneDX SBOM, verify_release_readiness.py. |
+
 
 ---
 
@@ -107,6 +114,84 @@ Goal: Pure deconstruction of UI surfaces to achieve 0 React Doctor warnings, bac
 - [x] **104-02 Backend Core Monolith Decoupling**: Extracted `agent_workspace/core/routing/` (registry, memory, template_watcher) and `agent_workspace/core/discussion/` (ids, consensus), slashing >860 LOC and CC by ~60 points with 100% backward compatibility.
 - [x] **104-03 Concurrency & Typed Failure Hardening**: Async non-blocking file I/O for credential updates via `asyncio.to_thread`; eliminated all bare `except Exception: pass` swallows in API and memory.
 - [x] **104-04 Knowledge Base & Obsidian Index Topology**: Implemented transitive hierarchical BFS linter in `lint_obsidian_vault.ps1`, eliminating all 249 unindexed skill warnings; confirmed 100% bitwise SHA-256 parity with external vault.
+
+### Phase 105 - External Advanced Ecosystem Fusion (Tasks A ~ D)
+
+Status: `[x]` 4/4 complete.
+Goal: Absorb best practices from 5 open-source ecosystems (opencodex, codex-chatgpt-bridge, web-bridge, coucou) to upgrade in-session self-healing, cost-effective delegation, OpenAI Responses API streaming, desktop ambient HITL, and eliminate 6 Golden Path architectural gaps.
+
+- [x] **105-B In-Session Tool Protocol Repair Loop (`ProtocolRepairManager`)**
+  - Implement deterministic parsing (markdown/XML strip, trailing commas, single-quote json), alias mapping (`path` -> `file_path`), type coercion (`str` -> `int`/`bool`), and bounded LLM reflection loop (strict `max_turns=2`).
+  - Integrated into `agent_workspace/core/agent_executor.py` and `agent_workspace/core/workflow_engine.py`.
+  - Target: `agent_workspace/core/protocol_repair.py`, `agent_workspace/tests/test_protocol_repair.py` (11/11 tests PASS in 0.05s).
+- [x] **105-C Executor vs. Advisor Structured Delegation Packet (`DelegationPacket`)**
+  - Decouple local execution from expensive reasoning models via sanitization and <2000 token delegation packets.
+  - Support Zero-Risk manual copy-paste mode and automated MCP delegation with graceful fallback degradation.
+  - Target: `agent_workspace/core/delegation_packet.py`, `agent_workspace/skills/delegate_to_advisor.py`, `.agent/skills/delegate_to_advisor.md`, `agent_workspace/tests/test_delegation_packet.py` (12/12 tests PASS in 0.27s).
+- [x] **105-D OpenAI Responses API Gateway & Quota-Aware Router (`POST /v1/responses`)**
+  - Exposed OpenAI-compatible Responses API with SSE streaming (`response.created`, `response.output_item.added`, `response.content_part.added`, `response.output_item.done`, `response.completed`) and non-streaming modes.
+  - Implemented `QuotaAwareRouter` in `agent_workspace/core/account_manager.py` with 429 exponential backoff ($5 \times 2^{n-1}$ capped at 120s), sliding window RPM/TPM telemetry tracking, healthy account auto-failover, and `QuotaExhaustedError`.
+  - Target: `agent_workspace/routes/responses.py`, `agent_workspace/core/account_manager.py`, `agent_workspace/tests/test_responses_api.py`, `agent_workspace/tests/test_quota_router.py` (9/9 tests PASS in 0.31s).
+- [x] **105-A Tauri 2 Ambient Companion & Lightweight 1-Click HITL (`AmbientCompanion`)**
+  - Floating desktop widget for telemetry animation and non-intrusive Allow/Deny approval.
+  - Target: `viewer/src-tauri/tauri.conf.json`, `viewer/src/hooks/useAmbientCompanion.ts`, `viewer/src/components/companion/AmbientCompanion.tsx`, `viewer/scripts/verify-companion.mjs` (PASS).
+- [x] **105-GP Golden Path Hardening & Architecture Gap Elimination (Gaps 1~6)**
+  - Branch preservation on worktree creation; HITL token authentication & masking at rest; real mutation execution; unified policy chokepoint; SQLite persistent authority; mandatory independent review gate.
+  - Target: `agent_workspace/core/git_worktree.py`, `agent_workspace/routes/pipeline.py`, `agent_workspace/core/agent_executor.py`, `agent_workspace/core/pipeline/manager.py`, `agent_workspace/tests/test_golden_path_hardening_slice2.py` (PR #16 & #18).
+
+### Phase 106 - Autonomous Swarm Orchestration & Desktop Interactive Loop
+
+Status: `[x]` 4/4 complete.
+Goal: Transform the decoupled Phase 105 modules into an integrated, production-grade autonomous swarm workflow connecting desktop controls, dynamic model failover, multi-agent worktrees, and closed-loop experience distillation.
+
+- [x] **106-01 Desktop Companion Full Interactive Loop**
+  - Connect Ambient Companion to live pipeline streaming, drag-and-drop context injection to `/v1/pipeline/tasks`, and global summoning hotkeys with edge snapping.
+  - Target: `viewer/src/hooks/useAmbientCompanion.ts`, `viewer/src/components/companion/AmbientCompanion.tsx` (PR #19).
+- [x] **106-02 Responses API Dynamic Failover & In-Session Self-Healing Integration**
+  - Integrate transparent `ProtocolRepairManager` self-healing within SSE event streams; support dynamic failover from cloud models (429/exhaustion) to local Ollama / Gemini Flash.
+  - Target: `agent_workspace/routes/responses.py`, `agent_workspace/core/account_manager.py`, `agent_workspace/tests/test_responses_api.py`.
+- [x] **106-03 Concurrent Multi-Agent Worktree Mutation Sandbox**
+  - Support concurrent worktree mutations across `BACKEND_INFRA_AGENT` and `UI_UX_AGENT` roles with automated squash merge and `UnifiedPolicyGate` arbitration before review.
+  - Target: `agent_workspace/core/git_worktree.py`, `agent_workspace/core/pipeline/manager.py`, `agent_workspace/tests/test_concurrent_worktrees_p106.py`.
+- [x] **106-04 Self-Healing Pattern Vector Distillation & v0.6.0 Release Verification**
+  - Automatically vectorize self-healing repair patterns into `FederatedVectorMemory`; execute full 8-step verification ladder and Golden Benchmark; bump version to `v0.6.0`.
+  - Target: `agent_workspace/core/vector_memory.py`, `pyproject.toml`, `viewer/package.json`, `docs/obsidian/`.
+
+### Phase 107 - Advanced Multimodal Swarm Mesh & P2P Stress Drill
+
+Status: `[x]` 4/4 complete.
+Goal: Expand P2P mesh capabilities with multimodal perception, support vision/diagram verification dispatching, and validate a 16-node heterogeneous swarm under chaotic network and mTLS stress.
+
+- [x] **107-01 Multimodal Mesh Capability & Merkle Proof Extension**
+  - Extend `PeerCapability` with `MULTIMODAL_PERCEPTION` and support visual/media payload hashing.
+  - Target: `agent_workspace/core/federated_mesh.py`.
+- [x] **107-02 Capability-Aware Multimodal Workload Dispatcher**
+  - Route visual diff and diagram verification refactoring tasks to multimodal nodes.
+  - Target: `agent_workspace/core/factory/mesh_dispatcher.py`.
+- [x] **107-03 Distributed 16-Node P2P Mesh Stress Drill Benchmark**
+  - Author and execute `scripts/run_p2p_mesh_stress_benchmark.py` testing mTLS attestation, Raft log replication, and chaos resilience.
+  - Target: `scripts/run_p2p_mesh_stress_benchmark.py`, `.agent/evidence/p2p_multimodal_mesh_receipt.json` (320 ops PASS, 100% attestation, 0 errors).
+- [x] **107-04 Automated Multimodal P2P Regression Suite**
+  - Author unit and integration tests verifying multimodal routing and cluster consensus.
+  - Target: `agent_workspace/tests/test_p2p_multimodal_mesh_stress_p107.py` (4/4 PASS).
+
+### Phase 108 - Docker Multi-Arch Buildx & GHCR Registry Pipeline
+
+Status: `[x]` 2/2 complete.
+Goal: Establish automated container image build and publishing to GitHub Packages Container Registry.
+
+- [x] **108-01 GitHub Actions Docker Publish Workflow** (`.github/workflows/docker-publish.yml`).
+- [x] **108-02 Production Environment Configuration Template** (`.env.production.example`).
+
+### Phase 109 - Dual-Track Release Pipeline & Desktop Packaging
+
+Status: `[x]` 4/4 complete.
+Goal: Establish unified GitHub Release workflow bundling multi-arch Docker and Tauri desktop artifacts, with triad manifest parity and automated verification.
+
+- [x] **109-01 GitHub Actions Release Workflow** (`.github/workflows/release.yml`).
+- [x] **109-02 Release Readiness Gate Script & Manifest Triad Parity** (`scripts/verify_release_readiness.py`, `tauri.conf.json`, `Cargo.toml` - PASS).
+- [x] **109-03 Dedicated Release Verification Test Suite** (`agent_workspace/tests/test_release_pipeline_p109.py` - 5/5 PASS).
+- [x] **109-04 Milestone T-036 Closure & Dual-Track Certification** (75/75 unit tests green, React Doctor clean, tool manifest secrets scan pass).
 
 ---
 

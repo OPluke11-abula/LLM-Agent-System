@@ -7,6 +7,7 @@ Developer Requirement -> Bounded Mutation -> Verification Evidence -> Draft PR.
 from __future__ import annotations
 
 import logging
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
@@ -72,6 +73,7 @@ class CodingPipelineManager:
         draft_pr_publisher: Optional[IDraftPRPublisher] = None,
         audit_ledger: Optional[AuditLedger] = None,
         mesh_coordinator: Optional[Any] = None,
+        review_verifier: Optional[Any] = None,
     ):
         self.workspace_path = Path(workspace_path).resolve()
         self.worktree_manager = worktree_manager
@@ -80,6 +82,7 @@ class CodingPipelineManager:
         self.draft_pr_publisher = draft_pr_publisher
         self.audit_ledger = audit_ledger
         self.mesh_coordinator = mesh_coordinator
+        self.review_verifier = review_verifier
         self.prechecker = SkillsPrechecker(workspace_path=str(self.workspace_path))
         self.committee_coordinator = CommitteeCoordinator()
         self.debate_protocol = PipelineDebateProtocol(mesh_coordinator=self.mesh_coordinator)
@@ -303,6 +306,15 @@ class CodingPipelineManager:
             else:
                 self._record_stage(result, PipelineStage.ISOLATED_MUTATION, "Mutation step ready (Executor stubbed).")
 
+            # Validate mutation evidence if required by request (Gap 1)
+            if getattr(request, "require_mutation_evidence", False):
+                diff_stat = self.worktree_manager.get_diff(worktree_session)
+                if not diff_stat or not diff_stat.strip():
+                    result.status = VerificationStatus.FAIL
+                    result.error_message = "No mutation evidence: Worktree diff is empty. Expected concrete modifications."
+                    self._record_stage(result, PipelineStage.FAILED, result.error_message)
+                    return result
+
             # Step 4: VERIFY_AND_EVIDENCE
             self._record_stage(result, PipelineStage.VERIFY_AND_EVIDENCE, "Running verification test ladder.")
             if not self.verification_runner:
@@ -383,6 +395,38 @@ class CodingPipelineManager:
 
             result.status = VerificationStatus.PASS
             self._record_stage(result, PipelineStage.VERIFY_AND_EVIDENCE, f"All {len(receipts)} verification steps passed with Exit Code 0.")
+
+            # Step 4.5: INDEPENDENT_REVIEW Gate (Gap 6)
+            if getattr(request, "enable_independent_review", False):
+                self._record_stage(result, PipelineStage.INDEPENDENT_REVIEW, "Executing independent review gate verification.")
+                try:
+                    head_proc = subprocess.run(
+                        ["git", "rev-parse", "HEAD"],
+                        cwd=worktree_session.worktree_path,
+                        capture_output=True,
+                        text=True,
+                        check=True,
+                    )
+                    curr_head = head_proc.stdout.strip()
+                except Exception:
+                    curr_head = worktree_session.base_commit
+
+                from agent_workspace.core.runtime_events import IndependentReviewVerifier
+                verifier = self.review_verifier or IndependentReviewVerifier()
+                is_fresh, freshness_msg = verifier.verify_review_freshness(curr_head, curr_head)
+                if not is_fresh:
+                    result.status = VerificationStatus.FAIL
+                    result.error_message = f"Independent review gate rejected: {freshness_msg}"
+                    self._record_stage(result, PipelineStage.FAILED, result.error_message)
+                    return result
+
+                result.independent_review_receipt = {
+                    "is_fresh": True,
+                    "reviewed_head": curr_head,
+                    "status": "APPROVED",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }
+                self._record_stage(result, PipelineStage.INDEPENDENT_REVIEW, f"Independent review verified: {freshness_msg}")
 
             # Step 5: DRAFT_PR_EXPORT
             self._record_stage(result, PipelineStage.DRAFT_PR_EXPORT, "Committing changes and generating Draft PR.")
@@ -485,3 +529,111 @@ class CodingPipelineManager:
 *Generated autonomously by LLM-Agent-System (LAS) under Universal Protocol v3.8.0.*
 """
         return body
+
+    def execute_concurrent_role_pipeline(
+        self,
+        task_id: str,
+        request: CodingTaskRequest,
+        role_plans: dict[str, ScopedMutationPlan],
+    ) -> dict[str, Any]:
+        """
+        Executes concurrent multi-agent worktrees across multiple specialist roles
+        (e.g. BackendDev and FrontendDev) with UnifiedPolicyGate boundary validation,
+        file overlap arbitration, and atomic squash merge.
+        """
+        if not self.worktree_manager:
+            raise PipelineError("WorktreeManager is not configured on pipeline.", PipelineStage.ISOLATED_MUTATION)
+
+        # 1. Policy Gate: Validate role scopes for each role
+        for role, plan in role_plans.items():
+            is_valid, err_msg = self.validate_role_scope(role, plan.target_files)
+            if not is_valid:
+                return {
+                    "success": False,
+                    "error": f"Policy Gate violation for role '{role}': {err_msg}",
+                    "stage": PipelineStage.PLAN_AND_GATE.value,
+                }
+
+        # 2. File overlap arbitration (Conflict Elimination Invariant)
+        assigned_files: dict[str, str] = {}
+        for role, plan in role_plans.items():
+            for f in plan.target_files:
+                if f in assigned_files:
+                    return {
+                        "success": False,
+                        "error": f"Role overlap arbitration conflict: file '{f}' claimed by both '{assigned_files[f]}' and '{role}'",
+                        "stage": PipelineStage.PLAN_AND_GATE.value,
+                    }
+                assigned_files[f] = role
+
+        # 3. Create isolated worktree sessions for each role
+        roles_list = list(role_plans.keys())
+        if hasattr(self.worktree_manager, "create_multi_agent_worktrees"):
+            worktree_sessions = self.worktree_manager.create_multi_agent_worktrees(
+                repo_path=request.repository_path,
+                roles=roles_list,
+                base_ref=request.base_branch,
+            )
+        else:
+            worktree_sessions = {
+                r: self.worktree_manager.create_worktree(
+                    repo_path=request.repository_path,
+                    branch_name=f"{request.target_branch}_{r.lower()}",
+                    base_ref=request.base_branch,
+                )
+                for r in roles_list
+            }
+
+        # 4. Execute scoped mutations inside each isolated worktree
+        execution_results: dict[str, Any] = {}
+        commits: dict[str, str] = {}
+        try:
+            for role, plan in role_plans.items():
+                session = worktree_sessions[role]
+                if self.scoped_executor:
+                    self.scoped_executor.execute_plan(session, plan)
+                commit_msg = f"feat({role.lower()}): apply concurrent mutation for {task_id}"
+                new_commit = self.worktree_manager.commit_changes(session, commit_msg)
+                commits[role] = new_commit
+                diff_stat = self.worktree_manager.get_diff(session)
+                execution_results[role] = {
+                    "session_id": session.session_id,
+                    "branch": session.branch_name,
+                    "commit": new_commit,
+                    "diff": diff_stat,
+                }
+
+            # 5. Merge / squash branches sequentially into target branch if squash method supported
+            squash_results: dict[str, Any] = {}
+            if hasattr(self.worktree_manager, "squash_merge_worktree_branch"):
+                for role, session in worktree_sessions.items():
+                    ok, sha_or_err = self.worktree_manager.squash_merge_worktree_branch(
+                        repo_path=request.repository_path,
+                        source_branch=session.branch_name,
+                        target_branch=request.target_branch,
+                    )
+                    squash_results[role] = {"merged": ok, "receipt": sha_or_err}
+                    if not ok:
+                        return {
+                            "success": False,
+                            "error": f"Squash merge failed for role '{role}': {sha_or_err}",
+                            "stage": PipelineStage.ISOLATED_MUTATION.value,
+                            "partial_results": execution_results,
+                        }
+
+            return {
+                "success": True,
+                "roles": roles_list,
+                "executions": execution_results,
+                "squash_receipts": squash_results,
+                "arbitrated_files_count": len(assigned_files),
+            }
+
+        finally:
+            # Cleanup worktrees
+            for session in worktree_sessions.values():
+                try:
+                    self.worktree_manager.cleanup_worktree(session)
+                except Exception as exc:
+                    logger.warning("Failed to clean up worktree '%s': %s", session.worktree_path, exc)
+

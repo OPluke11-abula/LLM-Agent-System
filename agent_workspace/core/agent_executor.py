@@ -31,6 +31,11 @@ from agent_workspace.core.pipeline.models import (
     WorktreeSessionConfig,
 )
 from agent_workspace.core.policy_gate import ROLE_SCOPE_RESTRICTIONS
+from agent_workspace.core.protocol_repair import (
+    ProtocolRepairManager,
+    RepairResult,
+    RepairStrategy,
+)
 from agent_workspace.core.task_environment import (
     DEFAULT_PROTECTED_PATTERNS,
     MINIMAL_GOVERNED_TOOLS,
@@ -114,9 +119,15 @@ class ExecutionAttempt(BaseModel):
 class ScopeGuard:
     """Enforces physical containment boundaries, path validation, and destructive command interception."""
 
-    def __init__(self, task_env: TaskEnvironment, worktree_path: str):
+    def __init__(
+        self,
+        task_env: TaskEnvironment,
+        worktree_path: str,
+        policy_gate: Optional[Any] = None,
+    ):
         self.task_env = task_env
         self.worktree_path = Path(worktree_path).resolve()
+        self.policy_gate = policy_gate
 
     def resolve_and_verify_path(self, relative_path: str) -> tuple[Path, str]:
         """
@@ -142,6 +153,21 @@ class ScopeGuard:
         self, tool_name: str, args: dict[str, Any]
     ) -> tuple[bool, Optional[str]]:
         """Validate tool invocation against governed whitelist, scope boundaries, and safety rules."""
+        # 0. Check UnifiedPolicyGate if configured
+        if self.policy_gate is not None:
+            from agent_workspace.core.policy_gate import PolicyGateRequest
+            req = PolicyGateRequest(
+                action=tool_name,
+                scope="session",
+                session_id=getattr(self.task_env.execution_environment, "session_id", "session-unknown"),
+                tenant_id=getattr(self.task_env, "tenant_id", "default_tenant"),
+                resource=args.get("file_path") or args.get("command") or tool_name,
+                metadata=args,
+            )
+            decision = self.policy_gate.evaluate(req)
+            if not decision.allowed:
+                return False, f"PolicyGate rejection: {decision.reason}"
+
         # 1. Check Tool Whitelist
         if not self.task_env.validate_tool_allowed(tool_name):
             return False, (
@@ -241,7 +267,9 @@ class GovernedToolRegistry:
         self, file_path: str, content: str, append: bool = False
     ) -> dict[str, Any]:
         """Write text to an authorized file within the isolated worktree."""
-        self.guard.validate_tool_call("filesystem.write", {"file_path": file_path, "content": content})
+        is_valid, err_msg = self.guard.validate_tool_call("filesystem.write", {"file_path": file_path, "content": content})
+        if not is_valid:
+            raise SecurityViolationError(err_msg or "filesystem.write rejected by ScopeGuard")
         abs_path, rel_path = self.guard.resolve_and_verify_path(file_path)
         abs_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -261,7 +289,9 @@ class GovernedToolRegistry:
         self, command: str, timeout_seconds: Optional[float] = None
     ) -> dict[str, Any]:
         """Execute a shell command inside the worktree environment."""
-        self.guard.validate_tool_call("shell.exec", {"command": command})
+        is_valid, err_msg = self.guard.validate_tool_call("shell.exec", {"command": command})
+        if not is_valid:
+            raise SecurityViolationError(err_msg or "shell.exec rejected by ScopeGuard")
         timeout = timeout_seconds or self.sandbox_policy.max_execution_seconds
 
         # Windows/POSIX shell invocation
@@ -326,8 +356,13 @@ class AgentExecutor(IScopedExecutor):
     Agent -> ToolCall -> Tool Registry -> Mission Policy -> ScopeGuard -> Approval Policy -> Sandbox -> Executor -> ToolResult -> Evidence.
     """
 
-    def __init__(self, task_env: Optional[TaskEnvironment] = None):
+    def __init__(
+        self,
+        task_env: Optional[TaskEnvironment] = None,
+        policy_gate: Optional[Any] = None,
+    ):
         self.task_env = task_env
+        self.policy_gate = policy_gate
 
     def validate_scope_compliance(
         self, role: str, target_files: list[str]
@@ -378,7 +413,7 @@ class AgentExecutor(IScopedExecutor):
             execution_environment=session,
         )
 
-        guard = ScopeGuard(task_env=env, worktree_path=session.worktree_path)
+        guard = ScopeGuard(task_env=env, worktree_path=session.worktree_path, policy_gate=self.policy_gate)
         tools = GovernedToolRegistry(scope_guard=guard)
         attempt = ExecutionAttempt(
             attempt_id=f"att_{session.session_id[:8]}",
@@ -394,6 +429,21 @@ class AgentExecutor(IScopedExecutor):
             session.worktree_path,
         )
 
+        # 3. Apply structured file mutations if provided in the plan
+        applied_mutations: list[dict[str, Any]] = []
+        for mut in getattr(plan, "file_mutations", []):
+            action = getattr(mut, "action", "write")
+            file_path = getattr(mut, "file_path", "")
+            content = getattr(mut, "content", "")
+            if action in ("write", "append"):
+                write_res = tools.filesystem_write(file_path, content, append=(action == "append"))
+                applied_mutations.append(write_res)
+            elif action == "delete":
+                abs_p, rel_p = guard.resolve_and_verify_path(file_path)
+                if abs_p.exists():
+                    abs_p.unlink()
+                applied_mutations.append({"file_path": rel_p, "status": "DELETED"})
+
         return {
             "status": "SUCCESS",
             "attempt_id": attempt.attempt_id,
@@ -402,6 +452,7 @@ class AgentExecutor(IScopedExecutor):
             "tools": tools,
             "guard": guard,
             "attempt": attempt,
+            "applied_mutations": applied_mutations,
         }
 
     def execute_tool(
@@ -409,11 +460,13 @@ class AgentExecutor(IScopedExecutor):
         tools: GovernedToolRegistry,
         attempt: ExecutionAttempt,
         tool_name: str,
-        args: dict[str, Any],
+        args: Any,
+        schema: Optional[dict[str, Any]] = None,
+        llm_caller: Optional[Any] = None,
     ) -> dict[str, Any]:
         """
         Executes a single tool call through the complete non-bypassable governance chain.
-        Enforces turn limit and captures structured evidence.
+        Integrates In-Session Protocol Repair Loop, enforces turn limit, and captures structured evidence.
         """
         # Enforce turn limit safety gate
         if attempt.turn_count >= attempt.max_turns:
@@ -428,11 +481,53 @@ class AgentExecutor(IScopedExecutor):
                 "error": attempt.error_message,
             }
 
-        attempt.turn_count += 1
         start_time = time.perf_counter()
 
+        # Phase 105 Task B: In-Session Protocol Repair Loop interception
+        repair_mgr = ProtocolRepairManager()
+        repair_res = repair_mgr.validate_and_repair(
+            tool_name=tool_name,
+            raw_arguments=args,
+            schema=schema,
+            session_context={"task_id": attempt.task_id, "role": attempt.role},
+            llm_caller=llm_caller,
+            max_turns=2,
+        )
+
+        if not repair_res.success:
+            exit_code = 1
+            snippet = f"Protocol validation failed: {repair_res.error}"
+            duration_ms = int((time.perf_counter() - start_time) * 1000)
+            record_raw = f"{tool_name}:{exit_code}:{snippet}:{duration_ms}"
+            merkle_hash = hashlib.sha256(record_raw.encode("utf-8")).hexdigest()
+            evidence = ToolCallEvidence(
+                tool_name=tool_name,
+                arguments={"raw_input": str(args)[:200]},
+                exit_code=exit_code,
+                output_snippet=snippet,
+                duration_ms=duration_ms,
+                merkle_hash=merkle_hash,
+            )
+            attempt.evidence_trail.append(evidence)
+            logger.warning("[AgentExecutor] Tool '%s' rejected by protocol repair: %s", tool_name, repair_res.error)
+            return {
+                "status": "FAIL",
+                "error": snippet,
+            }
+
+        actual_args = repair_res.repaired_arguments
+        if repair_res.strategy != RepairStrategy.NOOP:
+            logger.info(
+                "[AgentExecutor] Tool '%s' healed via %s: %s",
+                tool_name,
+                repair_res.strategy.value,
+                actual_args,
+            )
+
+        attempt.turn_count += 1
+
         # Chain: ScopeGuard validation
-        tools.guard.validate_tool_call(tool_name, args)
+        tools.guard.validate_tool_call(tool_name, actual_args)
 
         # Dispatch execution
         result: dict[str, Any] = {}
@@ -442,22 +537,22 @@ class AgentExecutor(IScopedExecutor):
         try:
             if tool_name == "filesystem.read":
                 content = tools.filesystem_read(
-                    args["file_path"],
-                    args.get("start_line"),
-                    args.get("end_line"),
+                    actual_args["file_path"],
+                    actual_args.get("start_line"),
+                    actual_args.get("end_line"),
                 )
                 result = {"content": content, "status": "SUCCESS"}
                 snippet = content[:200]
             elif tool_name == "filesystem.write":
                 res = tools.filesystem_write(
-                    args["file_path"],
-                    args["content"],
-                    args.get("append", False),
+                    actual_args["file_path"],
+                    actual_args["content"],
+                    actual_args.get("append", False),
                 )
                 result = res
-                snippet = f"Wrote {res.get('bytes_written', 0)} bytes to {args['file_path']}"
+                snippet = f"Wrote {res.get('bytes_written', 0)} bytes to {actual_args['file_path']}"
             elif tool_name == "shell.exec":
-                res = tools.shell_exec(args["command"], args.get("timeout_seconds"))
+                res = tools.shell_exec(actual_args["command"], actual_args.get("timeout_seconds"))
                 result = res
                 exit_code = res.get("exit_code", 0)
                 snippet = (res.get("stdout", "") + res.get("stderr", ""))[:200]
@@ -481,7 +576,7 @@ class AgentExecutor(IScopedExecutor):
 
             evidence = ToolCallEvidence(
                 tool_name=tool_name,
-                arguments={k: v for k, v in args.items() if k != "content"},
+                arguments={k: v for k, v in actual_args.items() if k != "content"},
                 exit_code=exit_code,
                 output_snippet=snippet,
                 duration_ms=duration_ms,
@@ -496,10 +591,12 @@ class AgentExecutor(IScopedExecutor):
         tools: GovernedToolRegistry,
         attempt: ExecutionAttempt,
         tool_name: str,
-        args: dict[str, Any],
+        args: Any,
+        schema: Optional[dict[str, Any]] = None,
+        llm_caller: Optional[Any] = None,
     ) -> dict[str, Any]:
         """
         Asynchronously executes a single tool call through the complete non-bypassable governance chain,
         yielding control back to the event loop during I/O and subprocess execution.
         """
-        return await asyncio.to_thread(self.execute_tool, tools, attempt, tool_name, args)
+        return await asyncio.to_thread(self.execute_tool, tools, attempt, tool_name, args, schema, llm_caller)

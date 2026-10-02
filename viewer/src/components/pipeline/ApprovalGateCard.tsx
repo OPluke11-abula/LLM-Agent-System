@@ -1,4 +1,4 @@
-﻿
+
 import { BentoCard, ShimmerButton } from "../ui/primitives";
 import { Lock, Unlock, Key } from "../ui/icons";
 import type { TaskDetailResponse } from "./types";
@@ -20,7 +20,48 @@ export function ApprovalGateCard({
 }: ApprovalGateCardProps) {
   if (!taskDetail.plan) return null;
   const isAwaiting = !taskDetail.plan.human_approved && taskDetail.result.current_stage !== "COMPLETED";
-  if (!isAwaiting) return null;
+
+  if (!isAwaiting) {
+    if (!taskDetail.plan.human_approved) return null;
+
+    return (
+      <BentoCard className="border-emerald-500/30 bg-emerald-500/10 shadow-[0_0_20px_rgba(16,185,129,0.15)]">
+        <div className="p-4 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400">
+                <Unlock className="h-4 w-4" />
+              </div>
+              <div>
+                <h3 className="text-xs font-bold text-emerald-200">
+                  Stop-and-Wait Architecture Gate: Authorized
+                </h3>
+                <p className="text-[11px] text-emerald-300/80">
+                  Mutation scope verified and execution authorized. Token:{" "}
+                  <span className="font-mono font-semibold text-emerald-300">
+                    {taskDetail.plan.approval_token || "***VERIFIED"}
+                  </span>
+                </p>
+              </div>
+            </div>
+            <span className="rounded border border-emerald-500/40 bg-emerald-500/20 px-2 py-0.5 text-[10px] font-mono text-emerald-300">
+              GATE UNLOCKED
+            </span>
+          </div>
+          <div className="rounded-lg border border-emerald-500/20 bg-black/30 p-2.5 text-[11px] font-mono space-y-1 text-slate-300">
+            <div>
+              <span className="text-slate-500">Authorized Role: </span>
+              <span className="text-emerald-400 font-semibold">{taskDetail.plan.assigned_role}</span>
+            </div>
+            <div>
+              <span className="text-slate-500">Target Files: </span>
+              <span className="text-slate-300">{taskDetail.plan.target_files.join(", ")}</span>
+            </div>
+          </div>
+        </div>
+      </BentoCard>
+    );
+  }
 
   return (
     <BentoCard className="border-amber-500/40 bg-amber-500/10 shadow-[0_0_24px_rgba(245,158,11,0.15)]">

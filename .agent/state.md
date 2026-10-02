@@ -12,11 +12,17 @@
 - Realtime Working Coordination: External surface optional; `.agent/` is durable canonical execution authority.
 
 ## Project Frontier
-- Current Phase: Phase 104 - Production Hardening, Architectural Deconstruction & Zero-Debt Release Certification
-- Active Milestone: Release v0.5.0 Certified (Enterprise Autonomous Software Factory Swarm & Zero-Debt Core)
-- Current Frontier Ref: LAS-V0.5.0-RELEASE-CERTIFIED
-- Coordination Checkpoint: Closed (結案)
-- Working Tree Policy: Strict Clean Tree on Release (Verified)
+- Current Phase: Phase 109 - Dual-Track Release Pipeline & Desktop Packaging (COMPLETED & CERTIFIED)
+- Active Milestone: Milestone T-036 (Production Deployment & Swarm Mesh Drill Certified)
+- Release Version: `v0.6.0`
+- Slice Status:
+  - Phase 107 (Multimodal Swarm Mesh & 16-Node P2P Stress Drill): COMPLETED & CERTIFIED (320 ops, 0 errors, 100% Merkle attestation).
+  - Phase 108 (Docker Multi-Arch Buildx & GHCR Registry Pipeline): COMPLETED & CERTIFIED (.github/workflows/docker-publish.yml, .env.production.example).
+  - Phase 109 (Dual-Track Release Pipeline & Desktop Packaging): COMPLETED & CERTIFIED (.github/workflows/release.yml, verify_release_readiness.py).
+- Current Frontier Ref: LAS-PHASE-109-MILESTONE-T036-CLOSED
+- Coordination Checkpoint: Swarm Multimodal Mesh, Docker GHCR Publishing & Dual-Track Release Certified (70/70 Tests PASS, 0 React Doctor warnings, Vite build clean).
+- Working Tree Policy: High-rigor source-grounded verification; zero fake execution evidence; authority unified to SQLite MissionStore.
+
 
 ## Shared Workspace Registry
 - Entry Point: `AGENTS.md`
