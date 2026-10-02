@@ -98,6 +98,9 @@ flowchart TD
 
 - **Python Runtime (`agent_workspace/core`, `agent_workspace/routes`)**: Routing, multi-tier memory, cryptographic consensus, sandboxing, provider abstraction, in-session protocol self-healing (`ProtocolRepairManager`), structured Advisor delegation (`DelegationPacket`), OpenAI-compatible Responses API streaming gateway (`POST /v1/responses`), Quota-Aware routing with 429 exponential backoff (`QuotaAwareRouter`), multi-agent concurrent worktree mutation sandboxes, and federated vector pattern distillation.
 - **Multimodal Swarm Mesh (Phase 107)**: Heterogeneous P2P mesh cluster with `PeerCapability.MULTIMODAL_PERCEPTION`, capability-aware workload dispatching for visual/diagram verification, dynamic X.509 mTLS attestation, and 16-node chaos stress fault resilience (320 transactions, 0% error rate).
+- **Edge SLM & Local Code Optimization (Phase 110)**: Integrated `EdgeSLMEngine` for zero-cloud-token AST static defect inspection, automated test stub synthesis, and complexity-based model routing ($CC \le 10$).
+- **Cross-Organization Encrypted P2P Mesh (Phase 111)**: Zero-trust NAT hole punching (`MeshNATBridge` STUN / DERP relay fallback), zero-knowledge task state verifier (`ZeroKnowledgeTaskVerifier`) with air-gap code protection, and WAN multi-cluster Raft disaster recovery.
+- **Cloud-Native Kubernetes & Argo Rollouts Canary (Phase 112)**: Production Helm v2 Chart (`deploy/helm/llm-agent-system/`), non-root container security context (UID 1001), 4-stage progressive canary delivery (10% -> 25% -> 50% -> 100%), Prometheus SLO gates, and GHCR OCI automated publishing pipeline (`.github/workflows/helm-publish.yml`).
 - **Container & Release Pipeline**: Production rootless container image, GHCR automated multi-arch publishing (`.github/workflows/docker-publish.yml`), and dual-track release pipeline packaging container and Windows Tauri desktop artifacts (`.github/workflows/release.yml`).
 - **Contract & Knowledge System (`.agent`)**: PAP contracts, workflows, role definitions, and durable cross-agent project knowledge.
 - **Developer Agent Control Plane**: Canonical mission and autonomous coding pipeline contracts ([`docs/product/developer-agent-control-plane.md`](docs/product/developer-agent-control-plane.md)).
@@ -306,8 +309,22 @@ LAS (FindAi Studio) 是一套企業級、合約優先 (Contract-First) 的多智
    * **雙軌發布工作流**：整合 `.github/workflows/release.yml`，在推送到 `v*.*.*` 標籤時自動同時發布 GHCR 容器映像檔與 Tauri Windows 桌面端安裝檔 (`.msi` / `.exe`)。
    * **發布預檢閘門**：實作 `scripts/verify_release_readiness.py`，嚴格校驗 Python (`pyproject.toml`)、前端 (`viewer/package.json`) 與桌面端 (`tauri.conf.json` / `Cargo.toml`) 版本號 100% 同步一致與部署資產完整性。
 
-9. **黃金八階驗證階梯 (8-Step Golden Verification Ladder)**：
-   * 執行 `.\scripts\verify.cmd` 進行 Python 編譯、Pytest 矩陣測試、PAP 規格驗證、工具清單檢核、Obsidian 筆記健康檢查、Viewer 生產建置、UI 冒煙測試與 React Doctor 品質審查。
+9. **Phase 110 端側 SLM 本地優化 (Edge SLM & Local Coding Model Optimization)**：
+   * **零雲端代幣靜態分析**：實作 `OfflineASTAnalyzer`，本地端即時審計 bare except 並動態合成 pytest 測試 stub。
+   * **複雜度感知智慧分流**：實作 `SmartModelDispatcher`，依據圈複雜度 ($CC \le 10$) 自動分流至本地端 Ollama/vLLM 引擎，顯著降低雲端 Token 消耗。
+
+10. **Phase 111 跨組織加密 P2P 網格與 NAT 穿透 (Cross-Org P2P Mesh & NAT Traversal)**：
+    * **STUN 打洞與 DERP 中繼降級**：實作 `MeshNATBridge`，6.06ms 直連握手，對稱型 NAT 自動降級至 DERP 加密通道，管理 `10.244.0.0/16` 覆蓋網路。
+    * **零知識任務狀態驗證**：實作 `ZeroKnowledgeTaskVerifier`，以 AST 結構特徵與 Merkle 根證明取代原始碼傳輸，徹底防禦程式碼洩漏。
+    * **多區域聯邦 Raft 容災**：跨 US/EU/AP 廣域網 Quorum 選主與分區自動容災轉移。
+
+11. **Phase 112 雲原生 Kubernetes Helm 與 Argo Rollouts Canary 發布**：
+    * **企業級 Helm Chart**：提供 `deploy/helm/llm-agent-system/`，配置 3 副本高可用、非 root 安全上下文 (UID 1001)、HPA 自動擴縮與 PVC 持久儲存。
+    * **Argo Rollouts 漸進式金絲雀**：定義 4 階段金絲雀階梯 (10% -> 25% -> 50% -> 100%)，整合 Prometheus SLO 熔斷門檻 (成功率 $\ge 99.9\%$、P99 $<500\text{ms}$、錯誤率 $<0.1\%$)。
+    * **GHCR OCI 自動發布管線**：整合 `.github/workflows/helm-publish.yml`，自動 lint、渲染測試並推播至 `oci://ghcr.io/opluke11-abula/charts`。
+
+12. **黃金八階驗證階梯 (8-Step Golden Verification Ladder)**：
+    * 執行 `.\scripts\verify.cmd` 進行 Python 編譯、Pytest 矩陣測試、PAP 規格驗證、工具清單檢核、Obsidian 筆記健康檢查、Viewer 生產建置、UI 冒煙測試與 React Doctor 品質審查。
 
 
 ### 快速開始

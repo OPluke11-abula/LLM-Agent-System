@@ -71,6 +71,9 @@ def check_deployment_artifacts() -> list[tuple[str, bool]]:
         ".github/workflows/docker-publish.yml",
         ".github/workflows/ci.yml",
         ".github/workflows/release.yml",
+        ".github/workflows/helm-publish.yml",
+        "deploy/helm/llm-agent-system/Chart.yaml",
+        "deploy/canary/rollout.yaml",
     ]
     results = []
     for rel_path in required_files:
@@ -84,6 +87,8 @@ def check_evidence_receipts() -> list[tuple[str, bool]]:
     receipts = [
         ".agent/evidence/p2p_multimodal_mesh_receipt.json",
         ".agent/evidence/concurrency_stress_receipt.json",
+        ".agent/evidence/cross_org_mesh_receipt.json",
+        ".agent/evidence/helm_canary_receipt.json",
     ]
     results = []
     for rel_path in receipts:

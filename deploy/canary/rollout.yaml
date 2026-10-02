@@ -1,0 +1,100 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: llm-agent-system
+  labels:
+    app.kubernetes.io/name: llm-agent-system
+    app.kubernetes.io/instance: llm-agent-system-prod
+    app.kubernetes.io/version: "0.6.0"
+spec:
+  replicas: 5
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: llm-agent-system
+  strategy:
+    canary:
+      canaryService: llm-agent-system-canary
+      stableService: llm-agent-system-stable
+      trafficRouting:
+        nginx:
+          stableIngress: llm-agent-system
+      analysis:
+        templates:
+          - templateName: llm-agent-system-canary-metric-check
+      steps:
+        # Step 1: Initial Canary Traffic (10%)
+        - setWeight: 10
+        - pause: { duration: 5m }
+        # Step 2: Expanded Canary Traffic (25%)
+        - setWeight: 25
+        - pause: { duration: 10m }
+        # Step 3: Main Load Canary Traffic (50%)
+        - setWeight: 50
+        - pause: { duration: 10m }
+        # Step 4: Full Promotion (100%)
+        - setWeight: 100
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: llm-agent-system
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/v1/metrics"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        fsGroup: 1001
+      containers:
+        - name: llm-agent-system
+          image: ghcr.io/opluke11-abula/llm-agent-system:v0.6.0
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1001
+            runAsGroup: 1001
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop:
+                - ALL
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /v1/health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /v1/health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 2
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 2000m
+              memory: 4Gi
+          envFrom:
+            - configMapRef:
+                name: llm-agent-system-config
+            - secretRef:
+                name: llm-agent-system-secret
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: llm-agent-system-data
