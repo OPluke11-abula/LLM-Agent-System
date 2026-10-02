@@ -63,3 +63,28 @@ def get_system_capabilities(actor: MissionActor = Depends(require_mission_actor)
         agent_execution="not_implemented",
         draft_pr_delivery="not_implemented",
     )
+
+
+from agent_workspace.core.peripheral_telemetry import (
+    PeripheralTelemetryReport,
+    get_peripheral_provider,
+)
+
+
+@router.get("/peripherals", response_model=PeripheralTelemetryReport)
+def get_system_peripherals() -> PeripheralTelemetryReport:
+    """Return workstation peripheral telemetry (e.g. mouse, headset battery levels) via HaloBattery bridge."""
+    return get_peripheral_provider().get_telemetry()
+
+
+from agent_workspace.core.focus_detector import (
+    FocusStateReport,
+    get_focus_detector,
+)
+
+
+@router.get("/focus-state", response_model=FocusStateReport)
+def get_system_focus_state() -> FocusStateReport:
+    """Return workstation notification and fullscreen focus state for quiet-mode handling."""
+    return get_focus_detector().get_focus_state()
+

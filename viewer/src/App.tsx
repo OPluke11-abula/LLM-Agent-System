@@ -190,7 +190,7 @@ export default function App() {
               <Route path="/review/:missionId" element={<ReviewPage />} />
               <Route path="/knowledge" element={<KnowledgePage />} />
               <Route path="/system" element={<SystemCheckPage />} />
-              <Route path="/" element={<Navigate to={missionAuth.configured ? "/missions" : "/system"} replace />} />
+              <Route path="/" element={<Navigate to={missionAuth.configured ? "/missions" : "/workspace"} replace />} />
               <Route
                 path="/workspace"
                 element={

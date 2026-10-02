@@ -105,7 +105,7 @@ flowchart TD
 - **Container & Release Pipeline**: Production rootless container image, GHCR automated multi-arch publishing (`.github/workflows/docker-publish.yml`), and dual-track release pipeline packaging container and multi-OS desktop artifacts (`.github/workflows/release.yml`).
 - **Contract & Knowledge System (`.agent`)**: PAP contracts, workflows, role definitions, and durable cross-agent project knowledge.
 - **Developer Agent Control Plane**: Canonical mission and autonomous coding pipeline contracts ([`docs/product/developer-agent-control-plane.md`](docs/product/developer-agent-control-plane.md)).
-- **React 19 + Tauri 2 Desktop App (`viewer`)**: Dark glassmorphism interface, Radix UI primitives, Lucide icons, Rolldown code-splitting, real-time topology stream, and ambient floating companion (`AmbientCompanion`) with 1-click HITL approval and context file drag-and-drop.
+- **React 19 + Tauri 2 Desktop App (`viewer`)**: Dark glassmorphism interface, Radix UI primitives, Lucide icons, Rolldown code-splitting, real-time topology stream, and ambient floating companion (`AmbientCompanion`) with 1-click HITL approval, context file drag-and-drop, workstation peripheral battery telemetry via zero-dependency HaloBattery bridge (`CompanionPeripheralBadge`), fullscreen focus & quiet mode detection (`WindowsFocusDetector`), and dynamic Tauri 2 system tray status synchronization.
 - **Multi-Provider Support**: Pluggable adapters for Google Gemini, Anthropic Claude, OpenAI, and local Ollama.
 
 
@@ -330,6 +330,11 @@ LAS (FindAi Studio) 是一套企業級、合約優先 (Contract-First) 的多智
 
 13. **黃金八階驗證階梯 (8-Step Golden Verification Ladder)**：
     * 執行 `.\scripts\verify.cmd` 進行 Python 編譯、Pytest 矩陣測試、PAP 規格驗證、工具清單檢核、Obsidian 筆記健康檢查、Viewer 生產建置、UI 冒煙測試與 React Doctor 品質審查。
+
+14. **Phase 1 環境智慧與工作站情境感知 (Ambient Intelligence & Workstation Context Mesh)**：
+    * **周邊設備電量遙測 (`CompanionPeripheralBadge`)**：透過非侵入式松耦合 HaloBattery 橋接（`status.json`），0 額外驅動依賴監控滑鼠、耳機、鍵盤、控制器電量，並於低電量時發出微型柔和警示。
+    * **全螢幕勿擾焦點感知 (`WindowsFocusDetector`)**：純標準庫 `ctypes` 調用 Windows 原生 Shell 通知 API（`SHQueryUserNotificationState`）與前台全螢幕判定，自動抑制沉浸工作或簡報時的 HITL 強行奪取焦點。
+    * **Tauri 2.0 動態系統托盤 (`TrayIconBuilder`)**：支援左鍵切換常駐伴侶、右鍵工作台快捷選單、以及依據 Agent 思考/審批狀態即時同步托盤狀態提示。
 
 
 ### 快速開始

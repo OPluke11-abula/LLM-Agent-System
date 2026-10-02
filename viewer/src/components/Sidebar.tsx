@@ -1,23 +1,179 @@
+import React from "react";
 import { Link, useLocation } from "react-router-dom";
+import {
+  LayoutDashboard,
+  Target,
+  Workflow,
+  FileCheck,
+  Terminal,
+  Boxes,
+  Share2,
+  Network,
+  Brain,
+  Database,
+  ShieldCheck,
+  Cpu,
+  Activity,
+  Settings,
+} from "./ui/icons";
 import type { TranslationMessages } from "../types";
 
-type SidebarProps = { t: TranslationMessages; relaunchOnboarding?: () => void; onOpenCommandPalette?: () => void; onToggleCompanion?: () => void };
-type NavItem = { label: string; to: string; kicker: string };
-type NavSection = { label: string; items: NavItem[]; mobileHidden?: boolean };
+type SidebarProps = {
+  t: TranslationMessages;
+  relaunchOnboarding?: () => void;
+  onOpenCommandPalette?: () => void;
+  onToggleCompanion?: () => void;
+};
+
+type NavItem = {
+  label: string;
+  to: string;
+  icon: React.ComponentType<{ className?: string }>;
+};
+
+type NavSection = {
+  label: string;
+  items: NavItem[];
+  mobileHidden?: boolean;
+};
 
 export function Sidebar({ t, relaunchOnboarding, onOpenCommandPalette, onToggleCompanion }: SidebarProps) {
   const location = useLocation();
+
   const sections: NavSection[] = [
-    { label: "Missions", items: [{ label: "Missions", to: "/missions", kicker: "Queue" }, { label: "New mission", to: "/missions/new", kicker: "Intake" }] },
-    { label: "Review", items: [{ label: "Review", to: "/review", kicker: "Audit" }] },
-    { label: "Knowledge", items: [{ label: "Knowledge", to: "/knowledge", kicker: "Records" }] },
-    { label: "System", items: [{ label: "System Check", to: "/system", kicker: "Health" }] },
-    { label: "Workspace", mobileHidden: true, items: [{ label: t.appTitle, to: "/workspace", kicker: "Live" }, { label: "Coding Pipeline", to: "/pipeline", kicker: "Code" }, { label: "Federated Mesh", to: "/mesh", kicker: "P2P" }, { label: "Software Factory", to: "/factory", kicker: "Swarm" }, { label: t.taskFlow, to: "/tasks", kicker: "Flow" }, { label: "Topology", to: "/topology", kicker: "Graph" }, { label: "Intelligence", to: "/intelligence", kicker: "Map" }, { label: t.memoryTitle, to: "/memory", kicker: "Brain" }, { label: t.rules, to: "/rules", kicker: "Policy" }, { label: t.mods, to: "/mods", kicker: "Skills" }, { label: t.settings, to: "/settings", kicker: "Config" }, { label: t.adminConsole, to: "/admin", kicker: "Ops" }] },
+    {
+      label: "任務指揮",
+      items: [
+        { label: "控制總覽", to: "/workspace", icon: LayoutDashboard },
+        { label: "任務清單", to: "/missions", icon: Target },
+        { label: "任務圖譜", to: "/tasks", icon: Workflow },
+        { label: "審核驗收", to: "/review", icon: FileCheck },
+      ],
+    },
+    {
+      label: "自主編程",
+      items: [
+        { label: "編程流水線", to: "/pipeline", icon: Terminal },
+        { label: "軟體工廠", to: "/factory", icon: Boxes },
+        { label: "分散式網格", to: "/mesh", icon: Share2 },
+      ],
+    },
+    {
+      label: "架構記憶",
+      items: [
+        { label: "架構拓撲", to: "/topology", icon: Network },
+        { label: "情境記憶", to: "/memory", icon: Brain },
+        { label: "專案知識庫", to: "/knowledge", icon: Database },
+      ],
+    },
+    {
+      label: "系統治理",
+      items: [
+        { label: "規範守則", to: "/rules", icon: ShieldCheck },
+        { label: "技能模組", to: "/mods", icon: Cpu },
+        { label: "系統診斷", to: "/system", icon: Activity },
+        { label: "偏好設定", to: "/settings", icon: Settings },
+      ],
+    },
   ];
 
-  return <aside className="relative z-50 flex w-full flex-col border-b p-4 md:fixed md:left-0 md:top-0 md:h-screen md:w-64 md:border-r md:border-b-0 md:p-5" style={{ background: "var(--sidebar)", borderColor: "var(--border-c)" }}>
-    <div className="mb-4 px-1 md:mt-1 md:mb-8"><div className="mb-4 flex items-center gap-3"><div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border text-[11px] font-semibold tracking-[0.16em]" style={{ borderColor: "rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.055)", color: "white" }}>LAS</div><div className="min-w-0"><span className="block truncate text-sm font-semibold leading-tight" style={{ color: "var(--t1)" }}>{t.appTitle}</span><span className="mt-1 block text-[10px] font-medium uppercase tracking-[0.18em]" style={{ color: "rgba(255,255,255,0.42)" }}>Agent Runtime</span></div></div>{onOpenCommandPalette && <button type="button" onClick={onOpenCommandPalette} className="quiet-button flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold"><span>Command Palette</span><span className="font-mono text-[10px] t3">Ctrl K</span></button>}{onToggleCompanion && <button type="button" onClick={onToggleCompanion} className="quiet-button flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold mt-1.5 text-cyan-300"><span>Ambient Companion</span><span className="font-mono text-[10px] text-cyan-400">HITL</span></button>}</div>
-    <nav className="grid grid-cols-2 gap-3 sm:grid-cols-4 md:block md:flex-1 md:space-y-4" aria-label="Primary navigation">{sections.map((section) => <div key={section.label} className={section.mobileHidden ? "hidden md:block" : undefined}><p className="mb-1 px-3 text-[9px] font-bold uppercase tracking-[0.18em] t3">{section.label}</p><div className="space-y-1">{section.items.map(({ label, to, kicker }) => { const active = location.pathname === to || (to !== "/" && location.pathname.startsWith(`${to}/`) && !(to === "/missions" && location.pathname.startsWith("/missions/new"))); return <Link key={to} to={to} aria-current={active ? "page" : undefined} className={`nav-link ${active ? "nav-link-active" : ""} group flex min-w-0 items-center justify-between gap-3 rounded-lg px-3 py-2 text-sm font-medium`}><span className="min-w-0 break-words leading-tight">{label}</span><span className="shrink-0 text-right text-[9px] font-semibold uppercase tracking-[0.14em] opacity-45 group-hover:opacity-70">{kicker}</span></Link>; })}</div></div>)}</nav>
-    <div className="hidden space-y-3 border-t pt-4 md:block" style={{ borderColor: "rgba(255,255,255,0.09)" }}>{relaunchOnboarding && <button type="button" onClick={relaunchOnboarding} className="w-full rounded-lg border border-dashed py-2 text-center text-xs font-semibold transition-colors hover:bg-white/5 active:translate-y-px" style={{ borderColor: "rgba(255,255,255,0.14)", color: "rgba(255,255,255,0.72)" }}>{t.relaunchTutorialBtn}</button>}<p className="text-[9px] font-medium uppercase leading-relaxed tracking-[0.16em]" style={{ color: "rgba(255,255,255,0.36)" }}>Visual Control Plane<br />Tauri 2.0 / TS 5.8 / ReactFlow 11</p></div>
-  </aside>;
+  return (
+    <aside
+      className="relative z-50 flex w-full flex-col border-b p-4 md:fixed md:left-0 md:top-0 md:h-screen md:w-64 md:border-r md:border-b-0 md:p-5 overflow-y-auto"
+      style={{ background: "var(--sidebar)", borderColor: "var(--border-c)" }}
+    >
+      {/* Brand Header */}
+      <div className="mb-4 px-1 md:mt-1 md:mb-6">
+        <div className="mb-4 flex items-center gap-3">
+          <div
+            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border text-[11px] font-bold tracking-[0.16em] bg-indigo-500/10 border-indigo-500/30 text-indigo-300"
+          >
+            LAS
+          </div>
+          <div className="min-w-0">
+            <span className="block truncate text-sm font-bold leading-tight" style={{ color: "var(--t1)" }}>
+              {t.appTitle || "控制中心"}
+            </span>
+            <span className="mt-0.5 block text-[10px] font-medium tracking-wider text-slate-400">
+              代理人控制中樞
+            </span>
+          </div>
+        </div>
+
+        {onOpenCommandPalette && (
+          <button
+            type="button"
+            onClick={onOpenCommandPalette}
+            className="quiet-button flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold"
+          >
+            <span>命令面板</span>
+            <span className="font-mono text-[10px] t3">Ctrl K</span>
+          </button>
+        )}
+
+        {onToggleCompanion && (
+          <button
+            type="button"
+            onClick={onToggleCompanion}
+            className="quiet-button flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold mt-1.5 text-cyan-300 border-cyan-500/20 bg-cyan-500/5 hover:bg-cyan-500/10"
+          >
+            <span>隨行助手</span>
+            <span className="font-mono text-[10px] text-cyan-400">HITL</span>
+          </button>
+        )}
+      </div>
+
+      {/* Navigation Sections */}
+      <nav className="grid grid-cols-2 gap-3 sm:grid-cols-4 md:block md:flex-1 md:space-y-4" aria-label="主要導覽">
+        {sections.map((section) => (
+          <div key={section.label} className={section.mobileHidden ? "hidden md:block" : undefined}>
+            <p className="mb-1.5 px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              {section.label}
+            </p>
+            <div className="space-y-0.5">
+              {section.items.map(({ label, to, icon: Icon }) => {
+                const active =
+                  location.pathname === to ||
+                  (to !== "/" &&
+                    location.pathname.startsWith(`${to}/`));
+
+                return (
+                  <Link
+                    key={to}
+                    to={to}
+                    aria-current={active ? "page" : undefined}
+                    className={`nav-link ${
+                      active ? "nav-link-active" : ""
+                    } group flex min-w-0 items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors`}
+                  >
+                    <Icon className={`h-4 w-4 shrink-0 ${active ? "text-indigo-400" : "text-slate-400 group-hover:text-slate-200"}`} />
+                    <span className="min-w-0 truncate leading-normal">{label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </nav>
+
+      {/* Footer Meta */}
+      <div className="hidden space-y-2.5 border-t pt-4 md:block" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+        {relaunchOnboarding && (
+          <button
+            type="button"
+            onClick={relaunchOnboarding}
+            className="w-full rounded-lg border border-dashed py-1.5 text-center text-xs font-medium transition-colors hover:bg-white/5 active:translate-y-px"
+            style={{ borderColor: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.7)" }}
+          >
+            {t.relaunchTutorialBtn || "重新開啟新手教學"}
+          </button>
+        )}
+        <div className="flex items-center justify-between text-[10px] font-medium tracking-wide text-slate-500">
+          <span>協定基準線</span>
+          <span className="font-mono text-indigo-400/80">PAP v3.8.0</span>
+        </div>
+      </div>
+    </aside>
+  );
 }
+

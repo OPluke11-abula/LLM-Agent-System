@@ -6,17 +6,23 @@ use std::{
     sync::mpsc,
     thread,
 };
-use tauri::{AppHandle, Emitter};
+use tauri::{
+    menu::{Menu, MenuItem},
+    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
+    AppHandle, Emitter, Manager,
+};
 
 fn workspace_dir() -> PathBuf {
-    std::env::var("AGENT_WORKSPACE_DIR")
+    let p = std::env::var("AGENT_WORKSPACE_DIR")
         .map(PathBuf::from)
         .unwrap_or_else(|_| {
             std::env::current_dir()
                 .unwrap_or_else(|_| PathBuf::from("."))
                 .join("..")
                 .join("workspace")
-        })
+        });
+    let _ = fs::create_dir_all(&p);
+    p
 }
 
 fn agent_memory_path() -> PathBuf {
@@ -238,6 +244,15 @@ fn toggle_companion_window(app_handle: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+fn update_tray_status(app_handle: AppHandle, status: String, tooltip: Option<String>) -> Result<(), String> {
+    if let Some(tray) = app_handle.tray_by_id("main-tray") {
+        let label = tooltip.unwrap_or_else(|| format!("LAS Agent: {}", status));
+        let _ = tray.set_tooltip(Some(label));
+    }
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -246,6 +261,47 @@ pub fn run() {
         .setup(|app| {
             watch_agent_memory(app.handle().clone());
             watch_topology_state(app.handle().clone());
+
+            let show_cockpit = MenuItem::with_id(app, "show_cockpit", "Open Mission Cockpit", true, None::<&str>)?;
+            let toggle_companion = MenuItem::with_id(app, "toggle_companion", "Toggle Ambient Companion", true, None::<&str>)?;
+            let quit = MenuItem::with_id(app, "quit", "Quit LAS", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&show_cockpit, &toggle_companion, &quit])?;
+
+            if let Some(icon) = app.default_window_icon() {
+                let _ = TrayIconBuilder::with_id("main-tray")
+                    .tooltip("LAS - AI Mission Control")
+                    .icon(icon.clone())
+                    .menu(&menu)
+                    .on_menu_event(|app, event| {
+                        match event.id().as_ref() {
+                            "show_cockpit" => {
+                                if let Some(window) = app.get_webview_window("main") {
+                                    let _ = window.show();
+                                    let _ = window.set_focus();
+                                }
+                            }
+                            "toggle_companion" => {
+                                let _ = toggle_companion_window(app.clone());
+                            }
+                            "quit" => {
+                                app.exit(0);
+                            }
+                            _ => {}
+                        }
+                    })
+                    .on_tray_icon_event(|tray, event| {
+                        if let TrayIconEvent::Click {
+                            button: MouseButton::Left,
+                            button_state: MouseButtonState::Up,
+                            ..
+                        } = event {
+                            let app = tray.app_handle();
+                            let _ = toggle_companion_window(app.clone());
+                        }
+                    })
+                    .build(app)?;
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -257,6 +313,7 @@ pub fn run() {
             save_workspace_file,
             open_dashboard_window,
             toggle_companion_window,
+            update_tray_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -31,7 +31,9 @@ export const PipelineHeaderBanner: React.FC<PipelineHeaderBannerProps> = ({
           </span>
         </div>
         <p className="mt-1 text-xs text-slate-400">
-          Requirement Intake → Bounded Worktree Mutation → Live Verification Ladder → Cryptographic Draft PR
+          {lang === "zh"
+            ? "需求解析 → 隔離工作樹變更 → 多階驗證天梯 → 密碼學 Draft PR 產出"
+            : "Requirement Intake → Bounded Worktree Mutation → Live Verification Ladder → Cryptographic Draft PR"}
         </p>
       </div>
 
@@ -50,12 +52,14 @@ export const PipelineHeaderBanner: React.FC<PipelineHeaderBannerProps> = ({
               wsConnected ? "bg-emerald-400 animate-pulse" : "bg-amber-400"
             )}
           />
-          {wsConnected ? "Telemetry Live" : "Offline"}
+          {wsConnected
+            ? (lang === "zh" ? "即時遙測連線" : "Telemetry Live")
+            : (lang === "zh" ? "離線" : "Offline")}
         </span>
 
         <Button variant="outline" size="sm" onClick={onSync}>
           <RefreshCw className="h-3.5 w-3.5 mr-1" />
-          Sync
+          {lang === "zh" ? "同步狀態" : "Sync"}
         </Button>
 
         <Button
@@ -75,7 +79,7 @@ export const PipelineHeaderBanner: React.FC<PipelineHeaderBannerProps> = ({
           className="bg-indigo-600 hover:bg-indigo-500 text-white shadow-[0_0_12px_rgba(99,102,241,0.4)]"
         >
           <Play className="h-3.5 w-3.5 mr-1" />
-          New Coding Task
+          {lang === "zh" ? "建立編程任務" : "New Coding Task"}
         </Button>
       </div>
     </div>

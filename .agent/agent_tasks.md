@@ -12,7 +12,8 @@
 | Phase | Milestone / Domain | Status | Scope & Deliverables |
 |---|---|:---:|---|
 | **Phase 0** | **系統全能基準線 (v0.6.0 Baseline)** | `[x] 100% Done` | 歸納封存歷史 113 個 Phase，確立 7 大核心架構柱石，全維度測試 100% PASS，收據完備。 |
-| **Phase 1** | *(待定義 / Pending Planning)* | `[ ] 待啟動` | 由 PO Luke 指示新世代功能需求後排定。 |
+| **Phase 1** | **桌面環境智慧伴侶與 UI/UX 深度改造 (Ambient Intelligence & Cockpit Modernization)** | `[x] 100% Done` | Slices 1~3: 周邊電量/全螢幕勿擾/系統托盤；Slice 4: 4 大中心導覽收斂、高美學 Operate 玻璃擬態與 100% 正體中文化。 |
+| **Phase 2** | *(待定義 / Pending Planning)* | `[ ] 待啟動` | 由 PO Luke 指示新世代功能需求後排定。 |
 
 ---
 

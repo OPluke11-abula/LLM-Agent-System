@@ -58,24 +58,24 @@ const COPY: Record<Lang, {
   noTopology: string;
 }> = {
   zh: {
-    title: "Mission Control",
-    eyebrow: "LAS LIVE OPERATIONS",
-    subtitle: "拓撲、任務、驗證、風險與記憶訊號集中在第一視窗。",
-    live: "即時拓撲",
-    offline: "等待拓撲串流",
-    activeMission: "主任務",
-    verification: "驗證",
-    risk: "風險",
-    memory: "記憶",
-    topology: "拓撲焦點",
-    nextAction: "下一步",
-    conductor: "Conductor trace",
-    evidence: "Evidence refs",
-    agents: "Agents",
-    tasks: "Tasks",
-    tokens: "Tokens",
-    noTask: "沒有進行中任務，請從 Task Flow 選定下一個執行節點。",
-    noTopology: "尚未收到 runtime topology。可先檢查 Task Flow 或啟動後端 stream。",
+    title: "任務指揮總覽",
+    eyebrow: "LAS 即時運作中樞",
+    subtitle: "架構拓撲、任務進度、天梯驗證、風險評估與情境記憶集中呈現於第一視窗。",
+    live: "即時拓撲串流",
+    offline: "等待拓撲串流連線",
+    activeMission: "核心進行中任務",
+    verification: "驗證進度",
+    risk: "風險缺陷",
+    memory: "情境記憶",
+    topology: "架構拓撲焦點",
+    nextAction: "建議下一步行動",
+    conductor: "編排追蹤軌跡",
+    evidence: "驗證收據引用",
+    agents: "代理人節點",
+    tasks: "任務總數",
+    tokens: "Token 消耗",
+    noTask: "目前無執行中任務，請至任務圖譜選擇下一個執行節點。",
+    noTopology: "尚未收到執行時拓撲串流。可檢查任務圖譜或確認後端服務已啟動。",
   },
   en: {
     title: "Mission Control",
@@ -198,7 +198,7 @@ function MissionTopology({ session, copy }: { session: TopologyState | null; cop
             to="/topology"
             className="quiet-button inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium"
           >
-            <span>Graph</span>
+            <span>架構拓撲</span>
             <ArrowRight className="h-3 w-3" />
           </Link>
         </div>
@@ -212,14 +212,14 @@ function MissionTopology({ session, copy }: { session: TopologyState | null; cop
             </div>
             <div>
               <p className="text-xs font-medium text-[var(--t1)]">{copy.noTopology}</p>
-              <p className="mt-0.5 text-[11px] text-[var(--t3)]">Active runtime nodes and execution DAG will appear here.</p>
+              <p className="mt-0.5 text-[11px] text-[var(--t3)]">即時運作節點與執行 DAG 將即時呈現於此處。</p>
             </div>
             <Link
               to="/tasks"
               className="quiet-button mt-1 inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium"
             >
               <GitFork className="h-3.5 w-3.5" />
-              <span>Inspect Task Flow</span>
+              <span>檢視任務圖譜</span>
             </Link>
           </div>
         ) : (
@@ -285,10 +285,10 @@ function ConductorPanel({ event, copy }: { event: TopologyEvent | null; copy: (t
               <Workflow className="h-3.5 w-3.5" />
               <span>{copy.conductor}</span>
             </div>
-            <CardTitle className="mt-1 text-sm font-semibold t1">{trace?.task_summary ?? event?.title ?? "No active trace"}</CardTitle>
+            <CardTitle className="mt-1 text-sm font-semibold t1">{trace?.task_summary ?? event?.title ?? "目前無活躍編排軌跡"}</CardTitle>
           </div>
           <StatusBadge tone={trace?.risk_level === "high" ? "danger" : trace?.risk_level === "medium" ? "warning" : "accent"}>
-            {trace?.risk_level ?? "standby"}
+            {trace?.risk_level ?? "待命"}
           </StatusBadge>
         </div>
       </CardHeader>
@@ -296,10 +296,10 @@ function ConductorPanel({ event, copy }: { event: TopologyEvent | null; copy: (t
         <div className="grid grid-cols-3 gap-2">
           <MetricTile label={copy.tasks} value={total ? `${completed}/${total}` : "0"} />
           <MetricTile label={copy.evidence} value={trace?.evidence_refs?.length ?? 0} tone="accent" />
-          <MetricTile label="Tests" value={trace?.impact_summary?.linked_test_count ?? 0} tone="success" />
+          <MetricTile label="測試驗證" value={trace?.impact_summary?.linked_test_count ?? 0} tone="success" />
         </div>
         <ProgressBar ariaLabel={copy.verification} className="mt-3" value={total ? (completed / total) * 100 : 0} tone={trace?.risk_level === "high" ? "danger" : "accent"} />
-        <p className="mt-2.5 line-clamp-2 text-xs leading-relaxed t2">{trace?.decision_rationale ?? event?.description ?? "Runtime trace will appear after conductor planning."}</p>
+        <p className="mt-2.5 line-clamp-2 text-xs leading-relaxed t2">{trace?.decision_rationale ?? event?.description ?? "編排規劃生成後，將於此處即時呈現決策鏈與驗證路徑。"}</p>
       </CardContent>
     </Card>
   );
@@ -348,13 +348,13 @@ function ActiveMissionCard({
   copy: typeof COPY[Lang];
 }) {
   let badgeTone: "warning" | "accent" | "success" = "success";
-  let badgeLabel = "clear";
+  let badgeLabel = "正常";
   if (taskStats.running > 0) {
     badgeTone = "warning";
-    badgeLabel = "running";
+    badgeLabel = "執行中";
   } else if (taskStats.pending > 0) {
     badgeTone = "accent";
-    badgeLabel = "queued";
+    badgeLabel = "排隊中";
   }
 
   return (
@@ -369,9 +369,9 @@ function ActiveMissionCard({
         <StatusBadge tone={badgeTone}>{badgeLabel}</StatusBadge>
       </div>
       <div className="mt-3 grid grid-cols-3 gap-2">
-        <MetricTile label="Pending" value={taskStats.pending} tone="warning" />
-        <MetricTile label="Running" value={taskStats.running} tone="accent" />
-        <MetricTile label="Done" value={taskStats.completed} tone="success" />
+        <MetricTile label="待處理" value={taskStats.pending} tone="warning" />
+        <MetricTile label="執行中" value={taskStats.running} tone="accent" />
+        <MetricTile label="已完成" value={taskStats.completed} tone="success" />
       </div>
       <ProgressBar
         ariaLabel={copy.verification}
@@ -380,7 +380,7 @@ function ActiveMissionCard({
         tone={verificationScore === 100 ? "success" : "accent"}
       />
       <p className="mt-2.5 break-all text-[11px] font-mono t3" title={workspace?.path}>
-        {workspace?.name ?? activeWorkspaceId} · {workspace?.path || "default workspace"}
+        {workspace?.name ?? activeWorkspaceId} · {workspace?.path || "預設工作區"}
       </p>
     </BentoCard>
   );
@@ -414,9 +414,9 @@ export function MissionControlView({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-white/10 pb-3">
           <div>
             <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium">
-              <span>FindAi Studio</span>
+              <span>LAS 控制中樞</span>
               <span>/</span>
-              <span className="text-slate-300">{workspace?.name ?? "Default Workspace"}</span>
+              <span className="text-slate-300">{workspace?.name ?? "預設工作區"}</span>
             </div>
             <h1 className="mt-0.5 text-xl font-bold tracking-tight t1">{copy.title}</h1>
           </div>
@@ -429,12 +429,12 @@ export function MissionControlView({
             </Button>
             <Link to="/topology" className="quiet-button inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium">
               <Network className="h-3.5 w-3.5" />
-              <span>Topology</span>
+              <span>架構拓撲</span>
             </Link>
             <Link to="/tasks">
               <ShimmerButton>
                 <GitFork className="h-3.5 w-3.5" />
-                <span>Task Flow</span>
+                <span>任務圖譜</span>
                 <ArrowRight className="h-3 w-3" />
               </ShimmerButton>
             </Link>

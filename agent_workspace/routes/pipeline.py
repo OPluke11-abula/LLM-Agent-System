@@ -431,6 +431,9 @@ async def submit_mutation_plan(task_id: str, plan: ScopedMutationPlan) -> dict[s
         },
     )
 
+    from agent_workspace.core.focus_detector import get_focus_detector
+    quiet_mode = get_focus_detector().get_focus_state().in_quiet_mode
+
     asyncio.create_task(
         pipeline_broadcaster.broadcast(
             {
@@ -438,6 +441,7 @@ async def submit_mutation_plan(task_id: str, plan: ScopedMutationPlan) -> dict[s
                 "task_id": task_id,
                 "gate_status": gate_status,
                 "target_files": plan.target_files,
+                "quiet_mode": quiet_mode,
             }
         )
     )

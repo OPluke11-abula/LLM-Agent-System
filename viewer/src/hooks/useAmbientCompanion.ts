@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { adminAuthHeaders } from "../services/adminRuntimeAuth";
 import { STAGES } from "../components/pipeline/types";
 
@@ -24,6 +25,16 @@ export interface DroppedFileItem {
   lastModified: number;
 }
 
+export interface PeripheralDevice {
+  name: string;
+  level: number | null;
+  charging: boolean;
+  online: boolean;
+  kind: "mouse" | "keyboard" | "headset" | "controller" | "bluetooth" | "other";
+  seconds_left?: number | null;
+  text?: string;
+}
+
 export interface UseAmbientCompanionReturn {
   status: CompanionStatus;
   connectionStatus: CompanionConnectionStatus;
@@ -35,6 +46,9 @@ export interface UseAmbientCompanionReturn {
   actionMessage: string | null;
   errorMessage: string | null;
   droppedFiles: DroppedFileItem[];
+  peripherals: PeripheralDevice[];
+  peripheralAlerts: string[];
+  quietMode: boolean;
   approve: (customToken?: string, approverName?: string) => Promise<boolean>;
   deny: (reason?: string) => Promise<void>;
   createTaskFromDrop: (requirementPrompt?: string, targetBranch?: string) => Promise<string | null>;
@@ -48,6 +62,43 @@ const DEFAULT_APPROVER = "Luke (PO / Domain Owner)";
 const API_BASE = "http://localhost:8000/v1/pipeline";
 const WS_URL = "ws://localhost:8000/v1/pipeline/ws";
 
+async function loadSystemTelemetry(signal?: AbortSignal): Promise<{
+  devices: PeripheralDevice[];
+  alerts: string[];
+  quietMode: boolean;
+}> {
+  let devices: PeripheralDevice[] = [];
+  let alerts: string[] = [];
+  let quietMode = false;
+
+  try {
+    const res = await fetch("http://localhost:8000/v1/system/peripherals", { signal });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && Array.isArray(data.devices)) {
+        devices = data.devices;
+        alerts = data.low_battery_alerts || [];
+      }
+    }
+  } catch {
+    // Graceful offline fallback
+  }
+
+  try {
+    const focusRes = await fetch("http://localhost:8000/v1/system/focus-state", { signal });
+    if (focusRes.ok) {
+      const focusData = await focusRes.json();
+      if (focusData && typeof focusData.in_quiet_mode === "boolean") {
+        quietMode = focusData.in_quiet_mode;
+      }
+    }
+  } catch {
+    // Graceful offline fallback
+  }
+
+  return { devices, alerts, quietMode };
+}
+
 export function useAmbientCompanion(): UseAmbientCompanionReturn {
   const [status, setStatus] = useState<CompanionStatus>("idle");
   const [connectionStatus, setConnectionStatus] = useState<CompanionConnectionStatus>("connecting");
@@ -56,8 +107,42 @@ export function useAmbientCompanion(): UseAmbientCompanionReturn {
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [droppedFiles, setDroppedFiles] = useState<DroppedFileItem[]>([]);
+  const [peripherals, setPeripherals] = useState<PeripheralDevice[]>([]);
+  const [peripheralAlerts, setPeripheralAlerts] = useState<string[]>([]);
+  const [quietMode, setQuietMode] = useState<boolean>(false);
 
   const wsRef = useRef<WebSocket | null>(null);
+
+  const syncTelemetry = useCallback((signal?: AbortSignal) => {
+    loadSystemTelemetry(signal).then(({ devices, alerts, quietMode: qm }) => {
+      setPeripherals(devices);
+      setPeripheralAlerts(alerts);
+      setQuietMode(qm);
+    });
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    syncTelemetry(controller.signal);
+    const timer = setInterval(() => {
+      syncTelemetry();
+    }, 30000);
+    return () => {
+      controller.abort();
+      clearInterval(timer);
+    };
+  }, [syncTelemetry]);
+
+  // Sync companion state with Tauri desktop system tray
+  useEffect(() => {
+    try {
+      const taskLabel = activeTask?.taskId ? ` (${activeTask.taskId})` : "";
+      const tooltip = `LAS Agent: [${status.toUpperCase()}]${taskLabel}`;
+      invoke("update_tray_status", { status, tooltip }).catch(() => {});
+    } catch {
+      // Browser or test environment fallback
+    }
+  }, [status, activeTask?.taskId]);
 
   useEffect(() => {
     setConnectionStatus("connecting");
@@ -355,6 +440,9 @@ export function useAmbientCompanion(): UseAmbientCompanionReturn {
     actionMessage,
     errorMessage,
     droppedFiles,
+    peripherals,
+    peripheralAlerts,
+    quietMode,
     approve,
     deny,
     createTaskFromDrop,

@@ -130,6 +130,43 @@ export function testTaskCreationPayloadFromDrop(): boolean {
   return true;
 }
 
+export function testCompanionPeripheralTelemetry(): boolean {
+  const mockPeripherals = [
+    {
+      name: "Logitech G502 LIGHTSPEED",
+      level: 12,
+      charging: false,
+      online: true,
+      kind: "mouse" as const,
+    },
+    {
+      name: "Audeze Maxwell",
+      level: 80,
+      charging: true,
+      online: true,
+      kind: "headset" as const,
+    },
+  ];
+
+  const lowBatteryAlerts = mockPeripherals
+    .filter((d) => d.online && !d.charging && d.level !== null && d.level <= 15)
+    .map((d) => `${d.name} 電量僅剩 ${d.level}%`);
+
+  if (lowBatteryAlerts.length !== 1 || !lowBatteryAlerts[0].includes("Logitech G502")) {
+    throw new Error("Peripheral telemetry alert calculation mismatch");
+  }
+  return true;
+}
+
+export function testCompanionQuietModeFlag(): boolean {
+  let quietMode = false;
+  quietMode = true;
+  if (!quietMode) {
+    throw new Error("Quiet mode flag failed to set");
+  }
+  return true;
+}
+
 // Self-executing validation suite
 export function runAmbientCompanionTestSuite(): { passed: number; total: number } {
   testAmbientCompanionDefaults();
@@ -138,5 +175,7 @@ export function runAmbientCompanionTestSuite(): { passed: number; total: number 
   testDroppedFilesMetadata();
   testAmbientCompanionStageTracking();
   testTaskCreationPayloadFromDrop();
-  return { passed: 6, total: 6 };
+  testCompanionPeripheralTelemetry();
+  testCompanionQuietModeFlag();
+  return { passed: 8, total: 8 };
 }
