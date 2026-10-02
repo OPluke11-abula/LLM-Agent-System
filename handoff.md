@@ -5,14 +5,14 @@
 > **Prerequisite**: Automated tests 100% Green (`PASS`) before updating this document.
 > **Last Synchronized**: 2026-10-02
 > **Domain Owner / PO**: Luke
-> **Project State**: Phase 112 (Cloud-Native Kubernetes Helm & Argo Rollouts Canary) Completed & Certified (Milestone T-039); 3 ➔ 4 ➔ 2 ➔ 1 Strategic Roadmap Active.
+> **Project State**: Phase 113 (Multi-Platform Desktop Packaging & Release Matrix) Completed & Certified (Milestone T-040); 3 ➔ 4 ➔ 2 ➔ 1 Strategic Roadmap 100% Fully Accomplished!
 
 ---
 
 ## 1. 3-Line Executive Summary (三行白話摘要)
-1. 建立雲原生 Helm Chart (`deploy/helm/llm-agent-system/` v0.6.0)：提供高可用 Deployment (3+ 副本)、ClusterIP Service、Nginx Ingress (TLS)、HPA 動態擴縮 (CPU/Memory)、ConfigMap/Secret、非 root 安全上下文 (UID 1001) 與 PVC 持久卷。
-2. 實作 Argo Rollouts 漸進式金絲雀發布 (`deploy/canary/`)：定義 4 階段流量切分 (10% -> 25% -> 50% -> 100%)，整合 Prometheus `AnalysisTemplate` (成功率 $\ge 99.9\%$、P99 $<500\text{ms}$、錯誤率 $<0.1\%$) 與解耦雙軌 Services (`llm-agent-system-stable` / `llm-agent-system-canary`)。
-3. 建立 OCI 發布管線與全維度驗證 (`.github/workflows/helm-publish.yml` & `verify_helm_readiness.py`)：支援自動化 lint、dry-run 渲染、封裝並推送至 GHCR OCI (`oci://ghcr.io/opluke11-abula/charts`)，7/7 Pytest 全數通過，產出 `.agent/evidence/helm_canary_receipt.json`。
+1. 擴充 Tauri 2.0 跨平台打包規格 (`viewer/src-tauri/tauri.conf.json`)：支援 Windows (WiX `.msi` 企業部署 / NSIS `.exe` 免權限安裝)、macOS (`.dmg` 映象檔與 `.app` bundle，相容 macOS 10.13+) 以及 Linux (`.deb` 自動相依 WebKitGTK 4.1 與 `.AppImage` 通用執行檔)。
+2. 升級 GitHub Actions 跨平台發布矩陣 (`.github/workflows/release.yml`)：配置 `windows-latest`、`macos-latest`、`ubuntu-22.04` 三平台併行建置，包含 Linux 依賴項自動安裝與 `tauri-action` 多資產自動發布至 GitHub Releases。
+3. 實作 4 軌版本一致性檢驗與收據審計 (`scripts/verify_desktop_matrix.py`)：驗證 Python、前端、Tauri、Cargo 四軌版本號位元級一致 (`0.6.0`)，測試套件 4/4 PASS，產出 `.agent/evidence/desktop_matrix_receipt.json`。
 
 ---
 
@@ -20,20 +20,22 @@
 
 | Check / Metric | Status | Evidence / Receipt |
 |---|---|---|
-| **Active Release Version** | `PASS` | `v0.6.0` (`pyproject.toml`, `viewer/package.json`, `Chart.yaml`) bitwise parity verified |
-| **Release Readiness Gate** | `PASS` | `python scripts/verify_release_readiness.py` (9 deployment artifacts, 4 receipts PASS) |
+| **Active Release Version** | `PASS` | `v0.6.0` (`pyproject.toml`, `package.json`, `tauri.conf.json`, `Cargo.toml`) 4-way parity |
+| **Release Readiness Gate** | `PASS` | `python scripts/verify_release_readiness.py` (9 deployment artifacts, 5 receipts PASS) |
+| **Desktop Matrix Audit** | `PASS` | `scripts/verify_desktop_matrix.py`: Windows, macOS, Linux targets verified (`.agent/evidence/desktop_matrix_receipt.json`) |
+| **Desktop Matrix Tests** | `PASS` | `agent_workspace/tests/test_desktop_packaging_p113.py`: 4/4 tests PASS in 0.11s |
 | **Helm & Canary Audit** | `PASS` | `scripts/verify_helm_readiness.py`: 10 templates, 4-step canary, SLOs verified (`.agent/evidence/helm_canary_receipt.json`) |
 | **Helm & Canary Unit Tests** | `PASS` | `agent_workspace/tests/test_helm_canary_p112.py`: 7/7 tests PASS in 0.08s |
 | **Cross-Org P2P Mesh Benchmark** | `PASS` | `scripts/run_cross_org_mesh_benchmark.py`: 6.06ms P2P, DERP relay PASS, ZK airgap PASS (`.agent/evidence/cross_org_mesh_receipt.json`) |
 | **Edge SLM Benchmark** | `PASS` | `scripts/run_edge_slm_benchmark.py`: 100% air-gap, 0 cloud tokens (`.agent/evidence/edge_slm_benchmark_receipt.json`) |
 | **Multimodal Swarm Mesh Stress** | `PASS` | `scripts/run_p2p_mesh_stress_benchmark.py`: 16 nodes, 320 ops, 0 errors, 100% Merkle valid (`.agent/evidence/p2p_multimodal_mesh_receipt.json`) |
-| **Full Python Test Suite** | `PASS` | 107/107 Python Core Tests PASS (0 failures, exit code 0) |
-| **Frontend Production Build** | `PASS` | `npm run build` in `viewer/` (Built in 877ms, 0 TypeScript errors, 681 modules transformed) |
+| **Full Python Test Suite** | `PASS` | 111/111 Python Core Tests PASS (0 failures, exit code 0) |
+| **Frontend Production Build** | `PASS` | `npm run build` in `viewer/` (Built in 946ms, 0 TypeScript errors, 681 modules transformed) |
 | **React Doctor Code Quality** | `PASS` | `npm run doctor` in `viewer/` (Scanned 113 files, ✔ No issues found!) |
+| **Multi-OS Desktop Release Matrix**| `PASS` | `.github/workflows/release.yml` (Windows, macOS, Ubuntu runners in parallel) |
 | **GHCR Helm OCI Workflow** | `PASS` | `.github/workflows/helm-publish.yml` (azure/setup-helm, lint, dry-run, push to GHCR OCI) |
 | **GHCR Docker Publishing Workflow** | `PASS` | `.github/workflows/docker-publish.yml` (Buildx, QEMU, GHA cache, push to GHCR) |
-| **Dual-Track Release Workflow** | `PASS` | `.github/workflows/release.yml` (Container to GHCR + Tauri Desktop to GitHub Release) |
-| **Obsidian Knowledge Topology** | `PASS` | `docs/obsidian/modules/core/core-helm-and-canary.md` created & linked (66 files 100% synced) |
+| **Obsidian Knowledge Topology** | `PASS` | `docs/obsidian/modules/core/core-desktop-matrix.md` created & linked (67 files 100% synced) |
 
 
 

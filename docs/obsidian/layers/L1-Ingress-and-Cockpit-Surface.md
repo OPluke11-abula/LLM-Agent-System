@@ -72,3 +72,4 @@ graph TD
 - [[viewer-swarm-governance]]: Multi-agent debate, consensus voting quorum, and replay timeline (`viewer/src/components/SwarmGovernanceConsole.tsx`).
 - [[viewer-admin-dashboard]]: Multi-tenant management, cryptographic audit verification, token billing (`viewer/src/components/AdminDashboardView.tsx`).
 - [[viewer-primitives]]: Radix UI primitive hierarchy, button, card, dialog, badge components (`viewer/src/components/ui/primitives.tsx`).
+- [[core-desktop-matrix]]: Multi-platform desktop packaging matrix (macOS DMG/App, Linux DEB/AppImage, Windows MSI/EXE) and CI release automation (`viewer/src-tauri/`, `.github/workflows/release.yml`).

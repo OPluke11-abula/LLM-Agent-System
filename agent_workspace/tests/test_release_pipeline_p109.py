@@ -78,7 +78,7 @@ def test_release_workflow_desktop_job():
     assert "desktop-release" in jobs, "Must define desktop-release job"
 
     desktop_job = jobs["desktop-release"]
-    assert desktop_job.get("runs-on") == "windows-latest"
+    assert desktop_job.get("runs-on") in ["windows-latest", "${{ matrix.platform }}"]
 
     steps = desktop_job.get("steps", [])
     step_uses = [s.get("uses", "") for s in steps]

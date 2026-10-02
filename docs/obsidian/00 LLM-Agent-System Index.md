@@ -150,6 +150,7 @@ graph TD
 - [[core-edge-slm]]: Edge small language model (SLM) inference engine, zero-cloud-token AST static defect audit, and complexity-aware smart routing.
 - [[core-mesh-tunnel]]: Cross-organization encrypted P2P mesh overlay, STUN/DERP NAT traversal, zero-knowledge airgap task verifier, and multi-cluster Raft.
 - [[core-helm-and-canary]]: Cloud-native Kubernetes Helm chart packaging, production values, and Argo Rollouts canary progressive delivery with Prometheus SLOs.
+- [[core-desktop-matrix]]: Multi-platform desktop packaging matrix (macOS DMG/App, Linux DEB/AppImage, Windows MSI/EXE) and CI release automation.
 
 ### 5.2 Frontend Cockpit & UI Components (`viewer/src/`)
 - [[viewer-app]]: Root shell component, multi-session tab navigation, global shortcut bindings.
