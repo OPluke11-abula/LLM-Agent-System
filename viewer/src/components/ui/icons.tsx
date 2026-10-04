@@ -53,9 +53,13 @@ export {
   CheckCircle2,
   Clock,
   ArrowRight,
+  ArrowLeft,
+  DollarSign,
+  Server,
   Radio,
   Bot,
   FileCheck,
   Users,
-  Moon
+  Moon,
+  Inbox,
 } from "lucide-react";

@@ -444,7 +444,7 @@ export function OnboardingWizard({ lang, onFinish, onSkip }: OnboardingWizardPro
                       <TextScramble text={copy.title} as="span" />
                     </h1>
                   </LampContainer>
-                  <p className="mt-4 text-base leading-relaxed text-slate-400">{copy.subtitle}</p>
+                  <p className="mt-4 text-base leading-relaxed text-[var(--t2)]">{copy.subtitle}</p>
                 </div>
               )}
 
@@ -563,31 +563,31 @@ export function OnboardingWizard({ lang, onFinish, onSkip }: OnboardingWizardPro
 
           <section className="flex flex-col gap-6">
             <div>
-              <p className="mb-3 text-xs font-semibold text-slate-400 tracking-wide">{copy.previewTitle}</p>
+              <p className="mb-3 text-xs font-semibold text-[var(--t2)] tracking-wide">{copy.previewTitle}</p>
               <DemoDagCard />
             </div>
 
             <div className="grid gap-4 md:grid-cols-3">
               <BentoCard className="p-5" spotlight={true}>
-                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-400 font-mono">
-                  <span className="h-1.5 w-1.5 rounded-full bg-indigo-400" />
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--accent)] font-mono">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
                   01. PLAN
                 </span>
-                <p className="mt-2.5 text-xs leading-relaxed text-slate-300">{copy.planCard}</p>
+                <p className="mt-2.5 text-xs leading-relaxed text-[var(--t2)]">{copy.planCard}</p>
               </BentoCard>
               <BentoCard className="p-5" spotlight={true}>
                 <span className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-400 font-mono">
                   <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
                   02. TRACK
                 </span>
-                <p className="mt-2.5 text-xs leading-relaxed text-slate-300">{copy.trackCard}</p>
+                <p className="mt-2.5 text-xs leading-relaxed text-[var(--t2)]">{copy.trackCard}</p>
               </BentoCard>
               <BentoCard className="p-5" spotlight={true}>
                 <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-400 font-mono">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
                   03. REVIEW
                 </span>
-                <p className="mt-2.5 text-xs leading-relaxed text-slate-300">{copy.reviewCard}</p>
+                <p className="mt-2.5 text-xs leading-relaxed text-[var(--t2)]">{copy.reviewCard}</p>
               </BentoCard>
             </div>
           </section>

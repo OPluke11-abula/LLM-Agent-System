@@ -24,7 +24,7 @@ export function CompanionHeader({
   onClose,
 }: CompanionHeaderProps) {
   return (
-    <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-white/5 bg-white/[0.02]">
+    <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-[var(--border-c)] bg-[var(--bg-muted)]">
       <div className="flex items-center gap-2">
         <div className="relative flex items-center justify-center">
           {status === "idle" && (
@@ -59,12 +59,12 @@ export function CompanionHeader({
           )}
         </div>
 
-        <span className="text-xs font-semibold tracking-wide text-slate-100 flex items-center gap-1.5">
-          <span>LAS Companion</span>
+        <span className="text-xs font-semibold tracking-wide text-[var(--t1)] flex items-center gap-1.5">
+          <span>伴侶狀態感知</span>
           {connectionStatus === "connected" ? (
             <Radio className="h-2.5 w-2.5 text-emerald-400 inline" />
           ) : (
-            <span className="text-[10px] text-slate-500 font-mono">({connectionStatus})</span>
+            <span className="text-[10px] text-[var(--t3)] font-mono">({connectionStatus})</span>
           )}
         </span>
       </div>
@@ -74,9 +74,9 @@ export function CompanionHeader({
           type="button"
           onClick={onToggleExpand}
           aria-label="Toggle details"
-          className="text-slate-400 hover:text-slate-200 p-1 rounded-md text-[10px] font-mono hover:bg-white/5 transition-colors"
+          className="text-[var(--t3)] hover:text-[var(--t1)] px-2 py-0.5 rounded border border-[var(--border-c)] text-[10px] font-mono hover:bg-[var(--bg-elevated)] transition-colors"
         >
-          {expanded ? "COLLAPSE" : "EXPAND"}
+          {expanded ? "收合" : "展開"}
         </button>
 
         {onClose && (
@@ -84,7 +84,7 @@ export function CompanionHeader({
             type="button"
             onClick={onClose}
             aria-label="Close companion"
-            className="text-slate-400 hover:text-rose-400 p-1 rounded-md transition-colors"
+            className="text-[var(--t3)] hover:text-rose-400 p-1 rounded transition-colors"
           >
             <X className="h-3.5 w-3.5" />
           </button>

@@ -64,22 +64,22 @@ export const ClusterDemoCard: React.FC<ClusterDemoCardProps> = ({
       {/* Demonstration Scorecard */}
       {clusterDemoReceipt ? (
         <div className="space-y-2">
-          <div className="flex items-center justify-between text-xs font-mono pb-1 border-b border-white/5">
-            <span className="text-slate-300">Demo ID: {clusterDemoReceipt.demo_id}</span>
+          <div className="flex items-center justify-between text-xs font-mono pb-1 border-b border-[var(--border-c)]">
+            <span className="text-[var(--t2)]">Demo ID: {clusterDemoReceipt.demo_id}</span>
             <span className="text-emerald-400 font-bold">
-              {clusterDemoReceipt.passed_steps} / {clusterDemoReceipt.total_steps} PASSED ({clusterDemoReceipt.duration_total_ms}ms)
+              {clusterDemoReceipt.passed_steps} / {clusterDemoReceipt.total_steps} 通過 ({clusterDemoReceipt.duration_total_ms}ms)
             </span>
           </div>
           <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
             {clusterDemoReceipt.step_receipts?.map((step) => (
               <div
                 key={`cluster-step-${step.step_name}`}
-                className="flex items-center justify-between rounded bg-white/[0.02] p-2 text-xs font-mono border border-white/5"
+                className="flex items-center justify-between rounded bg-[var(--bg-muted)] p-2 text-xs font-mono border border-[var(--border-c)]"
               >
-                <span className="text-slate-200 truncate max-w-[280px]">{step.step_name}</span>
+                <span className="text-[var(--t1)] truncate max-w-[280px]">{step.step_name}</span>
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] text-[var(--t3)]">{step.duration_ms}ms</span>
-                  <span className="inline-flex items-center gap-1 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 text-[10px] font-bold">
+                  <span className="inline-flex items-center gap-1 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 text-[10px] font-bold">
                     PASS
                   </span>
                 </div>
@@ -89,7 +89,7 @@ export const ClusterDemoCard: React.FC<ClusterDemoCardProps> = ({
         </div>
       ) : (
         <div className="py-8 text-center text-xs text-[var(--t3)] font-mono border border-dashed border-[var(--border-c)] rounded-lg">
-          Click "Run Cluster Demo" to execute the 7-stage battle-tested verification loop.
+          點擊「執行叢集演示」以觸發 7 階段聯邦驗證回圈。
         </div>
       )}
     </div>

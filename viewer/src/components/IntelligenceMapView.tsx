@@ -331,14 +331,14 @@ export function IntelligenceMapView({ memory, sessions, lastUpdatedSessionId, la
   } = computeIntelligenceSnapshot(memory, sessions, lastUpdatedSessionId, copy);
 
   return (
-    <main className="mission-control h-full min-h-0 overflow-y-auto">
+    <div className="h-full min-h-0 overflow-y-auto p-4 md:p-6" style={{ background: "var(--bg-base)" }}>
       <div className="mx-auto flex max-w-[1480px] flex-col gap-4 pb-6">
         <Surface elevated className="intelligence-hero p-4 sm:p-5">
-          <p className="text-[10px] font-bold uppercase tracking-[0.18em] accent-text">{copy.eyebrow}</p>
+          <p className="text-xs font-semibold text-[var(--accent)]">{copy.eyebrow}</p>
           <div className="mt-2 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
             <div>
-              <h1 className="text-4xl font-semibold leading-none t1 sm:text-5xl">{copy.title}</h1>
-              <p className="mt-3 max-w-3xl text-sm leading-relaxed t2">{copy.subtitle}</p>
+              <h1 className="text-xl font-semibold tracking-tight t1">{copy.title}</h1>
+              <p className="mt-1.5 max-w-3xl text-xs leading-relaxed t2">{copy.subtitle}</p>
             </div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:w-[34rem]">
               <MetricTile label="Tasks" value={tasks.length} />
@@ -378,6 +378,6 @@ export function IntelligenceMapView({ memory, sessions, lastUpdatedSessionId, la
           />
         </section>
       </div>
-    </main>
+    </div>
   );
 }

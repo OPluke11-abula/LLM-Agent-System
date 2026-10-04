@@ -28,20 +28,20 @@ export function CompanionDroppedFiles({
   return (
     <div
       data-testid="companion-dropped-files-card"
-      className="rounded-xl border border-cyan-500/30 bg-cyan-950/20 p-2.5 space-y-2 text-[11px]"
+      className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-2.5 space-y-2 text-[11px]"
     >
-      <div className="flex items-center justify-between text-slate-400">
-        <span className="text-cyan-300 font-semibold flex items-center gap-1">
+      <div className="flex items-center justify-between text-[var(--t2)]">
+        <span className="text-cyan-400 font-semibold flex items-center gap-1">
           <Folder className="h-3 w-3 text-cyan-400" />
-          <span>Context Files ({droppedFiles.length})</span>
+          <span>情境檔案 ({droppedFiles.length})</span>
         </span>
         <button
           type="button"
           onClick={onClear}
           aria-label="Clear dropped files"
-          className="text-[10px] text-slate-500 hover:text-slate-300 transition-colors"
+          className="text-[10px] text-[var(--t3)] hover:text-[var(--t1)] transition-colors"
         >
-          Clear
+          清除
         </button>
       </div>
 
@@ -49,33 +49,33 @@ export function CompanionDroppedFiles({
         {droppedFiles.map((file) => (
           <div
             key={`${file.name}-${file.lastModified}-${file.size}`}
-            className="flex items-center gap-1.5 text-slate-300 font-mono text-[10px]"
+            className="flex items-center gap-1.5 text-[var(--t2)] font-mono text-[10px]"
           >
             <Bot className="h-3 w-3 text-cyan-400 shrink-0" />
             <span className="truncate">{file.name}</span>
-            <span className="text-slate-500 text-[9px]">({(file.size / 1024).toFixed(1)} KB)</span>
+            <span className="text-[var(--t3)] text-[9px]">({(file.size / 1024).toFixed(1)} KB)</span>
           </div>
         ))}
       </div>
 
-      <div className="flex items-center gap-1.5 pt-1 border-t border-cyan-500/10">
+      <div className="flex items-center gap-1.5 pt-1 border-t border-[var(--border-c)]">
         <input
           type="text"
           aria-label="Requirement description"
           value={quickPrompt}
           onChange={(e) => setQuickPrompt(e.target.value)}
-          placeholder="Requirement (e.g. fix bug in dropped file)..."
-          className="flex-1 bg-black/60 border border-white/10 rounded px-2 py-1 text-[10px] text-white font-mono focus:outline-none focus:border-cyan-400"
+          placeholder="需求描述 (例: 修復拖放檔案中的 bug)..."
+          className="flex-1 bg-[var(--bg-muted)] border border-[var(--border-c)] rounded px-2 py-1 text-[10px] text-[var(--t1)] font-mono focus:outline-none focus:border-[var(--accent)]"
         />
         <button
           type="button"
           onClick={handleLaunch}
           disabled={launchingTask}
           aria-label="Launch task from dropped files"
-          className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-[10px] transition-colors disabled:opacity-50 shrink-0"
+          className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[var(--accent)] text-white font-bold text-[10px] transition-opacity hover:opacity-90 disabled:opacity-50 shrink-0"
         >
           <Play className="h-3 w-3" />
-          <span>{launchingTask ? "Starting..." : "Launch"}</span>
+          <span>{launchingTask ? "建立中..." : "啟動任務"}</span>
         </button>
       </div>
     </div>

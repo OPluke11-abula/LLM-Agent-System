@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Modal } from "./Modal";
 import { Button, MetricTile, StatusBadge, Surface } from "./ui/primitives";
-import { Folder, ChevronRight, ChevronDown, Sparkles, Search, Trash2, Pencil } from "./ui/icons";
+import { Folder, ChevronRight, ChevronDown, Sparkles, Search, Trash2, Pencil, Brain } from "./ui/icons";
 import type { TranslationMessages } from "../types";
 
 type LongTermMemoryViewProps = {
@@ -569,12 +569,12 @@ function LongTermMemoryShell({
   readonly controller: LongTermMemoryController;
 }) {
   return (
-    <Surface elevated className="flex h-full flex-col overflow-hidden p-6">
+    <div className="flex h-full flex-col overflow-hidden p-4 md:p-6" style={{ background: "var(--bg-base)" }}>
       <LongTermMemoryHeader controller={controller} />
       <LongTermMemoryStats controller={controller} />
       <LongTermMemoryWorkspace controller={controller} />
       <LongTermMemoryModals controller={controller} />
-    </Surface>
+    </div>
   );
 }
 
@@ -588,7 +588,10 @@ function LongTermMemoryHeader({
   return (
     <div className="mb-5 flex flex-shrink-0 flex-col gap-4 md:flex-row md:items-end md:justify-between">
       <div>
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] t3">BRAIN LAYER</p>
+        <p className="flex items-center gap-1.5 text-xs font-semibold text-[var(--accent)]">
+          <Brain className="h-3.5 w-3.5" />
+          <span>情境記憶中樞</span>
+        </p>
         <h2 className="mt-1 text-xl font-bold t1">{ui.title}</h2>
         <p className="mt-1 max-w-2xl text-xs leading-relaxed t3">{ui.desc}</p>
       </div>

@@ -19,6 +19,8 @@ type TokenModeCopy = {
   handoff: string;
   handoffRecommended: string;
   handoffClear: string;
+  handoffReview: string;
+  handoffOk: string;
   noContributors: string;
   noAction: string;
   estimated: string;
@@ -27,7 +29,7 @@ type TokenModeCopy = {
 const COPY: Record<Lang, TokenModeCopy> = {
   zh: {
     title: "Token 工作模式",
-    eyebrow: "ADVISORY CONTEXT CONTROL",
+    eyebrow: "情境上下文控制",
     context: "上下文估算",
     contributors: "主要貢獻者",
     nextAction: "建議下一步",
@@ -35,13 +37,15 @@ const COPY: Record<Lang, TokenModeCopy> = {
     handoff: "交接門檻",
     handoffRecommended: "建議現在交接",
     handoffClear: "目前可繼續",
+    handoffReview: "需審核",
+    handoffOk: "安全",
     noContributors: "尚無 token 貢獻資料。",
     noAction: "先從 Task Flow 選擇下一個可執行節點。",
     estimated: "估算",
   },
   en: {
     title: "Token work mode",
-    eyebrow: "ADVISORY CONTEXT CONTROL",
+    eyebrow: "Advisory Context Control",
     context: "Context estimate",
     contributors: "Largest contributors",
     nextAction: "Recommended next action",
@@ -49,13 +53,15 @@ const COPY: Record<Lang, TokenModeCopy> = {
     handoff: "Handoff gate",
     handoffRecommended: "Handoff recommended now",
     handoffClear: "Continue within budget",
+    handoffReview: "Review",
+    handoffOk: "Clear",
     noContributors: "No token contributors reported yet.",
     noAction: "Pick the next executable node from Task Flow.",
     estimated: "Estimated",
   },
   ja: {
     title: "Token ワークモード",
-    eyebrow: "ADVISORY CONTEXT CONTROL",
+    eyebrow: "コンテキスト制御",
     context: "コンテキスト推定",
     contributors: "主な貢献者",
     nextAction: "推奨される次の操作",
@@ -63,13 +69,15 @@ const COPY: Record<Lang, TokenModeCopy> = {
     handoff: "ハンドオフゲート",
     handoffRecommended: "今すぐハンドオフを推奨",
     handoffClear: "予算内で継続",
+    handoffReview: "レビュー必要",
+    handoffOk: "安全",
     noContributors: "Token の貢献データはまだありません。",
     noAction: "Task Flow から次の実行ノードを選んでください。",
     estimated: "推定",
   },
   fr: {
     title: "Mode de travail token",
-    eyebrow: "ADVISORY CONTEXT CONTROL",
+    eyebrow: "Contrôle du contexte",
     context: "Estimation du contexte",
     contributors: "Contributeurs principaux",
     nextAction: "Action recommandée",
@@ -77,6 +85,8 @@ const COPY: Record<Lang, TokenModeCopy> = {
     handoff: "Seuil de relais",
     handoffRecommended: "Relais recommandé maintenant",
     handoffClear: "Continuer dans le budget",
+    handoffReview: "À revoir",
+    handoffOk: "Normal",
     noContributors: "Aucun contributeur token signalé.",
     noAction: "Choisissez le prochain nœud exécutable dans Task Flow.",
     estimated: "Estimé",
@@ -114,11 +124,11 @@ function TokenMetricsSection({
       <div className="grid grid-cols-3 gap-2">
         <MetricTile label={copy.context} value={formatTokens(usedTokens)} tone="accent" />
         <MetricTile label={copy.profile} value={verificationProfile} />
-        <MetricTile label={copy.handoff} value={handoffRecommended ? "Review" : "Clear"} tone={handoffRecommended ? "warning" : "success"} />
+        <MetricTile label={copy.handoff} value={handoffRecommended ? copy.handoffReview : copy.handoffOk} tone={handoffRecommended ? "warning" : "success"} />
       </div>
       {tokenBudget && tokenBudget > 0 ? <ProgressBar ariaLabel={copy.context} className="mt-3" value={contextRatio} tone={handoffRecommended ? "warning" : "accent"} /> : null}
       <div className="mt-3 rounded-lg border px-3 py-2" style={{ borderColor: "var(--border-c)" }}>
-        <p className="text-[10px] font-bold uppercase tracking-[0.12em] t3">{copy.nextAction}</p>
+        <p className="text-[10px] font-medium tracking-tight text-[var(--t3)]">{copy.nextAction}</p>
         <p className="mt-1 line-clamp-2 text-xs leading-relaxed t1" aria-label={action} title={action}>{action}</p>
       </div>
     </div>
@@ -134,7 +144,7 @@ function TokenContributorsList({
 }) {
   return (
     <div className="rounded-lg border px-3 py-2" style={{ borderColor: "var(--border-c)" }}>
-      <p className="text-[10px] font-bold uppercase tracking-[0.12em] t3">{copy.contributors}</p>
+      <p className="text-[10px] font-medium tracking-tight text-[var(--t3)]">{copy.contributors}</p>
       {contributors.length === 0 ? (
         <p className="mt-3 text-xs t2">{copy.noContributors}</p>
       ) : (
@@ -209,7 +219,7 @@ export function TokenModePanel({ session, nextTask, lang, compact = false }: Tok
       <Surface as="section" elevated className={`token-mode-panel ${compact ? "token-mode-panel-compact" : ""} p-4 sm:p-5`} data-testid="token-mode-panel">
       <div className={flexCls}>
         <div className="min-w-0">
-          <p className="text-[10px] font-bold uppercase tracking-[0.14em] accent-text">{copy.eyebrow}</p>
+          <p className="text-[11px] font-medium tracking-tight text-[var(--accent)]">{copy.eyebrow}</p>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <h2 className="text-lg font-semibold t1">{copy.title}</h2>
             <StatusBadge tone="accent">{mode}</StatusBadge>

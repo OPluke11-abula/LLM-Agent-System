@@ -28,14 +28,14 @@ export function CompanionPeripheralBadge({ devices, alerts = [] }: CompanionPeri
   return (
     <div
       data-testid="companion-peripherals-badge-container"
-      className="flex flex-col gap-1.5 pt-1 border-t border-white/5"
+      className="flex flex-col gap-1.5 pt-1 border-t border-[var(--border-c)]"
     >
-      <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono">
+      <div className="flex items-center justify-between text-[10px] text-[var(--t3)] font-mono">
         <span className="flex items-center gap-1">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
-          <span>Peripherals</span>
+          <span>周邊設備電量</span>
         </span>
-        <span className="text-[9px] text-slate-500">HaloBattery</span>
+        <span className="text-[9px] text-[var(--t3)]">HaloBattery</span>
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5">
@@ -43,7 +43,7 @@ export function CompanionPeripheralBadge({ devices, alerts = [] }: CompanionPeri
           const isLow = device.online && !device.charging && device.level !== null && device.level <= 15;
           const isCharging = device.charging;
 
-          let colorClasses = "bg-slate-900/60 border-slate-800 text-slate-300";
+          let colorClasses = "bg-[var(--bg-muted)] border-[var(--border-c)] text-[var(--t2)]";
           if (isLow) {
             colorClasses = "bg-amber-950/40 border-amber-600/50 text-amber-300 animate-pulse";
           } else if (isCharging) {

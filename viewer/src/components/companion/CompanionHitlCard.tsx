@@ -25,14 +25,14 @@ export function CompanionHitlCard({
     >
       <div className="flex items-center justify-between">
         <span className="text-[10px] font-bold font-mono tracking-wider text-amber-300 uppercase px-1.5 py-0.5 rounded bg-amber-500/20 border border-amber-500/30">
-          HITL Approval Required
+          人機協同審批請求 (HITL)
         </span>
-        <span className="text-[10px] font-mono text-slate-400">{activeTask.taskId}</span>
+        <span className="text-[10px] font-mono text-[var(--t3)]">{activeTask.taskId}</span>
       </div>
 
       <div className="space-y-1 text-xs">
-        <p className="text-slate-200 font-medium text-[11px] line-clamp-2">
-          {activeTask.planSummary || "Stop-and-Wait Architecture Gate awaiting sign-off."}
+        <p className="text-[var(--t1)] font-medium text-[11px] line-clamp-2">
+          {activeTask.planSummary || "等待架構閘門核准簽署。"}
         </p>
         {activeTask.targetFiles && activeTask.targetFiles.length > 0 && (
           <div className="flex items-center gap-1 text-[10px] font-mono text-amber-200/90 truncate">
@@ -49,8 +49,8 @@ export function CompanionHitlCard({
           aria-label="HITL Approval Token"
           value={approvalToken}
           onChange={(e) => onTokenChange(e.target.value)}
-          placeholder="Enter approval token..."
-          className="w-full bg-black/60 border border-white/10 rounded px-2 py-1 text-[11px] text-white font-mono focus:outline-none focus:border-amber-400"
+          placeholder="輸入審批令牌..."
+          className="w-full bg-[var(--bg-base)] border border-[var(--border-c)] rounded px-2 py-1 text-[11px] text-[var(--t1)] font-mono focus:outline-none focus:border-amber-400"
         />
       </div>
 
@@ -59,11 +59,12 @@ export function CompanionHitlCard({
           type="button"
           onClick={onApprove}
           disabled={submitting}
-          aria-label="Allow and execute"
+          aria-label="Allow (PO Luke)"
+          title="Allow (PO Luke)"
           className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-950/50 transition-colors disabled:opacity-50"
         >
           <Unlock className="h-3.5 w-3.5" />
-          <span>{submitting ? "Approving..." : "Allow (PO Luke)"}</span>
+          <span>{submitting ? "核准中..." : "核准執行 Allow (PO Luke)"}</span>
         </button>
 
         <button
@@ -73,7 +74,7 @@ export function CompanionHitlCard({
           aria-label="Deny mutation"
           className="inline-flex items-center justify-center px-3 py-1.5 rounded-lg bg-rose-950/60 hover:bg-rose-900 border border-rose-800/60 text-rose-300 font-medium text-xs transition-colors disabled:opacity-50"
         >
-          <span>Deny</span>
+          <span>拒絕</span>
         </button>
       </div>
     </div>

@@ -1,5 +1,5 @@
 
-import { BentoCard, ShimmerButton } from "../ui/primitives";
+import { Card, Button } from "../ui/primitives";
 import { Lock, Unlock, Key } from "../ui/icons";
 import type { TaskDetailResponse } from "./types";
 
@@ -25,86 +25,86 @@ export function ApprovalGateCard({
     if (!taskDetail.plan.human_approved) return null;
 
     return (
-      <BentoCard className="border-emerald-500/30 bg-emerald-500/10 shadow-[0_0_20px_rgba(16,185,129,0.15)]">
+      <Card className="border-emerald-500/30 bg-emerald-500/5">
         <div className="p-4 space-y-3">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
-              <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400">
+              <div className="p-1 rounded-md bg-emerald-500/15 text-emerald-400">
                 <Unlock className="h-4 w-4" />
               </div>
               <div>
-                <h3 className="text-xs font-bold text-emerald-200">
-                  Stop-and-Wait Architecture Gate: Authorized
+                <h3 className="text-xs font-semibold text-emerald-200">
+                  Stop-and-Wait 架構閘門：已批准授權
                 </h3>
                 <p className="text-[11px] text-emerald-300/80">
-                  Mutation scope verified and execution authorized. Token:{" "}
+                  變更範疇已驗證，執行已獲准。Token:{" "}
                   <span className="font-mono font-semibold text-emerald-300">
                     {taskDetail.plan.approval_token || "***VERIFIED"}
                   </span>
                 </p>
               </div>
             </div>
-            <span className="rounded border border-emerald-500/40 bg-emerald-500/20 px-2 py-0.5 text-[10px] font-mono text-emerald-300">
+            <span className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-mono text-emerald-300">
               GATE UNLOCKED
             </span>
           </div>
-          <div className="rounded-lg border border-emerald-500/20 bg-black/30 p-2.5 text-[11px] font-mono space-y-1 text-slate-300">
+          <div className="rounded-md border border-[var(--border-c)] bg-[var(--bg-muted)] p-2.5 text-[11px] font-mono space-y-1 text-[var(--t2)]">
             <div>
-              <span className="text-slate-500">Authorized Role: </span>
+              <span className="text-[var(--t3)]">授權角色 (Authorized Role): </span>
               <span className="text-emerald-400 font-semibold">{taskDetail.plan.assigned_role}</span>
             </div>
             <div>
-              <span className="text-slate-500">Target Files: </span>
-              <span className="text-slate-300">{taskDetail.plan.target_files.join(", ")}</span>
+              <span className="text-[var(--t3)]">目標修改檔案 (Target Files): </span>
+              <span className="text-[var(--t1)]">{taskDetail.plan.target_files.join(", ")}</span>
             </div>
           </div>
         </div>
-      </BentoCard>
+      </Card>
     );
   }
 
   return (
-    <BentoCard className="border-amber-500/40 bg-amber-500/10 shadow-[0_0_24px_rgba(245,158,11,0.15)]">
-      <div className="p-5 space-y-4">
+    <Card className="border-amber-500/30 bg-amber-500/5">
+      <div className="p-4 sm:p-5 space-y-4">
         <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-amber-500/20 text-amber-400">
-              <Lock className="h-5 w-5" />
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 rounded-md bg-amber-500/15 text-amber-400">
+              <Lock className="h-4 w-4" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-amber-200">
-                Stop-and-Wait Architecture Gate: Human Approval Required
+              <h3 className="text-xs font-semibold text-amber-200">
+                Stop-and-Wait 架構閘門：需要人機確認
               </h3>
-              <p className="text-xs text-amber-300/80">
-                Protocol Rule 0.2: Code changes and file-editing tools are blocked until explicit confirmation.
+              <p className="text-[11px] text-amber-300/80">
+                Protocol Rule 0.2: 檔案編輯工具與代碼變更在取得確認前嚴格受阻。
               </p>
             </div>
           </div>
-          <span className="rounded border border-amber-500/40 bg-amber-500/20 px-2 py-0.5 text-[10px] font-mono text-amber-300">
-            GATE LOCKED
+          <span className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-mono text-amber-300">
+            閘門鎖定 (GATE LOCKED)
           </span>
         </div>
 
-        <div className="rounded-lg border border-amber-500/20 bg-black/40 p-3.5 space-y-2 text-xs">
+        <div className="rounded-md border border-[var(--border-c)] bg-[var(--bg-muted)] p-3 space-y-1.5 text-xs">
           <div>
-            <span className="text-slate-400 font-mono">Plan Summary: </span>
-            <span className="text-slate-200 font-medium">{taskDetail.plan.plan_summary}</span>
+            <span className="text-[var(--t3)] font-mono">架構計畫摘要: </span>
+            <span className="text-[var(--t1)] font-medium">{taskDetail.plan.plan_summary}</span>
           </div>
           <div>
-            <span className="text-slate-400 font-mono">Assigned Role: </span>
-            <span className="text-indigo-400 font-mono font-bold">{taskDetail.plan.assigned_role}</span>
+            <span className="text-[var(--t3)] font-mono">指派角色: </span>
+            <span className="text-[var(--accent)] font-mono font-semibold">{taskDetail.plan.assigned_role}</span>
           </div>
           <div>
-            <span className="text-slate-400 font-mono">Target Files: </span>
-            <span className="text-slate-200 font-mono">{taskDetail.plan.target_files.join(", ")}</span>
+            <span className="text-[var(--t3)] font-mono">目標修改檔案: </span>
+            <span className="text-[var(--t1)] font-mono">{taskDetail.plan.target_files.join(", ")}</span>
           </div>
           <div>
-            <span className="text-slate-400 font-mono">Test Strategy: </span>
+            <span className="text-[var(--t3)] font-mono">測試驗證策略: </span>
             <span className="text-emerald-400 font-mono">{taskDetail.plan.test_strategy.join("; ") || "Default ladder"}</span>
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
+        <div className="flex flex-col sm:flex-row items-center gap-2.5 pt-1">
           <div className="flex-1 w-full flex items-center gap-2">
             <Key className="h-4 w-4 text-amber-400 shrink-0" />
             <input
@@ -112,20 +112,22 @@ export function ApprovalGateCard({
               aria-label="Approval token"
               value={approvalToken}
               onChange={(e) => setApprovalToken(e.target.value)}
-              placeholder="Enter approval token..."
-              className="w-full bg-black/50 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-amber-500"
+              placeholder="輸入審批令牌 (Approval Token)..."
+              className="w-full bg-[var(--bg-card)] border border-[var(--border-c)] rounded-md px-3 py-1.5 text-xs text-[var(--t1)] font-mono focus:outline-none focus:border-amber-500"
             />
           </div>
-          <ShimmerButton
+          <Button
+            variant="warning"
+            size="md"
             onClick={onApprove}
             disabled={loading || !approvalToken}
-            className="w-full sm:w-auto text-xs px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold"
+            className="w-full sm:w-auto text-xs px-3.5 py-1.5 font-medium"
           >
-            <Unlock className="h-3.5 w-3.5 mr-1.5" />
-            Authorize & Execute Pipeline
-          </ShimmerButton>
+            <Unlock className="h-3.5 w-3.5 mr-1" />
+            確認授權並執行
+          </Button>
         </div>
       </div>
-    </BentoCard>
+    </Card>
   );
 }

@@ -28,17 +28,17 @@ const DESIGN_STATE = {
 
 const COPY: Record<Lang, DesignAgentCopy> = {
   zh: {
-    title: "Design Agent",
-    eyebrow: "DESIGN OPERATING STATE",
-    approved: "設計包已核准",
-    direction: "目前藝術方向",
-    packet: "已核准設計包",
-    findings: "開放設計發現",
-    evidence: "截圖證據",
-    debt: "未解決品味債務",
-    nextTask: "下一個設計優先任務",
-    evidencePending: "等待目前版本的桌面與行動版截圖",
-    noNextTask: "下一個 Viewer 變更先執行獨立設計審查。",
+    title: "設計規範代理",
+    eyebrow: "介面美學與體驗規範",
+    approved: "規範指南已核准",
+    direction: "視覺風格方向",
+    packet: "核准設計指南文件",
+    findings: "待處理設計議題",
+    evidence: "畫面截圖憑證",
+    debt: "待優化體驗項目",
+    nextTask: "下一項設計優先任務",
+    evidencePending: "等待當前版本之桌面與行動端截圖憑證",
+    noNextTask: "下一次 Viewer 疊代前先執行獨立設計審查。",
   },
   en: {
     title: "Design Agent",
@@ -117,7 +117,7 @@ export function DesignAgentPanel({ session, lang }: DesignAgentPanelProps) {
     <Surface as="section" elevated className="overflow-hidden" data-testid="design-agent-panel">
       <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <p className="text-[10px] font-bold uppercase tracking-[0.14em] accent-text">{copy.eyebrow}</p>
+          <p className="text-[11px] font-medium tracking-tight text-[var(--accent)]">{copy.eyebrow}</p>
           <h2 className="mt-1 text-lg font-semibold t1">{copy.title}</h2>
         </div>
         <StatusBadge className="self-start whitespace-nowrap" tone="success">{copy.approved}</StatusBadge>
@@ -126,24 +126,24 @@ export function DesignAgentPanel({ session, lang }: DesignAgentPanelProps) {
       <div className="border-t" style={{ borderColor: "var(--border-c)" }}>
         <div className="grid min-w-0 sm:grid-cols-[minmax(0,1.2fr)_minmax(12rem,0.8fr)]">
           <div className="min-w-0 px-4 py-3 sm:border-r" style={{ borderColor: "var(--border-c)" }}>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.1em] t3">{copy.direction}</p>
+            <p className="text-[10px] font-medium tracking-tight text-[var(--t3)]">{copy.direction}</p>
             <p className="mt-1 text-sm font-semibold t1">{DESIGN_STATE.direction}</p>
             <p className="mt-1 text-xs t2">{DESIGN_STATE.personality}</p>
-            <p className="mt-3 text-[10px] font-semibold uppercase tracking-[0.1em] t3">{copy.packet}</p>
+            <p className="mt-3 text-[10px] font-medium tracking-tight text-[var(--t3)]">{copy.packet}</p>
             <p className="mt-1 break-all font-mono text-[10px] leading-relaxed t2">{DESIGN_STATE.packet}</p>
           </div>
 
           <dl className="grid min-w-0 grid-cols-1 border-t sm:border-t-0" style={{ borderColor: "var(--border-c)" }}>
             <div className="flex items-center justify-between gap-3 px-3 py-2.5">
-              <dt className="text-[10px] font-semibold uppercase tracking-[0.08em] t3">{copy.findings}</dt>
+              <dt className="text-[10px] font-medium tracking-tight text-[var(--t3)]">{copy.findings}</dt>
               <dd className="text-sm font-semibold t1" data-testid="design-findings-count">{session ? signals.findings.length : "N/A"}</dd>
             </div>
             <div className="flex items-center justify-between gap-3 border-t px-3 py-2.5" style={{ borderColor: "var(--border-c)" }}>
-              <dt className="text-[10px] font-semibold uppercase tracking-[0.08em] t3">{copy.evidence}</dt>
+              <dt className="text-[10px] font-medium tracking-tight text-[var(--t3)]">{copy.evidence}</dt>
               <dd className="text-sm font-semibold t1" data-testid="design-evidence-count">{session ? signals.evidence.length : "N/A"}</dd>
             </div>
             <div className="flex items-center justify-between gap-3 border-t px-3 py-2.5" style={{ borderColor: "var(--border-c)" }}>
-              <dt className="text-[10px] font-semibold uppercase tracking-[0.08em] t3">{copy.debt}</dt>
+              <dt className="text-[10px] font-medium tracking-tight text-[var(--t3)]">{copy.debt}</dt>
               <dd className="text-sm font-semibold t1" data-testid="design-debt-count">{session ? signals.tasteDebt.length : "N/A"}</dd>
             </div>
           </dl>
@@ -152,11 +152,11 @@ export function DesignAgentPanel({ session, lang }: DesignAgentPanelProps) {
 
       <div className="grid min-w-0 border-t sm:grid-cols-2" style={{ borderColor: "var(--border-c)" }}>
         <div className="min-w-0 px-4 py-3 sm:border-r" style={{ borderColor: "var(--border-c)" }}>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.1em] t3">{copy.evidence}</p>
+          <p className="text-[10px] font-medium tracking-tight text-[var(--t3)]">{copy.evidence}</p>
           <p className="mt-1 break-all text-xs leading-relaxed t2" data-testid="design-evidence-ref">{evidenceLabel}</p>
         </div>
         <div className="min-w-0 border-t px-4 py-3 sm:border-t-0" style={{ borderColor: "var(--border-c)" }}>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.1em] t3">{copy.nextTask}</p>
+          <p className="text-[10px] font-medium tracking-tight text-[var(--t3)]">{copy.nextTask}</p>
           <p className="mt-1 break-words text-xs leading-relaxed t1" data-testid="design-next-task">{nextDesignTask}</p>
         </div>
       </div>

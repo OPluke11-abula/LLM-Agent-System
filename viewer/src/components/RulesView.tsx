@@ -26,10 +26,10 @@ export function RulesView({ t, rules, setRules }: RulesViewProps) {
   }
 
   return (
-    <Surface elevated className="flex h-full flex-col overflow-hidden p-6">
+    <div className="flex h-full flex-col overflow-hidden p-4 md:p-6" style={{ background: "var(--bg-base)" }}>
       <div className="mb-5 flex flex-shrink-0 flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--accent)]">
+          <p className="flex items-center gap-1.5 text-xs font-semibold text-[var(--accent)]">
             <ShieldCheck className="h-3.5 w-3.5" />
             <span>{t.rulesIntroLabel}</span>
           </p>
@@ -147,6 +147,6 @@ export function RulesView({ t, rules, setRules }: RulesViewProps) {
           </Surface>
         </Modal>
       )}
-    </Surface>
+    </div>
   );
 }

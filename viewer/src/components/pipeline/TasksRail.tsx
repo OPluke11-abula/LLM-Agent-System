@@ -12,19 +12,19 @@ interface TasksRailProps {
 
 export function TasksRail({ tasks, selectedTaskId, onSelectTask }: TasksRailProps) {
   return (
-    <Card className="card-bg border-border-c">
+    <Card className="card-bg border-[var(--border-c)]">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-xs font-semibold t2 uppercase tracking-wider">
-            Active Tasks ({tasks.length})
+            活躍編程任務 ({tasks.length})
           </CardTitle>
-          <span className="text-[10px] text-slate-400">Auto-Refreshed</span>
+          <span className="text-[10px] text-[var(--t3)]">自動同步更新</span>
         </div>
       </CardHeader>
       <CardContent className="space-y-2 max-h-[600px] overflow-y-auto">
         {tasks.length === 0 ? (
-          <div className="text-center py-8 text-xs text-slate-400">
-            No active coding tasks. Click "New Coding Task" to begin.
+          <div className="text-center py-8 text-xs text-[var(--t3)]">
+            目前無進行中之編程任務。點擊「建立編程任務」以開始。
           </div>
         ) : (
           tasks.map((t) => {
@@ -42,33 +42,33 @@ export function TasksRail({ tasks, selectedTaskId, onSelectTask }: TasksRailProp
                   }
                 }}
                 className={cx(
-                  "group cursor-pointer rounded-lg border p-3 transition-all",
+                  "group cursor-pointer rounded-md border p-3 transition-colors",
                   isSelected
-                    ? "border-indigo-500/50 bg-indigo-500/10 shadow-[0_0_16px_rgba(99,102,241,0.2)]"
-                    : "border-white/5 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]"
+                    ? "border-[var(--accent)] bg-[var(--bg-elevated)]"
+                    : "border-[var(--border-c)] bg-[var(--bg-card)] hover:border-[var(--border-strong)]"
                 )}
               >
                 <div className="flex items-center justify-between gap-2 mb-1.5">
-                  <span className="font-mono text-xs font-bold text-slate-200">{t.task_id}</span>
+                  <span className="font-mono text-xs font-semibold text-[var(--t1)]">{t.task_id}</span>
                   <StatusBadge
                     tone={toneForStatus(t.status === "PASS" ? "completed" : t.stage)}
                   >
                     {t.stage}
                   </StatusBadge>
                 </div>
-                <p className="text-xs text-slate-300 line-clamp-2 leading-relaxed mb-2">
+                <p className="text-xs text-[var(--t2)] line-clamp-2 leading-relaxed mb-2">
                   {t.requirement}
                 </p>
-                <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono">
+                <div className="flex items-center justify-between text-[10px] text-[var(--t3)] font-mono">
                   <span className="truncate max-w-[140px]">{t.target_branch}</span>
                   {t.has_plan && !t.plan_approved && (
                     <span className="text-amber-400 flex items-center gap-1 font-semibold">
-                      <Lock className="h-3 w-3" /> Gate Locked
+                      <Lock className="h-3 w-3" /> 閘門待審
                     </span>
                   )}
                   {t.plan_approved && (
                     <span className="text-emerald-400 flex items-center gap-1">
-                      <Unlock className="h-3 w-3" /> Gate Approved
+                      <Unlock className="h-3 w-3" /> 閘門已核准
                     </span>
                   )}
                 </div>

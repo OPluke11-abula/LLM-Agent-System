@@ -180,7 +180,7 @@ export default function App() {
           onOpenCommandPalette={() => setCommandPaletteOpen(true)}
           onToggleCompanion={handleToggleCompanion}
         />
-        <main className="min-h-0 min-w-0 flex-1 overflow-hidden p-4 md:ml-64 md:h-screen md:p-5">
+        <div className="min-h-0 min-w-0 flex-1 overflow-hidden md:ml-60 md:h-screen">
           <Suspense fallback={<PageFallback />}>
             <Routes>
               <Route path="/missions" element={<MissionListPage />} />
@@ -327,7 +327,7 @@ export default function App() {
               />
             </Routes>
           </Suspense>
-        </main>
+        </div>
       </div>
       <CommandPalette open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen} lang={lang} />
       {ambientCompanionOpen && <AmbientCompanion onClose={() => setAmbientCompanionOpen(false)} />}

@@ -1,6 +1,6 @@
 import { useState, type Dispatch, type SetStateAction } from "react";
 import type { Lang, SettingsTabId, ThemeId, TranslationMessages, Workspace } from "../types";
-import { MetricTile, Surface, Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/primitives";
+import { MetricTile, Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/primitives";
 import { Settings, FileText, Sparkles } from "./ui/icons";
 import { SettingsAiGuidePanel } from "./settings/SettingsAiGuidePanel";
 import { SettingsDocsPanel } from "./settings/SettingsDocsPanel";
@@ -42,10 +42,10 @@ export function SettingsView({
   const configuredWorkspaceCount = workspaces.filter((workspace) => workspace.path.trim()).length;
 
   return (
-    <Surface elevated className="h-full overflow-y-auto p-6">
+    <div className="h-full overflow-y-auto p-4 md:p-6" style={{ background: "var(--bg-base)" }}>
       <div className="mb-6 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] t3">{t.settingsIntroLabel}</p>
+          <p className="text-xs font-semibold text-[var(--accent)]">{t.settingsIntroLabel}</p>
           <h2 className="mt-2 text-xl font-semibold tracking-tight t1">{t.settingsTitle}</h2>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed t2">{t.settingsIntroBody}</p>
         </div>
@@ -93,6 +93,6 @@ export function SettingsView({
           <SettingsAiGuidePanel t={t} />
         </TabsContent>
       </Tabs>
-    </Surface>
+    </div>
   );
 }
