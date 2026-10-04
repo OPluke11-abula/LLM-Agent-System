@@ -29,7 +29,7 @@ const COPY: Record<Lang, ActivityLogCopy> = {
     events: {
       "workspace-loaded": "工作區已載入",
       "workspace-synced": "記憶檔已同步",
-      "topology-updated": "Topology updated",
+      "topology-updated": "拓撲已更新",
       "task-status": "任務狀態更新",
       "task-description": "任務描述更新",
       "task-created": "新增子任務",
@@ -52,7 +52,7 @@ const COPY: Record<Lang, ActivityLogCopy> = {
     events: {
       "workspace-loaded": "Workspace loaded",
       "workspace-synced": "Memory file synced",
-      "topology-updated": "拓撲已更新",
+      "topology-updated": "Topology updated",
       "task-status": "Task status changed",
       "task-description": "Task description updated",
       "task-created": "Subtask created",

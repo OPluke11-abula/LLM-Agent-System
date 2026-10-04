@@ -1,6 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import { ALL_SKILLS, CAT_KEYS } from "../constants";
-import { Card, CardContent, CardHeader, CardTitle, MetricTile, StatusBadge, Surface, Switch } from "./ui/primitives";
+import { Card, CardContent, CardHeader, CardTitle, MetricTile, StatusBadge, Switch } from "./ui/primitives";
 import { Boxes, Cpu } from "./ui/icons";
 import type { Lang, TranslationMessages } from "../types";
 
@@ -30,10 +30,10 @@ export function ModsView({
   const enabledCount = Object.values(activeSkills).filter(Boolean).length;
 
   return (
-    <Surface elevated className="h-full overflow-y-auto p-6">
+    <div className="h-full overflow-y-auto p-4 md:p-6" style={{ background: "var(--bg-base)" }}>
       <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--accent)]">
+          <p className="flex items-center gap-1.5 text-xs font-semibold text-[var(--accent)]">
             <Boxes className="h-3.5 w-3.5" />
             <span>{t.modsIntroLabel}</span>
           </p>
@@ -134,6 +134,6 @@ export function ModsView({
           );
         })}
       </div>
-    </Surface>
+    </div>
   );
 }

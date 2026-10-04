@@ -129,14 +129,14 @@ export const ChaosConsoleCard: React.FC<ChaosConsoleCardProps> = ({
           {chaosFaults.map((f) => (
             <div
               key={f.rule_id}
-              className="flex items-center justify-between rounded-lg border border-rose-500/30 bg-black/40 p-2.5 text-xs font-mono"
+              className="flex items-center justify-between rounded-lg border border-rose-500/20 bg-[var(--bg-muted)] p-2.5 text-xs font-mono"
             >
               <div>
                 <div className="flex items-center gap-2">
                   <span className="font-bold text-rose-400">{f.fault_type}</span>
                   <span className="text-[10px] text-[var(--t3)]">{f.rule_id}</span>
                 </div>
-                <div className="text-[11px] text-slate-300 mt-0.5">
+                <div className="text-[11px] text-[var(--t2)] mt-0.5">
                   Scope: {f.source_node_ids?.length ? f.source_node_ids.join(",") : "*"} →{" "}
                   {f.target_node_ids?.length ? f.target_node_ids.join(",") : "*"}
                   {f.latency_ms > 0 && ` (${f.latency_ms}ms delay)`}
@@ -145,9 +145,9 @@ export const ChaosConsoleCard: React.FC<ChaosConsoleCardProps> = ({
               <button
                 type="button"
                 onClick={() => onClearChaos(f.rule_id)}
-                className="text-[11px] text-slate-400 hover:text-rose-300 px-2 py-1 rounded bg-white/5 hover:bg-white/10 transition-colors"
+                className="text-[11px] text-[var(--t3)] hover:text-rose-400 px-2 py-1 rounded border border-[var(--border-c)] hover:bg-[var(--bg-card)] transition-colors"
               >
-                Clear
+                清除
               </button>
             </div>
           ))}

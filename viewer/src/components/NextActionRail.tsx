@@ -47,18 +47,18 @@ const COPY: Record<Lang, {
   statuses: Record<ActionStatus, string>;
 }> = {
   zh: {
-    title: "Next Best Action",
-    subtitle: "依照任務、拓撲、驗證與風險狀態排序。",
-    expected: "Expected",
-    command: "Command",
-    fallback: "Failure follow-up",
+    title: "最佳後續行動",
+    subtitle: "依照任務、拓撲、驗證與風險狀態自動推薦。",
+    expected: "預期結果",
+    command: "推薦指令",
+    fallback: "異常處理",
     labels: {
       verify: "驗證工作區",
       topology: "檢查拓撲焦點",
       impact: "顯示影響符號",
-      handoff: "建立 handoff",
+      handoff: "建立認知交接",
       governance: "檢查治理風險",
-      syncPap: "同步 PAP contract",
+      syncPap: "同步 PAP 協定",
     },
     bodies: {
       verify: "執行主要 gate，確認測試、PAP contract、viewer build 與 smoke checks。",
@@ -84,7 +84,7 @@ const COPY: Record<Lang, {
       governance: "若有高風險，先停在 approval gate，不要推進外部狀態。",
       syncPap: "若 contract 不一致，先修 manifest/schema 再跑 repo verify。",
     },
-    statuses: { unavailable: "unavailable", ready: "ready", running: "running", failed: "failed", completed: "complete" },
+    statuses: { unavailable: "不可用", ready: "就緒", running: "執行中", failed: "失敗", completed: "已完成" },
   },
   en: {
     title: "Next Best Action",
@@ -310,7 +310,7 @@ export function NextActionRail(props: NextActionRailProps) {
     <Surface as="aside" className="next-action-rail p-4" data-testid="next-action-rail" aria-label={copy.title}>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.14em] t3">{copy.title}</p>
+          <p className="text-[11px] font-medium tracking-tight text-[var(--t3)]">{copy.title}</p>
           <p className="mt-1 text-[11px] leading-relaxed t2">{copy.subtitle}</p>
         </div>
         <StatusBadge tone={statusTone(primaryAction.status, primaryAction.tone)}>
@@ -333,7 +333,7 @@ export function NextActionRail(props: NextActionRailProps) {
               </div>
               <div className="next-action-detail mt-3 grid gap-2">
                 <div>
-                  <p className="text-[9px] font-bold uppercase tracking-[0.12em] t3">{copy.expected}</p>
+                  <p className="text-[10px] font-medium text-[var(--t3)]">{copy.expected}</p>
                   <p className="mt-1 text-[10px] leading-relaxed t2">{action.expected}</p>
                 </div>
                 <pre className="next-action-command truncate rounded-md px-2 py-1.5 text-[10px] t2" title={action.command}>{action.command}</pre>

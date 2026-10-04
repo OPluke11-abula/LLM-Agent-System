@@ -18,13 +18,13 @@ function getCompanionBorderClasses(isDragOver: boolean, status: CompanionStatus)
   }
   switch (status) {
     case "awaiting_approval":
-      return "border-amber-500/60 bg-slate-950/90 shadow-[0_0_28px_rgba(245,158,11,0.25)]";
+      return "border-amber-500/60 bg-[var(--bg-card)] shadow-lg";
     case "verified":
-      return "border-emerald-500/50 bg-slate-950/90 shadow-[0_0_24px_rgba(16,185,129,0.25)]";
+      return "border-emerald-500/50 bg-[var(--bg-card)] shadow-lg";
     case "thinking":
-      return "border-indigo-500/50 bg-slate-950/90 shadow-[0_0_20px_rgba(99,102,241,0.2)]";
+      return "border-[var(--accent)] bg-[var(--bg-card)] shadow-lg";
     default:
-      return "border-slate-800/80 bg-slate-950/85 text-slate-200";
+      return "border-[var(--border-c)] bg-[var(--bg-card)] text-[var(--t1)]";
   }
 }
 
@@ -32,14 +32,14 @@ function VerifiedBadge() {
   return (
     <div
       data-testid="companion-verified-badge"
-      className="flex items-center gap-2.5 p-2.5 rounded-xl border border-emerald-500/30 bg-emerald-950/30 text-emerald-200"
+      className="flex items-center gap-2.5 p-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
     >
       <div className="p-1 rounded-full bg-emerald-500/20 text-emerald-400">
         <Sparkles className="h-4 w-4" />
       </div>
       <div className="text-xs">
-        <div className="font-bold text-emerald-300">Verification Gate Passed</div>
-        <div className="text-[10px] text-emerald-400/80">Merkle root secured & ready to export.</div>
+        <div className="font-semibold text-emerald-300">驗證閘門通過 (Gate Passed)</div>
+        <div className="text-[10px] text-emerald-400/90 font-mono">Merkle 根雜湊已鎖定，可隨時匯出 PR。</div>
       </div>
     </div>
   );
@@ -150,7 +150,7 @@ export function AmbientCompanion({ standalone = false, onClose }: AmbientCompani
             {actionMessage && (
               <p
                 data-testid="companion-action-message"
-                className="text-[11px] leading-relaxed text-slate-300 font-mono line-clamp-2 bg-black/40 px-2.5 py-1.5 rounded-lg border border-white/5"
+                className="text-[11px] leading-relaxed text-[var(--t2)] font-mono line-clamp-2 bg-[var(--bg-muted)] px-2.5 py-1.5 rounded-lg border border-[var(--border-c)]"
               >
                 {actionMessage}
               </p>

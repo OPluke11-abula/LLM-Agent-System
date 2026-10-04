@@ -79,23 +79,21 @@ export function Sidebar({ t, relaunchOnboarding, onOpenCommandPalette, onToggleC
 
   return (
     <aside
-      className="relative z-50 flex w-full flex-col border-b p-4 md:fixed md:left-0 md:top-0 md:h-screen md:w-64 md:border-r md:border-b-0 md:p-5 overflow-y-auto"
+      className="relative z-50 flex w-full flex-col border-b p-3 sm:p-4 md:fixed md:left-0 md:top-0 md:h-screen md:w-60 md:border-r md:border-b-0 md:p-4 overflow-y-auto"
       style={{ background: "var(--sidebar)", borderColor: "var(--border-c)" }}
     >
       {/* Brand Header */}
-      <div className="mb-4 px-1 md:mt-1 md:mb-6">
-        <div className="mb-4 flex items-center gap-3">
-          <div
-            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border text-[11px] font-bold tracking-[0.16em] bg-indigo-500/10 border-indigo-500/30 text-indigo-300"
-          >
-            LAS
+      <div className="mb-4 px-1 md:mt-1 md:mb-5">
+        <div className="mb-3.5 flex items-center gap-2.5">
+          <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-[var(--t1)] text-[var(--bg-base)] font-mono text-xs font-bold tracking-tight shadow-xs">
+            L
           </div>
           <div className="min-w-0">
-            <span className="block truncate text-sm font-bold leading-tight" style={{ color: "var(--t1)" }}>
-              {t.appTitle || "控制中心"}
+            <span className="block truncate text-xs font-semibold leading-tight text-[var(--t1)]">
+              {t.appTitle || "LAS 控制中樞"}
             </span>
-            <span className="mt-0.5 block text-[10px] font-medium tracking-wider text-slate-400">
-              代理人控制中樞
+            <span className="mt-0.5 block text-[10px] font-mono text-[var(--t3)]">
+              v3.8.0 協定核心
             </span>
           </div>
         </div>
@@ -104,10 +102,12 @@ export function Sidebar({ t, relaunchOnboarding, onOpenCommandPalette, onToggleC
           <button
             type="button"
             onClick={onOpenCommandPalette}
-            className="quiet-button flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold"
+            className="group flex w-full items-center justify-between rounded-md border border-[var(--border-c)] bg-[var(--bg-card)] px-2.5 py-1.5 text-xs text-[var(--t2)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--t1)]"
           >
-            <span>命令面板</span>
-            <span className="font-mono text-[10px] t3">Ctrl K</span>
+            <span className="font-medium text-[11px]">命令面板</span>
+            <kbd className="rounded border border-[var(--border-c)] bg-[var(--bg-muted)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--t3)] group-hover:text-[var(--t2)]">
+              Ctrl K
+            </kbd>
           </button>
         )}
 
@@ -115,10 +115,13 @@ export function Sidebar({ t, relaunchOnboarding, onOpenCommandPalette, onToggleC
           <button
             type="button"
             onClick={onToggleCompanion}
-            className="quiet-button flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold mt-1.5 text-cyan-300 border-cyan-500/20 bg-cyan-500/5 hover:bg-cyan-500/10"
+            className="mt-1.5 flex w-full items-center justify-between rounded-md border border-[var(--border-c)] bg-[var(--bg-muted)] px-2.5 py-1.5 text-xs text-[var(--t2)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--t1)]"
           >
-            <span>隨行助手</span>
-            <span className="font-mono text-[10px] text-cyan-400">HITL</span>
+            <span className="font-medium text-[11px] flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
+              隨行助手
+            </span>
+            <span className="font-mono text-[10px] text-[var(--t3)]">HITL</span>
           </button>
         )}
       </div>
@@ -127,7 +130,7 @@ export function Sidebar({ t, relaunchOnboarding, onOpenCommandPalette, onToggleC
       <nav className="grid grid-cols-2 gap-3 sm:grid-cols-4 md:block md:flex-1 md:space-y-4" aria-label="主要導覽">
         {sections.map((section) => (
           <div key={section.label} className={section.mobileHidden ? "hidden md:block" : undefined}>
-            <p className="mb-1.5 px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+            <p className="mb-1 px-2 text-[11px] font-medium tracking-tight text-[var(--t3)]">
               {section.label}
             </p>
             <div className="space-y-0.5">
@@ -142,11 +145,13 @@ export function Sidebar({ t, relaunchOnboarding, onOpenCommandPalette, onToggleC
                     key={to}
                     to={to}
                     aria-current={active ? "page" : undefined}
-                    className={`nav-link ${
-                      active ? "nav-link-active" : ""
-                    } group flex min-w-0 items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors`}
+                    className={`group flex min-w-0 items-center gap-2 rounded-md px-2.5 py-1.5 text-xs transition-colors ${
+                      active
+                        ? "bg-[var(--bg-elevated)] font-medium text-[var(--t1)] border border-[var(--border-strong)] shadow-xs"
+                        : "text-[var(--t2)] hover:bg-[var(--bg-muted)] hover:text-[var(--t1)] border border-transparent"
+                    }`}
                   >
-                    <Icon className={`h-4 w-4 shrink-0 ${active ? "text-indigo-400" : "text-slate-400 group-hover:text-slate-200"}`} />
+                    <Icon className={`h-3.5 w-3.5 shrink-0 ${active ? "text-[var(--accent)]" : "text-[var(--t3)] group-hover:text-[var(--t2)]"}`} />
                     <span className="min-w-0 truncate leading-normal">{label}</span>
                   </Link>
                 );
@@ -157,20 +162,19 @@ export function Sidebar({ t, relaunchOnboarding, onOpenCommandPalette, onToggleC
       </nav>
 
       {/* Footer Meta */}
-      <div className="hidden space-y-2.5 border-t pt-4 md:block" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+      <div className="hidden space-y-2 border-t pt-3 md:block" style={{ borderColor: "var(--border-c)" }}>
         {relaunchOnboarding && (
           <button
             type="button"
             onClick={relaunchOnboarding}
-            className="w-full rounded-lg border border-dashed py-1.5 text-center text-xs font-medium transition-colors hover:bg-white/5 active:translate-y-px"
-            style={{ borderColor: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.7)" }}
+            className="w-full rounded-md border border-dashed border-[var(--border-c)] py-1 text-center text-[11px] text-[var(--t3)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--t2)]"
           >
-            {t.relaunchTutorialBtn || "重新開啟新手教學"}
+            {t.relaunchTutorialBtn || "新手引導"}
           </button>
         )}
-        <div className="flex items-center justify-between text-[10px] font-medium tracking-wide text-slate-500">
-          <span>協定基準線</span>
-          <span className="font-mono text-indigo-400/80">PAP v3.8.0</span>
+        <div className="flex items-center justify-between text-[10px] font-mono text-[var(--t3)]">
+          <span>協定基準</span>
+          <span className="text-[var(--t2)]">PAP v3.8.0</span>
         </div>
       </div>
     </aside>

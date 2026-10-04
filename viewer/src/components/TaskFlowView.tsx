@@ -814,7 +814,7 @@ export function TaskFlowView(props: TaskFlowViewProps) {
   const controller = useTaskFlowController(props);
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto">
+    <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto p-4 md:p-6" style={{ background: "var(--bg-base)" }}>
       <TaskFlowWorkspaceTabs controller={controller} />
       <TaskFlowHero controller={controller} />
       <TaskFlowStats controller={controller} />

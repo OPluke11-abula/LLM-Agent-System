@@ -95,8 +95,8 @@ export function CodingPipelineView({ lang = "zh", activeWorkspacePath }: CodingP
               <VerificationLadderCard taskDetail={taskDetail} />
             </>
           ) : (
-            <div className="text-center py-16 text-slate-400 text-xs">
-              Select a task from the list or create a new coding task.
+            <div className="text-center py-16 text-[var(--t3)] text-xs">
+              請從左側清單選擇任務，或點擊「建立編程任務」以開始。
             </div>
           )}
         </div>

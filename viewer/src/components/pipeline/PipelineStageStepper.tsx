@@ -17,14 +17,14 @@ export function PipelineStageStepper({ taskDetail }: PipelineStageStepperProps) 
   const curIdx = currentStageIndex();
 
   return (
-    <Card className="card-bg border-border-c">
+    <Card className="card-bg border-[var(--border-c)]">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-xs font-semibold t2 uppercase tracking-wider">
-            Execution Stepper: {taskDetail.task_id}
+            流水線執行階段進度：{taskDetail.task_id}
           </CardTitle>
-          <span className="font-mono text-xs text-slate-400">
-            Target: {taskDetail.request.target_branch}
+          <span className="font-mono text-xs text-[var(--t3)]">
+            目標分支: {taskDetail.request.target_branch}
           </span>
         </div>
       </CardHeader>
@@ -38,17 +38,17 @@ export function PipelineStageStepper({ taskDetail }: PipelineStageStepperProps) 
               <div
                 key={s.id}
                 className={cx(
-                  "rounded-lg border p-2.5 text-center flex flex-col items-center justify-center transition-all",
+                  "rounded-md border p-2 text-center flex flex-col items-center justify-center transition-colors",
                   isPast
-                    ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
                     : isCurrent
-                    ? "border-indigo-500 bg-indigo-500/20 text-white shadow-[0_0_16px_rgba(99,102,241,0.3)] animate-pulse"
-                    : "border-white/5 bg-white/[0.02] text-slate-500"
+                    ? "border-[var(--accent)] bg-[var(--bg-elevated)] text-[var(--accent)] font-medium"
+                    : "border-[var(--border-c)] bg-[var(--bg-muted)] text-[var(--t3)]"
                 )}
               >
-                <div className="mb-1 text-[10px] font-mono">Step {idx + 1}</div>
-                <div className="text-xs font-bold leading-tight">{s.label}</div>
-                <div className="mt-1 text-[9px] opacity-70 leading-tight hidden md:block">
+                <div className="mb-0.5 text-[10px] font-mono">Step {idx + 1}</div>
+                <div className="text-xs font-semibold leading-tight">{s.label}</div>
+                <div className="mt-0.5 text-[9px] opacity-70 leading-tight hidden md:block">
                   {s.desc}
                 </div>
               </div>

@@ -55,8 +55,8 @@ export function Button({ variant = "quiet", size = "md", className, ...props }: 
         variant === "quiet" && "quiet-button",
         variant === "danger" && "danger-button",
         variant === "warning" && "warning-button",
-        variant === "outline" && "border border-[var(--border-c)] hover:bg-white/5 t1",
-        variant === "ghost" && "hover:bg-white/5 t2 hover:text-[var(--t1)]",
+        variant === "outline" && "border border-[var(--border-c)] hover:border-[var(--border-strong)] hover:bg-white/[0.04] t1",
+        variant === "ghost" && "hover:bg-white/[0.05] t2 hover:text-[var(--t1)]",
         className
       )}
       {...props}
@@ -64,8 +64,38 @@ export function Button({ variant = "quiet", size = "md", className, ...props }: 
   );
 }
 
-export function LinkButton({ to, variant = "quiet", children, className }: { to: string; variant?: ButtonProps["variant"]; children: ReactNode; className?: string }) {
-  return <Link to={to} className={cx("rounded-lg px-3 py-1.5 text-xs font-semibold transition-all", variant === "primary" && "primary-button", variant === "quiet" && "quiet-button", variant === "danger" && "danger-button", variant === "warning" && "warning-button", className)}>{children}</Link>;
+export function LinkButton({
+  to,
+  variant = "quiet",
+  size = "md",
+  children,
+  className,
+}: {
+  to: string;
+  variant?: ButtonProps["variant"];
+  size?: ButtonProps["size"];
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <Link
+      to={to}
+      className={cx(
+        "inline-flex items-center justify-center gap-1.5 rounded-md font-medium transition-all active:scale-[0.98]",
+        size === "sm" && "px-2.5 py-1 text-xs",
+        size === "md" && "px-3 py-1.5 text-xs",
+        size === "lg" && "px-4 py-2 text-sm",
+        variant === "primary" && "primary-button",
+        variant === "quiet" && "quiet-button",
+        variant === "danger" && "danger-button",
+        variant === "warning" && "warning-button",
+        variant === "outline" && "border border-[var(--border-c)] hover:border-[var(--border-strong)] hover:bg-white/[0.04] t1",
+        className
+      )}
+    >
+      {children}
+    </Link>
+  );
 }
 
 /* =========================================================================
@@ -82,10 +112,10 @@ type StatusBadgeProps = {
 export function StatusBadge({ children, tone = "neutral", className, pulse = false }: StatusBadgeProps) {
   return (
     <span
-      className={cx("inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium leading-none", className)}
+      className={cx("inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] font-mono leading-none tracking-tight", className)}
       style={{
         color: toneVar[tone],
-        borderColor: `color-mix(in srgb, ${toneVar[tone]} 28%, transparent)`,
+        borderColor: `color-mix(in srgb, ${toneVar[tone]} 24%, var(--border-c))`,
         background: toneBgVar[tone],
       }}
     >
@@ -107,9 +137,9 @@ type MetricTileProps = {
 
 export function MetricTile({ label, value, tone, className }: MetricTileProps) {
   return (
-    <div className={cx("card-bg rounded-lg border p-3.5", className)} style={{ borderColor: "var(--border-c)" }}>
-      <div className="text-xs font-medium text-[var(--t2)]">{label}</div>
-      <div className="mt-1 font-mono text-2xl font-semibold tracking-tight" style={{ color: tone ? toneVar[tone] : "var(--t1)" }}>
+    <div className={cx("card-bg rounded-lg border p-3.5 transition-colors hover:border-[var(--border-strong)]", className)} style={{ borderColor: "var(--border-c)" }}>
+      <div className="text-[11px] font-medium tracking-wider text-[var(--t3)] uppercase">{label}</div>
+      <div className="mt-1.5 font-mono text-2xl font-bold tracking-tight tabular-nums" style={{ color: tone ? toneVar[tone] : "var(--t1)" }}>
         {value}
       </div>
     </div>
@@ -132,7 +162,7 @@ export function ProgressBar({ value, tone = "accent", className, ariaLabel = "Pr
       aria-valuenow={clamped}
       aria-valuemin={0}
       aria-valuemax={100}
-      className={cx("h-1.5 w-full overflow-hidden rounded-full bg-[var(--bg-muted)]", className)}
+      className={cx("h-1 w-full overflow-hidden rounded-full bg-[var(--bg-muted)] border border-[var(--border-c)]", className)}
     >
       <div
         className="h-full transition-[width] duration-300 rounded-full"
@@ -149,7 +179,7 @@ export function ProgressBar({ value, tone = "accent", className, ariaLabel = "Pr
 export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cx("rounded-xl border card-bg shadow-sm transition-all", className)}
+      className={cx("rounded-lg border card-bg shadow-xs transition-colors hover:border-[var(--border-strong)]", className)}
       style={{ borderColor: "var(--border-c)" }}
       {...props}
     />
@@ -157,11 +187,11 @@ export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
 }
 
 export function CardHeader({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cx("flex flex-col space-y-1.5 p-5", className)} {...props} />;
+  return <div className={cx("flex flex-col space-y-1.5 p-4 sm:p-5", className)} {...props} />;
 }
 
 export function CardTitle({ className, ...props }: HTMLAttributes<HTMLHeadingElement>) {
-  return <h3 className={cx("text-base font-semibold leading-none tracking-tight t1", className)} {...props} />;
+  return <h3 className={cx("text-sm font-semibold leading-none tracking-tight t1", className)} {...props} />;
 }
 
 export function CardDescription({ className, ...props }: HTMLAttributes<HTMLParagraphElement>) {
@@ -169,11 +199,11 @@ export function CardDescription({ className, ...props }: HTMLAttributes<HTMLPara
 }
 
 export function CardContent({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cx("p-5 pt-0", className)} {...props} />;
+  return <div className={cx("p-4 sm:p-5 pt-0", className)} {...props} />;
 }
 
 export function CardFooter({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cx("flex items-center p-5 pt-0", className)} {...props} />;
+  return <div className={cx("flex items-center p-4 sm:p-5 pt-0", className)} {...props} />;
 }
 
 /* =========================================================================
@@ -520,9 +550,9 @@ export function BentoCard({
   return (
     <div
       className={cx(
-        "group relative overflow-hidden rounded-xl border border-white/10 bg-[#0d1017]/80 backdrop-blur-xl p-5",
-        "transition-all duration-300 hover:border-white/20 hover:shadow-[0_8px_30px_rgba(0,0,0,0.5)]",
-        spotlight && "hover:bg-[#121622]/90",
+        "group relative overflow-hidden rounded-xl border border-[var(--border-c)] bg-[var(--bg-card)] p-5",
+        "transition-all duration-300 hover:border-[var(--border-strong)] hover:shadow-xs",
+        spotlight && "hover:bg-[var(--bg-elevated)]",
         className
       )}
       {...props}

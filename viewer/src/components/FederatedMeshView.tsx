@@ -76,7 +76,7 @@ export const FederatedMeshView: React.FC<FederatedMeshViewProps> = ({ lang: _lan
   } = useFederatedMesh();
 
   return (
-    <div className="flex h-full flex-col overflow-y-auto bg-[var(--bg)] p-6 text-[var(--t1)]">
+    <div className="flex h-full flex-col overflow-y-auto p-4 md:p-6 space-y-5" style={{ background: "var(--bg-base)" }}>
       <MeshHeader
         loading={loading}
         onRefresh={() => fetchMeshStatus()}

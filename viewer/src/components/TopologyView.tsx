@@ -651,7 +651,7 @@ export function TopologyView(props: TopologyViewProps) {
 
 function TopologyViewShell({ controller }: { readonly controller: TopologyController }) {
   return (
-    <div className="grid h-full min-h-0 grid-cols-[280px_minmax(0,1fr)_320px] gap-4 overflow-hidden">
+    <div className="grid h-full min-h-0 grid-cols-[280px_minmax(0,1fr)_320px] gap-4 overflow-hidden p-4 md:p-6" style={{ background: "var(--bg-base)" }}>
       <TopologyControlRail controller={controller} />
       <TopologyCanvasArea controller={controller} />
       <TopologyInspectorRail controller={controller} />

@@ -804,7 +804,7 @@ function AdminDashboardShell({
   const { lang, setTimedActionStatus } = controller;
 
   return (
-    <div className="flex h-full flex-col gap-4 overflow-y-auto pr-2">
+    <div className="flex h-full flex-col gap-4 overflow-y-auto p-4 md:p-6" style={{ background: "var(--bg-base)" }}>
       <AdminDashboardHeader controller={controller} />
       <TenantBillingSection controller={controller} />
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
